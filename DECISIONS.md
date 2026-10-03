@@ -28,6 +28,10 @@ Le **contrat d'API** (routes et format des réponses) est écrit par Oktav, au f
 - microservice Node / Socket.IO (deuxième auth et deuxième déploiement, code non maîtrisé par l'équipe backend) ;
 - Inertia (le front devrait coder dans le projet Laravel et dépendrait des contrôleurs PHP).
 
+## Organisation du code
+
+Un seul dépôt : `frontend/` (React) + `backend/` (Laravel).
+
 ## Rôles
 
 | Membre | Rôle |
