@@ -77,6 +77,12 @@ On liste uniquement les routes du MVP, ressource par ressource : **Comptes**, **
 - **Canaux** : une discussion appartient à un canal (ex. `#laravel`, `#mobile-money`) ou à une appli. Même mécanisme de filtre : `GET /discussions?canal=laravel`. Routes : `GET /canaux`, `POST /canaux`.
 - **Sujets** : des étiquettes posées sur une discussion (ex. `bug`, `question`, `tuto`). Filtre : `GET /discussions?etiquette=bug`.
 
+### Correctifs
+
+- Routes : `POST /discussions/{id}/correctifs` (proposer : lien vers un fork ou une branche GitHub), `GET /discussions/{id}/correctifs`, `POST /correctifs/{id}/accepter`.
+- Un correctif est **un dépôt que le moteur déploie** : on réutilise la ressource Déploiements, l'auteur voit la version corrigée tourner.
+- Pas de permission `repo` : « accepter » ne fusionne rien, l'auteur fusionne lui-même sur GitHub.
+
 ### Événements
 
 Rencontre avec date et inscription, en ligne (avec lien) ou en présentiel (avec lieu).
