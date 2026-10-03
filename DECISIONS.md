@@ -1,6 +1,6 @@
 # Décisions — Souk.dev
 
-Décisions prises par l'équipe. Mis à jour au fil du projet.
+Décisions prises par l'équipe, validées par Oktav. Mis à jour au fil du projet.
 
 ## Ordre de construction
 
