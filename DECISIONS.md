@@ -64,6 +64,12 @@ On liste uniquement les routes du MVP, ressource par ressource : **Comptes**, **
 - Routes : `GET /apps` (le store), `GET /apps/{id}` (détail : README, démo, prix, auteur), `POST /apps` (publier : dépôt, lien de démo, prix), `PATCH /apps/{id}` (modifier), `DELETE /apps/{id}` (retirer).
 - `POST /apps` **valide `soukdev.json` immédiatement** et refuse la publication s'il est invalide : le dev voit l'erreur en publiant, pas un client en déployant.
 
+### Déploiements
+
+- Routes : `POST /apps/{id}/deployments` (lancer, avec les variables du client), `GET /deployments/{id}` (état et URL), `GET /deployments` (mes déploiements), `DELETE /deployments/{id}` (arrêter).
+- Un déploiement dure plusieurs minutes : le `POST` répond **tout de suite** avec l'état `en_file`, le travail tourne en tâche de fond (file d'attente Laravel).
+- Reverb pousse chaque changement d'état au front : `en_file` → `construction` → `demarrage` → `en_ligne` ou `echec`.
+
 ## Rôles
 
 | Membre | Rôle |
