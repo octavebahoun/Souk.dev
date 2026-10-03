@@ -24,8 +24,8 @@ Décisions prises par l'équipe, validées par Oktav. Mis à jour au fil du proj
 |---|---|
 | Oktav | Frontend React + coordination |
 | Hope | Frontend React |
-| Mourchid | Backend Laravel : moteur de déploiement |
-| Wasfade | Backend Laravel : API Échange + Store, Reverb |
+| Mourchid | Backend Laravel : moteur de déploiement, puis Publier + Store une fois le moteur stable |
+| Wasfade | Backend Laravel : API Échange, Reverb, comptes utilisateurs |
 | Jean-Baptiste | CI/CD, SAST, DAST, sécurité, tests ; appui Docker et VPS pour le moteur |
 
 ## Moteur de déploiement
