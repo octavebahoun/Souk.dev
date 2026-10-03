@@ -74,7 +74,16 @@ On liste uniquement les routes du MVP, ressource par ressource : **Comptes**, **
 
 - Routes : `GET /discussions` (le fil), `POST /discussions` (poster un bug, appli jointe en option), `GET /discussions/{id}`, `POST /discussions/{id}/messages` (répondre).
 - **Une seule ressource** pour l'échange central et la discussion propre à chaque appli : filtre `GET /discussions?app=42`.
-- À compléter : canaux de discussion, événements, sujets.
+- **Canaux** : une discussion appartient à un canal (ex. `#laravel`, `#mobile-money`) ou à une appli. Même mécanisme de filtre : `GET /discussions?canal=laravel`. Routes : `GET /canaux`, `POST /canaux`.
+- À compléter : sujets.
+
+### Événements
+
+Rencontre avec date et inscription, en ligne (avec lien) ou en présentiel (avec lieu).
+
+- Routes : `GET /events`, `POST /events` (titre, date, type, lieu ou lien), `GET /events/{id}`, `POST /events/{id}/inscription`, `DELETE /events/{id}/inscription`, `GET /events/{id}/participants`, `POST /events/{id}/avis`.
+- Un avis ne peut être laissé que par un **inscrit**, et seulement **après la date** de l'événement.
+- Le lien en ligne n'est visible **que par les inscrits**.
 
 ## Rôles
 
