@@ -36,7 +36,7 @@ Le **contrat d'API** (routes et format des réponses) est écrit par Oktav, au f
 | Hope | Frontend React |
 | Mourchid | Backend Laravel : moteur de déploiement, puis Publier + Store une fois le moteur stable |
 | Wasfade | Backend Laravel : API Échange, Reverb, comptes utilisateurs |
-| Jean-Baptiste | CI/CD, SAST, DAST, sécurité, tests ; appui Docker et VPS pour le moteur |
+| Jean-Baptiste | CI/CD, SAST, DAST, sécurité, tests ; vérification automatique des licences en CI (`composer licenses`, `license-checker`) ; appui Docker et VPS pour le moteur |
 
 ## Moteur de déploiement
 
