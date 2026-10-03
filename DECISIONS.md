@@ -70,6 +70,12 @@ On liste uniquement les routes du MVP, ressource par ressource : **Comptes**, **
 - Un déploiement dure plusieurs minutes : le `POST` répond **tout de suite** avec l'état `en_file`, le travail tourne en tâche de fond (file d'attente Laravel).
 - Reverb pousse chaque changement d'état au front : `en_file` → `construction` → `demarrage` → `en_ligne` ou `echec`.
 
+### Discussions (en cours)
+
+- Routes : `GET /discussions` (le fil), `POST /discussions` (poster un bug, appli jointe en option), `GET /discussions/{id}`, `POST /discussions/{id}/messages` (répondre).
+- **Une seule ressource** pour l'échange central et la discussion propre à chaque appli : filtre `GET /discussions?app=42`.
+- À compléter : canaux de discussion, événements, sujets.
+
 ## Rôles
 
 | Membre | Rôle |
