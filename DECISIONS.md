@@ -75,7 +75,7 @@ On liste uniquement les routes du MVP, ressource par ressource : **Comptes**, **
 - Routes : `GET /discussions` (le fil), `POST /discussions` (poster un bug, appli jointe en option), `GET /discussions/{id}`, `POST /discussions/{id}/messages` (répondre).
 - **Une seule ressource** pour l'échange central et la discussion propre à chaque appli : filtre `GET /discussions?app=42`.
 - **Canaux** : une discussion appartient à un canal (ex. `#laravel`, `#mobile-money`) ou à une appli. Même mécanisme de filtre : `GET /discussions?canal=laravel`. Routes : `GET /canaux`, `POST /canaux`.
-- À compléter : sujets.
+- **Sujets** : des étiquettes posées sur une discussion (ex. `bug`, `question`, `tuto`). Filtre : `GET /discussions?etiquette=bug`.
 
 ### Événements
 
