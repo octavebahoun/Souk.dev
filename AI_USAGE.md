@@ -8,3 +8,4 @@ Mis à jour au fil du projet.
 | 2026-10-03 | Claude Code | Lecture du brief, création de ce fichier |
 | 2026-10-03 | Claude Code | Rédaction de DECISIONS.md à partir des échanges avec l'équipe |
 | 2026-10-03 | Claude Code | Création de LICENSES.md |
+| 2026-10-03 | Claude Code | Squelette de openapi.yaml (routes déclarées, schémas à compléter) |

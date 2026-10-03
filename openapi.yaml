@@ -1,0 +1,766 @@
+openapi: 3.1.0
+info:
+  title: Souk.dev API
+  version: 0.1.0
+  description: |
+    Contrat d'API du MVP Souk.dev (squelette).
+    Source unique des types : le front génère ses types avec openapi-typescript,
+    le back vérifie ses réponses dans les tests.
+    Les « TODO » sont à compléter par Oktav.
+
+servers:
+  - url: /api
+
+tags:
+  - name: Comptes
+  - name: Applis
+  - name: Déploiements
+  - name: Discussions
+  - name: Correctifs
+  - name: Événements
+
+security:
+  - session: []
+
+paths:
+  # ───────────── Comptes ─────────────
+  /auth/github:
+    get:
+      tags: [Comptes]
+      operationId: githubRedirect
+      summary: Redirige vers GitHub pour la connexion (dépôts publics uniquement, jamais la permission repo)
+      security: []
+      responses:
+        '302':
+          description: Redirection vers GitHub
+
+  /auth/github/callback:
+    get:
+      tags: [Comptes]
+      operationId: githubCallback
+      summary: Retour de GitHub, ouvre la session
+      security: []
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema: { type: string }
+        - name: state
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        '302':
+          description: Session ouverte, redirection vers le front
+
+  /logout:
+    post:
+      tags: [Comptes]
+      operationId: logout
+      summary: Ferme la session
+      responses:
+        '204':
+          description: Déconnecté
+
+  /me:
+    get:
+      tags: [Comptes]
+      operationId: getMe
+      summary: Mon compte
+      responses:
+        '200':
+          description: Le dev connecté
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Dev' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+
+  /devs/{username}:
+    get:
+      tags: [Comptes]
+      operationId: getDev
+      summary: Profil public (dépôts, étoiles, README)
+      security: []
+      parameters:
+        - name: username
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Profil public
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProfilDev' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+
+  # ───────────── Applis ─────────────
+  /apps:
+    get:
+      tags: [Applis]
+      operationId: listApps
+      summary: Le store
+      security: []
+      responses:
+        '200':
+          description: Liste des applis
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/App' }
+    post:
+      tags: [Applis]
+      operationId: createApp
+      summary: Publier une appli (soukdev.json validé immédiatement)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AppCreation' }
+      responses:
+        '201':
+          description: Appli publiée
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/App' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '422': { $ref: '#/components/responses/Invalide' }
+
+  /apps/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Applis]
+      operationId: getApp
+      summary: Détail d'une appli (README, démo, prix, auteur)
+      security: []
+      responses:
+        '200':
+          description: L'appli
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/App' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+    patch:
+      tags: [Applis]
+      operationId: updateApp
+      summary: Modifier une appli (auteur uniquement)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AppModification' }
+      responses:
+        '200':
+          description: Appli modifiée
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/App' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '422': { $ref: '#/components/responses/Invalide' }
+    delete:
+      tags: [Applis]
+      operationId: deleteApp
+      summary: Retirer une appli (auteur uniquement)
+      responses:
+        '204':
+          description: Appli retirée
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+
+  # ───────────── Déploiements ─────────────
+  /apps/{id}/deployments:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [Déploiements]
+      operationId: createDeployment
+      summary: Lancer un déploiement (répond tout de suite avec l'état en_file)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DeploiementCreation' }
+      responses:
+        '202':
+          description: Déploiement mis en file ; les changements d'état arrivent par Reverb
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Deploiement' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '422': { $ref: '#/components/responses/Invalide' }
+
+  /deployments:
+    get:
+      tags: [Déploiements]
+      operationId: listDeployments
+      summary: Mes déploiements
+      responses:
+        '200':
+          description: Liste de mes déploiements
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Deploiement' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+
+  /deployments/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Déploiements]
+      operationId: getDeployment
+      summary: État et URL d'un déploiement
+      responses:
+        '200':
+          description: Le déploiement
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Deploiement' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+    delete:
+      tags: [Déploiements]
+      operationId: deleteDeployment
+      summary: Arrêter un déploiement
+      responses:
+        '204':
+          description: Déploiement arrêté
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+
+  # ───────────── Discussions ─────────────
+  /discussions:
+    get:
+      tags: [Discussions]
+      operationId: listDiscussions
+      summary: Le fil (filtrable par appli, canal ou étiquette)
+      security: []
+      parameters:
+        - name: app
+          in: query
+          schema: { type: integer }
+        - name: canal
+          in: query
+          schema: { type: string }
+        - name: etiquette
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Liste des discussions
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Discussion' }
+    post:
+      tags: [Discussions]
+      operationId: createDiscussion
+      summary: Poster une discussion (appli jointe en option)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DiscussionCreation' }
+      responses:
+        '201':
+          description: Discussion créée
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Discussion' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '422': { $ref: '#/components/responses/Invalide' }
+
+  /discussions/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Discussions]
+      operationId: getDiscussion
+      summary: Une discussion et ses messages
+      security: []
+      responses:
+        '200':
+          description: La discussion
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Discussion' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+
+  /discussions/{id}/messages:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [Discussions]
+      operationId: createMessage
+      summary: Répondre dans une discussion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MessageCreation' }
+      responses:
+        '201':
+          description: Message publié (diffusé par Reverb)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Message' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '422': { $ref: '#/components/responses/Invalide' }
+
+  /canaux:
+    get:
+      tags: [Discussions]
+      operationId: listCanaux
+      summary: Liste des canaux
+      security: []
+      responses:
+        '200':
+          description: Liste des canaux
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Canal' }
+    post:
+      tags: [Discussions]
+      operationId: createCanal
+      summary: Créer un canal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CanalCreation' }
+      responses:
+        '201':
+          description: Canal créé
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Canal' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '422': { $ref: '#/components/responses/Invalide' }
+
+  # ───────────── Correctifs ─────────────
+  /discussions/{id}/correctifs:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Correctifs]
+      operationId: listCorrectifs
+      summary: Correctifs proposés pour une discussion
+      security: []
+      responses:
+        '200':
+          description: Liste des correctifs
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Correctif' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+    post:
+      tags: [Correctifs]
+      operationId: createCorrectif
+      summary: Proposer un correctif (fork ou branche GitHub, déployé par le moteur)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CorrectifCreation' }
+      responses:
+        '201':
+          description: Correctif proposé, son déploiement est lancé
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Correctif' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '422': { $ref: '#/components/responses/Invalide' }
+
+  /correctifs/{id}/accepter:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [Correctifs]
+      operationId: acceptCorrectif
+      summary: Accepter un correctif (auteur de la discussion ; ne fusionne rien sur GitHub)
+      responses:
+        '200':
+          description: Correctif accepté
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Correctif' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+
+  # ───────────── Événements ─────────────
+  /events:
+    get:
+      tags: [Événements]
+      operationId: listEvents
+      summary: Liste des événements
+      security: []
+      responses:
+        '200':
+          description: Liste des événements
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Evenement' }
+    post:
+      tags: [Événements]
+      operationId: createEvent
+      summary: Créer un événement
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EvenementCreation' }
+      responses:
+        '201':
+          description: Événement créé
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Evenement' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '422': { $ref: '#/components/responses/Invalide' }
+
+  /events/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Événements]
+      operationId: getEvent
+      summary: Détail d'un événement (lien en ligne visible par les inscrits uniquement)
+      security: []
+      responses:
+        '200':
+          description: L'événement
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Evenement' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+
+  /events/{id}/inscription:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [Événements]
+      operationId: registerEvent
+      summary: S'inscrire
+      responses:
+        '204':
+          description: Inscrit
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+    delete:
+      tags: [Événements]
+      operationId: unregisterEvent
+      summary: Se désinscrire
+      responses:
+        '204':
+          description: Désinscrit
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+
+  /events/{id}/participants:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Événements]
+      operationId: listParticipants
+      summary: Liste des participants
+      responses:
+        '200':
+          description: Liste des participants
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Dev' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+
+  /events/{id}/avis:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [Événements]
+      operationId: createAvis
+      summary: Laisser un avis (inscrit uniquement, après la date)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AvisCreation' }
+      responses:
+        '201':
+          description: Avis publié
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Avis' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '422': { $ref: '#/components/responses/Invalide' }
+
+components:
+  securitySchemes:
+    session:
+      type: apiKey
+      in: cookie
+      name: souk_session
+      description: Session Laravel Sanctum (SPA). TODO confirmer le nom du cookie.
+
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer }
+
+  responses:
+    NonConnecte:
+      description: Non connecté
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Erreur' }
+    Interdit:
+      description: Action non autorisée
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Erreur' }
+    Introuvable:
+      description: Ressource introuvable
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Erreur' }
+    Invalide:
+      description: Données invalides (ex. soukdev.json invalide)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErreurValidation' }
+
+  schemas:
+    Erreur:
+      type: object
+      required: [message]
+      properties:
+        message: { type: string }
+
+    ErreurValidation:
+      type: object
+      required: [message, errors]
+      properties:
+        message: { type: string }
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items: { type: string }
+
+    Dev:
+      type: object
+      description: TODO compléter
+      required: [id, username]
+      properties:
+        id: { type: integer }
+        username: { type: string }
+        avatar_url: { type: string, format: uri }
+
+    ProfilDev:
+      description: TODO compléter (dépôts, étoiles, README)
+      allOf:
+        - $ref: '#/components/schemas/Dev'
+        - type: object
+          properties:
+            depots:
+              type: array
+              items: { $ref: '#/components/schemas/Depot' }
+
+    Depot:
+      type: object
+      description: TODO compléter
+      properties:
+        nom: { type: string }
+        url: { type: string, format: uri }
+        etoiles: { type: integer }
+        readme: { type: string }
+
+    App:
+      type: object
+      description: TODO compléter
+      required: [id, nom, prix, demo_url]
+      properties:
+        id: { type: integer }
+        nom: { type: string }
+        prix: { type: integer, description: Prix mensuel en FCFA ; 0 = gratuit }
+        demo_url: { type: string, format: uri }
+        depot_url: { type: string, format: uri }
+        auteur: { $ref: '#/components/schemas/Dev' }
+
+    AppCreation:
+      type: object
+      description: TODO compléter
+      required: [depot_url, demo_url, prix]
+      properties:
+        depot_url: { type: string, format: uri }
+        demo_url: { type: string, format: uri }
+        prix: { type: integer }
+
+    AppModification:
+      type: object
+      description: TODO compléter
+      properties:
+        demo_url: { type: string, format: uri }
+        prix: { type: integer }
+
+    Deploiement:
+      type: object
+      description: TODO compléter
+      required: [id, etat]
+      properties:
+        id: { type: integer }
+        etat:
+          type: string
+          enum: [en_file, construction, demarrage, en_ligne, echec]
+        url:
+          type: [string, 'null']
+          format: uri
+          description: Renseignée quand l'état est en_ligne
+
+    DeploiementCreation:
+      type: object
+      description: Variables remplies par le client, déclarées dans soukdev.json. TODO compléter
+      properties:
+        variables:
+          type: object
+          additionalProperties: { type: string }
+
+    Discussion:
+      type: object
+      description: TODO compléter
+      required: [id, titre]
+      properties:
+        id: { type: integer }
+        titre: { type: string }
+        canal: { type: [string, 'null'] }
+        app_id: { type: [integer, 'null'] }
+        etiquettes:
+          type: array
+          items: { type: string }
+        messages:
+          type: array
+          items: { $ref: '#/components/schemas/Message' }
+
+    DiscussionCreation:
+      type: object
+      description: TODO compléter
+      required: [titre, texte]
+      properties:
+        titre: { type: string }
+        texte: { type: string }
+        canal: { type: string }
+        app_id: { type: integer }
+        etiquettes:
+          type: array
+          items: { type: string }
+
+    Message:
+      type: object
+      description: TODO compléter
+      required: [id, texte]
+      properties:
+        id: { type: integer }
+        texte: { type: string }
+        auteur: { $ref: '#/components/schemas/Dev' }
+
+    MessageCreation:
+      type: object
+      required: [texte]
+      properties:
+        texte: { type: string }
+
+    Canal:
+      type: object
+      description: TODO compléter
+      required: [slug, nom]
+      properties:
+        slug: { type: string }
+        nom: { type: string }
+
+    CanalCreation:
+      type: object
+      required: [nom]
+      properties:
+        nom: { type: string }
+
+    Correctif:
+      type: object
+      description: TODO compléter
+      required: [id, depot_url, accepte]
+      properties:
+        id: { type: integer }
+        depot_url: { type: string, format: uri, description: Fork ou branche GitHub }
+        accepte: { type: boolean }
+        deploiement: { $ref: '#/components/schemas/Deploiement' }
+        auteur: { $ref: '#/components/schemas/Dev' }
+
+    CorrectifCreation:
+      type: object
+      required: [depot_url]
+      properties:
+        depot_url: { type: string, format: uri }
+
+    Evenement:
+      type: object
+      description: TODO compléter
+      required: [id, titre, date, type]
+      properties:
+        id: { type: integer }
+        titre: { type: string }
+        date: { type: string, format: date-time }
+        type:
+          type: string
+          enum: [en_ligne, presentiel]
+        lieu: { type: [string, 'null'] }
+        lien:
+          type: [string, 'null']
+          format: uri
+          description: null si le dev connecté n'est pas inscrit
+
+    EvenementCreation:
+      type: object
+      description: TODO compléter
+      required: [titre, date, type]
+      properties:
+        titre: { type: string }
+        date: { type: string, format: date-time }
+        type:
+          type: string
+          enum: [en_ligne, presentiel]
+        lieu: { type: string }
+        lien: { type: string, format: uri }
+
+    Avis:
+      type: object
+      description: TODO compléter
+      required: [id, note]
+      properties:
+        id: { type: integer }
+        note: { type: integer, minimum: 1, maximum: 5 }
+        commentaire: { type: string }
+        auteur: { $ref: '#/components/schemas/Dev' }
+
+    AvisCreation:
+      type: object
+      required: [note]
+      properties:
+        note: { type: integer, minimum: 1, maximum: 5 }
+        commentaire: { type: string }
