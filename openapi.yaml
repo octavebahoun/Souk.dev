@@ -6,7 +6,7 @@ info:
     Contrat d'API du MVP Souk.dev (squelette).
     Source unique des types : le front génère ses types avec openapi-typescript,
     le back vérifie ses réponses dans les tests.
-    Les « TODO » sont à compléter par Oktav.
+    Les « TODO » restants sont à compléter par Oktav.
 
 servers:
   - url: /api
@@ -561,72 +561,111 @@ components:
         message: { type: string }
         errors:
           type: object
+          description: Erreurs par champ (format de validation Laravel)
           additionalProperties:
             type: array
             items: { type: string }
 
+    # ───────────── Comptes ─────────────
     Dev:
       type: object
-      description: TODO compléter
-      required: [id, username]
+      description: Un dev, tel qu'il apparaît partout (auteur, participant…)
+      required: [id, username, avatar_url, github_url]
       properties:
         id: { type: integer }
-        username: { type: string }
+        username: { type: string, description: Identifiant GitHub }
+        nom: { type: [string, 'null'] }
         avatar_url: { type: string, format: uri }
+        github_url: { type: string, format: uri }
 
     ProfilDev:
-      description: TODO compléter (dépôts, étoiles, README)
+      description: Profil public d'un dev, avec ses dépôts publics GitHub et ses applis publiées
       allOf:
         - $ref: '#/components/schemas/Dev'
         - type: object
+          required: [depots, applis]
           properties:
+            bio: { type: [string, 'null'] }
             depots:
               type: array
               items: { $ref: '#/components/schemas/Depot' }
+            applis:
+              type: array
+              items: { $ref: '#/components/schemas/App' }
 
     Depot:
       type: object
-      description: TODO compléter
+      description: Dépôt public GitHub du dev
+      required: [nom, url, etoiles]
       properties:
         nom: { type: string }
+        description: { type: [string, 'null'] }
         url: { type: string, format: uri }
         etoiles: { type: integer }
-        readme: { type: string }
+        langage: { type: [string, 'null'] }
+        readme: { type: [string, 'null'], description: README en Markdown }
 
+    # ───────────── Applis ─────────────
     App:
       type: object
-      description: TODO compléter
-      required: [id, nom, prix, demo_url]
+      required: [id, nom, description, prix, demo_url, depot_url, backend, variables_client, auteur, cree_le]
       properties:
         id: { type: integer }
         nom: { type: string }
-        prix: { type: integer, description: Prix mensuel en FCFA ; 0 = gratuit }
+        description: { type: string }
+        readme: { type: [string, 'null'], description: README du dépôt en Markdown }
+        prix: { type: integer, minimum: 0, description: Prix mensuel en FCFA ; 0 = gratuit }
         demo_url: { type: string, format: uri }
         depot_url: { type: string, format: uri }
+        backend:
+          type: string
+          enum: [propre, integre]
+          description: Type de backend déclaré dans soukdev.json
+        variables_client:
+          type: array
+          description: Variables que le client remplit au déploiement (déclarées dans soukdev.json)
+          items: { $ref: '#/components/schemas/VariableClient' }
         auteur: { $ref: '#/components/schemas/Dev' }
+        cree_le: { type: string, format: date-time }
+
+    VariableClient:
+      type: object
+      required: [nom, libelle, requis]
+      properties:
+        nom: { type: string, description: 'Nom de la variable, ex. PHARMACIE_NOM' }
+        libelle: { type: string, description: 'Texte affiché au client, ex. « Nom de la pharmacie »' }
+        requis: { type: boolean }
 
     AppCreation:
       type: object
-      description: TODO compléter
-      required: [depot_url, demo_url, prix]
+      required: [nom, description, depot_url, demo_url, prix]
       properties:
-        depot_url: { type: string, format: uri }
+        nom: { type: string, maxLength: 100 }
+        description: { type: string, maxLength: 1000 }
+        depot_url: { type: string, format: uri, description: Dépôt GitHub public contenant docker-compose.yml et soukdev.json }
         demo_url: { type: string, format: uri }
-        prix: { type: integer }
+        prix: { type: integer, minimum: 0 }
 
     AppModification:
       type: object
-      description: TODO compléter
+      description: Tous les champs sont optionnels ; seuls ceux envoyés sont modifiés
       properties:
+        nom: { type: string, maxLength: 100 }
+        description: { type: string, maxLength: 1000 }
         demo_url: { type: string, format: uri }
-        prix: { type: integer }
+        prix: { type: integer, minimum: 0 }
 
+    # ───────────── Déploiements ─────────────
     Deploiement:
       type: object
-      description: TODO compléter
-      required: [id, etat]
+      required: [id, app_id, type, etat, url, erreur, cree_le]
       properties:
         id: { type: integer }
+        app_id: { type: integer }
+        type:
+          type: string
+          enum: [client, test, correctif]
+          description: Copie d'un client, copie de test d'une discussion, ou version corrigée
         etat:
           type: string
           enum: [en_file, construction, demarrage, en_ligne, echec]
@@ -634,52 +673,66 @@ components:
           type: [string, 'null']
           format: uri
           description: Renseignée quand l'état est en_ligne
+        erreur:
+          type: [string, 'null']
+          description: Message lisible quand l'état est echec
+        cree_le: { type: string, format: date-time }
 
     DeploiementCreation:
       type: object
-      description: Variables remplies par le client, déclarées dans soukdev.json. TODO compléter
+      required: [variables]
       properties:
         variables:
           type: object
+          description: 'Valeurs des variables_client de l''appli, ex. {"PHARMACIE_NOM": "Pharmacie du Port"}'
           additionalProperties: { type: string }
 
+    # ───────────── Discussions ─────────────
     Discussion:
       type: object
-      description: TODO compléter
-      required: [id, titre]
+      required: [id, titre, texte, auteur, canal, app_id, etiquettes, copie_test, nb_messages, cree_le]
       properties:
         id: { type: integer }
         titre: { type: string }
-        canal: { type: [string, 'null'] }
-        app_id: { type: [integer, 'null'] }
+        texte: { type: string, description: Markdown }
+        auteur: { $ref: '#/components/schemas/Dev' }
+        canal: { type: [string, 'null'], description: Slug du canal }
+        app_id: { type: [integer, 'null'], description: Appli jointe }
         etiquettes:
           type: array
           items: { type: string }
+        copie_test:
+          description: Copie de test de l'appli jointe, si elle a été lancée
+          oneOf:
+            - $ref: '#/components/schemas/Deploiement'
+            - type: 'null'
+        nb_messages: { type: integer }
         messages:
           type: array
+          description: Présent uniquement dans GET /discussions/{id}
           items: { $ref: '#/components/schemas/Message' }
+        cree_le: { type: string, format: date-time }
 
     DiscussionCreation:
       type: object
-      description: TODO compléter
       required: [titre, texte]
       properties:
-        titre: { type: string }
+        titre: { type: string, maxLength: 200 }
         texte: { type: string }
         canal: { type: string }
-        app_id: { type: integer }
+        app_id: { type: integer, description: Joindre une appli lance sa copie de test }
         etiquettes:
           type: array
           items: { type: string }
 
     Message:
       type: object
-      description: TODO compléter
-      required: [id, texte]
+      required: [id, texte, auteur, cree_le]
       properties:
         id: { type: integer }
-        texte: { type: string }
+        texte: { type: string, description: Markdown }
         auteur: { $ref: '#/components/schemas/Dev' }
+        cree_le: { type: string, format: date-time }
 
     MessageCreation:
       type: object
@@ -689,58 +742,69 @@ components:
 
     Canal:
       type: object
-      description: TODO compléter
-      required: [slug, nom]
+      required: [slug, nom, description]
       properties:
-        slug: { type: string }
+        slug: { type: string, description: 'ex. laravel, mobile-money' }
         nom: { type: string }
+        description: { type: [string, 'null'] }
 
     CanalCreation:
       type: object
       required: [nom]
       properties:
-        nom: { type: string }
+        nom: { type: string, maxLength: 50 }
+        description: { type: string, maxLength: 300 }
 
+    # ───────────── Correctifs ─────────────
     Correctif:
       type: object
-      description: TODO compléter
-      required: [id, depot_url, accepte]
+      required: [id, discussion_id, depot_url, description, accepte, deploiement, auteur, cree_le]
       properties:
         id: { type: integer }
+        discussion_id: { type: integer }
         depot_url: { type: string, format: uri, description: Fork ou branche GitHub }
+        description: { type: [string, 'null'], description: Ce que le correctif change }
         accepte: { type: boolean }
         deploiement: { $ref: '#/components/schemas/Deploiement' }
         auteur: { $ref: '#/components/schemas/Dev' }
+        cree_le: { type: string, format: date-time }
 
     CorrectifCreation:
       type: object
       required: [depot_url]
       properties:
         depot_url: { type: string, format: uri }
+        description: { type: string, maxLength: 1000 }
 
+    # ───────────── Événements ─────────────
     Evenement:
       type: object
-      description: TODO compléter
-      required: [id, titre, date, type]
+      required: [id, titre, description, date, type, lieu, lien, organisateur, nb_inscrits, inscrit, note_moyenne]
       properties:
         id: { type: integer }
         titre: { type: string }
+        description: { type: string }
         date: { type: string, format: date-time }
         type:
           type: string
           enum: [en_ligne, presentiel]
-        lieu: { type: [string, 'null'] }
+        lieu: { type: [string, 'null'], description: Renseigné si presentiel }
         lien:
           type: [string, 'null']
           format: uri
-          description: null si le dev connecté n'est pas inscrit
+          description: Renseigné si en_ligne ; null si le dev connecté n'est pas inscrit
+        organisateur: { $ref: '#/components/schemas/Dev' }
+        nb_inscrits: { type: integer }
+        inscrit: { type: boolean, description: 'Le dev connecté est-il inscrit ?' }
+        note_moyenne: { type: [number, 'null'], description: null tant qu'il n'y a aucun avis }
 
     EvenementCreation:
       type: object
-      description: TODO compléter
-      required: [titre, date, type]
+      description: lieu est obligatoire si type = presentiel, lien est obligatoire si type = en_ligne
+      required: [titre, description, date, type]
       properties:
-        titre: { type: string }
+        titre: { type: string, maxLength: 200 }
+        description: { type: string }
         date: { type: string, format: date-time }
         type:
           type: string
@@ -750,17 +814,17 @@ components:
 
     Avis:
       type: object
-      description: TODO compléter
-      required: [id, note]
+      required: [id, note, commentaire, auteur, cree_le]
       properties:
         id: { type: integer }
         note: { type: integer, minimum: 1, maximum: 5 }
-        commentaire: { type: string }
+        commentaire: { type: [string, 'null'] }
         auteur: { $ref: '#/components/schemas/Dev' }
+        cree_le: { type: string, format: date-time }
 
     AvisCreation:
       type: object
       required: [note]
       properties:
         note: { type: integer, minimum: 1, maximum: 5 }
-        commentaire: { type: string }
+        commentaire: { type: string, maxLength: 1000 }
