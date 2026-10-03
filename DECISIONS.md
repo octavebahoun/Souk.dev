@@ -19,6 +19,8 @@ Décisions prises par l'équipe, validées par Oktav. Mis à jour au fil du proj
 
 Le frontend est une SPA séparée qui appelle l'API Laravel : le front (JS) et le back (PHP) avancent chacun de leur côté, en se mettant d'accord sur le format des réponses de l'API.
 
+Le **contrat d'API** (routes et format des réponses) est écrit par Oktav.
+
 Écarté :
 - microservice Node / Socket.IO (deuxième auth et deuxième déploiement, code non maîtrisé par l'équipe backend) ;
 - Inertia (le front devrait coder dans le projet Laravel et dépendrait des contrôleurs PHP).
