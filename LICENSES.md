@@ -11,6 +11,7 @@ Tableau des composants tiers, tenu à jour dès le départ comme l'exige le règ
 | Laravel Reverb | à fixer à l'installation | MIT |
 | Laravel Echo | à fixer à l'installation | MIT |
 | Laravel Sanctum | à fixer à l'installation | MIT |
+| Laravel Socialite | à fixer à l'installation | MIT |
 | React | à fixer à l'installation | MIT |
 | Vite | à fixer à l'installation | MIT |
 | openapi-typescript | à fixer à l'installation | MIT |

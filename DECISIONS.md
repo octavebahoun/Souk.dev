@@ -47,6 +47,16 @@ Un seul dépôt : `frontend/` (React) + `backend/` (Laravel).
 - Front : types TypeScript générés avec `openapi-typescript` (MIT). Si le contrat change, on régénère et TypeScript signale ce qui casse.
 - Back : pas de génération ; les tests vérifient que chaque réponse respecte le contrat avec `osteel/openapi-httpfoundation-testing` (MIT). La CI bloque tout écart.
 
+## Contrat d'API : ressources du MVP
+
+On liste uniquement les routes du MVP, ressource par ressource : **Comptes**, **Applis**, **Déploiements**, **Discussions**, **Correctifs**.
+
+### Comptes
+
+- Connexion **GitHub uniquement** (Laravel Socialite, MIT). Indispensable : publier une appli, c'est lier un dépôt GitHub.
+- Le profil du dev affiche ses dépôts, leurs étoiles et leurs README, récupérés via GitHub.
+- Écarté pour le MVP : connexion Google (pas de dépôts, d'étoiles ni de README ; une connexion de plus à coder et sécuriser).
+
 ## Rôles
 
 | Membre | Rôle |
