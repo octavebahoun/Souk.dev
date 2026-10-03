@@ -59,6 +59,11 @@ On liste uniquement les routes du MVP, ressource par ressource : **Comptes**, **
 - Routes : `GET /auth/github`, `GET /auth/github/callback`, `POST /logout`, `GET /me`, `GET /devs/{username}` (profil public).
 - Écarté pour le MVP : connexion Google (pas de dépôts, d'étoiles ni de README ; une connexion de plus à coder et sécuriser).
 
+### Applis
+
+- Routes : `GET /apps` (le store), `GET /apps/{id}` (détail : README, démo, prix, auteur), `POST /apps` (publier : dépôt, lien de démo, prix), `PATCH /apps/{id}` (modifier), `DELETE /apps/{id}` (retirer).
+- `POST /apps` **valide `soukdev.json` immédiatement** et refuse la publication s'il est invalide : le dev voit l'erreur en publiant, pas un client en déployant.
+
 ## Rôles
 
 | Membre | Rôle |
