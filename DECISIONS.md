@@ -91,6 +91,11 @@ Rencontre avec date et inscription, en ligne (avec lien) ou en présentiel (avec
 - Un avis ne peut être laissé que par un **inscrit**, et seulement **après la date** de l'événement.
 - Le lien en ligne n'est visible **que par les inscrits**.
 
+### Formats de données
+
+- Prix d'une appli : **entier en FCFA**, par mois ; `0` = gratuit.
+- Avis d'un événement : **note de 1 à 5**, commentaire optionnel.
+
 ## Rôles
 
 | Membre | Rôle |
