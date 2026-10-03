@@ -95,6 +95,7 @@ Rencontre avec date et inscription, en ligne (avec lien) ou en présentiel (avec
 
 - Prix d'une appli : **entier en FCFA**, par mois ; `0` = gratuit.
 - Avis d'un événement : **note de 1 à 5**, commentaire optionnel.
+- **Pagination** par numéro de page (`?page=2&per_page=20`, 50 maximum), au format natif des API Resources Laravel : la liste dans `data`, plus `links` et `meta`. Concerne les applis, déploiements, discussions, correctifs, événements et participants.
 
 ## Rôles
 

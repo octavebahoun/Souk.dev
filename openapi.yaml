@@ -101,14 +101,23 @@ paths:
       operationId: listApps
       summary: Le store
       security: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/ParPage'
       responses:
         '200':
           description: Liste des applis
           content:
             application/json:
               schema:
-                type: array
-                items: { $ref: '#/components/schemas/App' }
+                allOf:
+                  - $ref: '#/components/schemas/Pagination'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/App' }
     post:
       tags: [Applis]
       operationId: createApp
@@ -198,14 +207,23 @@ paths:
       tags: [Déploiements]
       operationId: listDeployments
       summary: Mes déploiements
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/ParPage'
       responses:
         '200':
           description: Liste de mes déploiements
           content:
             application/json:
               schema:
-                type: array
-                items: { $ref: '#/components/schemas/Deploiement' }
+                allOf:
+                  - $ref: '#/components/schemas/Pagination'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Deploiement' }
         '401': { $ref: '#/components/responses/NonConnecte' }
 
   /deployments/{id}:
@@ -241,6 +259,8 @@ paths:
       summary: Le fil (filtrable par appli, canal ou étiquette)
       security: []
       parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/ParPage'
         - name: app
           in: query
           schema: { type: integer }
@@ -256,8 +276,14 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items: { $ref: '#/components/schemas/Discussion' }
+                allOf:
+                  - $ref: '#/components/schemas/Pagination'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Discussion' }
     post:
       tags: [Discussions]
       operationId: createDiscussion
@@ -355,14 +381,23 @@ paths:
       operationId: listCorrectifs
       summary: Correctifs proposés pour une discussion
       security: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/ParPage'
       responses:
         '200':
           description: Liste des correctifs
           content:
             application/json:
               schema:
-                type: array
-                items: { $ref: '#/components/schemas/Correctif' }
+                allOf:
+                  - $ref: '#/components/schemas/Pagination'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Correctif' }
         '404': { $ref: '#/components/responses/Introuvable' }
     post:
       tags: [Correctifs]
@@ -406,14 +441,23 @@ paths:
       operationId: listEvents
       summary: Liste des événements
       security: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/ParPage'
       responses:
         '200':
           description: Liste des événements
           content:
             application/json:
               schema:
-                type: array
-                items: { $ref: '#/components/schemas/Evenement' }
+                allOf:
+                  - $ref: '#/components/schemas/Pagination'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Evenement' }
     post:
       tags: [Événements]
       operationId: createEvent
@@ -477,14 +521,23 @@ paths:
       tags: [Événements]
       operationId: listParticipants
       summary: Liste des participants
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/ParPage'
       responses:
         '200':
           description: Liste des participants
           content:
             application/json:
               schema:
-                type: array
-                items: { $ref: '#/components/schemas/Dev' }
+                allOf:
+                  - $ref: '#/components/schemas/Pagination'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Dev' }
         '404': { $ref: '#/components/responses/Introuvable' }
 
   /events/{id}/avis:
@@ -524,6 +577,16 @@ components:
       in: path
       required: true
       schema: { type: integer }
+    Page:
+      name: page
+      in: query
+      description: Numéro de page (commence à 1)
+      schema: { type: integer, minimum: 1, default: 1 }
+    ParPage:
+      name: per_page
+      in: query
+      description: Éléments par page (50 maximum)
+      schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
 
   responses:
     NonConnecte:
@@ -565,6 +628,28 @@ components:
           additionalProperties:
             type: array
             items: { type: string }
+
+    Pagination:
+      type: object
+      description: Format de pagination des API Resources Laravel ; la liste est dans data
+      required: [links, meta]
+      properties:
+        links:
+          type: object
+          required: [first, last, prev, next]
+          properties:
+            first: { type: [string, 'null'], format: uri }
+            last: { type: [string, 'null'], format: uri }
+            prev: { type: [string, 'null'], format: uri }
+            next: { type: [string, 'null'], format: uri }
+        meta:
+          type: object
+          required: [current_page, last_page, per_page, total]
+          properties:
+            current_page: { type: integer }
+            last_page: { type: integer }
+            per_page: { type: integer }
+            total: { type: integer }
 
     # ───────────── Comptes ─────────────
     Dev:
