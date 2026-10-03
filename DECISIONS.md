@@ -32,6 +32,10 @@ Le **contrat d'API** (routes et format des réponses) est écrit par Oktav, au f
 
 Un seul dépôt : `frontend/` (React) + `backend/` (Laravel).
 
+**Types partagés** : `openapi.yaml` est la seule source.
+- Front : types TypeScript générés avec `openapi-typescript` (MIT). Si le contrat change, on régénère et TypeScript signale ce qui casse.
+- Back : pas de génération ; les tests vérifient que chaque réponse respecte le contrat avec `osteel/openapi-httpfoundation-testing` (MIT). La CI bloque tout écart.
+
 ## Rôles
 
 | Membre | Rôle |

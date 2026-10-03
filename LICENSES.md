@@ -13,3 +13,5 @@ Tableau des composants tiers, tenu à jour dès le départ comme l'exige le règ
 | Laravel Sanctum | à fixer à l'installation | MIT |
 | React | à fixer à l'installation | MIT |
 | Vite | à fixer à l'installation | MIT |
+| openapi-typescript | à fixer à l'installation | MIT |
+| osteel/openapi-httpfoundation-testing | à fixer à l'installation | MIT |
