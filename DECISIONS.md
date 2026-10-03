@@ -2,6 +2,17 @@
 
 Décisions prises par l'équipe, validées par Oktav. Mis à jour au fil du projet.
 
+## Fil de la démo
+
+**L'entraide rend l'appli vendable.** Les devs d'abord : le jury voit un dev qui gagne grâce à sa communauté, pas un client qui fait ses courses.
+
+1. Un dev poste un bug (ex. « mon paiement MoMo plante ») et partage une copie de test de son appli.
+2. Un autre dev ouvre la copie, corrige, et déploie sa version corrigée. L'auteur la voit tourner et accepte le correctif (entraide gratuite).
+3. L'appli marche : le dev la publie dans le store (ex. 15 000 F/mois).
+4. Une clinique lui demande une version adaptée : mission sur mesure, sans enchères.
+
+Le dev gagne de l'argent uniquement via le prix de ses applis et les missions sur mesure. Corriger un bug dans l'échange n'est pas rémunéré.
+
 ## Ordre de construction
 
 1. **Moteur de déploiement** : la partie la plus risquée, et le Store comme l'Échange en dépendent.
