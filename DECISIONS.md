@@ -56,6 +56,7 @@ On liste uniquement les routes du MVP, ressource par ressource : **Comptes**, **
 - Connexion **GitHub uniquement** (Laravel Socialite, MIT). Indispensable : publier une appli, c'est lier un dépôt GitHub.
 - Le profil du dev affiche ses dépôts, leurs étoiles et leurs README, récupérés via GitHub.
 - **Dépôts publics uniquement** pour le MVP : on ne demande jamais la permission `repo`, qui donne lecture et écriture sur tout le code du dev. Un jeton qui fuit ne peut donc pas modifier son code.
+- Routes : `GET /auth/github`, `GET /auth/github/callback`, `POST /logout`, `GET /me`, `GET /devs/{username}` (profil public).
 - Écarté pour le MVP : connexion Google (pas de dépôts, d'étoiles ni de README ; une connexion de plus à coder et sécuriser).
 
 ## Rôles
