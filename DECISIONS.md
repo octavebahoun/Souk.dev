@@ -19,7 +19,10 @@ Décisions prises par l'équipe, validées par Oktav. Mis à jour au fil du proj
 
 Le frontend est une SPA séparée qui appelle l'API Laravel : le front (JS) et le back (PHP) avancent chacun de leur côté, en se mettant d'accord sur le format des réponses de l'API.
 
-Le **contrat d'API** (routes et format des réponses) est écrit par Oktav.
+Le **contrat d'API** (routes et format des réponses) est écrit par Oktav, au format **OpenAPI** (`openapi.yaml`). Ce fichier sert à :
+- le front, pour coder contre une fausse API en attendant le back ;
+- le back, pour savoir exactement quoi renvoyer ;
+- les tests DAST de Jean-Baptiste, qui peuvent être lancés à partir de ce fichier.
 
 Écarté :
 - microservice Node / Socket.IO (deuxième auth et deuxième déploiement, code non maîtrisé par l'équipe backend) ;
