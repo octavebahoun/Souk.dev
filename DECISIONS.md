@@ -49,7 +49,7 @@ Un seul dépôt : `frontend/` (React) + `backend/` (Laravel).
 
 ## Contrat d'API : ressources du MVP
 
-On liste uniquement les routes du MVP, ressource par ressource : **Comptes**, **Applis**, **Déploiements**, **Discussions**, **Correctifs**.
+On liste uniquement les routes du MVP, ressource par ressource : **Comptes**, **Applis**, **Déploiements**, **Discussions** (avec canaux et étiquettes), **Correctifs**, **Événements**.
 
 ### Comptes
 
