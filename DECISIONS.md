@@ -35,6 +35,8 @@ Le **contrat d'API** (routes et format des réponses) est écrit par Oktav, au f
 - le back, pour savoir exactement quoi renvoyer ;
 - les tests DAST de Jean-Baptiste, qui peuvent être lancés à partir de ce fichier.
 
+Les **événements temps réel** (Reverb) sont décrits à part dans `REVERB.md`, car OpenAPI ne couvre pas les WebSockets. Leurs payloads reprennent les schémas de `openapi.yaml`.
+
 Écarté :
 - microservice Node / Socket.IO (deuxième auth et deuxième déploiement, code non maîtrisé par l'équipe backend) ;
 - Inertia (le front devrait coder dans le projet Laravel et dépendrait des contrôleurs PHP).
