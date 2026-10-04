@@ -37,6 +37,10 @@ Le **contrat d'API** (routes et format des réponses) est écrit par Oktav, au f
 
 Les **événements temps réel** (Reverb) sont décrits à part dans `REVERB.md`, car OpenAPI ne couvre pas les WebSockets. Leurs payloads reprennent les schémas de `openapi.yaml`.
 
+- Canal d'un déploiement (`deploiement.{id}`) : **privé**, seul le dev qui l'a lancé l'écoute.
+- Canaux des discussions et des événements : **publics**, comme dans l'API.
+- Jamais de donnée réservée dans un canal public (ex. le lien d'un événement en ligne).
+
 Écarté :
 - microservice Node / Socket.IO (deuxième auth et deuxième déploiement, code non maîtrisé par l'équipe backend) ;
 - Inertia (le front devrait coder dans le projet Laravel et dépendrait des contrôleurs PHP).
