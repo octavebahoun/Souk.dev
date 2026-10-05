@@ -59,11 +59,16 @@ On liste uniquement les routes du MVP, ressource par ressource : **Comptes**, **
 
 ### Comptes
 
-- Connexion **GitHub uniquement** (Laravel Socialite, MIT). Indispensable : publier une appli, c'est lier un dépôt GitHub.
+- **Choix à l'entrée** : « Développeur / informaticien » ou « Entreprise, agence, particulier ». Ce choix oriente la connexion et la page d'arrivée :
+  - Développeur → connexion **GitHub** (Laravel Socialite, MIT) → arrivée sur l'Échange ;
+  - Entreprise, agence, particulier → connexion par **lien magique par email** → arrivée sur le Store.
+- **Un seul type de compte** : le choix d'entrée est une porte, pas une étiquette définitive. Le compte porte un champ `profil` (`dev` ou `client`, sert à la redirection) et `github_lie` (oui/non). Un client peut lier son GitHub plus tard sur le même compte.
+- **GitHub est obligatoire uniquement pour publier une appli ou proposer un correctif** (il faut lier un dépôt).
 - Le profil du dev affiche ses dépôts, leurs étoiles et leurs README, récupérés via GitHub.
 - **Dépôts publics uniquement** pour le MVP : on ne demande jamais la permission `repo`, qui donne lecture et écriture sur tout le code du dev. Un jeton qui fuit ne peut donc pas modifier son code.
 - Routes : `GET /auth/github`, `GET /auth/github/callback`, `POST /logout`, `GET /me`, `GET /devs/{username}` (profil public).
 - Écarté pour le MVP : connexion Google (pas de dépôts, d'étoiles ni de README ; une connexion de plus à coder et sécuriser).
+- Les clients ne sont pas un type d'entreprise en particulier : entreprise, association, agence, particulier…
 
 ### Applis
 
@@ -128,4 +133,5 @@ Rencontre avec date et inscription, en ligne (avec lien) ou en présentiel (avec
 
 - Datacloud permet-il de créer des VPS ou des conteneurs par API ? (question posée à Systalink, en attente)
 - Appli cobaye pour tester le moteur : à créer plus tard.
+- Service d'envoi des emails (liens magiques) : à choisir par l'équipe.
 - Vérifier que l'appli est vraiment prête avant de donner son URL (étape 4 du moteur).
