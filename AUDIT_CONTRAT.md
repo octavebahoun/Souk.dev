@@ -6,7 +6,7 @@ Les propositions de correction sont **à valider par Oktav**. Rien n'est encore 
 ## A. Contradictions avec nos décisions (bloquant)
 
 1. ✅ *Décidé (voir `DECISIONS.md` › Comptes), contrat à corriger.* **Les clients ne peuvent pas se connecter.** La connexion se fait uniquement par GitHub, mais une pharmacie ou une clinique n'a pas de compte GitHub. Or c'est elle qui déploie et qui demande une mission.
-2. **La démo commence par une appli non publiée.** Étape 1 du fil de la démo : le dev partage la copie de test d'une appli qui n'est pas encore dans le store. Mais `POST /discussions` n'accepte qu'un `app_id`, donc une appli déjà publiée. Il faut pouvoir joindre un simple dépôt GitHub.
+2. ✅ *Décidé (voir `DECISIONS.md` › Discussions), contrat à corriger.* **La démo commence par une appli non publiée.** Étape 1 du fil de la démo : le dev partage la copie de test d'une appli qui n'est pas encore dans le store. Mais `POST /discussions` n'accepte qu'un `app_id`, donc une appli déjà publiée. Il faut pouvoir joindre un simple dépôt GitHub.
 3. **Le format de `soukdev.json` n'est défini nulle part.** `POST /apps` doit le valider, mais aucun document ne dit ce qu'il contient. Mourchid ne peut pas coder la validation, et les devs ne savent pas l'écrire.
 4. **Les missions sur mesure n'existent pas.** Étape 4 du fil de la démo (une clinique demande une version adaptée) : aucune route. À décider : est-ce une discussion sur l'appli (`?app=42`) ou une ressource à part ?
 
