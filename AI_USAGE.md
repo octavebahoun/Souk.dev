@@ -11,3 +11,4 @@ Mis à jour au fil du projet.
 | 2026-10-03 | Claude Code | Squelette de openapi.yaml (routes déclarées, schémas à compléter) |
 | 2026-10-03 | Claude Code | openapi.yaml : schémas complétés et pagination |
 | 2026-10-04 | Claude Code | Rédaction de REVERB.md (canaux et événements temps réel) |
+| 2026-10-05 | Claude Code | Audit du contrat d'API (AUDIT_CONTRAT.md) |
