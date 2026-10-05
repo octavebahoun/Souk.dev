@@ -2,12 +2,20 @@
 
 Décisions prises par l'équipe, validées par Oktav. Mis à jour au fil du projet.
 
+## Principe : aucune interaction payante imposée
+
+**La plateforme aide tout le monde, pas seulement ceux qui déploient chez Systalink.** Poster un problème, lire un dépôt, proposer un correctif (URL d'une branche) : tout cela est gratuit et ne déclenche aucun déploiement.
+
+- **Publier** = mettre la fiche de l'appli dans le store (dépôt, démo, prix). Rien ne tourne, gratuit.
+- **Déployer** = faire tourner une copie sur un serveur Datacloud. Ça coûte de l'hébergement.
+- La **copie de test** reste possible, mais c'est **un choix volontaire du dev**, jamais une condition pour être aidé ni pour proposer un correctif. Joindre un dépôt ou une appli à une discussion ne lance rien automatiquement.
+
 ## Fil de la démo
 
 **L'entraide rend l'appli vendable.** Les devs d'abord : le jury voit un dev qui gagne grâce à sa communauté, pas un client qui fait ses courses.
 
-1. Un dev poste un bug (ex. « mon paiement MoMo plante ») et partage une copie de test de son appli.
-2. Un autre dev ouvre la copie, corrige, et déploie sa version corrigée. L'auteur la voit tourner et accepte le correctif (entraide gratuite).
+1. Un dev poste un bug (ex. « mon paiement MoMo plante ») avec son dépôt, et éventuellement un lien de démo ou une copie de test.
+2. Un autre dev lit le dépôt (et la démo si elle existe), corrige, et propose l'URL de sa branche. S'il le souhaite, il déploie sa version corrigée pour la montrer tourner. L'auteur accepte le correctif (entraide gratuite).
 3. L'appli marche : le dev la publie dans le store (ex. 15 000 F/mois).
 4. Une clinique lui demande une version adaptée : mission sur mesure, sans enchères.
 
@@ -95,7 +103,7 @@ On liste uniquement les routes du MVP, ressource par ressource : **Comptes**, **
 ### Correctifs
 
 - Routes : `POST /discussions/{id}/correctifs` (proposer : lien vers un fork ou une branche GitHub), `GET /discussions/{id}/correctifs`, `POST /correctifs/{id}/accepter`.
-- Un correctif est **un dépôt que le moteur déploie** : on réutilise la ressource Déploiements, l'auteur voit la version corrigée tourner.
+- Un correctif est **l'URL d'une branche ou d'un fork GitHub**. Le déployer pour montrer la version corrigée qui tourne est **optionnel** (choix du dev, via la ressource Déploiements).
 - Pas de permission `repo` : « accepter » ne fusionne rien, l'auteur fusionne lui-même sur GitHub.
 
 ### Événements
@@ -138,4 +146,5 @@ Rencontre avec date et inscription, en ligne (avec lien) ou en présentiel (avec
 - Datacloud permet-il de créer des VPS ou des conteneurs par API ? (question posée à Systalink, en attente)
 - Appli cobaye pour tester le moteur : à créer plus tard.
 - Service d'envoi des emails (liens magiques) : à choisir par l'équipe.
+- Un dev qui a déjà pris un serveur pour une copie de test pourrait-il le réutiliser pour déployer son appli ensuite ? À étudier.
 - Vérifier que l'appli est vraiment prête avant de donner son URL (étape 4 du moteur).
