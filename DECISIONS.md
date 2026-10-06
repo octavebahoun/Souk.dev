@@ -91,6 +91,7 @@ On liste uniquement les routes du MVP, ressource par ressource : **Comptes**, **
 
 - Routes : `GET /apps` (le store), `GET /apps/{id}` (détail : README, démo, prix, auteur), `POST /apps` (publier : dépôt, lien de démo, prix), `PATCH /apps/{id}` (modifier), `DELETE /apps/{id}` (retirer).
 - `POST /apps` **valide `soukdev.json` immédiatement** et refuse la publication s'il est invalide : le dev voit l'erreur en publiant, pas un client en déployant.
+- **Vérifier avant de publier** : `POST /apps/verification` contrôle le dépôt (public, `docker-compose.yml` présent, `soukdev.json` valide) sans rien publier, et renvoie ce que la plateforme a lu (service web, backend, variables client). Le formulaire de publication l'appelle dès que le dev colle l'adresse du dépôt.
 - **Captures** : 1 à 5 images (PNG, JPEG ou WebP, **5 Mo maximum** chacune), envoyées avec le formulaire de publication (`POST /apps` en `multipart/form-data`). La première sert de couverture sur la carte du store. Pour les changer : `POST /apps/{id}/captures` remplace toutes les captures (POST, car PHP ne lit pas le multipart en PATCH). Stockées sur le serveur d'Oktav.
 - **Stack** : 1 à 8 technos, choisies dans une **liste fixe** (`GET /technos`), avec `autre` pour celles qui n'y sont pas.
 - Recherche dans le store : `GET /apps?q=paiement` (nom et description), `?gratuit=true` et `?techno=laravel`.
@@ -152,7 +153,7 @@ Rencontre avec date et inscription, en ligne (avec lien) ou en présentiel (avec
 - **CSRF Sanctum** : la SPA appelle d'abord `GET /sanctum/csrf-cookie`, puis renvoie l'en-tête `X-XSRF-TOKEN` à chaque requête qui modifie quelque chose. Jeton absent ou expiré : `419`.
 - **Limites de débit** (au-delà : `429`) :
   - **3 déploiements par heure** et par compte (copies de test et déploiements de correctifs compris) ;
-  - **10 par heure** pour les discussions, correctifs et missions ;
+  - **10 par heure** pour les discussions, correctifs, missions et vérifications de dépôt ;
   - **60 requêtes par minute** pour tout le reste (valeur par défaut de Laravel).
 - Canaux privés Reverb autorisés par `POST /broadcasting/auth` (route web Laravel), avec la session Sanctum.
 - Cookie de session : `soukdev_session` (variable `SESSION_COOKIE`).

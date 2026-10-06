@@ -251,6 +251,32 @@ paths:
         '403': { description: 'GitHub non lié au compte (obligatoire pour publier)', content: { application/json: { schema: { $ref: '#/components/schemas/Erreur' } } } }
         '419': { $ref: '#/components/responses/CsrfInvalide' }
 
+  /apps/verification:
+    post:
+      tags: [Applis]
+      operationId: verifyAppRepo
+      summary: Vérifier un dépôt avant de publier (dépôt public, docker-compose.yml, soukdev.json validé) ; ne publie rien
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [depot_url]
+              properties:
+                depot_url: { type: string, format: uri }
+      responses:
+        '200':
+          description: Dépôt valide ; ce que la plateforme a lu dans soukdev.json
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VerificationDepot' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { description: 'GitHub non lié au compte', content: { application/json: { schema: { $ref: '#/components/schemas/Erreur' } } } }
+        '422': { $ref: '#/components/responses/Invalide' }
+        '429': { $ref: '#/components/responses/TropDeRequetes' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+
   /apps/{id}:
     parameters:
       - $ref: '#/components/parameters/Id'
@@ -1285,6 +1311,22 @@ components:
           uniqueItems: true
           items: { $ref: '#/components/schemas/Techno' }
         captures: { $ref: '#/components/schemas/CapturesEnvoi' }
+
+    VerificationDepot:
+      type: object
+      description: Dépôt valide. En cas d'erreur (dépôt privé ou introuvable, docker-compose.yml absent, soukdev.json invalide), réponse 422 avec le détail par champ.
+      required: [service_web, backend, variables_client]
+      properties:
+        service_web:
+          type: object
+          required: [nom, port]
+          properties:
+            nom: { type: string }
+            port: { type: integer }
+        backend: { type: string, enum: [propre, integre] }
+        variables_client:
+          type: array
+          items: { $ref: '#/components/schemas/VariableClient' }
 
     CapturesEnvoi:
       type: array
