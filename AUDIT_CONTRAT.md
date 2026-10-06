@@ -1,7 +1,7 @@
 # Audit du contrat — 2026-10-05
 
 Comparaison de `openapi.yaml` et `REVERB.md` avec `DECISIONS.md` et le brief.
-Les propositions de correction sont **à valider par Oktav**. Rien n'est encore corrigé.
+**Statut (2026-10-06) : les 22 points sont tranchés par Oktav et corrigés** dans `DECISIONS.md`, `openapi.yaml`, `REVERB.md` et `soukdev.schema.json`. Ce fichier sert d'historique.
 
 ## A. Contradictions avec nos décisions (bloquant)
 

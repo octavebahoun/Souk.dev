@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://soukdev.com/soukdev.schema.json",
+  "title": "soukdev.json",
+  "description": "Fichier de description d'une appli Souk.dev, à la racine du dépôt, à côté du docker-compose.yml.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "service_web", "backend", "variables"],
+  "properties": {
+    "version": { "const": 1 },
+    "service_web": {
+      "type": "object",
+      "description": "Conteneur du docker-compose.yml exposé par le reverse proxy. Tout le reste reste fermé.",
+      "additionalProperties": false,
+      "required": ["nom", "port"],
+      "properties": {
+        "nom": { "type": "string", "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]*$", "maxLength": 63 },
+        "port": { "type": "integer", "minimum": 1, "maximum": 65535 }
+      }
+    },
+    "backend": {
+      "enum": ["propre", "integre"],
+      "description": "propre : la base est un service du docker-compose.yml. integre : la plateforme fournit la base et l'API."
+    },
+    "migrations": {
+      "type": "string",
+      "description": "Chemin relatif des fichiers de migration. Obligatoire si backend = integre, absent sinon.",
+      "pattern": "^(?!/)(?!.*\\.\\.)[a-zA-Z0-9_./-]+$",
+      "maxLength": 200
+    },
+    "variables": {
+      "type": "array",
+      "maxItems": 50,
+      "items": { "$ref": "#/$defs/variable" }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "backend": { "const": "integre" } } },
+      "then": { "required": ["migrations"] },
+      "else": { "not": { "required": ["migrations"] } }
+    }
+  ],
+  "$defs": {
+    "variable": {
+      "type": "object",
+      "required": ["nom", "source"],
+      "properties": {
+        "nom": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]*$",
+          "maxLength": 64,
+          "description": "Nom de la variable d'environnement, ex. APP_NOM"
+        },
+        "source": { "enum": ["client", "plateforme", "fixe"] },
+        "libelle": { "type": "string", "minLength": 1, "maxLength": 100, "description": "Texte affiché au client" },
+        "requis": { "type": "boolean" },
+        "valeur": { "type": "string", "maxLength": 500 }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "source": { "const": "client" } } },
+          "then": {
+            "required": ["libelle", "requis"],
+            "properties": { "nom": true, "source": true, "libelle": true, "requis": true },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": { "properties": { "source": { "const": "plateforme" } } },
+          "then": {
+            "properties": { "nom": true, "source": true },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": { "properties": { "source": { "const": "fixe" } } },
+          "then": {
+            "required": ["valeur"],
+            "properties": { "nom": true, "source": true, "valeur": true },
+            "additionalProperties": false
+          }
+        }
+      ]
+    }
+  }
+}
