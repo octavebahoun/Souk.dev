@@ -31,6 +31,9 @@ Pas d'appli à créer : on prend une appli existante de l'équipe, **Excellence 
 
 ## Hope — écrans sur la fausse API
 
+- Dans `frontend/`, `npm run prism` lance la fausse API sur son PC (port 4010). Le PC d'Oktav peut être éteint.
+- Si `openapi.yaml` change, `npm run types` régénère `src/shared/types/api.ts`. Le contrat ne se régénère pas tout seul.
+- Les appels passent par `src/shared/client.ts`. L'adresse est `VITE_API_URL` dans `.env` (copier `.env.example`).
 - Fil des discussions.
 - Page d'une discussion, avec la démo dans son cadre isolé.
 - Puis tous les autres écrans, sans limitation côté frontend.
