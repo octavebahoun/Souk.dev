@@ -211,6 +211,10 @@ paths:
           in: query
           description: true = uniquement les applis gratuites
           schema: { type: boolean }
+        - name: techno
+          in: query
+          description: Uniquement les applis dont la stack contient cette techno
+          schema: { $ref: '#/components/schemas/Techno' }
       responses:
         '200':
           description: Liste des applis
@@ -228,12 +232,14 @@ paths:
     post:
       tags: [Applis]
       operationId: createApp
-      summary: Publier une appli (GitHub lié obligatoire ; soukdev.json validé immédiatement avec soukdev.schema.json)
+      summary: Publier une appli (GitHub lié obligatoire ; soukdev.json validé immédiatement avec soukdev.schema.json ; captures envoyées dans le même formulaire)
       requestBody:
         required: true
         content:
-          application/json:
+          multipart/form-data:
             schema: { $ref: '#/components/schemas/AppCreation' }
+            encoding:
+              captures: { contentType: 'image/png, image/jpeg, image/webp' }
       responses:
         '201':
           description: Appli publiée
@@ -289,6 +295,50 @@ paths:
         '403': { $ref: '#/components/responses/Interdit' }
         '404': { $ref: '#/components/responses/Introuvable' }
         '419': { $ref: '#/components/responses/CsrfInvalide' }
+
+  /apps/{id}/captures:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [Applis]
+      operationId: replaceAppCaptures
+      summary: Remplacer toutes les captures d'une appli (auteur uniquement ; POST car PHP ne lit pas le multipart en PATCH)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [captures]
+              properties:
+                captures: { $ref: '#/components/schemas/CapturesEnvoi' }
+            encoding:
+              captures: { contentType: 'image/png, image/jpeg, image/webp' }
+      responses:
+        '200':
+          description: Captures remplacées
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/App' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '422': { $ref: '#/components/responses/Invalide' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+
+  /technos:
+    get:
+      tags: [Applis]
+      operationId: listTechnos
+      summary: Liste fixe des technos (stack d'une appli, filtre du store)
+      security: []
+      responses:
+        '200':
+          description: Les technos
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Techno' }
 
   # ───────────── Déploiements ─────────────
   /apps/{id}/deployments:
@@ -1178,7 +1228,7 @@ components:
     # ───────────── Applis ─────────────
     App:
       type: object
-      required: [id, nom, description, prix, demo_url, depot_url, backend, variables_client, auteur, cree_le]
+      required: [id, nom, description, prix, demo_url, depot_url, captures, stack, backend, variables_client, auteur, cree_le]
       properties:
         id: { type: integer }
         nom: { type: string }
@@ -1187,6 +1237,18 @@ components:
         prix: { type: integer, minimum: 0, description: Prix mensuel en FCFA ; 0 = gratuit }
         demo_url: { type: string, format: uri }
         depot_url: { type: string, format: uri }
+        captures:
+          type: array
+          description: Captures d'écran ; la première sert de couverture sur la carte du store
+          minItems: 1
+          maxItems: 5
+          items: { $ref: '#/components/schemas/Capture' }
+        stack:
+          type: array
+          minItems: 1
+          maxItems: 8
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/Techno' }
         backend:
           type: string
           enum: [propre, integre]
@@ -1208,13 +1270,39 @@ components:
 
     AppCreation:
       type: object
-      required: [nom, description, depot_url, demo_url, prix]
+      description: Envoyé en multipart/form-data (champs texte + images)
+      required: [nom, description, depot_url, demo_url, prix, stack, captures]
       properties:
         nom: { type: string, maxLength: 100 }
         description: { type: string, maxLength: 1000 }
         depot_url: { type: string, format: uri, description: Dépôt GitHub public contenant docker-compose.yml et soukdev.json }
         demo_url: { type: string, format: uri }
         prix: { type: integer, minimum: 0 }
+        stack:
+          type: array
+          minItems: 1
+          maxItems: 8
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/Techno' }
+        captures: { $ref: '#/components/schemas/CapturesEnvoi' }
+
+    CapturesEnvoi:
+      type: array
+      description: 1 à 5 images PNG, JPEG ou WebP, 5 Mo maximum chacune ; la première sert de couverture
+      minItems: 1
+      maxItems: 5
+      items: { type: string, format: binary, contentMediaType: application/octet-stream }
+
+    Capture:
+      type: object
+      required: [url]
+      properties:
+        url: { type: string, format: uri }
+
+    Techno:
+      type: string
+      description: Liste fixe ; « autre » pour une techno absente de la liste
+      enum: [laravel, symfony, php, node, express, nestjs, nextjs, react, vue, angular, svelte, django, flask, fastapi, spring, dotnet, go, postgresql, mysql, mongodb, redis, autre]
 
     AppModification:
       type: object
@@ -1224,6 +1312,12 @@ components:
         description: { type: string, maxLength: 1000 }
         demo_url: { type: string, format: uri }
         prix: { type: integer, minimum: 0 }
+        stack:
+          type: array
+          minItems: 1
+          maxItems: 8
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/Techno' }
 
     # ───────────── Déploiements ─────────────
     Deploiement:
