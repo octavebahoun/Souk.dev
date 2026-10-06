@@ -5,14 +5,23 @@ Tableau des composants tiers, tenu à jour dès le départ comme l'exige le règ
 **Autorisées** : MIT, Apache 2.0, BSD, licence PostgreSQL.
 **Interdites** : GPL, AGPL, LGPL (le projet devient irrecevable).
 
+Versions exactes déjà installées. Les autres lignes attendent leur installation.
+
 | Composant | Version | Licence |
 |---|---|---|
-| Laravel | à fixer à l'installation | MIT |
-| Laravel Reverb | à fixer à l'installation | MIT |
-| Laravel Echo | à fixer à l'installation | MIT |
-| Laravel Sanctum | à fixer à l'installation | MIT |
-| Laravel Socialite | à fixer à l'installation | MIT |
-| React | à fixer à l'installation | MIT |
-| Vite | à fixer à l'installation | MIT |
-| openapi-typescript | à fixer à l'installation | MIT |
-| osteel/openapi-httpfoundation-testing | à fixer à l'installation | MIT |
+| Laravel (laravel/framework) | 13.35.0 | MIT |
+| Laravel Reverb | pas encore installé | MIT |
+| Laravel Echo | pas encore installé | MIT |
+| Laravel Sanctum | pas encore installé | MIT |
+| Laravel Socialite | pas encore installé | MIT |
+| React et react-dom | 19.3.0 | MIT |
+| Vite | 8.3.3 | MIT |
+| TypeScript | 6.0.3 | Apache 2.0 |
+| Tailwind CSS | 4.3.3 | MIT |
+| @tailwindcss/vite | 4.3.3 | MIT |
+| Axios | 1.20.0 | MIT |
+| openapi-typescript | 7.13.0 | MIT |
+| @stoplight/prism-cli | 5.15.11 | Apache 2.0 |
+| osteel/openapi-httpfoundation-testing | pas encore installé | MIT |
+
+`nette/utils` et `nette/schema` (tirés par Laravel) sont en triple licence BSD-3-Clause, GPL-2.0 ou GPL-3.0. On retient BSD-3-Clause. Le front ne contient aucune licence GPL, AGPL ou LGPL.
