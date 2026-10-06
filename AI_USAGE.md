@@ -15,3 +15,4 @@ Mis à jour au fil du projet.
 | 2026-10-06 | Claude Code | Report des décisions de l'audit : DECISIONS.md, openapi.yaml, REVERB.md, soukdev.schema.json |
 | 2026-10-06 | Claude Code | Page de documentation fonctionnelle pour l'équipe (artefact HTML) |
 | 2026-10-06 | Claude Code | Rédaction du plan de la semaine 1 (SEMAINE_1.md) et mise à jour des rôles dans DECISIONS.md |
+| 2026-10-06 | Claude Code | Réécriture de la page de documentation : présentation du projet en premier, texte au nom d'Oktav |
