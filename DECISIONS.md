@@ -111,6 +111,7 @@ On liste uniquement les routes du MVP, ressource par ressource : **Comptes**, **
 - **Une seule ressource** pour l'échange central et la discussion propre à chaque appli : filtre `GET /discussions?app=42`.
 - **Canaux** : une discussion est **soit dans un canal** (ex. `#laravel`, `#mobile-money`), **soit sur la page d'une appli**, jamais les deux. Sans appli, le canal est obligatoire. Filtre : `GET /discussions?canal=laravel`. Routes : `GET /canaux`, `POST /canaux`.
 - **Sujets** : une **liste fixe** d'étiquettes (`bug`, `question`, `tuto`, `projet`, `entraide`), lisible avec `GET /etiquettes`. Filtre : `GET /discussions?etiquette=bug`.
+- **Résolue** : champ `resolue`. Elle le devient quand l'auteur accepte un correctif, ou quand il la marque résolue lui-même (`PATCH`, même sans correctif, ex. il a trouvé tout seul). Il peut la rouvrir. Filtre : `GET /discussions?statut=ouvertes|resolues`.
 - L'**auteur** peut modifier ou supprimer ses discussions et messages ; l'**admin** peut supprimer tout contenu abusif.
 
 ### Correctifs
