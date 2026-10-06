@@ -12,3 +12,4 @@ Mis à jour au fil du projet.
 | 2026-10-03 | Claude Code | openapi.yaml : schémas complétés et pagination |
 | 2026-10-04 | Claude Code | Rédaction de REVERB.md (canaux et événements temps réel) |
 | 2026-10-05 | Claude Code | Audit du contrat d'API (AUDIT_CONTRAT.md) |
+| 2026-10-06 | Claude Code | Report des décisions de l'audit : DECISIONS.md, openapi.yaml, REVERB.md, soukdev.schema.json |

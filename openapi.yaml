@@ -3,10 +3,19 @@ info:
   title: Souk.dev API
   version: 0.1.0
   description: |
-    Contrat d'API du MVP Souk.dev (squelette).
+    Contrat d'API du MVP Souk.dev.
     Source unique des types : le front génère ses types avec openapi-typescript,
     le back vérifie ses réponses dans les tests.
-    Les « TODO » restants sont à compléter par Oktav.
+
+    Authentification (Sanctum, SPA) : appeler d'abord GET /sanctum/csrf-cookie,
+    puis renvoyer l'en-tête X-XSRF-TOKEN (valeur du cookie XSRF-TOKEN) à chaque
+    requête POST, PATCH ou DELETE. Jeton absent ou expiré : 419.
+
+    Limites de débit (au-delà : 429) : 3 déploiements par heure et par compte,
+    10 discussions, correctifs ou missions par heure, 60 requêtes par minute pour le reste.
+
+    Les routes marquées « web » (connexion, CSRF, broadcasting) sont servies à la
+    racine du domaine, hors du préfixe /api.
 
 servers:
   - url: /api
@@ -17,22 +26,42 @@ tags:
   - name: Déploiements
   - name: Discussions
   - name: Correctifs
+  - name: Missions
   - name: Événements
 
 security:
   - session: []
 
 paths:
+
   # ───────────── Comptes ─────────────
+  /sanctum/csrf-cookie:
+    servers: [{ url: / }]
+    get:
+      tags: [Comptes]
+      operationId: csrfCookie
+      summary: Web. Initialise la protection CSRF (pose le cookie XSRF-TOKEN)
+      security: []
+      responses:
+        '204':
+          description: Cookie XSRF-TOKEN posé
+
   /auth/github:
     get:
       tags: [Comptes]
       operationId: githubRedirect
-      summary: Redirige vers GitHub pour la connexion (dépôts publics uniquement, jamais la permission repo)
+      summary: 'Web. Redirige vers GitHub (dépôts publics uniquement, jamais la permission repo). Connecté : lie GitHub au compte existant.'
       security: []
       responses:
         '302':
           description: Redirection vers GitHub
+
+      parameters:
+        - name: profil
+          in: query
+          description: Choix d'entrée, utilisé à la création du compte pour la redirection
+          schema: { type: string, enum: [dev, client], default: dev }
+    servers: &id001 [url: /]
 
   /auth/github/callback:
     get:
@@ -53,14 +82,84 @@ paths:
         '302':
           description: Session ouverte, redirection vers le front
 
+    servers: *id001
+
+  /auth/lien-magique:
+    servers: [{ url: / }]
+    post:
+      tags: [Comptes]
+      operationId: demanderLienMagique
+      summary: Web. Envoie un lien de connexion par email (clients sans GitHub)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LienMagiqueDemande' }
+      responses:
+        '202':
+          description: Email envoyé si l'adresse est valide (même réponse que le compte existe ou non)
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+        '422': { $ref: '#/components/responses/Invalide' }
+        '429': { $ref: '#/components/responses/TropDeRequetes' }
+
+  /auth/lien-magique/{token}:
+    servers: [{ url: / }]
+    get:
+      tags: [Comptes]
+      operationId: utiliserLienMagique
+      summary: Web. Lien reçu par email, à usage unique et limité dans le temps ; ouvre la session
+      security: []
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '302':
+          description: Session ouverte, redirection vers le front (Store pour un client)
+        '410':
+          description: Lien expiré ou déjà utilisé
+
   /logout:
     post:
       tags: [Comptes]
       operationId: logout
-      summary: Ferme la session
+      summary: Web. Ferme la session
       responses:
         '204':
           description: Déconnecté
+
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+    servers: *id001
+
+  /broadcasting/auth:
+    servers: [{ url: / }]
+    post:
+      tags: [Comptes]
+      operationId: broadcastingAuth
+      summary: Web. Autorise l'écoute d'un canal privé Reverb (appelé par Laravel Echo)
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [socket_id, channel_name]
+              properties:
+                socket_id: { type: string }
+                channel_name: { type: string, description: 'ex. private-deploiement.12' }
+      responses:
+        '200':
+          description: Signature d'autorisation pour le canal
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [auth]
+                properties:
+                  auth: { type: string }
+        '403': { $ref: '#/components/responses/Interdit' }
 
   /me:
     get:
@@ -69,10 +168,10 @@ paths:
       summary: Mon compte
       responses:
         '200':
-          description: Le dev connecté
+          description: Mon compte
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Dev' }
+              schema: { $ref: '#/components/schemas/Compte' }
         '401': { $ref: '#/components/responses/NonConnecte' }
 
   /devs/{username}:
@@ -104,6 +203,14 @@ paths:
       parameters:
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/ParPage'
+        - name: q
+          in: query
+          description: Recherche dans le nom et la description
+          schema: { type: string, maxLength: 100 }
+        - name: gratuit
+          in: query
+          description: true = uniquement les applis gratuites
+          schema: { type: boolean }
       responses:
         '200':
           description: Liste des applis
@@ -121,7 +228,7 @@ paths:
     post:
       tags: [Applis]
       operationId: createApp
-      summary: Publier une appli (soukdev.json validé immédiatement)
+      summary: Publier une appli (GitHub lié obligatoire ; soukdev.json validé immédiatement avec soukdev.schema.json)
       requestBody:
         required: true
         content:
@@ -135,6 +242,8 @@ paths:
               schema: { $ref: '#/components/schemas/App' }
         '401': { $ref: '#/components/responses/NonConnecte' }
         '422': { $ref: '#/components/responses/Invalide' }
+        '403': { description: 'GitHub non lié au compte (obligatoire pour publier)', content: { application/json: { schema: { $ref: '#/components/schemas/Erreur' } } } }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
 
   /apps/{id}:
     parameters:
@@ -169,6 +278,7 @@ paths:
         '403': { $ref: '#/components/responses/Interdit' }
         '404': { $ref: '#/components/responses/Introuvable' }
         '422': { $ref: '#/components/responses/Invalide' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
     delete:
       tags: [Applis]
       operationId: deleteApp
@@ -178,6 +288,7 @@ paths:
           description: Appli retirée
         '403': { $ref: '#/components/responses/Interdit' }
         '404': { $ref: '#/components/responses/Introuvable' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
 
   # ───────────── Déploiements ─────────────
   /apps/{id}/deployments:
@@ -186,7 +297,7 @@ paths:
     post:
       tags: [Déploiements]
       operationId: createDeployment
-      summary: Lancer un déploiement (répond tout de suite avec l'état en_file)
+      summary: "Lancer un déploiement client (répond tout de suite avec l'état en_file). Paiement du serveur : mécanisme en attente (voir DECISIONS.md)."
       requestBody:
         required: true
         content:
@@ -201,6 +312,8 @@ paths:
         '401': { $ref: '#/components/responses/NonConnecte' }
         '404': { $ref: '#/components/responses/Introuvable' }
         '422': { $ref: '#/components/responses/Invalide' }
+        '429': { $ref: '#/components/responses/TropDeRequetes' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
 
   /deployments:
     get:
@@ -250,6 +363,7 @@ paths:
           description: Déploiement arrêté
         '403': { $ref: '#/components/responses/Interdit' }
         '404': { $ref: '#/components/responses/Introuvable' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
 
   # ───────────── Discussions ─────────────
   /discussions:
@@ -269,7 +383,7 @@ paths:
           schema: { type: string }
         - name: etiquette
           in: query
-          schema: { type: string }
+          schema: { $ref: '#/components/schemas/Etiquette' }
       responses:
         '200':
           description: Liste des discussions
@@ -301,6 +415,8 @@ paths:
               schema: { $ref: '#/components/schemas/Discussion' }
         '401': { $ref: '#/components/responses/NonConnecte' }
         '422': { $ref: '#/components/responses/Invalide' }
+        '429': { $ref: '#/components/responses/TropDeRequetes' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
 
   /discussions/{id}:
     parameters:
@@ -308,7 +424,7 @@ paths:
     get:
       tags: [Discussions]
       operationId: getDiscussion
-      summary: Une discussion et ses messages
+      summary: 'Une discussion (ses messages : GET /discussions/{id}/messages)'
       security: []
       responses:
         '200':
@@ -317,10 +433,62 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Discussion' }
         '404': { $ref: '#/components/responses/Introuvable' }
+    patch:
+      tags: [Discussions]
+      operationId: updateDiscussion
+      summary: Modifier sa discussion (auteur uniquement)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DiscussionModification' }
+      responses:
+        '200':
+          description: Discussion modifiée
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Discussion' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '422': { $ref: '#/components/responses/Invalide' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+    delete:
+      tags: [Discussions]
+      operationId: deleteDiscussion
+      summary: Supprimer une discussion (auteur ou admin)
+      responses:
+        '204':
+          description: Discussion supprimée
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
 
   /discussions/{id}/messages:
     parameters:
       - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Discussions]
+      operationId: listMessages
+      summary: Messages d'une discussion, du plus ancien au plus récent
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/ParPage'
+      responses:
+        '200':
+          description: Liste des messages
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Pagination'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Message' }
+        '404': { $ref: '#/components/responses/Introuvable' }
     post:
       tags: [Discussions]
       operationId: createMessage
@@ -339,6 +507,60 @@ paths:
         '401': { $ref: '#/components/responses/NonConnecte' }
         '404': { $ref: '#/components/responses/Introuvable' }
         '422': { $ref: '#/components/responses/Invalide' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+
+  /discussions/{id}/copie-test:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [Discussions]
+      operationId: createCopieTest
+      summary: Lancer une copie de test, sur demande explicite de l'auteur (à partir du depot_url ou de l'appli jointe ; soukdev.json requis)
+      responses:
+        '202':
+          description: Copie de test mise en file ; son état arrive par Reverb
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Deploiement' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '409': { $ref: '#/components/responses/Conflit' }
+        '422': { $ref: '#/components/responses/Invalide' }
+        '429': { $ref: '#/components/responses/TropDeRequetes' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+
+  /messages/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    patch:
+      tags: [Discussions]
+      operationId: updateMessage
+      summary: Modifier son message (auteur uniquement)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MessageCreation' }
+      responses:
+        '200':
+          description: Message modifié
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Message' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '422': { $ref: '#/components/responses/Invalide' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+    delete:
+      tags: [Discussions]
+      operationId: deleteMessage
+      summary: Supprimer un message (auteur ou admin)
+      responses:
+        '204':
+          description: Message supprimé
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
 
   /canaux:
     get:
@@ -371,6 +593,22 @@ paths:
               schema: { $ref: '#/components/schemas/Canal' }
         '401': { $ref: '#/components/responses/NonConnecte' }
         '422': { $ref: '#/components/responses/Invalide' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+
+  /etiquettes:
+    get:
+      tags: [Discussions]
+      operationId: listEtiquettes
+      summary: Liste fixe des étiquettes de sujet
+      security: []
+      responses:
+        '200':
+          description: Les étiquettes
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Etiquette' }
 
   # ───────────── Correctifs ─────────────
   /discussions/{id}/correctifs:
@@ -402,7 +640,7 @@ paths:
     post:
       tags: [Correctifs]
       operationId: createCorrectif
-      summary: Proposer un correctif (fork ou branche GitHub, déployé par le moteur)
+      summary: "Proposer un correctif : URL d'une branche ou d'un fork GitHub (GitHub lié obligatoire). Aucun déploiement automatique."
       requestBody:
         required: true
         content:
@@ -410,13 +648,16 @@ paths:
             schema: { $ref: '#/components/schemas/CorrectifCreation' }
       responses:
         '201':
-          description: Correctif proposé, son déploiement est lancé
+          description: Correctif proposé
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Correctif' }
         '401': { $ref: '#/components/responses/NonConnecte' }
         '404': { $ref: '#/components/responses/Introuvable' }
         '422': { $ref: '#/components/responses/Invalide' }
+        '403': { description: 'GitHub non lié au compte', content: { application/json: { schema: { $ref: '#/components/schemas/Erreur' } } } }
+        '429': { $ref: '#/components/responses/TropDeRequetes' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
 
   /correctifs/{id}/accepter:
     parameters:
@@ -424,7 +665,7 @@ paths:
     post:
       tags: [Correctifs]
       operationId: acceptCorrectif
-      summary: Accepter un correctif (auteur de la discussion ; ne fusionne rien sur GitHub)
+      summary: Accepter un correctif (auteur de la discussion ; un seul accepté par discussion ; ne fusionne rien sur GitHub)
       responses:
         '200':
           description: Correctif accepté
@@ -433,6 +674,139 @@ paths:
               schema: { $ref: '#/components/schemas/Correctif' }
         '403': { $ref: '#/components/responses/Interdit' }
         '404': { $ref: '#/components/responses/Introuvable' }
+        '409': { $ref: '#/components/responses/Conflit' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+
+  /correctifs/{id}/deploiement:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [Correctifs]
+      operationId: deployCorrectif
+      summary: Optionnel. Déployer sa version corrigée pour la montrer tourner (auteur du correctif ; soukdev.json requis)
+      responses:
+        '202':
+          description: Déploiement mis en file ; son état arrive par Reverb
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Deploiement' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '409': { $ref: '#/components/responses/Conflit' }
+        '422': { $ref: '#/components/responses/Invalide' }
+        '429': { $ref: '#/components/responses/TropDeRequetes' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+
+  # ───────────── Missions ─────────────
+  /apps/{id}/missions:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [Missions]
+      operationId: createMission
+      summary: Demander une version sur mesure à l'auteur de l'appli (privé, sans enchères)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MissionCreation' }
+      responses:
+        '201':
+          description: Demande envoyée à l'auteur
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Mission' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '422': { $ref: '#/components/responses/Invalide' }
+        '429': { $ref: '#/components/responses/TropDeRequetes' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+
+  /missions:
+    get:
+      tags: [Missions]
+      operationId: listMissions
+      summary: Mes missions, comme client ou comme auteur
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/ParPage'
+      responses:
+        '200':
+          description: Liste de mes missions
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Pagination'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Mission' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+
+  /missions/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Missions]
+      operationId: getMission
+      summary: Une mission (client ou auteur uniquement)
+      responses:
+        '200':
+          description: La mission
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Mission' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+
+  /missions/{id}/messages:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Missions]
+      operationId: listMissionMessages
+      summary: Fil privé de la mission (client ou auteur uniquement)
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/ParPage'
+      responses:
+        '200':
+          description: Liste des messages
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Pagination'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Message' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+    post:
+      tags: [Missions]
+      operationId: createMissionMessage
+      summary: Écrire dans le fil privé de la mission
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MessageCreation' }
+      responses:
+        '201':
+          description: Message publié (diffusé sur le canal privé mission.{id})
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Message' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '422': { $ref: '#/components/responses/Invalide' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
 
   # ───────────── Événements ─────────────
   /events:
@@ -475,6 +849,7 @@ paths:
               schema: { $ref: '#/components/schemas/Evenement' }
         '401': { $ref: '#/components/responses/NonConnecte' }
         '422': { $ref: '#/components/responses/Invalide' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
 
   /events/{id}:
     parameters:
@@ -491,6 +866,35 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Evenement' }
         '404': { $ref: '#/components/responses/Introuvable' }
+    patch:
+      tags: [Événements]
+      operationId: updateEvent
+      summary: Modifier un événement (organisateur uniquement)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EvenementModification' }
+      responses:
+        '200':
+          description: Événement modifié
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Evenement' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '422': { $ref: '#/components/responses/Invalide' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+    delete:
+      tags: [Événements]
+      operationId: deleteEvent
+      summary: Supprimer un événement (organisateur ou admin) ; les inscrits sont prévenus
+      responses:
+        '204':
+          description: Événement supprimé
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
 
   /events/{id}/inscription:
     parameters:
@@ -504,6 +908,8 @@ paths:
           description: Inscrit
         '401': { $ref: '#/components/responses/NonConnecte' }
         '404': { $ref: '#/components/responses/Introuvable' }
+        '409': { $ref: '#/components/responses/Conflit' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
     delete:
       tags: [Événements]
       operationId: unregisterEvent
@@ -513,6 +919,7 @@ paths:
           description: Désinscrit
         '401': { $ref: '#/components/responses/NonConnecte' }
         '404': { $ref: '#/components/responses/Introuvable' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
 
   /events/{id}/participants:
     parameters:
@@ -520,7 +927,7 @@ paths:
     get:
       tags: [Événements]
       operationId: listParticipants
-      summary: Liste des participants
+      summary: Liste des participants (inscrits et organisateur uniquement ; le nombre d'inscrits est public)
       parameters:
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/ParPage'
@@ -539,14 +946,38 @@ paths:
                         type: array
                         items: { $ref: '#/components/schemas/Dev' }
         '404': { $ref: '#/components/responses/Introuvable' }
+        '403': { $ref: '#/components/responses/Interdit' }
 
   /events/{id}/avis:
     parameters:
       - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Événements]
+      operationId: listAvis
+      summary: Avis laissés sur un événement
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/ParPage'
+      responses:
+        '200':
+          description: Liste des avis
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Pagination'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Avis' }
+        '404': { $ref: '#/components/responses/Introuvable' }
     post:
       tags: [Événements]
       operationId: createAvis
-      summary: Laisser un avis (inscrit uniquement, après la date)
+      summary: Laisser un avis (inscrit uniquement, après la date, un seul par dev)
       requestBody:
         required: true
         content:
@@ -562,14 +993,16 @@ paths:
         '403': { $ref: '#/components/responses/Interdit' }
         '404': { $ref: '#/components/responses/Introuvable' }
         '422': { $ref: '#/components/responses/Invalide' }
+        '409': { $ref: '#/components/responses/Conflit' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
 
 components:
   securitySchemes:
     session:
       type: apiKey
       in: cookie
-      name: souk_session
-      description: Session Laravel Sanctum (SPA). TODO confirmer le nom du cookie.
+      name: soukdev_session
+      description: 'Session Laravel Sanctum (SPA), cookie fixé par SESSION_COOKIE. Requêtes POST, PATCH et DELETE : en-tête X-XSRF-TOKEN obligatoire.'
 
   parameters:
     Id:
@@ -577,11 +1010,13 @@ components:
       in: path
       required: true
       schema: { type: integer }
+
     Page:
       name: page
       in: query
       description: Numéro de page (commence à 1)
       schema: { type: integer, minimum: 1, default: 1 }
+
     ParPage:
       name: per_page
       in: query
@@ -594,21 +1029,46 @@ components:
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Erreur' }
+
     Interdit:
       description: Action non autorisée
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Erreur' }
+
     Introuvable:
       description: Ressource introuvable
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Erreur' }
+
     Invalide:
       description: Données invalides (ex. soukdev.json invalide)
       content:
         application/json:
           schema: { $ref: '#/components/schemas/ErreurValidation' }
+
+    Conflit:
+      description: Doublon ou état incompatible (ex. deuxième avis, deuxième inscription, correctif déjà accepté)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Erreur' }
+
+    CsrfInvalide:
+      description: Jeton CSRF absent ou expiré (appeler GET /sanctum/csrf-cookie)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Erreur' }
+
+    TropDeRequetes:
+      description: Limite de débit atteinte
+      headers:
+        Retry-After:
+          description: Secondes à attendre avant de réessayer
+          schema: { type: integer }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Erreur' }
 
   schemas:
     Erreur:
@@ -654,14 +1114,35 @@ components:
     # ───────────── Comptes ─────────────
     Dev:
       type: object
-      description: Un dev, tel qu'il apparaît partout (auteur, participant…)
-      required: [id, username, avatar_url, github_url]
+      description: Un compte tel qu'il apparaît publiquement (auteur, participant, client d'une mission…)
+      required: [id, nom, username, avatar_url, github_url, profil]
       properties:
         id: { type: integer }
-        username: { type: string, description: Identifiant GitHub }
         nom: { type: [string, 'null'] }
-        avatar_url: { type: string, format: uri }
-        github_url: { type: string, format: uri }
+        username: { type: [string, 'null'], description: 'Identifiant GitHub ; null si GitHub non lié' }
+        avatar_url: { type: [string, 'null'], format: uri }
+        github_url: { type: [string, 'null'], format: uri }
+        profil:
+          type: string
+          enum: [dev, client]
+          description: Choix d'entrée, sert à la redirection ; pas une étiquette définitive
+
+    Compte:
+      description: Mon compte (GET /me)
+      allOf:
+        - $ref: '#/components/schemas/Dev'
+        - type: object
+          required: [email, github_lie, est_admin]
+          properties:
+            email: { type: [string, 'null'], format: email }
+            github_lie: { type: boolean, description: Obligatoire pour publier une appli ou proposer un correctif }
+            est_admin: { type: boolean }
+
+    LienMagiqueDemande:
+      type: object
+      required: [email]
+      properties:
+        email: { type: string, format: email, maxLength: 254 }
 
     ProfilDev:
       description: Profil public d'un dev, avec ses dépôts publics GitHub et ses applis publiées
@@ -753,7 +1234,7 @@ components:
           description: Copie d'un client, copie de test d'une discussion, ou version corrigée
         etat:
           type: string
-          enum: [en_file, construction, demarrage, en_ligne, echec]
+          enum: [en_file, construction, demarrage, en_ligne, echec, arrete]
         url:
           type: [string, 'null']
           format: uri
@@ -773,9 +1254,13 @@ components:
           additionalProperties: { type: string }
 
     # ───────────── Discussions ─────────────
+    Etiquette:
+      type: string
+      enum: [bug, question, tuto, projet, entraide]
+
     Discussion:
       type: object
-      required: [id, titre, texte, auteur, canal, app_id, etiquettes, copie_test, nb_messages, cree_le]
+      required: [id, titre, texte, auteur, canal, app_id, depot_url, demo_url, etiquettes, copie_test, nb_messages, cree_le]
       properties:
         id: { type: integer }
         titre: { type: string }
@@ -783,32 +1268,49 @@ components:
         auteur: { $ref: '#/components/schemas/Dev' }
         canal: { type: [string, 'null'], description: Slug du canal }
         app_id: { type: [integer, 'null'], description: Appli jointe }
-        etiquettes:
-          type: array
-          items: { type: string }
+        depot_url: { type: [string, 'null'], format: uri, description: Dépôt GitHub public joint (même non publié) }
+        demo_url: { type: [string, 'null'], format: uri, description: 'Appli déployée ailleurs (ex. Vercel), affichée dans une iframe sandbox' }
+        etiquettes: { type: array, items: { $ref: '#/components/schemas/Etiquette' } }
         copie_test:
-          description: Copie de test de l'appli jointe, si elle a été lancée
+          description: Copie de test, seulement si l'auteur l'a lancée (POST /discussions/{id}/copie-test)
           oneOf:
             - $ref: '#/components/schemas/Deploiement'
             - type: 'null'
         nb_messages: { type: integer }
-        messages:
-          type: array
-          description: Présent uniquement dans GET /discussions/{id}
-          items: { $ref: '#/components/schemas/Message' }
         cree_le: { type: string, format: date-time }
+      description: Une discussion est soit dans un canal, soit sur la page d'une appli, jamais les deux.
 
     DiscussionCreation:
       type: object
+      description: Il faut soit canal, soit app_id (jamais les deux). depot_url et demo_url sont optionnels et ne lancent aucun déploiement.
       required: [titre, texte]
       properties:
         titre: { type: string, maxLength: 200 }
         texte: { type: string }
-        canal: { type: string }
-        app_id: { type: integer, description: Joindre une appli lance sa copie de test }
+        canal: { type: string, description: Slug du canal ; obligatoire sans app_id }
+        app_id: { type: integer, description: Appli publiée ; exclut canal }
+        depot_url: { type: string, format: uri }
+        demo_url: { type: string, format: uri }
         etiquettes:
           type: array
-          items: { type: string }
+          items: { $ref: '#/components/schemas/Etiquette' }
+      oneOf:
+        - required: [canal]
+          not: { required: [app_id] }
+        - required: [app_id]
+          not: { required: [canal] }
+
+    DiscussionModification:
+      type: object
+      description: Tous les champs sont optionnels ; seuls ceux envoyés sont modifiés
+      properties:
+        titre: { type: string, maxLength: 200 }
+        texte: { type: string }
+        depot_url: { type: [string, 'null'], format: uri }
+        demo_url: { type: [string, 'null'], format: uri }
+        etiquettes:
+          type: array
+          items: { $ref: '#/components/schemas/Etiquette' }
 
     Message:
       type: object
@@ -843,14 +1345,15 @@ components:
     # ───────────── Correctifs ─────────────
     Correctif:
       type: object
-      required: [id, discussion_id, depot_url, description, accepte, deploiement, auteur, cree_le]
+      required: [id, discussion_id, depot_url, demo_url, description, accepte, deploiement, auteur, cree_le]
       properties:
         id: { type: integer }
         discussion_id: { type: integer }
         depot_url: { type: string, format: uri, description: Fork ou branche GitHub }
+        demo_url: { type: [string, 'null'], format: uri, description: Version corrigée déployée ailleurs (optionnel) }
         description: { type: [string, 'null'], description: Ce que le correctif change }
         accepte: { type: boolean }
-        deploiement: { $ref: '#/components/schemas/Deploiement' }
+        deploiement: { description: 'Déploiement de la version corrigée, seulement si son auteur l''a lancé', oneOf: [$ref: '#/components/schemas/Deploiement', type: 'null'] }
         auteur: { $ref: '#/components/schemas/Dev' }
         cree_le: { type: string, format: date-time }
 
@@ -858,8 +1361,32 @@ components:
       type: object
       required: [depot_url]
       properties:
-        depot_url: { type: string, format: uri }
+        depot_url: { type: string, format: uri, description: URL d'une branche ou d'un fork GitHub }
         description: { type: string, maxLength: 1000 }
+        demo_url: { type: string, format: uri }
+
+    # ───────────── Missions ─────────────
+    Mission:
+      type: object
+      description: Demande privée d'un client à l'auteur d'une appli ; visible par eux seuls
+      required: [id, app_id, client, auteur, message, budget, delai, cree_le]
+      properties:
+        id: { type: integer }
+        app_id: { type: integer }
+        client: { $ref: '#/components/schemas/Dev' }
+        auteur: { $ref: '#/components/schemas/Dev' }
+        message: { type: string, description: Besoin exprimé par le client }
+        budget: { type: [integer, 'null'], minimum: 0, description: Budget indicatif en FCFA }
+        delai: { type: [string, 'null'], format: date, description: Date souhaitée }
+        cree_le: { type: string, format: date-time }
+
+    MissionCreation:
+      type: object
+      required: [message]
+      properties:
+        message: { type: string, maxLength: 5000 }
+        budget: { type: integer, minimum: 0 }
+        delai: { type: string, format: date }
 
     # ───────────── Événements ─────────────
     Evenement:
@@ -879,7 +1406,7 @@ components:
           format: uri
           description: Renseigné si en_ligne ; null si le dev connecté n'est pas inscrit
         organisateur: { $ref: '#/components/schemas/Dev' }
-        nb_inscrits: { type: integer }
+        nb_inscrits: { type: integer, description: Public }
         inscrit: { type: boolean, description: 'Le dev connecté est-il inscrit ?' }
         note_moyenne: { type: [number, 'null'], description: null tant qu'il n'y a aucun avis }
 
@@ -887,6 +1414,19 @@ components:
       type: object
       description: lieu est obligatoire si type = presentiel, lien est obligatoire si type = en_ligne
       required: [titre, description, date, type]
+      properties:
+        titre: { type: string, maxLength: 200 }
+        description: { type: string }
+        date: { type: string, format: date-time }
+        type:
+          type: string
+          enum: [en_ligne, presentiel]
+        lieu: { type: string }
+        lien: { type: string, format: uri }
+
+    EvenementModification:
+      type: object
+      description: Tous les champs sont optionnels ; seuls ceux envoyés sont modifiés
       properties:
         titre: { type: string, maxLength: 200 }
         description: { type: string }
