@@ -10,6 +10,14 @@ Règle de merge : **la CI bloque, Oktav valide le reste** (voir [`DECISIONS.md`]
 - Le **moteur** de Mourchid ne dépend de personne : il peut commencer tout de suite.
 - La **CI** de Jean-Baptiste s'appuie sur le squelette (dossiers `frontend/` et `backend/`).
 
+## Appli cobaye
+
+Pas d'appli à créer : on prend une appli existante de l'équipe, **Excellence Link** ou une plus petite (un seul service, sans backend compliqué : si ça casse, c'est le moteur et pas l'appli).
+
+À ajouter dans son dépôt :
+- `soukdev.json` (valide selon `soukdev.schema.json`) ;
+- `docker-compose.yml`.
+
 ## Oktav — architecture, squelette, revue
 
 - Créer `frontend/` : React + Vite, avec toute l'arborescence.
