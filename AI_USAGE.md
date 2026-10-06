@@ -17,3 +17,4 @@ Mis à jour au fil du projet.
 | 2026-10-06 | Claude Code | Rédaction du plan de la semaine 1 (SEMAINE_1.md) et mise à jour des rôles dans DECISIONS.md |
 | 2026-10-06 | Claude Code | Réécriture de la page de documentation : présentation du projet en premier, texte au nom d'Oktav |
 | 2026-10-06 | Claude Code | Écrans fiche d'une appli et publication (canvas de design) ; route de vérification du dépôt |
+| 2026-10-06 | Claude Code | Landing page et ses illustrations SVG (personnages, scènes des étapes), dessinées en SVG original |
