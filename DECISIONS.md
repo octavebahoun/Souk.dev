@@ -184,11 +184,22 @@ Fait partie du MVP dans sa **version limitée** (§9 du brief) : une base **Post
 
 | Membre | Rôle |
 |---|---|
-| Oktav | Frontend React + coordination |
-| Hope | Frontend React |
+| Oktav | Architecture, squelette du projet, revue de tout le code (front et back), merge des branches, coordination |
+| Hope | Frontend React : tous les écrans |
 | Mourchid | Backend Laravel : moteur de déploiement, puis Publier + Store une fois le moteur stable |
 | Wasfade | Backend Laravel : API Échange, Reverb, comptes utilisateurs |
-| Jean-Baptiste | CI/CD, SAST, DAST, sécurité, tests ; vérification automatique des licences en CI (`composer licenses`, `license-checker`) ; appui Docker et VPS pour le moteur |
+| Jean-Baptiste | CI/CD, SAST, DAST, sécurité, tests ; vérification automatique des licences en CI (`composer licenses`, `license-checker`) ; reverse proxy ; appui Docker et VPS pour le moteur |
+
+## Revue et merge
+
+- **La CI bloque** : pas de merge tant qu'elle n'est pas verte (tests, licences, respect du contrat).
+- **Oktav valide le reste** : architecture, logique, respect des décisions. Lui seul approuve et merge.
+- Protection de branche sur `main` : CI verte + approbation d'Oktav obligatoires.
+- PR petites : une PR = une tâche qui se relit vite.
+
+## Planning
+
+- **Semaine 1** (6 → 12 octobre) : détail dans [`SEMAINE_1.md`](SEMAINE_1.md).
 
 ## Moteur de déploiement
 
@@ -205,7 +216,6 @@ Fait partie du MVP dans sa **version limitée** (§9 du brief) : une base **Post
 
 - Datacloud permet-il de créer des VPS ou des conteneurs par API ? (question posée à Systalink, en attente)
 - **Paiement du serveur** avant un déploiement : la plateforme peut-elle déclencher le paiement Datacloud (API de facturation) ? Un paiement simulé affaiblirait le critère « utilisable ». À demander à Systalink.
-- Appli cobaye pour tester le moteur : à créer plus tard.
 - Service d'envoi des emails (liens magiques, annulation d'événement) : à choisir par l'équipe.
 - Un dev qui a déjà pris un serveur pour une copie de test pourrait-il le réutiliser pour déployer son appli ensuite ? À étudier.
 - Vérifier que l'appli est vraiment prête avant de donner son URL (étape 4 du moteur).
