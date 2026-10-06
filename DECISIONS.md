@@ -56,7 +56,9 @@ Les **événements temps réel** (Reverb) sont décrits à part dans `REVERB.md`
 ## Hébergement
 
 - **Un seul produit Datacloud** : un **Serveur cloud** (VPS), qui fait tourner le moteur de déploiement (Docker). Il suffit pour respecter l'obligation du règlement (au moins un produit Datacloud payant). On limite la dépense tant que la victoire n'est pas acquise.
-- **Base de données et stockage** : sur le serveur distant d'Oktav, pas chez Datacloud.
+- **Base de données** : dans un conteneur Docker **sur le VPS Datacloud**, sur le réseau Docker interne, **sans port ouvert** vers l'extérieur. Dimensionné pour un hackathon, pas pour des milliers d'utilisateurs.
+- **Stockage** : sur le serveur distant d'Oktav.
+- Taille recommandée du VPS : **4 vCPU, 8 Go de RAM, 80 Go de SSD** (plateforme + copies déployées + construction des images Docker). Vérifier l'accès root/SSH et un Linux Ubuntu ou Debian.
 
 ## Organisation du code
 
