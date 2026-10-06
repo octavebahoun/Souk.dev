@@ -53,6 +53,11 @@ Les **événements temps réel** (Reverb) sont décrits à part dans `REVERB.md`
 - microservice Node / Socket.IO (deuxième auth et deuxième déploiement, code non maîtrisé par l'équipe backend) ;
 - Inertia (le front devrait coder dans le projet Laravel et dépendrait des contrôleurs PHP).
 
+## Hébergement
+
+- **Un seul produit Datacloud** : un **Serveur cloud** (VPS), qui fait tourner le moteur de déploiement (Docker). Il suffit pour respecter l'obligation du règlement (au moins un produit Datacloud payant). On limite la dépense tant que la victoire n'est pas acquise.
+- **Base de données et stockage** : sur le serveur distant d'Oktav, pas chez Datacloud.
+
 ## Organisation du code
 
 Un seul dépôt : `frontend/` (React) + `backend/` (Laravel).
