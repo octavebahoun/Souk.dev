@@ -27,7 +27,7 @@ Le back diffuse avec Laravel Reverb, le front écoute avec Laravel Echo.
 | `deploiement.{id}` | `deploiement.etat` | `Deploiement` | À chaque changement d'état : `en_file` → `construction` → `demarrage` → `en_ligne` ou `echec` ; `arrete` après un arrêt |
 | `mission.{id}` | `message.cree` | `Message` | Nouveau message dans le fil privé |
 | `discussions` | `discussion.creee` | `Discussion` | Nouvelle discussion ; le front filtre lui-même par canal ou étiquette |
-| `discussion.{id}` | `discussion.modifiee` | `Discussion` | L'auteur modifie la discussion |
+| `discussion.{id}` | `discussion.modifiee` | `Discussion` | L'auteur modifie la discussion (y compris `resolue`, ou acceptation d'un correctif) |
 | `discussion.{id}` | `discussion.supprimee` | `{ "id": integer }` | Suppression par l'auteur ou un admin |
 | `discussion.{id}` | `message.cree` | `Message` | Nouvelle réponse |
 | `discussion.{id}` | `message.modifie` | `Message` | L'auteur modifie son message |

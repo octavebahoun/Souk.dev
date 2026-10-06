@@ -384,6 +384,10 @@ paths:
         - name: etiquette
           in: query
           schema: { $ref: '#/components/schemas/Etiquette' }
+        - name: statut
+          in: query
+          description: Sans ce filtre, toutes les discussions
+          schema: { type: string, enum: [ouvertes, resolues] }
       responses:
         '200':
           description: Liste des discussions
@@ -665,7 +669,7 @@ paths:
     post:
       tags: [Correctifs]
       operationId: acceptCorrectif
-      summary: Accepter un correctif (auteur de la discussion ; un seul accepté par discussion ; ne fusionne rien sur GitHub)
+      summary: Accepter un correctif (auteur de la discussion ; un seul accepté par discussion ; marque la discussion résolue ; ne fusionne rien sur GitHub)
       responses:
         '200':
           description: Correctif accepté
@@ -1260,7 +1264,7 @@ components:
 
     Discussion:
       type: object
-      required: [id, titre, texte, auteur, canal, app_id, depot_url, demo_url, etiquettes, copie_test, nb_messages, cree_le]
+      required: [id, titre, texte, auteur, canal, app_id, depot_url, demo_url, etiquettes, copie_test, resolue, nb_messages, cree_le]
       properties:
         id: { type: integer }
         titre: { type: string }
@@ -1276,6 +1280,7 @@ components:
           oneOf:
             - $ref: '#/components/schemas/Deploiement'
             - type: 'null'
+        resolue: { type: boolean, description: "Vraie quand l'auteur accepte un correctif ou la marque résolue lui-même (PATCH)" }
         nb_messages: { type: integer }
         cree_le: { type: string, format: date-time }
       description: Une discussion est soit dans un canal, soit sur la page d'une appli, jamais les deux.
@@ -1311,6 +1316,7 @@ components:
         etiquettes:
           type: array
           items: { $ref: '#/components/schemas/Etiquette' }
+        resolue: { type: boolean, description: "L'auteur la marque résolue (même sans correctif) ou la rouvre" }
 
     Message:
       type: object
