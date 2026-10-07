@@ -2,7 +2,11 @@
 
 namespace App\Providers;
 
+use App\Soukdev\ComposeRunner;
+use App\Soukdev\CopyLauncher;
+use App\Soukdev\EnvGenerator;
 use App\Soukdev\GitCloner;
+use App\Soukdev\ProcessComposeRunner;
 use App\Soukdev\ProcessGitCloner;
 use App\Soukdev\RandomSecretGenerator;
 use App\Soukdev\RepositoryReader;
@@ -30,6 +34,17 @@ class AppServiceProvider extends ServiceProvider
                 $app->make(GitCloner::class),
                 $app->make(SchemaValidator::class),
                 storage_path('app/checkouts'),
+            );
+        });
+
+        $this->app->singleton(ComposeRunner::class, ProcessComposeRunner::class);
+
+        $this->app->singleton(CopyLauncher::class, function ($app) {
+            return new CopyLauncher(
+                $app->make(RepositoryReader::class),
+                $app->make(EnvGenerator::class),
+                $app->make(ComposeRunner::class),
+                storage_path('app/copies'),
             );
         });
     }

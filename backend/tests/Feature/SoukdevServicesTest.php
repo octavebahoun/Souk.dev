@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Soukdev\CopyLauncher;
 use App\Soukdev\EnvGenerator;
 use App\Soukdev\RepositoryReader;
 use App\Soukdev\SchemaValidator;
@@ -36,5 +37,10 @@ class SoukdevServicesTest extends TestCase
     public function test_le_lecteur_de_depot_est_disponible(): void
     {
         $this->assertInstanceOf(RepositoryReader::class, $this->app->make(RepositoryReader::class));
+    }
+
+    public function test_le_lanceur_de_copie_est_disponible(): void
+    {
+        $this->assertInstanceOf(CopyLauncher::class, $this->app->make(CopyLauncher::class));
     }
 }

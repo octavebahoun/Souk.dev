@@ -15,3 +15,4 @@ Mis à jour au fil du projet.
 | 2026-10-07 | jean-baptiste | Mise en place de la CI GitHub Actions (back et front), ajout de Vitest et des contrôles de licences |
 | 2026-10-07 | Cursor | Validation de soukdev.json et génération du .env d'une copie (backend/app/Soukdev) |
 | 2026-10-07 | Cursor | Lecture d'un dépôt GitHub public : clone superficiel, docker-compose.yml et soukdev.json (backend/app/Soukdev) |
+| 2026-10-07 | Cursor | Lancement d'une copie isolée : .env conservé et docker compose -p (backend/app/Soukdev) |

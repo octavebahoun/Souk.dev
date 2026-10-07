@@ -4,9 +4,6 @@ declare(strict_types=1);
 
 namespace App\Soukdev;
 
-use FilesystemIterator;
-use RecursiveDirectoryIterator;
-use RecursiveIteratorIterator;
 use RuntimeException;
 
 final class RepositoryReader
@@ -21,8 +18,6 @@ final class RepositoryReader
 
     public function read(string $url): Manifest
     {
-        $repository = GithubRepositoryUrl::parse($url);
-
         if (! is_dir($this->workDirectory) && ! mkdir($this->workDirectory, 0700, true) && ! is_dir($this->workDirectory)) {
             throw new RuntimeException('Dossier de travail inaccessible.');
         }
@@ -30,12 +25,18 @@ final class RepositoryReader
         $destination = $this->workDirectory.'/'.bin2hex(random_bytes(16));
 
         try {
-            $this->git->checkout($repository->cloneUrl(), $repository->branch, $destination);
-
-            return $this->manifestFrom($destination);
+            return $this->checkoutInto($url, $destination);
         } finally {
-            $this->deleteDirectory($destination);
+            DirectoryRemover::remove($this->workDirectory, $destination);
         }
+    }
+
+    public function checkoutInto(string $url, string $destination): Manifest
+    {
+        $repository = GithubRepositoryUrl::parse($url);
+        $this->git->checkout($repository->cloneUrl(), $repository->branch, $destination);
+
+        return $this->manifestFrom($destination);
     }
 
     private function manifestFrom(string $directory): Manifest
@@ -83,30 +84,5 @@ final class RepositoryReader
         }
 
         return $fileReal;
-    }
-
-    private function deleteDirectory(string $directory): void
-    {
-        $work = realpath($this->workDirectory);
-        $target = is_dir($directory) ? realpath($directory) : false;
-
-        if ($work === false || $target === false || ! str_starts_with($target, $work.DIRECTORY_SEPARATOR)) {
-            return;
-        }
-
-        $files = new RecursiveIteratorIterator(
-            new RecursiveDirectoryIterator($target, FilesystemIterator::SKIP_DOTS),
-            RecursiveIteratorIterator::CHILD_FIRST,
-        );
-
-        foreach ($files as $file) {
-            if ($file->isLink() || ! $file->isDir()) {
-                unlink($file->getPathname());
-            } else {
-                rmdir($file->getPathname());
-            }
-        }
-
-        rmdir($target);
     }
 }
