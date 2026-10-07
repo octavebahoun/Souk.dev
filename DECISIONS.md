@@ -36,6 +36,8 @@ Le dev gagne de l'argent uniquement via le prix de ses applis et les missions su
 | Frontend | React + Vite, SPA séparée | MIT |
 | Auth SPA ↔ API | Laravel Sanctum | MIT |
 
+**Version de PHP : 8.4, partout.** Sur les PC de l'équipe, en CI et sur le serveur (le backend y tourne dans Docker, image `php:8.4`). La plateforme fixée dans `composer.json` et la version de la CI suivent la même version.
+
 Le frontend est une SPA séparée qui appelle l'API Laravel : le front (JS) et le back (PHP) avancent chacun de leur côté, en se mettant d'accord sur le format des réponses de l'API.
 
 Le **contrat d'API** (routes et format des réponses) est écrit par Oktav, au format **OpenAPI** (`openapi.yaml`). Ce fichier sert à :
