@@ -22,6 +22,14 @@ Versions exactes déjà installées. Les autres lignes attendent leur installati
 | Axios | 1.20.0 | MIT |
 | openapi-typescript | 7.13.0 | MIT |
 | @stoplight/prism-cli | 5.15.11 | Apache 2.0 |
+| PHPUnit | 12.5.38 | BSD-3-Clause |
+| Laravel Pint | 1.32.1 | MIT |
+| Vitest | 4.1.11 | MIT |
+| jsdom | 29.1.1 | MIT |
+| @testing-library/react | 16.3.3 | MIT |
+| @testing-library/dom | 10.4.2 | MIT |
+| @testing-library/jest-dom | 6.10.0 | MIT |
+| license-checker | 25.0.1 | BSD-3-Clause |
 | osteel/openapi-httpfoundation-testing | pas encore installé | MIT |
 
 `nette/utils` et `nette/schema` (tirés par Laravel) sont en triple licence BSD-3-Clause, GPL-2.0 ou GPL-3.0. On retient BSD-3-Clause. Le front ne contient aucune licence GPL, AGPL ou LGPL.
