@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 
 const FORBIDDEN = ['GPL', 'AGPL', 'LGPL']
+const UNKNOWN = /^(UNKNOWN|UNLICENSED)$/i
 
 let packages
 
@@ -12,20 +13,20 @@ try {
 }
 
 const violations = []
+const warnings = []
 
 for (const [name, info] of Object.entries(packages)) {
   const raw = info.licenses
 
-  if (!raw) {
-    continue
-  }
+  const licenses = (raw === undefined || raw === null || raw === '')
+    ? []
+    : (Array.isArray(raw) ? raw : [raw])
+        .flatMap((license) => String(license).split(/\s+OR\s+/i))
+        .map((license) => license.trim())
+        .filter(Boolean)
 
-  const licenses = (Array.isArray(raw) ? raw : [raw])
-    .flatMap((license) => String(license).split(/\s+OR\s+/i))
-    .map((license) => license.trim())
-    .filter(Boolean)
-
-  if (licenses.length === 0) {
+  if (licenses.length === 0 || licenses.every((license) => UNKNOWN.test(license))) {
+    warnings.push(`${name} : ${raw || 'aucune licence déclarée'}`)
     continue
   }
 
@@ -35,6 +36,14 @@ for (const [name, info] of Object.entries(packages)) {
 
   if (!hasAllowedOption) {
     violations.push(`${name} : ${[...new Set(licenses)].join(', ')}`)
+  }
+}
+
+if (warnings.length > 0) {
+  console.warn('Avertissement : licence absente ou inconnue, à vérifier manuellement :')
+
+  for (const warning of warnings) {
+    console.warn(` - ${warning}`)
   }
 }
 

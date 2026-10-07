@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 $forbidden = ['GPL', 'AGPL', 'LGPL'];
+$unknownLicenses = ['UNKNOWN', 'UNLICENSED'];
 
 $json = stream_get_contents(STDIN);
 
@@ -20,11 +21,14 @@ try {
 
 $packages = $data['dependencies'] ?? $data;
 $violations = [];
+$warnings = [];
 
 foreach ($packages as $name => $package) {
     $licenses = $package['license'] ?? null;
 
-    if (! is_array($licenses)) {
+    if (! is_array($licenses) || $licenses === []) {
+        $warnings[] = $name.' : aucune licence déclarée';
+
         continue;
     }
 
@@ -43,11 +47,32 @@ foreach ($packages as $name => $package) {
     }
 
     if ($options === []) {
+        $warnings[] = $name.' : aucune licence déclarée';
+
+        continue;
+    }
+
+    $knownOptions = array_filter(
+        $options,
+        static fn (string $option): bool => ! in_array(strtoupper($option), $unknownLicenses, true)
+    );
+
+    if ($knownOptions === []) {
+        $warnings[] = $name.' : '.implode(', ', array_unique($options));
+
         continue;
     }
 
     if (! has_allowed_license($options, $forbidden)) {
         $violations[] = $name.' : '.implode(', ', array_unique($options));
+    }
+}
+
+if ($warnings !== []) {
+    fwrite(STDERR, "Avertissement : licence absente ou inconnue, à vérifier manuellement :\n");
+
+    foreach ($warnings as $warning) {
+        fwrite(STDERR, ' - '.$warning."\n");
     }
 }
 
