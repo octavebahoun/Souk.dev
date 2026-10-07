@@ -16,7 +16,7 @@ final readonly class GithubRepositoryUrl
 
     public static function parse(string $url): self
     {
-        if (preg_match('#\Ahttps://github\.com/[^\s%\\\\@?#]+\z#', $url) !== 1) {
+        if (preg_match('~\Ahttps://github\.com/[^\s%\\\\@?#]+\z~', $url) !== 1) {
             throw new InvalidRepositoryException(['Adresse refusée.']);
         }
 
