@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Soukdev\EnvGenerator;
+use App\Soukdev\RepositoryReader;
 use App\Soukdev\SchemaValidator;
 use Tests\TestCase;
 
@@ -30,5 +31,10 @@ class SoukdevServicesTest extends TestCase
             '/\AAPP_NOM=Pharmacie\nDB_PASSWORD=[A-Za-z0-9]{32}\nDEVISE=FCFA\n\z/',
             $env,
         );
+    }
+
+    public function test_le_lecteur_de_depot_est_disponible(): void
+    {
+        $this->assertInstanceOf(RepositoryReader::class, $this->app->make(RepositoryReader::class));
     }
 }
