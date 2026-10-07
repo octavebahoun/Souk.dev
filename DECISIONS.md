@@ -186,6 +186,25 @@ Fichier à la racine du dépôt, à côté du `docker-compose.yml`. Schéma de v
 
 Fait partie du MVP dans sa **version limitée** (§9 du brief) : une base **PostgreSQL**, une API automatique **PostgREST** et une connexion par SMS. Seule la version complète est hors MVP. Fonctionnement comme Supabase : le dev crée un backend de test, code autour, met ses tables dans des migrations ; au déploiement, la plateforme crée un backend neuf, applique les migrations et injecte la nouvelle URL et la nouvelle clé.
 
+## Ajouts proposés par l'équipe (7 octobre)
+
+Validés par Oktav. L'équipe s'engage à les livrer d'ici le 25 octobre, **après** le cœur du MVP : le moteur et l'échange passent d'abord. Chaque ajout passera par le contrat (`openapi.yaml`) avant d'être codé.
+
+1. **Profil enrichi** : compétences, pays, disponibilité freelance, contributions, bugs résolus, note de la communauté, badges.
+2. **Bug structuré** : technologie, code concerné, erreur obtenue, comportement attendu, niveau de difficulté.
+3. **Réputation** : des points (XP) pour un bug résolu, une réponse utile, un projet publié, une aide, un événement. Pas de votes.
+4. **Souk Score** : un score global sur 1000, calculé à partir de la réputation, des projets, de la sécurité et de l'activité.
+5. **Tableau de bord du dev** : vues, déploiements, revenus, bugs résolus, note.
+6. **Souk AI** : une analyse IA du bug, affichée à côté des solutions de la communauté, sans les remplacer.
+7. **Recherche avancée** : filtres par pays, prix, type de projet, niveau, open source ou commercial.
+8. **Communautés africaines** : des canaux par pays et par techno (ex. « Laravel Afrique de l'Ouest »).
+9. **Espace entreprises** : chercher un dev disponible, le recruter, demander une personnalisation, en plus des missions. Contacter un dev reste toujours gratuit.
+10. **Sécurité avant publication** : analyse des secrets, des dépendances vulnérables et de la configuration Docker, puis badge « Security Checked ». Gratuite, puisqu'elle protège les clients.
+11. **Paiement unique** : le dev choisit le prix de son appli, **mensuel** (ex. 15 000 F/mois) ou **unique** (ex. 150 000 F, payé une fois). L'hébergement reste mensuel. Contrat : champ `type_prix` (`mensuel` ou `unique`) sur une appli.
+12. **Écran « mes copies »** : une entreprise ou une agence voit toutes ses copies déployées au même endroit. Gratuit.
+
+**Écarté** : le vote pour la meilleure solution (l'auteur accepte un correctif), l'achat du code source (le client déploie une copie), toute commission sur les ventes, le premium pour les devs. **Reporté** : l'abonnement entreprises, tant que le paiement via Datacloud n'est pas réglé.
+
 ## Rôles
 
 | Membre | Rôle |
