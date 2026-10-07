@@ -24,6 +24,9 @@ Versions exactes déjà installées. Les autres lignes attendent leur installati
 | @stoplight/prism-cli | 5.15.11 | Apache 2.0 |
 | PHPUnit | 12.5.38 | BSD-3-Clause |
 | Laravel Pint | 1.32.1 | MIT |
+| opis/json-schema | 2.6.0 | Apache-2.0 |
+| opis/string | 2.1.0 | Apache-2.0 |
+| opis/uri | 1.1.0 | Apache-2.0 |
 | Vitest | 4.1.11 | MIT |
 | jsdom | 29.1.1 | MIT |
 | @testing-library/react | 16.3.3 | MIT |
