@@ -62,6 +62,10 @@ jobs:
         run: npm run lint
       - name: Tests (Vitest)
         run: npm test
+      - name: Contrat (types à jour)
+        run: |
+          npm run types
+          git diff --exit-code -- src/shared/types/api.ts
       - name: Build (TypeScript + Vite)
         run: npm run build
       - name: Licences (GPL, AGPL, LGPL interdites)

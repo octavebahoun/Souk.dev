@@ -13,3 +13,4 @@ Mis à jour au fil du projet.
 | 2026-10-06 | Claude Code | Report des décisions de l'audit : DECISIONS.md, openapi.yaml, REVERB.md, soukdev.schema.json |
 | 2026-10-06 | Claude Code | Rédaction du plan de la semaine 1 (SEMAINE_1.md) et mise à jour des rôles dans DECISIONS.md |
 | 2026-10-07 | jean-baptiste | Mise en place de la CI GitHub Actions (back et front), ajout de Vitest et des contrôles de licences |
+| 2026-10-07 | jean-baptiste | Vérification du contrat OpenAPI en CI et avertissements pour les licences absentes ou inconnues (retour de revue) |
