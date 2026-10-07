@@ -47,8 +47,15 @@ Pas d'appli à créer : on prend une appli existante de l'équipe, **Excellence 
 - Générer le `.env` de la copie (sources client, plateforme, fixe).
 - Lancer avec `docker compose -p <copie>`.
 - Préparer l'appli cobaye avec Jean-Baptiste.
+- Une commande pour lancer une copie à la main, par exemple `php artisan soukdev:lancer <lien>`.
+- Vérifier le `docker-compose.yml` du dev avant de le lancer : refuser `privileged`, les volumes de l'hôte, `network_mode: host` et les ports publiés (seul le reverse proxy expose `service_web`).
+- Chemin du schéma : ne plus aller le chercher hors de `backend/` (`dirname(base_path())`), sinon il manquera dans une image Docker du backend seul.
+- Vérifier que l'appli répond sur `service_web` avant de la déclarer en ligne.
+- Brancher le moteur sur l'API : file d'attente, états du déploiement (`en_file` → `construction` → `demarrage` → `en_ligne` ou `echec`), événements Reverb.
+- Arrêter une copie (état `arrete`), et limiter la mémoire et le CPU de chaque copie.
+- Backend intégré : appliquer les `migrations` déclarées dans `soukdev.json`.
 
-**Terminé quand** : à partir d'un lien GitHub, l'appli cobaye tourne en local, isolée dans son propre projet compose.
+**Terminé quand** : à partir d'un lien GitHub, l'appli cobaye tourne en local, isolée dans son propre projet compose, et un `docker-compose.yml` dangereux est refusé.
 
 ## Wasfade — socle Laravel
 
