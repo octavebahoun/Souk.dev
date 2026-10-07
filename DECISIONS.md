@@ -206,6 +206,7 @@ Fait partie du MVP dans sa **version limitée** (§9 du brief) : une base **Post
 ## Planning
 
 - **Semaine 1** (6 → 12 octobre) : détail dans [`SEMAINE_1.md`](SEMAINE_1.md).
+- **Semaine 2** (13 → 19 octobre) : en préparation, dans [`SEMAINE_2.md`](SEMAINE_2.md).
 
 ## Moteur de déploiement
 
