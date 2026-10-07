@@ -96,6 +96,7 @@ On liste uniquement les routes du MVP, ressource par ressource : **Comptes**, **
 - **Vérifier avant de publier** : `POST /apps/verification` contrôle le dépôt (public, `docker-compose.yml` présent, `soukdev.json` valide) sans rien publier, et renvoie ce que la plateforme a lu (service web, backend, variables client). Le formulaire de publication l'appelle dès que le dev colle l'adresse du dépôt.
 - **Captures** : 1 à 5 images (PNG, JPEG ou WebP, **5 Mo maximum** chacune), envoyées avec le formulaire de publication (`POST /apps` en `multipart/form-data`). La première sert de couverture sur la carte du store. Pour les changer : `POST /apps/{id}/captures` remplace toutes les captures (POST, car PHP ne lit pas le multipart en PATCH). Stockées sur le serveur d'Oktav.
 - **Stack** : 1 à 8 technos, choisies dans une **liste fixe** (`GET /technos`), avec `autre` pour celles qui n'y sont pas.
+- **Prix** : `prix` en FCFA, avec `type_prix` : `mensuel` (payé chaque mois) ou `unique` (payé une seule fois). L'hébergement reste mensuel dans les deux cas.
 - Recherche dans le store : `GET /apps?q=paiement` (nom et description), `?gratuit=true` et `?techno=laravel`.
 
 ### Déploiements

@@ -1254,13 +1254,14 @@ components:
     # ───────────── Applis ─────────────
     App:
       type: object
-      required: [id, nom, description, prix, demo_url, depot_url, captures, stack, backend, variables_client, auteur, cree_le]
+      required: [id, nom, description, prix, type_prix, demo_url, depot_url, captures, stack, backend, variables_client, auteur, cree_le]
       properties:
         id: { type: integer }
         nom: { type: string }
         description: { type: string }
         readme: { type: [string, 'null'], description: README du dépôt en Markdown }
-        prix: { type: integer, minimum: 0, description: Prix mensuel en FCFA ; 0 = gratuit }
+        prix: { type: integer, minimum: 0, description: Prix de l'appli en FCFA, par mois ou une seule fois selon type_prix ; 0 = gratuit }
+        type_prix: { $ref: '#/components/schemas/TypePrix' }
         demo_url: { type: string, format: uri }
         depot_url: { type: string, format: uri }
         captures:
@@ -1297,13 +1298,14 @@ components:
     AppCreation:
       type: object
       description: Envoyé en multipart/form-data (champs texte + images)
-      required: [nom, description, depot_url, demo_url, prix, stack, captures]
+      required: [nom, description, depot_url, demo_url, prix, type_prix, stack, captures]
       properties:
         nom: { type: string, maxLength: 100 }
         description: { type: string, maxLength: 1000 }
         depot_url: { type: string, format: uri, description: Dépôt GitHub public contenant docker-compose.yml et soukdev.json }
         demo_url: { type: string, format: uri }
         prix: { type: integer, minimum: 0 }
+        type_prix: { $ref: '#/components/schemas/TypePrix' }
         stack:
           type: array
           minItems: 1
@@ -1311,6 +1313,11 @@ components:
           uniqueItems: true
           items: { $ref: '#/components/schemas/Techno' }
         captures: { $ref: '#/components/schemas/CapturesEnvoi' }
+
+    TypePrix:
+      type: string
+      enum: [mensuel, unique]
+      description: "mensuel = le client paie le prix chaque mois ; unique = il le paie une seule fois. L'hébergement reste mensuel dans les deux cas. Ignoré quand prix vaut 0."
 
     VerificationDepot:
       type: object
@@ -1354,6 +1361,7 @@ components:
         description: { type: string, maxLength: 1000 }
         demo_url: { type: string, format: uri }
         prix: { type: integer, minimum: 0 }
+        type_prix: { $ref: '#/components/schemas/TypePrix' }
         stack:
           type: array
           minItems: 1

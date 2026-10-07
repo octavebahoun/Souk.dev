@@ -753,8 +753,9 @@ export interface components {
             description: string;
             /** @description README du dépôt en Markdown */
             readme?: string | null;
-            /** @description Prix mensuel en FCFA ; 0 = gratuit */
+            /** @description Prix de l'appli en FCFA */
             prix: number;
+            type_prix: components["schemas"]["TypePrix"];
             /** Format: uri */
             demo_url: string;
             /** Format: uri */
@@ -792,9 +793,15 @@ export interface components {
             /** Format: uri */
             demo_url: string;
             prix: number;
+            type_prix: components["schemas"]["TypePrix"];
             stack: components["schemas"]["Techno"][];
             captures: components["schemas"]["CapturesEnvoi"];
         };
+        /**
+         * @description mensuel = le client paie le prix chaque mois ; unique = il le paie une seule fois. L'hébergement reste mensuel dans les deux cas. Ignoré quand prix vaut 0.
+         * @enum {string}
+         */
+        TypePrix: "mensuel" | "unique";
         /** @description Dépôt valide. En cas d'erreur (dépôt privé ou introuvable, docker-compose.yml absent, soukdev.json invalide), réponse 422 avec le détail par champ. */
         VerificationDepot: {
             service_web: {
@@ -823,6 +830,7 @@ export interface components {
             /** Format: uri */
             demo_url?: string;
             prix?: number;
+            type_prix?: components["schemas"]["TypePrix"];
             stack?: components["schemas"]["Techno"][];
         };
         Deploiement: {
