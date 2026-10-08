@@ -96,6 +96,7 @@ On liste uniquement les routes du MVP, ressource par ressource : **Comptes**, **
 - **Vérifier avant de publier** : `POST /apps/verification` contrôle le dépôt (public, `docker-compose.yml` présent, `soukdev.json` valide) sans rien publier, et renvoie ce que la plateforme a lu (service web, backend, variables client). Le formulaire de publication l'appelle dès que le dev colle l'adresse du dépôt.
 - **Captures** : 1 à 5 images (PNG, JPEG ou WebP, **5 Mo maximum** chacune), envoyées avec le formulaire de publication (`POST /apps` en `multipart/form-data`). La première sert de couverture sur la carte du store. Pour les changer : `POST /apps/{id}/captures` remplace toutes les captures (POST, car PHP ne lit pas le multipart en PATCH). Stockées sur le serveur d'Oktav.
 - **Stack** : 1 à 8 technos, choisies dans une **liste fixe** (`GET /technos`), avec `autre` pour celles qui n'y sont pas.
+- **Prix** : `prix` en FCFA, avec `type_prix` : `mensuel` (payé chaque mois) ou `unique` (payé une seule fois). L'hébergement reste mensuel dans les deux cas.
 - Recherche dans le store : `GET /apps?q=paiement` (nom et description), `?gratuit=true` et `?techno=laravel`.
 
 ### Déploiements
@@ -155,7 +156,7 @@ Rencontre avec date et inscription, en ligne (avec lien) ou en présentiel (avec
 - **CSRF Sanctum** : la SPA appelle d'abord `GET /sanctum/csrf-cookie`, puis renvoie l'en-tête `X-XSRF-TOKEN` à chaque requête qui modifie quelque chose. Jeton absent ou expiré : `419`.
 - **Limites de débit** (au-delà : `429`) :
   - **3 déploiements par heure** et par compte (copies de test et déploiements de correctifs compris) ;
-  - **10 par heure** pour les discussions, correctifs, missions et vérifications de dépôt ;
+  - **10 par heure** pour les discussions, correctifs, missions, vérifications de dépôt et relances de l'analyse de sécurité ;
   - **60 requêtes par minute** pour tout le reste (valeur par défaut de Laravel).
 - Canaux privés Reverb autorisés par `POST /broadcasting/auth` (route web Laravel), avec la session Sanctum.
 - Cookie de session : `soukdev_session` (variable `SESSION_COOKIE`).
@@ -185,6 +186,31 @@ Fichier à la racine du dépôt, à côté du `docker-compose.yml`. Schéma de v
 ## Backend intégré
 
 Fait partie du MVP dans sa **version limitée** (§9 du brief) : une base **PostgreSQL**, une API automatique **PostgREST** et une connexion par SMS. Seule la version complète est hors MVP. Fonctionnement comme Supabase : le dev crée un backend de test, code autour, met ses tables dans des migrations ; au déploiement, la plateforme crée un backend neuf, applique les migrations et injecte la nouvelle URL et la nouvelle clé.
+
+## Ajouts proposés par l'équipe (7 octobre)
+
+Validés par Oktav. L'équipe s'engage à les livrer d'ici le 25 octobre, **après** le cœur du MVP : le moteur et l'échange passent d'abord. Chaque ajout passera par le contrat (`openapi.yaml`) avant d'être codé.
+
+1. **Profil enrichi** : compétences, pays, disponibilité freelance, contributions, bugs résolus, note de la communauté, badges.
+2. **Bug structuré** : technologie, code concerné, erreur obtenue, comportement attendu, niveau de difficulté.
+3. **Réputation** : des points (XP) pour un bug résolu, une réponse utile, un projet publié, une aide, un événement. Pas de votes.
+4. **Souk Score** : un score global sur 1000, calculé à partir de la réputation, des projets, de la sécurité et de l'activité.
+5. **Tableau de bord du dev** : vues, déploiements, revenus, bugs résolus, note.
+6. **Souk AI** : une analyse IA du bug, affichée à côté des solutions de la communauté, sans les remplacer.
+7. **Recherche avancée** : filtres par pays, prix, type de projet, niveau, open source ou commercial.
+8. **Communautés africaines** : des canaux par pays et par techno (ex. « Laravel Afrique de l'Ouest »).
+    - **Pays sur le profil**, facultatif : champ `pays` (code ISO, ex. `BJ`), tous les pays acceptés (diaspora comprise). Modifiable avec `PATCH /me`, qui sert aussi pour la bio.
+    - **Canaux par pays** : un canal peut avoir un `pays` (ex. `#laravel-benin` → `BJ`), filtre `GET /canaux?pays=BJ`. Un canal général ou régional n'a pas de pays.
+9. **Espace entreprises** : chercher un dev disponible, le recruter, demander une personnalisation, en plus des missions. Contacter un dev reste toujours gratuit.
+10. **Sécurité avant publication**, gratuite puisqu'elle protège les clients. Trois niveaux :
+    - **Bloquant** (publication refusée en `422`) : un secret dans le dépôt (gitleaks, MIT) ou un `docker-compose.yml` dangereux (`privileged`, volumes de l'hôte, `network_mode: host`, ports publiés).
+    - **Avertissement** : des dépendances avec des failles connues (Trivy, Apache 2.0). L'appli est publiée avec le badge orange « Problèmes détectés » et le rapport.
+    - **Rien trouvé** : badge vert « Security Checked ».
+    - Contrat : champ `securite` sur une appli (`en_cours`, `verifie`, `problemes`), filtre `GET /apps?securite=true`, relance par l'auteur avec `POST /apps/{id}/securite`. Outils interdits par leur licence : Semgrep (LGPL), Hadolint (GPL).
+11. **Paiement unique** : le dev choisit le prix de son appli, **mensuel** (ex. 15 000 F/mois) ou **unique** (ex. 150 000 F, payé une fois). L'hébergement reste mensuel. Contrat : champ `type_prix` (`mensuel` ou `unique`) sur une appli.
+12. **Écran « mes copies »** : une entreprise ou une agence voit toutes ses copies déployées au même endroit. Gratuit.
+
+**Écarté** : le vote pour la meilleure solution (l'auteur accepte un correctif), l'achat du code source (le client déploie une copie), toute commission sur les ventes, le premium pour les devs. **Reporté** : l'abonnement entreprises, tant que le paiement via Datacloud n'est pas réglé.
 
 ## Rôles
 

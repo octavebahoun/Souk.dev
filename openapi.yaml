@@ -173,6 +173,24 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Compte' }
         '401': { $ref: '#/components/responses/NonConnecte' }
+    patch:
+      tags: [Comptes]
+      operationId: updateMe
+      summary: Modifier mon profil (pays, bio) ; seuls les champs envoyés sont modifiés
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CompteModification' }
+      responses:
+        '200':
+          description: Profil modifié
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Compte' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '422': { $ref: '#/components/responses/Invalide' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
 
   /devs/{username}:
     get:
@@ -215,6 +233,10 @@ paths:
           in: query
           description: Uniquement les applis dont la stack contient cette techno
           schema: { $ref: '#/components/schemas/Techno' }
+        - name: securite
+          in: query
+          description: true = uniquement les applis au badge « Security Checked » (statut verifie)
+          schema: { type: boolean }
       responses:
         '200':
           description: Liste des applis
@@ -232,7 +254,7 @@ paths:
     post:
       tags: [Applis]
       operationId: createApp
-      summary: Publier une appli (GitHub lié obligatoire ; soukdev.json validé immédiatement avec soukdev.schema.json ; captures envoyées dans le même formulaire)
+      summary: Publier une appli (GitHub lié obligatoire ; soukdev.json validé immédiatement avec soukdev.schema.json ; captures envoyées dans le même formulaire ; refusée en 422 si un secret ou un docker-compose.yml dangereux est trouvé ; l'analyse des dépendances démarre ensuite)
       requestBody:
         required: true
         content:
@@ -255,7 +277,7 @@ paths:
     post:
       tags: [Applis]
       operationId: verifyAppRepo
-      summary: Vérifier un dépôt avant de publier (dépôt public, docker-compose.yml, soukdev.json validé) ; ne publie rien
+      summary: Vérifier un dépôt avant de publier (dépôt public, docker-compose.yml, soukdev.json validé, aucun secret, docker-compose.yml sans réglage dangereux) ; ne publie rien
       requestBody:
         required: true
         content:
@@ -349,6 +371,24 @@ paths:
         '403': { $ref: '#/components/responses/Interdit' }
         '404': { $ref: '#/components/responses/Introuvable' }
         '422': { $ref: '#/components/responses/Invalide' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+
+  /apps/{id}/securite:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [Applis]
+      operationId: rescanAppSecurity
+      summary: Relancer l'analyse de sécurité (auteur uniquement), par exemple après avoir corrigé une dépendance
+      responses:
+        '202':
+          description: Analyse mise en file ; le statut passe à en_cours
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Securite' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '429': { $ref: '#/components/responses/TropDeRequetes' }
         '419': { $ref: '#/components/responses/CsrfInvalide' }
 
   /technos:
@@ -648,6 +688,11 @@ paths:
       operationId: listCanaux
       summary: Liste des canaux
       security: []
+      parameters:
+        - name: pays
+          in: query
+          description: Uniquement les canaux de ce pays
+          schema: { $ref: '#/components/schemas/Pays' }
       responses:
         '200':
           description: Liste des canaux
@@ -1195,10 +1240,15 @@ components:
     Dev:
       type: object
       description: Un compte tel qu'il apparaît publiquement (auteur, participant, client d'une mission…)
-      required: [id, nom, username, avatar_url, github_url, profil]
+      required: [id, nom, username, avatar_url, github_url, profil, pays]
       properties:
         id: { type: integer }
         nom: { type: [string, 'null'] }
+        pays:
+          description: Facultatif ; null tant que la personne ne l'a pas choisi
+          oneOf:
+            - $ref: '#/components/schemas/Pays'
+            - type: 'null'
         username: { type: [string, 'null'], description: 'Identifiant GitHub ; null si GitHub non lié' }
         avatar_url: { type: [string, 'null'], format: uri }
         github_url: { type: [string, 'null'], format: uri }
@@ -1206,6 +1256,21 @@ components:
           type: string
           enum: [dev, client]
           description: Choix d'entrée, sert à la redirection ; pas une étiquette définitive
+
+    Pays:
+      type: string
+      pattern: '^[A-Z]{2}$'
+      description: 'Code pays ISO 3166-1 alpha-2, ex. BJ (Bénin), SN (Sénégal), CI (Côte d''Ivoire). Tous les pays sont acceptés.'
+
+    CompteModification:
+      type: object
+      description: Tous les champs sont optionnels ; null efface la valeur
+      properties:
+        pays:
+          oneOf:
+            - $ref: '#/components/schemas/Pays'
+            - type: 'null'
+        bio: { type: [string, 'null'], maxLength: 500 }
 
     Compte:
       description: Mon compte (GET /me)
@@ -1254,13 +1319,14 @@ components:
     # ───────────── Applis ─────────────
     App:
       type: object
-      required: [id, nom, description, prix, demo_url, depot_url, captures, stack, backend, variables_client, auteur, cree_le]
+      required: [id, nom, description, prix, type_prix, demo_url, depot_url, captures, stack, backend, variables_client, securite, auteur, cree_le]
       properties:
         id: { type: integer }
         nom: { type: string }
         description: { type: string }
         readme: { type: [string, 'null'], description: README du dépôt en Markdown }
-        prix: { type: integer, minimum: 0, description: Prix mensuel en FCFA ; 0 = gratuit }
+        prix: { type: integer, minimum: 0, description: Prix de l'appli en FCFA, par mois ou une seule fois selon type_prix ; 0 = gratuit }
+        type_prix: { $ref: '#/components/schemas/TypePrix' }
         demo_url: { type: string, format: uri }
         depot_url: { type: string, format: uri }
         captures:
@@ -1283,6 +1349,7 @@ components:
           type: array
           description: Variables que le client remplit au déploiement (déclarées dans soukdev.json)
           items: { $ref: '#/components/schemas/VariableClient' }
+        securite: { $ref: '#/components/schemas/Securite' }
         auteur: { $ref: '#/components/schemas/Dev' }
         cree_le: { type: string, format: date-time }
 
@@ -1297,13 +1364,14 @@ components:
     AppCreation:
       type: object
       description: Envoyé en multipart/form-data (champs texte + images)
-      required: [nom, description, depot_url, demo_url, prix, stack, captures]
+      required: [nom, description, depot_url, demo_url, prix, type_prix, stack, captures]
       properties:
         nom: { type: string, maxLength: 100 }
         description: { type: string, maxLength: 1000 }
         depot_url: { type: string, format: uri, description: Dépôt GitHub public contenant docker-compose.yml et soukdev.json }
         demo_url: { type: string, format: uri }
         prix: { type: integer, minimum: 0 }
+        type_prix: { $ref: '#/components/schemas/TypePrix' }
         stack:
           type: array
           minItems: 1
@@ -1312,9 +1380,39 @@ components:
           items: { $ref: '#/components/schemas/Techno' }
         captures: { $ref: '#/components/schemas/CapturesEnvoi' }
 
+    TypePrix:
+      type: string
+      enum: [mensuel, unique]
+      description: "mensuel = le client paie le prix chaque mois ; unique = il le paie une seule fois. L'hébergement reste mensuel dans les deux cas. Ignoré quand prix vaut 0."
+
+    Securite:
+      type: object
+      description: "Analyse des dépendances du dépôt (Trivy). Secrets et docker-compose.yml dangereux bloquent la publication et n'apparaissent donc jamais ici."
+      required: [statut, analyse_le, problemes]
+      properties:
+        statut:
+          type: string
+          enum: [en_cours, verifie, problemes]
+          description: "verifie = badge vert « Security Checked » ; problemes = badge orange « Problèmes détectés »"
+        analyse_le: { type: [string, 'null'], format: date-time, description: null tant que la première analyse n'est pas finie }
+        problemes:
+          type: array
+          items: { $ref: '#/components/schemas/ProblemeSecurite' }
+
+    ProblemeSecurite:
+      type: object
+      description: Une dépendance avec une faille connue
+      required: [identifiant, paquet, version, gravite, version_corrigee]
+      properties:
+        identifiant: { type: string, description: 'Référence publique de la faille, ex. CVE-2024-12345' }
+        paquet: { type: string, description: 'ex. laravel/framework' }
+        version: { type: string, description: Version utilisée par le dépôt }
+        gravite: { type: string, enum: [faible, moyenne, haute, critique] }
+        version_corrigee: { type: [string, 'null'], description: Première version sans la faille, si elle existe }
+
     VerificationDepot:
       type: object
-      description: Dépôt valide. En cas d'erreur (dépôt privé ou introuvable, docker-compose.yml absent, soukdev.json invalide), réponse 422 avec le détail par champ.
+      description: "Dépôt valide. En cas d'erreur (dépôt privé ou introuvable, docker-compose.yml absent, soukdev.json invalide, secret trouvé dans le dépôt, docker-compose.yml dangereux : privileged, volumes de l'hôte, network_mode host, ports publiés), réponse 422 avec le détail par champ."
       required: [service_web, backend, variables_client]
       properties:
         service_web:
@@ -1354,6 +1452,7 @@ components:
         description: { type: string, maxLength: 1000 }
         demo_url: { type: string, format: uri }
         prix: { type: integer, minimum: 0 }
+        type_prix: { $ref: '#/components/schemas/TypePrix' }
         stack:
           type: array
           minItems: 1
@@ -1471,11 +1570,16 @@ components:
 
     Canal:
       type: object
-      required: [slug, nom, description]
+      required: [slug, nom, description, pays]
       properties:
-        slug: { type: string, description: 'ex. laravel, mobile-money' }
+        slug: { type: string, description: 'ex. laravel, mobile-money, laravel-benin' }
         nom: { type: string }
         description: { type: [string, 'null'] }
+        pays:
+          description: 'Canal d''un pays (ex. #laravel-benin → BJ) ; null pour un canal général ou régional'
+          oneOf:
+            - $ref: '#/components/schemas/Pays'
+            - type: 'null'
 
     CanalCreation:
       type: object
@@ -1483,6 +1587,7 @@ components:
       properties:
         nom: { type: string, maxLength: 50 }
         description: { type: string, maxLength: 300 }
+        pays: { $ref: '#/components/schemas/Pays' }
 
     # ───────────── Correctifs ─────────────
     Correctif:

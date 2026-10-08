@@ -137,7 +137,8 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /** Modifier mon profil (pays, bio) ; seuls les champs envoyés sont modifiés */
+        patch: operations["updateMe"];
         trace?: never;
     };
     "/devs/{username}": {
@@ -167,7 +168,7 @@ export interface paths {
         /** Le store */
         get: operations["listApps"];
         put?: never;
-        /** Publier une appli (GitHub lié obligatoire ; soukdev.json validé immédiatement avec soukdev.schema.json ; captures envoyées dans le même formulaire) */
+        /** Publier une appli (GitHub lié obligatoire ; soukdev.json validé immédiatement avec soukdev.schema.json ; captures envoyées dans le même formulaire ; refusée en 422 si un secret ou un docker-compose.yml dangereux est trouvé ; l'analyse des dépendances démarre ensuite) */
         post: operations["createApp"];
         delete?: never;
         options?: never;
@@ -184,7 +185,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Vérifier un dépôt avant de publier (dépôt public, docker-compose.yml, soukdev.json validé) ; ne publie rien */
+        /** Vérifier un dépôt avant de publier (dépôt public, docker-compose.yml, soukdev.json validé, aucun secret, docker-compose.yml sans réglage dangereux) ; ne publie rien */
         post: operations["verifyAppRepo"];
         delete?: never;
         options?: never;
@@ -226,6 +227,25 @@ export interface paths {
         put?: never;
         /** Remplacer toutes les captures d'une appli (auteur uniquement ; POST car PHP ne lit pas le multipart en PATCH) */
         post: operations["replaceAppCaptures"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/apps/{id}/securite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Relancer l'analyse de sécurité (auteur uniquement), par exemple après avoir corrigé une dépendance */
+        post: operations["rescanAppSecurity"];
         delete?: never;
         options?: never;
         head?: never;
@@ -706,6 +726,8 @@ export interface components {
         Dev: {
             id: number;
             nom: string | null;
+            /** @description Facultatif ; null tant que la personne ne l'a pas choisi */
+            pays: components["schemas"]["Pays"] | null;
             /** @description Identifiant GitHub ; null si GitHub non lié */
             username: string | null;
             /** Format: uri */
@@ -717,6 +739,13 @@ export interface components {
              * @enum {string}
              */
             profil: "dev" | "client";
+        };
+        /** @description Code pays ISO 3166-1 alpha-2, ex. BJ (Bénin), SN (Sénégal), CI (Côte d'Ivoire). Tous les pays sont acceptés. */
+        Pays: string;
+        /** @description Tous les champs sont optionnels ; null efface la valeur */
+        CompteModification: {
+            pays?: components["schemas"]["Pays"] | null;
+            bio?: string | null;
         };
         /** @description Mon compte (GET /me) */
         Compte: components["schemas"]["Dev"] & {
@@ -753,8 +782,9 @@ export interface components {
             description: string;
             /** @description README du dépôt en Markdown */
             readme?: string | null;
-            /** @description Prix mensuel en FCFA ; 0 = gratuit */
+            /** @description Prix de l'appli en FCFA */
             prix: number;
+            type_prix: components["schemas"]["TypePrix"];
             /** Format: uri */
             demo_url: string;
             /** Format: uri */
@@ -769,6 +799,7 @@ export interface components {
             backend: "propre" | "integre";
             /** @description Variables que le client remplit au déploiement (déclarées dans soukdev.json) */
             variables_client: components["schemas"]["VariableClient"][];
+            securite: components["schemas"]["Securite"];
             auteur: components["schemas"]["Dev"];
             /** Format: date-time */
             cree_le: string;
@@ -792,10 +823,43 @@ export interface components {
             /** Format: uri */
             demo_url: string;
             prix: number;
+            type_prix: components["schemas"]["TypePrix"];
             stack: components["schemas"]["Techno"][];
             captures: components["schemas"]["CapturesEnvoi"];
         };
-        /** @description Dépôt valide. En cas d'erreur (dépôt privé ou introuvable, docker-compose.yml absent, soukdev.json invalide), réponse 422 avec le détail par champ. */
+        /**
+         * @description mensuel = le client paie le prix chaque mois ; unique = il le paie une seule fois. L'hébergement reste mensuel dans les deux cas. Ignoré quand prix vaut 0.
+         * @enum {string}
+         */
+        TypePrix: "mensuel" | "unique";
+        /** @description Analyse des dépendances du dépôt (Trivy). Secrets et docker-compose.yml dangereux bloquent la publication et n'apparaissent donc jamais ici. */
+        Securite: {
+            /**
+             * @description verifie = badge vert « Security Checked » ; problemes = badge orange « Problèmes détectés »
+             * @enum {string}
+             */
+            statut: "en_cours" | "verifie" | "problemes";
+            /**
+             * Format: date-time
+             * @description null tant que la première analyse n'est pas finie
+             */
+            analyse_le: string | null;
+            problemes: components["schemas"]["ProblemeSecurite"][];
+        };
+        /** @description Une dépendance avec une faille connue */
+        ProblemeSecurite: {
+            /** @description Référence publique de la faille, ex. CVE-2024-12345 */
+            identifiant: string;
+            /** @description ex. laravel/framework */
+            paquet: string;
+            /** @description Version utilisée par le dépôt */
+            version: string;
+            /** @enum {string} */
+            gravite: "faible" | "moyenne" | "haute" | "critique";
+            /** @description Première version sans la faille */
+            version_corrigee: string | null;
+        };
+        /** @description Dépôt valide. En cas d'erreur (dépôt privé ou introuvable, docker-compose.yml absent, soukdev.json invalide, secret trouvé dans le dépôt, docker-compose.yml dangereux : privileged, volumes de l'hôte, network_mode host, ports publiés), réponse 422 avec le détail par champ. */
         VerificationDepot: {
             service_web: {
                 nom: string;
@@ -823,6 +887,7 @@ export interface components {
             /** Format: uri */
             demo_url?: string;
             prix?: number;
+            type_prix?: components["schemas"]["TypePrix"];
             stack?: components["schemas"]["Techno"][];
         };
         Deploiement: {
@@ -921,14 +986,17 @@ export interface components {
             texte: string;
         };
         Canal: {
-            /** @description ex. laravel, mobile-money */
+            /** @description ex. laravel, mobile-money, laravel-benin */
             slug: string;
             nom: string;
             description: string | null;
+            /** @description Canal d'un pays (ex. #laravel-benin → BJ) ; null pour un canal général ou régional */
+            pays: components["schemas"]["Pays"] | null;
         };
         CanalCreation: {
             nom: string;
             description?: string;
+            pays?: components["schemas"]["Pays"];
         };
         Correctif: {
             id: number;
@@ -1309,6 +1377,33 @@ export interface operations {
             401: components["responses"]["NonConnecte"];
         };
     };
+    updateMe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CompteModification"];
+            };
+        };
+        responses: {
+            /** @description Profil modifié */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Compte"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            419: components["responses"]["CsrfInvalide"];
+            422: components["responses"]["Invalide"];
+        };
+    };
     getDev: {
         parameters: {
             query?: never;
@@ -1345,6 +1440,8 @@ export interface operations {
                 gratuit?: boolean;
                 /** @description Uniquement les applis dont la stack contient cette techno */
                 techno?: components["schemas"]["Techno"];
+                /** @description true = uniquement les applis au badge « Security Checked » (statut verifie) */
+                securite?: boolean;
             };
             header?: never;
             path?: never;
@@ -1547,6 +1644,32 @@ export interface operations {
             404: components["responses"]["Introuvable"];
             419: components["responses"]["CsrfInvalide"];
             422: components["responses"]["Invalide"];
+        };
+    };
+    rescanAppSecurity: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Analyse mise en file ; le statut passe à en_cours */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Securite"];
+                };
+            };
+            403: components["responses"]["Interdit"];
+            404: components["responses"]["Introuvable"];
+            419: components["responses"]["CsrfInvalide"];
+            429: components["responses"]["TropDeRequetes"];
         };
     };
     listTechnos: {
@@ -1954,7 +2077,10 @@ export interface operations {
     };
     listCanaux: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Uniquement les canaux de ce pays */
+                pays?: components["schemas"]["Pays"];
+            };
             header?: never;
             path?: never;
             cookie?: never;
