@@ -12,7 +12,8 @@ info:
     requête POST, PATCH ou DELETE. Jeton absent ou expiré : 419.
 
     Limites de débit (au-delà : 429) : 3 déploiements par heure et par compte,
-    10 discussions, correctifs ou missions par heure, 60 requêtes par minute pour le reste.
+    10 discussions, correctifs ou missions par heure, 3 analyses Souk AI par jour,
+    60 requêtes par minute pour le reste.
 
     Les routes marquées « web » (connexion, CSRF, broadcasting) sont servies à la
     racine du domaine, hors du préfixe /api.
@@ -692,6 +693,29 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Deploiement' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '409': { $ref: '#/components/responses/Conflit' }
+        '422': { $ref: '#/components/responses/Invalide' }
+        '429': { $ref: '#/components/responses/TropDeRequetes' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+
+  /discussions/{id}/analyse-ia:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [Discussions]
+      operationId: createAnalyseIa
+      summary: Demander l'avis de Souk AI (auteur uniquement, discussion avec l'étiquette bug ; 3 par jour)
+      description: >-
+        L'analyse tourne en arrière-plan ; son résultat arrive par Reverb et dans le champ analyse_ia
+        de la discussion. Une nouvelle demande remplace l'analyse précédente. 409 si une analyse est déjà en cours.
+      responses:
+        '202':
+          description: Analyse mise en file
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnalyseIa' }
         '403': { $ref: '#/components/responses/Interdit' }
         '404': { $ref: '#/components/responses/Introuvable' }
         '409': { $ref: '#/components/responses/Conflit' }
@@ -1689,7 +1713,7 @@ components:
 
     Discussion:
       type: object
-      required: [id, titre, texte, auteur, canal, app_id, depot_url, demo_url, etiquettes, bug, copie_test, resolue, nb_messages, cree_le]
+      required: [id, titre, texte, auteur, canal, app_id, depot_url, demo_url, etiquettes, bug, copie_test, analyse_ia, resolue, nb_messages, cree_le]
       properties:
         id: { type: integer }
         titre: { type: string }
@@ -1709,6 +1733,11 @@ components:
           description: Copie de test, seulement si l'auteur l'a lancée (POST /discussions/{id}/copie-test)
           oneOf:
             - $ref: '#/components/schemas/Deploiement'
+            - type: 'null'
+        analyse_ia:
+          description: Analyse Souk AI, seulement si l'auteur l'a demandée (POST /discussions/{id}/analyse-ia)
+          oneOf:
+            - $ref: '#/components/schemas/AnalyseIa'
             - type: 'null'
         resolue: { type: boolean, description: "Vraie quand l'auteur accepte un correctif ou la marque résolue lui-même (PATCH)" }
         nb_messages: { type: integer }
@@ -1755,6 +1784,20 @@ components:
           items: { $ref: '#/components/schemas/Etiquette' }
         resolue: { type: boolean, description: "L'auteur la marque résolue (même sans correctif) ou la rouvre" }
         bug: { $ref: '#/components/schemas/BugSaisie' }
+
+    AnalyseIa:
+      type: object
+      description: >-
+        Avis de Souk AI sur un bug, affiché à tous sous « 🤖 Analyse IA », à côté des correctifs.
+        C'est une suggestion : elle ne résout jamais la discussion.
+      required: [statut, texte, cree_le]
+      properties:
+        statut:
+          type: string
+          enum: [en_cours, prete, echec]
+          description: echec couvre aussi un refus du modèle ; le front affiche « analyse indisponible »
+        texte: { type: [string, 'null'], description: 'Markdown, rempli quand statut = prete' }
+        cree_le: { type: string, format: date-time }
 
     Bug:
       type: object

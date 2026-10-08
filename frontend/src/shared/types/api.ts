@@ -437,6 +437,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/discussions/{id}/analyse-ia": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Demander l'avis de Souk AI (auteur uniquement, discussion avec l'étiquette bug ; 3 par jour)
+         * @description L'analyse tourne en arrière-plan ; son résultat arrive par Reverb et dans le champ analyse_ia de la discussion. Une nouvelle demande remplace l'analyse précédente. 409 si une analyse est déjà en cours.
+         */
+        post: operations["createAnalyseIa"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/messages/{id}": {
         parameters: {
             query?: never;
@@ -1085,6 +1107,8 @@ export interface components {
             bug: components["schemas"]["Bug"] | null;
             /** @description Copie de test, seulement si l'auteur l'a lancée (POST /discussions/{id}/copie-test) */
             copie_test: components["schemas"]["Deploiement"] | null;
+            /** @description Analyse Souk AI, seulement si l'auteur l'a demandée (POST /discussions/{id}/analyse-ia) */
+            analyse_ia: components["schemas"]["AnalyseIa"] | null;
             /** @description Vraie quand l'auteur accepte un correctif ou la marque résolue lui-même (PATCH) */
             resolue: boolean;
             nb_messages: number;
@@ -1118,6 +1142,18 @@ export interface components {
             /** @description L'auteur la marque résolue (même sans correctif) ou la rouvre */
             resolue?: boolean;
             bug?: components["schemas"]["BugSaisie"];
+        };
+        /** @description Avis de Souk AI sur un bug, affiché à tous sous « 🤖 Analyse IA », à côté des correctifs. C'est une suggestion : elle ne résout jamais la discussion. */
+        AnalyseIa: {
+            /**
+             * @description echec couvre aussi un refus du modèle ; le front affiche « analyse indisponible »
+             * @enum {string}
+             */
+            statut: "en_cours" | "prete" | "echec";
+            /** @description Markdown, rempli quand statut = prete */
+            texte: string | null;
+            /** Format: date-time */
+            cree_le: string;
         };
         /** @description Fiche structurée d'un bug, remplie par l'auteur de la discussion */
         Bug: {
@@ -2247,6 +2283,34 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Deploiement"];
+                };
+            };
+            403: components["responses"]["Interdit"];
+            404: components["responses"]["Introuvable"];
+            409: components["responses"]["Conflit"];
+            419: components["responses"]["CsrfInvalide"];
+            422: components["responses"]["Invalide"];
+            429: components["responses"]["TropDeRequetes"];
+        };
+    };
+    createAnalyseIa: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Analyse mise en file */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyseIa"];
                 };
             };
             403: components["responses"]["Interdit"];

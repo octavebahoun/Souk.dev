@@ -157,6 +157,7 @@ Rencontre avec date et inscription, en ligne (avec lien) ou en présentiel (avec
 - **Limites de débit** (au-delà : `429`) :
   - **3 déploiements par heure** et par compte (copies de test et déploiements de correctifs compris) ;
   - **10 par heure** pour les discussions, correctifs, missions, vérifications de dépôt et relances de l'analyse de sécurité ;
+  - **3 analyses Souk AI par jour** et par dev ;
   - **60 requêtes par minute** pour tout le reste (valeur par défaut de Laravel).
 - Canaux privés Reverb autorisés par `POST /broadcasting/auth` (route web Laravel), avec la session Sanctum.
 - Cookie de session : `soukdev_session` (variable `SESSION_COOKIE`).
@@ -214,6 +215,11 @@ Validés par Oktav. L'équipe s'engage à les livrer d'ici le 25 octobre, **apr�
     - **Vues** : un visiteur compté une fois par jour sur la fiche d'une appli.
     - **Revenus estimés**, affichés comme tels, tant que le paiement via Datacloud n'est pas en place : appli mensuelle = copies actives × prix (par mois) ; appli à paiement unique = déploiements × prix (au total).
 6. **Souk AI** : une analyse IA du bug, affichée à côté des solutions de la communauté, sans les remplacer.
+    - **À la demande** : l'auteur clique sur « Demander l'avis de Souk AI », seulement sur une discussion avec l'étiquette `bug`. Il est prévenu que son bug et son code partent chez un fournisseur extérieur.
+    - **Modèle** : Claude Opus 5.5 (`claude-opus-5-5`), appelé par le backend avec le SDK PHP officiel d'Anthropic. La clé API reste dans le `.env` du serveur, jamais dans le front. Environ 0,08 $ par analyse.
+    - **Limite** : 3 analyses par jour et par dev, pour garder la facture sous contrôle.
+    - **Affichage** : visible de tous, sous l'étiquette « 🤖 Analyse IA », à côté des correctifs. Elle ne résout jamais une discussion. Si le modèle refuse ou échoue : « analyse indisponible ».
+    - Contrat : `POST /discussions/{id}/analyse-ia`, champ `analyse_ia` sur la discussion (`statut` `en_cours`, `prete` ou `echec`, `texte`, `cree_le`).
 7. **Recherche avancée** : filtres par pays, prix, type de projet, niveau, open source ou commercial.
     - Nouveaux filtres sur `GET /apps` : `categorie`, `pays` (de l'auteur), `prix_max`, `type_prix`, et le tri `tri` (`recent`, `prix_croissant`, `prix_decroissant`).
     - **Catégorie** choisie à la publication, dans une liste fixe (`GET /categories`) : `commerce`, `gestion`, `education`, `sante`, `finance`, `association`, `restauration`, `autre`.
