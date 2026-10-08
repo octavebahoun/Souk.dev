@@ -129,10 +129,10 @@ On liste uniquement les routes du MVP, ressource par ressource : **Comptes**, **
 
 ### Missions
 
-Demande de version sur mesure d'un client à l'auteur d'une appli (§5.5 du brief). Pas d'enchères, pas de mise en concurrence.
+Demande de version sur mesure d'un client à l'auteur d'une appli (§5.5 du brief), ou recrutement direct d'un dev depuis l'espace entreprises. Pas d'enchères, pas de mise en concurrence.
 
 - **Ressource à part, privée** : visible uniquement par le client et l'auteur, car elle contient des informations privées (besoins, budget, délais). Les discussions, elles, sont publiques.
-- Routes : `POST /apps/{id}/missions` (envoyer la demande), `GET /missions` (mes missions), `GET /missions/{id}`, `GET /missions/{id}/messages`, `POST /missions/{id}/messages`, `POST /missions/{id}/note` (le client termine la mission et note l'auteur).
+- Routes : `POST /apps/{id}/missions` (envoyer la demande), `POST /devs/{username}/missions` (recruter un dev sans appli), `GET /missions` (mes missions), `GET /missions/{id}`, `GET /missions/{id}/messages`, `POST /missions/{id}/messages`, `POST /missions/{id}/note` (le client termine la mission et note l'auteur).
 
 ### Événements
 
@@ -157,6 +157,7 @@ Rencontre avec date et inscription, en ligne (avec lien) ou en présentiel (avec
 - **Limites de débit** (au-delà : `429`) :
   - **3 déploiements par heure** et par compte (copies de test et déploiements de correctifs compris) ;
   - **10 par heure** pour les discussions, correctifs, missions, vérifications de dépôt et relances de l'analyse de sécurité ;
+  - **3 analyses Souk AI par jour** et par dev ;
   - **60 requêtes par minute** pour tout le reste (valeur par défaut de Laravel).
 - Canaux privés Reverb autorisés par `POST /broadcasting/auth` (route web Laravel), avec la session Sanctum.
 - Cookie de session : `soukdev_session` (variable `SESSION_COOKIE`).
@@ -205,8 +206,20 @@ Validés par Oktav. L'équipe s'engage à les livrer d'ici le 25 octobre, **apr�
     - **Badges** : Premier correctif (1 correctif accepté), Chasseur de bugs (10 bugs résolus), Publié (1 appli), Fiable (note ≥ 4,5 sur au moins 3 missions), Sécurisé (1 appli « Security Checked »), Organisateur (1 événement passé).
     - Contrat : champ `reputation` (`xp`, `niveau`, `badges`) dans le profil.
 4. **Souk Score** : un score global sur 1000, calculé à partir de la réputation, des projets, de la sécurité et de l'activité.
+    - **Rôle** : l'XP cumule tout depuis l'arrivée ; le Souk Score mesure la **qualité et l'activité récente**. Un nouveau qui travaille bien peut dépasser un ancien devenu inactif.
+    - **Calcul**, en 5 parts plafonnées : **entraide** 25 par bug résolu (250 max) ; **projets** 50 par appli publiée (200 max) ; **clients** note moyenne / 5 × 150, plus 25 par mission terminée (100 max), soit 250 max ; **sécurité** part des applis « Security Checked » × 150 ; **activité** 15 par action validée sur 30 jours (150 max).
+    - Les compétences déclarées ne comptent pas, puisque personne ne les vérifie.
+    - Contrat : champ `souk_score` dans le profil, avec le total et le détail des cinq parts.
 5. **Tableau de bord du dev** : vues, déploiements, revenus, bugs résolus, note.
+    - Route `GET /me/tableau-de-bord` : totaux et détail par appli (vues, copies actives, déploiements, revenu). Le profil (stats, réputation, Souk Score) vient de `GET /me`.
+    - **Vues** : un visiteur compté une fois par jour sur la fiche d'une appli.
+    - **Revenus estimés**, affichés comme tels, tant que le paiement via Datacloud n'est pas en place : appli mensuelle = copies actives × prix (par mois) ; appli à paiement unique = déploiements × prix (au total).
 6. **Souk AI** : une analyse IA du bug, affichée à côté des solutions de la communauté, sans les remplacer.
+    - **À la demande** : l'auteur clique sur « Demander l'avis de Souk AI », seulement sur une discussion avec l'étiquette `bug`. Il est prévenu que son bug et son code partent chez un fournisseur extérieur.
+    - **Modèle** : Claude Opus 5.5 (`claude-opus-5-5`), appelé par le backend avec le SDK PHP officiel d'Anthropic. La clé API reste dans le `.env` du serveur, jamais dans le front. Environ 0,08 $ par analyse.
+    - **Limite** : 3 analyses par jour et par dev, pour garder la facture sous contrôle.
+    - **Affichage** : visible de tous, sous l'étiquette « 🤖 Analyse IA », à côté des correctifs. Elle ne résout jamais une discussion. Si le modèle refuse ou échoue : « analyse indisponible ».
+    - Contrat : `POST /discussions/{id}/analyse-ia`, champ `analyse_ia` sur la discussion (`statut` `en_cours`, `prete` ou `echec`, `texte`, `cree_le`).
 7. **Recherche avancée** : filtres par pays, prix, type de projet, niveau, open source ou commercial.
     - Nouveaux filtres sur `GET /apps` : `categorie`, `pays` (de l'auteur), `prix_max`, `type_prix`, et le tri `tri` (`recent`, `prix_croissant`, `prix_decroissant`).
     - **Catégorie** choisie à la publication, dans une liste fixe (`GET /categories`) : `commerce`, `gestion`, `education`, `sante`, `finance`, `association`, `restauration`, `autre`.
@@ -215,6 +228,9 @@ Validés par Oktav. L'équipe s'engage à les livrer d'ici le 25 octobre, **apr�
     - **Pays sur le profil**, facultatif : champ `pays` (code ISO, ex. `BJ`), tous les pays acceptés (diaspora comprise). Modifiable avec `PATCH /me`, qui sert aussi pour la bio.
     - **Canaux par pays** : un canal peut avoir un `pays` (ex. `#laravel-benin` → `BJ`), filtre `GET /canaux?pays=BJ`. Un canal général ou régional n'a pas de pays.
 9. **Espace entreprises** : chercher un dev disponible, le recruter, demander une personnalisation, en plus des missions. Contacter un dev reste toujours gratuit.
+    - **Chercher un dev** : `GET /devs`, filtres `disponible`, `competence`, `specialite` et `pays`, trié par Souk Score décroissant.
+    - **Recruter** sans passer par une appli : `POST /devs/{username}/missions`. C'est la même mission, privée, avec `app_id` vide.
+    - **Personnaliser** une appli : la mission existante, `POST /apps/{id}/missions`.
 10. **Sécurité avant publication**, gratuite puisqu'elle protège les clients. Trois niveaux :
     - **Bloquant** (publication refusée en `422`) : un secret dans le dépôt (gitleaks, MIT) ou un `docker-compose.yml` dangereux (`privileged`, volumes de l'hôte, `network_mode: host`, ports publiés).
     - **Avertissement** : des dépendances avec des failles connues (Trivy, Apache 2.0). L'appli est publiée avec le badge orange « Problèmes détectés » et le rapport.
@@ -222,6 +238,7 @@ Validés par Oktav. L'équipe s'engage à les livrer d'ici le 25 octobre, **apr�
     - Contrat : champ `securite` sur une appli (`en_cours`, `verifie`, `problemes`), filtre `GET /apps?securite=true`, relance par l'auteur avec `POST /apps/{id}/securite`. Outils interdits par leur licence : Semgrep (LGPL), Hadolint (GPL).
 11. **Paiement unique** : le dev choisit le prix de son appli, **mensuel** (ex. 15 000 F/mois) ou **unique** (ex. 150 000 F, payé une fois). L'hébergement reste mensuel. Contrat : champ `type_prix` (`mensuel` ou `unique`) sur une appli.
 12. **Écran « mes copies »** : une entreprise ou une agence voit toutes ses copies déployées au même endroit. Gratuit.
+    - Contrat : `GET /deployments?type=client`, et chaque copie porte `app_nom` pour s'afficher sans recharger l'appli. L'échéance attendra que le paiement via Datacloud soit réglé.
 
 **Écarté** : le vote pour la meilleure solution (l'auteur accepte un correctif), l'achat du code source (le client déploie une copie), toute commission sur les ventes, le premium pour les devs. **Reporté** : l'abonnement entreprises, tant que le paiement via Datacloud n'est pas réglé.
 

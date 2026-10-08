@@ -12,7 +12,8 @@ info:
     requête POST, PATCH ou DELETE. Jeton absent ou expiré : 419.
 
     Limites de débit (au-delà : 429) : 3 déploiements par heure et par compte,
-    10 discussions, correctifs ou missions par heure, 60 requêtes par minute pour le reste.
+    10 discussions, correctifs ou missions par heure, 3 analyses Souk AI par jour,
+    60 requêtes par minute pour le reste.
 
     Les routes marquées « web » (connexion, CSRF, broadcasting) sont servies à la
     racine du domaine, hors du préfixe /api.
@@ -192,6 +193,56 @@ paths:
         '422': { $ref: '#/components/responses/Invalide' }
         '419': { $ref: '#/components/responses/CsrfInvalide' }
 
+  /me/tableau-de-bord:
+    get:
+      tags: [Comptes]
+      operationId: getDashboard
+      summary: Mon tableau de bord de dev (vues, copies actives, revenus estimés, par appli et au total)
+      responses:
+        '200':
+          description: Le tableau de bord
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TableauDeBord' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+
+  /devs:
+    get:
+      tags: [Comptes]
+      operationId: listDevs
+      summary: Chercher un dev (espace entreprises), du meilleur Souk Score au plus faible
+      security: []
+      parameters:
+        - name: disponible
+          in: query
+          description: Uniquement les devs disponibles pour du freelance ou une collaboration
+          schema: { type: boolean }
+        - name: competence
+          in: query
+          schema: { $ref: '#/components/schemas/Techno' }
+        - name: specialite
+          in: query
+          schema: { $ref: '#/components/schemas/Specialite' }
+        - name: pays
+          in: query
+          schema: { $ref: '#/components/schemas/Pays' }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/ParPage'
+      responses:
+        '200':
+          description: Liste des devs, triée par Souk Score décroissant
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Pagination'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/DevResume' }
+
   /devs/{username}:
     get:
       tags: [Comptes]
@@ -210,6 +261,33 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ProfilDev' }
         '404': { $ref: '#/components/responses/Introuvable' }
+
+  /devs/{username}/missions:
+    post:
+      tags: [Missions]
+      operationId: createMissionDev
+      summary: Recruter un dev directement, sans passer par une appli (mission privée, app_id vide)
+      parameters:
+        - name: username
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MissionCreation' }
+      responses:
+        '201':
+          description: Demande envoyée au dev
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Mission' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '422': { $ref: '#/components/responses/Invalide' }
+        '429': { $ref: '#/components/responses/TropDeRequetes' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
 
   # ───────────── Applis ─────────────
   /apps:
@@ -323,7 +401,7 @@ paths:
     get:
       tags: [Applis]
       operationId: getApp
-      summary: Détail d'une appli (README, démo, prix, auteur)
+      summary: Détail d'une appli (README, démo, prix, auteur) ; compte une vue par visiteur et par jour pour le tableau de bord de l'auteur
       security: []
       responses:
         '200':
@@ -468,8 +546,12 @@ paths:
     get:
       tags: [Déploiements]
       operationId: listDeployments
-      summary: Mes déploiements
+      summary: Mes déploiements (écran « mes copies » avec ?type=client)
       parameters:
+        - name: type
+          in: query
+          description: Uniquement ce type de copie ; client pour l'écran « mes copies »
+          schema: { type: string, enum: [client, test, correctif] }
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/ParPage'
       responses:
@@ -679,6 +761,29 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Deploiement' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '409': { $ref: '#/components/responses/Conflit' }
+        '422': { $ref: '#/components/responses/Invalide' }
+        '429': { $ref: '#/components/responses/TropDeRequetes' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+
+  /discussions/{id}/analyse-ia:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [Discussions]
+      operationId: createAnalyseIa
+      summary: Demander l'avis de Souk AI (auteur uniquement, discussion avec l'étiquette bug ; 3 par jour)
+      description: >-
+        L'analyse tourne en arrière-plan ; son résultat arrive par Reverb et dans le champ analyse_ia
+        de la discussion. Une nouvelle demande remplace l'analyse précédente. 409 si une analyse est déjà en cours.
+      responses:
+        '202':
+          description: Analyse mise en file
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnalyseIa' }
         '403': { $ref: '#/components/responses/Interdit' }
         '404': { $ref: '#/components/responses/Introuvable' }
         '409': { $ref: '#/components/responses/Conflit' }
@@ -1364,7 +1469,7 @@ components:
     ProfilPublic:
       type: object
       description: Partie publique du profil ; déclarée par le dev (PATCH /me), sauf stats, calculées par la plateforme
-      required: [bio, competences, specialites, disponible, stats, reputation]
+      required: [bio, competences, specialites, disponible, stats, reputation, souk_score]
       properties:
         bio: { type: [string, 'null'] }
         competences:
@@ -1379,10 +1484,53 @@ components:
         disponible: { type: boolean, description: Disponible pour du freelance ou une collaboration }
         stats: { $ref: '#/components/schemas/StatsDev' }
         reputation: { $ref: '#/components/schemas/Reputation' }
+        souk_score: { $ref: '#/components/schemas/SoukScore' }
 
     Specialite:
       type: string
       enum: [frontend, backend, mobile, devops, securite, data]
+
+    TableauDeBord:
+      type: object
+      description: "Les revenus sont ESTIMÉS à partir des copies et des prix, tant que le paiement via Datacloud n'est pas en place. Le profil (stats, réputation, Souk Score) se lit avec GET /me."
+      required: [totaux, applis]
+      properties:
+        totaux:
+          type: object
+          required: [vues, copies_actives, revenus_estimes_mensuels, revenus_estimes_uniques]
+          properties:
+            vues: { type: integer }
+            copies_actives: { type: integer }
+            revenus_estimes_mensuels: { type: integer, description: "FCFA par mois : somme, pour les applis mensuelles, de copies actives × prix" }
+            revenus_estimes_uniques: { type: integer, description: "FCFA au total : somme, pour les applis à paiement unique, de déploiements clients × prix" }
+        applis:
+          type: array
+          items: { $ref: '#/components/schemas/StatsApp' }
+
+    StatsApp:
+      type: object
+      required: [app_id, nom, type_prix, prix, vues, copies_actives, deploiements_total, revenu_estime]
+      properties:
+        app_id: { type: integer }
+        nom: { type: string }
+        type_prix: { $ref: '#/components/schemas/TypePrix' }
+        prix: { type: integer }
+        vues: { type: integer, description: Visiteurs uniques par jour, cumulés }
+        copies_actives: { type: integer, description: Copies clients en ligne en ce moment }
+        deploiements_total: { type: integer, description: Copies clients lancées depuis la publication }
+        revenu_estime: { type: integer, description: "mensuel : copies actives × prix (par mois) ; unique : déploiements total × prix (au total)" }
+
+    SoukScore:
+      type: object
+      description: "Score sur 1000 qui mesure la qualité et l'activité récente (l'XP, elle, cumule tout depuis l'arrivée). Calculé par la plateforme ; les compétences déclarées ne comptent pas. total = somme des cinq parts."
+      required: [total, entraide, projets, clients, securite, activite]
+      properties:
+        total: { type: integer, minimum: 0, maximum: 1000 }
+        entraide: { type: integer, minimum: 0, maximum: 250, description: 25 par bug résolu (correctif accepté), plafonné à 250 }
+        projets: { type: integer, minimum: 0, maximum: 200, description: 50 par appli publiée, plafonné à 200 }
+        clients: { type: integer, minimum: 0, maximum: 250, description: "note moyenne / 5 × 150 (0 sans note), plus 25 par mission terminée plafonné à 100" }
+        securite: { type: integer, minimum: 0, maximum: 150, description: "part des applis du dev au badge Security Checked × 150 (0 sans appli)" }
+        activite: { type: integer, minimum: 0, maximum: 150, description: "15 par action validée sur les 30 derniers jours (correctif accepté, appli publiée, mission terminée, événement organisé passé), plafonné à 150" }
 
     Reputation:
       type: object
@@ -1429,6 +1577,12 @@ components:
             applis:
               type: array
               items: { $ref: '#/components/schemas/App' }
+
+    DevResume:
+      description: Carte d'un dev dans la recherche (GET /devs), sans ses dépôts ni ses applis
+      allOf:
+        - $ref: '#/components/schemas/Dev'
+        - $ref: '#/components/schemas/ProfilPublic'
 
     Depot:
       type: object
@@ -1597,10 +1751,11 @@ components:
     # ───────────── Déploiements ─────────────
     Deploiement:
       type: object
-      required: [id, app_id, type, etat, url, erreur, cree_le]
+      required: [id, app_id, app_nom, type, etat, url, erreur, cree_le]
       properties:
         id: { type: integer }
         app_id: { type: integer }
+        app_nom: { type: string, description: Nom de l'appli copiée, pour l'afficher sans la recharger }
         type:
           type: string
           enum: [client, test, correctif]
@@ -1633,7 +1788,7 @@ components:
 
     Discussion:
       type: object
-      required: [id, titre, texte, auteur, canal, app_id, depot_url, demo_url, etiquettes, bug, copie_test, resolue, nb_messages, cree_le]
+      required: [id, titre, texte, auteur, canal, app_id, depot_url, demo_url, etiquettes, bug, copie_test, analyse_ia, resolue, nb_messages, cree_le]
       properties:
         id: { type: integer }
         titre: { type: string }
@@ -1653,6 +1808,11 @@ components:
           description: Copie de test, seulement si l'auteur l'a lancée (POST /discussions/{id}/copie-test)
           oneOf:
             - $ref: '#/components/schemas/Deploiement'
+            - type: 'null'
+        analyse_ia:
+          description: Analyse Souk AI, seulement si l'auteur l'a demandée (POST /discussions/{id}/analyse-ia)
+          oneOf:
+            - $ref: '#/components/schemas/AnalyseIa'
             - type: 'null'
         resolue: { type: boolean, description: "Vraie quand l'auteur accepte un correctif ou la marque résolue lui-même (PATCH)" }
         nb_messages: { type: integer }
@@ -1699,6 +1859,20 @@ components:
           items: { $ref: '#/components/schemas/Etiquette' }
         resolue: { type: boolean, description: "L'auteur la marque résolue (même sans correctif) ou la rouvre" }
         bug: { $ref: '#/components/schemas/BugSaisie' }
+
+    AnalyseIa:
+      type: object
+      description: >-
+        Avis de Souk AI sur un bug, affiché à tous sous « 🤖 Analyse IA », à côté des correctifs.
+        C'est une suggestion : elle ne résout jamais la discussion.
+      required: [statut, texte, cree_le]
+      properties:
+        statut:
+          type: string
+          enum: [en_cours, prete, echec]
+          description: echec couvre aussi un refus du modèle ; le front affiche « analyse indisponible »
+        texte: { type: [string, 'null'], description: 'Markdown, rempli quand statut = prete' }
+        cree_le: { type: string, format: date-time }
 
     Bug:
       type: object
@@ -1795,11 +1969,11 @@ components:
     # ───────────── Missions ─────────────
     Mission:
       type: object
-      description: Demande privée d'un client à l'auteur d'une appli ; visible par eux seuls
+      description: "Demande privée d'un client à un dev, visible par eux seuls : personnalisation d'une appli (POST /apps/{id}/missions) ou recrutement direct (POST /devs/{username}/missions)"
       required: [id, app_id, client, auteur, message, budget, delai, statut, note, cree_le]
       properties:
         id: { type: integer }
-        app_id: { type: integer }
+        app_id: { type: [integer, 'null'], description: Appli à personnaliser ; null pour un recrutement direct }
         statut:
           type: string
           enum: [en_cours, terminee]

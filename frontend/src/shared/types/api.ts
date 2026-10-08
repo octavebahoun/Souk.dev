@@ -141,6 +141,40 @@ export interface paths {
         patch: operations["updateMe"];
         trace?: never;
     };
+    "/me/tableau-de-bord": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Mon tableau de bord de dev (vues, copies actives, revenus estimés, par appli et au total) */
+        get: operations["getDashboard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/devs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Chercher un dev (espace entreprises), du meilleur Souk Score au plus faible */
+        get: operations["listDevs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/devs/{username}": {
         parameters: {
             query?: never;
@@ -152,6 +186,23 @@ export interface paths {
         get: operations["getDev"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/devs/{username}/missions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Recruter un dev directement, sans passer par une appli (mission privée, app_id vide) */
+        post: operations["createMissionDev"];
         delete?: never;
         options?: never;
         head?: never;
@@ -202,7 +253,7 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** Détail d'une appli (README, démo, prix, auteur) */
+        /** Détail d'une appli (README, démo, prix, auteur) ; compte une vue par visiteur et par jour pour le tableau de bord de l'auteur */
         get: operations["getApp"];
         put?: never;
         post?: never;
@@ -312,7 +363,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Mes déploiements */
+        /** Mes déploiements (écran « mes copies » avec ?type=client) */
         get: operations["listDeployments"];
         put?: never;
         post?: never;
@@ -414,6 +465,28 @@ export interface paths {
         put?: never;
         /** Lancer une copie de test, sur demande explicite de l'auteur (à partir du depot_url ou de l'appli jointe ; soukdev.json requis) */
         post: operations["createCopieTest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/discussions/{id}/analyse-ia": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Demander l'avis de Souk AI (auteur uniquement, discussion avec l'étiquette bug ; 3 par jour)
+         * @description L'analyse tourne en arrière-plan ; son résultat arrive par Reverb et dans le champ analyse_ia de la discussion. Une nouvelle demande remplace l'analyse précédente. 409 si une analyse est déjà en cours.
+         */
+        post: operations["createAnalyseIa"];
         delete?: never;
         options?: never;
         head?: never;
@@ -807,9 +880,50 @@ export interface components {
             disponible: boolean;
             stats: components["schemas"]["StatsDev"];
             reputation: components["schemas"]["Reputation"];
+            souk_score: components["schemas"]["SoukScore"];
         };
         /** @enum {string} */
         Specialite: "frontend" | "backend" | "mobile" | "devops" | "securite" | "data";
+        /** @description Les revenus sont ESTIMÉS à partir des copies et des prix, tant que le paiement via Datacloud n'est pas en place. Le profil (stats, réputation, Souk Score) se lit avec GET /me. */
+        TableauDeBord: {
+            totaux: {
+                vues: number;
+                copies_actives: number;
+                /** @description FCFA par mois : somme, pour les applis mensuelles, de copies actives × prix */
+                revenus_estimes_mensuels: number;
+                /** @description FCFA au total : somme, pour les applis à paiement unique, de déploiements clients × prix */
+                revenus_estimes_uniques: number;
+            };
+            applis: components["schemas"]["StatsApp"][];
+        };
+        StatsApp: {
+            app_id: number;
+            nom: string;
+            type_prix: components["schemas"]["TypePrix"];
+            prix: number;
+            /** @description Visiteurs uniques par jour */
+            vues: number;
+            /** @description Copies clients en ligne en ce moment */
+            copies_actives: number;
+            /** @description Copies clients lancées depuis la publication */
+            deploiements_total: number;
+            /** @description mensuel : copies actives × prix (par mois) ; unique : déploiements total × prix (au total) */
+            revenu_estime: number;
+        };
+        /** @description Score sur 1000 qui mesure la qualité et l'activité récente (l'XP, elle, cumule tout depuis l'arrivée). Calculé par la plateforme ; les compétences déclarées ne comptent pas. total = somme des cinq parts. */
+        SoukScore: {
+            total: number;
+            /** @description 25 par bug résolu (correctif accepté) */
+            entraide: number;
+            /** @description 50 par appli publiée */
+            projets: number;
+            /** @description note moyenne / 5 × 150 (0 sans note), plus 25 par mission terminée plafonné à 100 */
+            clients: number;
+            /** @description part des applis du dev au badge Security Checked × 150 (0 sans appli) */
+            securite: number;
+            /** @description 15 par action validée sur les 30 derniers jours (correctif accepté, appli publiée, mission terminée, événement organisé passé), plafonné à 150 */
+            activite: number;
+        };
         /** @description Calculée par la plateforme à partir d'actions validées par quelqu'un d'autre. Barème : correctif accepté +50 ; appli publiée +100, +50 si badge Security Checked ; mission terminée +100 + 10 × la note du client ; événement organisé, une fois passé et non annulé, +50. */
         Reputation: {
             xp: number;
@@ -840,6 +954,8 @@ export interface components {
             depots: components["schemas"]["Depot"][];
             applis: components["schemas"]["App"][];
         };
+        /** @description Carte d'un dev dans la recherche (GET /devs), sans ses dépôts ni ses applis */
+        DevResume: components["schemas"]["Dev"] & components["schemas"]["ProfilPublic"];
         /** @description Dépôt public GitHub du dev */
         Depot: {
             nom: string;
@@ -976,6 +1092,8 @@ export interface components {
         Deploiement: {
             id: number;
             app_id: number;
+            /** @description Nom de l'appli copiée */
+            app_nom: string;
             /**
              * @description Copie d'un client, copie de test d'une discussion, ou version corrigée
              * @enum {string}
@@ -1027,6 +1145,8 @@ export interface components {
             bug: components["schemas"]["Bug"] | null;
             /** @description Copie de test, seulement si l'auteur l'a lancée (POST /discussions/{id}/copie-test) */
             copie_test: components["schemas"]["Deploiement"] | null;
+            /** @description Analyse Souk AI, seulement si l'auteur l'a demandée (POST /discussions/{id}/analyse-ia) */
+            analyse_ia: components["schemas"]["AnalyseIa"] | null;
             /** @description Vraie quand l'auteur accepte un correctif ou la marque résolue lui-même (PATCH) */
             resolue: boolean;
             nb_messages: number;
@@ -1060,6 +1180,18 @@ export interface components {
             /** @description L'auteur la marque résolue (même sans correctif) ou la rouvre */
             resolue?: boolean;
             bug?: components["schemas"]["BugSaisie"];
+        };
+        /** @description Avis de Souk AI sur un bug, affiché à tous sous « 🤖 Analyse IA », à côté des correctifs. C'est une suggestion : elle ne résout jamais la discussion. */
+        AnalyseIa: {
+            /**
+             * @description echec couvre aussi un refus du modèle ; le front affiche « analyse indisponible »
+             * @enum {string}
+             */
+            statut: "en_cours" | "prete" | "echec";
+            /** @description Markdown, rempli quand statut = prete */
+            texte: string | null;
+            /** Format: date-time */
+            cree_le: string;
         };
         /** @description Fiche structurée d'un bug, remplie par l'auteur de la discussion */
         Bug: {
@@ -1141,10 +1273,11 @@ export interface components {
             /** Format: uri */
             demo_url?: string;
         };
-        /** @description Demande privée d'un client à l'auteur d'une appli ; visible par eux seuls */
+        /** @description Demande privée d'un client à un dev, visible par eux seuls : personnalisation d'une appli (POST /apps/{id}/missions) ou recrutement direct (POST /devs/{username}/missions) */
         Mission: {
             id: number;
-            app_id: number;
+            /** @description Appli à personnaliser ; null pour un recrutement direct */
+            app_id: number | null;
             /**
              * @description Le client la passe à terminee en laissant sa note (POST /missions/{id}/note)
              * @enum {string}
@@ -1530,6 +1663,59 @@ export interface operations {
             422: components["responses"]["Invalide"];
         };
     };
+    getDashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Le tableau de bord */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TableauDeBord"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+        };
+    };
+    listDevs: {
+        parameters: {
+            query?: {
+                /** @description Uniquement les devs disponibles pour du freelance ou une collaboration */
+                disponible?: boolean;
+                competence?: components["schemas"]["Techno"];
+                specialite?: components["schemas"]["Specialite"];
+                pays?: components["schemas"]["Pays"];
+                /** @description Numéro de page (commence à 1) */
+                page?: components["parameters"]["Page"];
+                /** @description Éléments par page (50 maximum) */
+                per_page?: components["parameters"]["ParPage"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Liste des devs, triée par Souk Score décroissant */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pagination"] & {
+                        data: components["schemas"]["DevResume"][];
+                    };
+                };
+            };
+        };
+    };
     getDev: {
         parameters: {
             query?: never;
@@ -1551,6 +1737,37 @@ export interface operations {
                 };
             };
             404: components["responses"]["Introuvable"];
+        };
+    };
+    createMissionDev: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                username: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MissionCreation"];
+            };
+        };
+        responses: {
+            /** @description Demande envoyée au dev */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Mission"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            404: components["responses"]["Introuvable"];
+            419: components["responses"]["CsrfInvalide"];
+            422: components["responses"]["Invalide"];
+            429: components["responses"]["TropDeRequetes"];
         };
     };
     listApps: {
@@ -1880,6 +2097,8 @@ export interface operations {
     listDeployments: {
         parameters: {
             query?: {
+                /** @description Uniquement ce type de copie ; client pour l'écran « mes copies » */
+                type?: "client" | "test" | "correctif";
                 /** @description Numéro de page (commence à 1) */
                 page?: components["parameters"]["Page"];
                 /** @description Éléments par page (50 maximum) */
@@ -2168,6 +2387,34 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Deploiement"];
+                };
+            };
+            403: components["responses"]["Interdit"];
+            404: components["responses"]["Introuvable"];
+            409: components["responses"]["Conflit"];
+            419: components["responses"]["CsrfInvalide"];
+            422: components["responses"]["Invalide"];
+            429: components["responses"]["TropDeRequetes"];
+        };
+    };
+    createAnalyseIa: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Analyse mise en file */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyseIa"];
                 };
             };
             403: components["responses"]["Interdit"];
