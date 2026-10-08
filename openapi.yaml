@@ -192,6 +192,19 @@ paths:
         '422': { $ref: '#/components/responses/Invalide' }
         '419': { $ref: '#/components/responses/CsrfInvalide' }
 
+  /me/tableau-de-bord:
+    get:
+      tags: [Comptes]
+      operationId: getDashboard
+      summary: Mon tableau de bord de dev (vues, copies actives, revenus estimés, par appli et au total)
+      responses:
+        '200':
+          description: Le tableau de bord
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TableauDeBord' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+
   /devs/{username}:
     get:
       tags: [Comptes]
@@ -323,7 +336,7 @@ paths:
     get:
       tags: [Applis]
       operationId: getApp
-      summary: Détail d'une appli (README, démo, prix, auteur)
+      summary: Détail d'une appli (README, démo, prix, auteur) ; compte une vue par visiteur et par jour pour le tableau de bord de l'auteur
       security: []
       responses:
         '200':
@@ -1384,6 +1397,36 @@ components:
     Specialite:
       type: string
       enum: [frontend, backend, mobile, devops, securite, data]
+
+    TableauDeBord:
+      type: object
+      description: "Les revenus sont ESTIMÉS à partir des copies et des prix, tant que le paiement via Datacloud n'est pas en place. Le profil (stats, réputation, Souk Score) se lit avec GET /me."
+      required: [totaux, applis]
+      properties:
+        totaux:
+          type: object
+          required: [vues, copies_actives, revenus_estimes_mensuels, revenus_estimes_uniques]
+          properties:
+            vues: { type: integer }
+            copies_actives: { type: integer }
+            revenus_estimes_mensuels: { type: integer, description: "FCFA par mois : somme, pour les applis mensuelles, de copies actives × prix" }
+            revenus_estimes_uniques: { type: integer, description: "FCFA au total : somme, pour les applis à paiement unique, de déploiements clients × prix" }
+        applis:
+          type: array
+          items: { $ref: '#/components/schemas/StatsApp' }
+
+    StatsApp:
+      type: object
+      required: [app_id, nom, type_prix, prix, vues, copies_actives, deploiements_total, revenu_estime]
+      properties:
+        app_id: { type: integer }
+        nom: { type: string }
+        type_prix: { $ref: '#/components/schemas/TypePrix' }
+        prix: { type: integer }
+        vues: { type: integer, description: Visiteurs uniques par jour, cumulés }
+        copies_actives: { type: integer, description: Copies clients en ligne en ce moment }
+        deploiements_total: { type: integer, description: Copies clients lancées depuis la publication }
+        revenu_estime: { type: integer, description: "mensuel : copies actives × prix (par mois) ; unique : déploiements total × prix (au total)" }
 
     SoukScore:
       type: object

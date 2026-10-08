@@ -141,6 +141,23 @@ export interface paths {
         patch: operations["updateMe"];
         trace?: never;
     };
+    "/me/tableau-de-bord": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Mon tableau de bord de dev (vues, copies actives, revenus estimés, par appli et au total) */
+        get: operations["getDashboard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/devs/{username}": {
         parameters: {
             query?: never;
@@ -202,7 +219,7 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** Détail d'une appli (README, démo, prix, auteur) */
+        /** Détail d'une appli (README, démo, prix, auteur) ; compte une vue par visiteur et par jour pour le tableau de bord de l'auteur */
         get: operations["getApp"];
         put?: never;
         post?: never;
@@ -811,6 +828,32 @@ export interface components {
         };
         /** @enum {string} */
         Specialite: "frontend" | "backend" | "mobile" | "devops" | "securite" | "data";
+        /** @description Les revenus sont ESTIMÉS à partir des copies et des prix, tant que le paiement via Datacloud n'est pas en place. Le profil (stats, réputation, Souk Score) se lit avec GET /me. */
+        TableauDeBord: {
+            totaux: {
+                vues: number;
+                copies_actives: number;
+                /** @description FCFA par mois : somme, pour les applis mensuelles, de copies actives × prix */
+                revenus_estimes_mensuels: number;
+                /** @description FCFA au total : somme, pour les applis à paiement unique, de déploiements clients × prix */
+                revenus_estimes_uniques: number;
+            };
+            applis: components["schemas"]["StatsApp"][];
+        };
+        StatsApp: {
+            app_id: number;
+            nom: string;
+            type_prix: components["schemas"]["TypePrix"];
+            prix: number;
+            /** @description Visiteurs uniques par jour */
+            vues: number;
+            /** @description Copies clients en ligne en ce moment */
+            copies_actives: number;
+            /** @description Copies clients lancées depuis la publication */
+            deploiements_total: number;
+            /** @description mensuel : copies actives × prix (par mois) ; unique : déploiements total × prix (au total) */
+            revenu_estime: number;
+        };
         /** @description Score sur 1000 qui mesure la qualité et l'activité récente (l'XP, elle, cumule tout depuis l'arrivée). Calculé par la plateforme ; les compétences déclarées ne comptent pas. total = somme des cinq parts. */
         SoukScore: {
             total: number;
@@ -1543,6 +1586,27 @@ export interface operations {
             401: components["responses"]["NonConnecte"];
             419: components["responses"]["CsrfInvalide"];
             422: components["responses"]["Invalide"];
+        };
+    };
+    getDashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Le tableau de bord */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TableauDeBord"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
         };
     };
     getDev: {

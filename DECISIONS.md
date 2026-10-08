@@ -210,6 +210,9 @@ Validés par Oktav. L'équipe s'engage à les livrer d'ici le 25 octobre, **apr�
     - Les compétences déclarées ne comptent pas, puisque personne ne les vérifie.
     - Contrat : champ `souk_score` dans le profil, avec le total et le détail des cinq parts.
 5. **Tableau de bord du dev** : vues, déploiements, revenus, bugs résolus, note.
+    - Route `GET /me/tableau-de-bord` : totaux et détail par appli (vues, copies actives, déploiements, revenu). Le profil (stats, réputation, Souk Score) vient de `GET /me`.
+    - **Vues** : un visiteur compté une fois par jour sur la fiche d'une appli.
+    - **Revenus estimés**, affichés comme tels, tant que le paiement via Datacloud n'est pas en place : appli mensuelle = copies actives × prix (par mois) ; appli à paiement unique = déploiements × prix (au total).
 6. **Souk AI** : une analyse IA du bug, affichée à côté des solutions de la communauté, sans les remplacer.
 7. **Recherche avancée** : filtres par pays, prix, type de projet, niveau, open source ou commercial.
     - Nouveaux filtres sur `GET /apps` : `categorie`, `pays` (de l'auteur), `prix_max`, `type_prix`, et le tri `tri` (`recent`, `prix_croissant`, `prix_decroissant`).
