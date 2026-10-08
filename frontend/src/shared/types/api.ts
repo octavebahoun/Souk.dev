@@ -137,7 +137,8 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /** Modifier mon profil (pays, bio) ; seuls les champs envoyés sont modifiés */
+        patch: operations["updateMe"];
         trace?: never;
     };
     "/devs/{username}": {
@@ -725,6 +726,8 @@ export interface components {
         Dev: {
             id: number;
             nom: string | null;
+            /** @description Facultatif ; null tant que la personne ne l'a pas choisi */
+            pays: components["schemas"]["Pays"] | null;
             /** @description Identifiant GitHub ; null si GitHub non lié */
             username: string | null;
             /** Format: uri */
@@ -736,6 +739,13 @@ export interface components {
              * @enum {string}
              */
             profil: "dev" | "client";
+        };
+        /** @description Code pays ISO 3166-1 alpha-2, ex. BJ (Bénin), SN (Sénégal), CI (Côte d'Ivoire). Tous les pays sont acceptés. */
+        Pays: string;
+        /** @description Tous les champs sont optionnels ; null efface la valeur */
+        CompteModification: {
+            pays?: components["schemas"]["Pays"] | null;
+            bio?: string | null;
         };
         /** @description Mon compte (GET /me) */
         Compte: components["schemas"]["Dev"] & {
@@ -976,14 +986,17 @@ export interface components {
             texte: string;
         };
         Canal: {
-            /** @description ex. laravel, mobile-money */
+            /** @description ex. laravel, mobile-money, laravel-benin */
             slug: string;
             nom: string;
             description: string | null;
+            /** @description Canal d'un pays (ex. #laravel-benin → BJ) ; null pour un canal général ou régional */
+            pays: components["schemas"]["Pays"] | null;
         };
         CanalCreation: {
             nom: string;
             description?: string;
+            pays?: components["schemas"]["Pays"];
         };
         Correctif: {
             id: number;
@@ -1362,6 +1375,33 @@ export interface operations {
                 };
             };
             401: components["responses"]["NonConnecte"];
+        };
+    };
+    updateMe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CompteModification"];
+            };
+        };
+        responses: {
+            /** @description Profil modifié */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Compte"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            419: components["responses"]["CsrfInvalide"];
+            422: components["responses"]["Invalide"];
         };
     };
     getDev: {
@@ -2037,7 +2077,10 @@ export interface operations {
     };
     listCanaux: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Uniquement les canaux de ce pays */
+                pays?: components["schemas"]["Pays"];
+            };
             header?: never;
             path?: never;
             cookie?: never;

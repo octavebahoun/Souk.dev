@@ -173,6 +173,24 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Compte' }
         '401': { $ref: '#/components/responses/NonConnecte' }
+    patch:
+      tags: [Comptes]
+      operationId: updateMe
+      summary: Modifier mon profil (pays, bio) ; seuls les champs envoyés sont modifiés
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CompteModification' }
+      responses:
+        '200':
+          description: Profil modifié
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Compte' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '422': { $ref: '#/components/responses/Invalide' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
 
   /devs/{username}:
     get:
@@ -670,6 +688,11 @@ paths:
       operationId: listCanaux
       summary: Liste des canaux
       security: []
+      parameters:
+        - name: pays
+          in: query
+          description: Uniquement les canaux de ce pays
+          schema: { $ref: '#/components/schemas/Pays' }
       responses:
         '200':
           description: Liste des canaux
@@ -1217,10 +1240,15 @@ components:
     Dev:
       type: object
       description: Un compte tel qu'il apparaît publiquement (auteur, participant, client d'une mission…)
-      required: [id, nom, username, avatar_url, github_url, profil]
+      required: [id, nom, username, avatar_url, github_url, profil, pays]
       properties:
         id: { type: integer }
         nom: { type: [string, 'null'] }
+        pays:
+          description: Facultatif ; null tant que la personne ne l'a pas choisi
+          oneOf:
+            - $ref: '#/components/schemas/Pays'
+            - type: 'null'
         username: { type: [string, 'null'], description: 'Identifiant GitHub ; null si GitHub non lié' }
         avatar_url: { type: [string, 'null'], format: uri }
         github_url: { type: [string, 'null'], format: uri }
@@ -1228,6 +1256,21 @@ components:
           type: string
           enum: [dev, client]
           description: Choix d'entrée, sert à la redirection ; pas une étiquette définitive
+
+    Pays:
+      type: string
+      pattern: '^[A-Z]{2}$'
+      description: 'Code pays ISO 3166-1 alpha-2, ex. BJ (Bénin), SN (Sénégal), CI (Côte d''Ivoire). Tous les pays sont acceptés.'
+
+    CompteModification:
+      type: object
+      description: Tous les champs sont optionnels ; null efface la valeur
+      properties:
+        pays:
+          oneOf:
+            - $ref: '#/components/schemas/Pays'
+            - type: 'null'
+        bio: { type: [string, 'null'], maxLength: 500 }
 
     Compte:
       description: Mon compte (GET /me)
@@ -1527,11 +1570,16 @@ components:
 
     Canal:
       type: object
-      required: [slug, nom, description]
+      required: [slug, nom, description, pays]
       properties:
-        slug: { type: string, description: 'ex. laravel, mobile-money' }
+        slug: { type: string, description: 'ex. laravel, mobile-money, laravel-benin' }
         nom: { type: string }
         description: { type: [string, 'null'] }
+        pays:
+          description: 'Canal d''un pays (ex. #laravel-benin → BJ) ; null pour un canal général ou régional'
+          oneOf:
+            - $ref: '#/components/schemas/Pays'
+            - type: 'null'
 
     CanalCreation:
       type: object
@@ -1539,6 +1587,7 @@ components:
       properties:
         nom: { type: string, maxLength: 50 }
         description: { type: string, maxLength: 300 }
+        pays: { $ref: '#/components/schemas/Pays' }
 
     # ───────────── Correctifs ─────────────
     Correctif:
