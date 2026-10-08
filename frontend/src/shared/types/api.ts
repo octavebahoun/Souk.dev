@@ -806,9 +806,25 @@ export interface components {
             /** @description Disponible pour du freelance ou une collaboration */
             disponible: boolean;
             stats: components["schemas"]["StatsDev"];
+            reputation: components["schemas"]["Reputation"];
         };
         /** @enum {string} */
         Specialite: "frontend" | "backend" | "mobile" | "devops" | "securite" | "data";
+        /** @description Calculée par la plateforme à partir d'actions validées par quelqu'un d'autre. Barème : correctif accepté +50 ; appli publiée +100, +50 si badge Security Checked ; mission terminée +100 + 10 × la note du client ; événement organisé, une fois passé et non annulé, +50. */
+        Reputation: {
+            xp: number;
+            /**
+             * @description debutant dès 0 XP, contributeur dès 200, confirme dès 1 000, expert dès 3 000
+             * @enum {string}
+             */
+            niveau: "debutant" | "contributeur" | "confirme" | "expert";
+            badges: components["schemas"]["Badge"][];
+        };
+        /**
+         * @description premier_correctif : 1 correctif accepté ; chasseur_de_bugs : 10 bugs résolus ; publie : 1 appli publiée ; fiable : note moyenne ≥ 4,5 sur au moins 3 missions ; securise : 1 appli au badge Security Checked ; organisateur : 1 événement organisé et passé
+         * @enum {string}
+         */
+        Badge: "premier_correctif" | "chasseur_de_bugs" | "publie" | "fiable" | "securise" | "organisateur";
         /** @description Calculées par la plateforme, impossibles à modifier à la main */
         StatsDev: {
             /** @description Correctifs de ce dev acceptés par l'auteur d'une discussion */
