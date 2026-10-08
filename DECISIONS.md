@@ -132,7 +132,7 @@ On liste uniquement les routes du MVP, ressource par ressource : **Comptes**, **
 Demande de version sur mesure d'un client à l'auteur d'une appli (§5.5 du brief). Pas d'enchères, pas de mise en concurrence.
 
 - **Ressource à part, privée** : visible uniquement par le client et l'auteur, car elle contient des informations privées (besoins, budget, délais). Les discussions, elles, sont publiques.
-- Routes : `POST /apps/{id}/missions` (envoyer la demande), `GET /missions` (mes missions), `GET /missions/{id}`, `GET /missions/{id}/messages`, `POST /missions/{id}/messages`.
+- Routes : `POST /apps/{id}/missions` (envoyer la demande), `GET /missions` (mes missions), `GET /missions/{id}`, `GET /missions/{id}/messages`, `POST /missions/{id}/messages`, `POST /missions/{id}/note` (le client termine la mission et note l'auteur).
 
 ### Événements
 
@@ -192,12 +192,25 @@ Fait partie du MVP dans sa **version limitée** (§9 du brief) : une base **Post
 Validés par Oktav. L'équipe s'engage à les livrer d'ici le 25 octobre, **après** le cœur du MVP : le moteur et l'échange passent d'abord. Chaque ajout passera par le contrat (`openapi.yaml`) avant d'être codé.
 
 1. **Profil enrichi** : compétences, pays, disponibilité freelance, contributions, bugs résolus, note de la communauté, badges.
+    - **Déclaré par le dev** avec `PATCH /me` : `competences` (technos de la liste du store, 10 maximum), `specialites` (`frontend`, `backend`, `mobile`, `devops`, `securite`, `data`), `disponible` (freelance ou collaboration), en plus du pays et de la bio.
+    - **Calculé par la plateforme** (`stats`) : bugs résolus (correctifs acceptés), applis publiées, missions terminées, note moyenne et nombre de notes.
+    - **Note de la communauté** : donnée par **le client à la fin d'une mission**, de 1 à 5, avec un commentaire facultatif (`POST /missions/{id}/note`, une seule fois, qui passe la mission à `terminee`).
+    - Les badges et l'XP viendront avec l'ajout « réputation ».
 2. **Bug structuré** : technologie, code concerné, erreur obtenue, comportement attendu, niveau de difficulté.
+    - Un bloc `bug` sur une discussion, **seulement avec l'étiquette `bug`**. Obligatoires : `erreur_obtenue` et `comportement_attendu`. Facultatifs : `techno` (liste du store), `code`, `difficulte` (`facile`, `moyen`, `difficile`), **choisie par l'auteur**. Filtre `GET /discussions?difficulte=facile`.
 3. **Réputation** : des points (XP) pour un bug résolu, une réponse utile, un projet publié, une aide, un événement. Pas de votes.
+    - **Règle de fond** : l'XP ne récompense que ce qui a été validé par quelqu'un d'autre. Calculée par la plateforme, jamais modifiable à la main.
+    - **Barème** : correctif accepté **+50** ; appli publiée **+100**, et **+50** avec le badge « Security Checked » ; mission terminée **+100**, plus **10 × la note** du client ; événement organisé, une fois passé et non annulé, **+50**.
+    - **Niveaux** : Débutant (0), Contributeur (200), Confirmé (1 000), Expert (3 000).
+    - **Badges** : Premier correctif (1 correctif accepté), Chasseur de bugs (10 bugs résolus), Publié (1 appli), Fiable (note ≥ 4,5 sur au moins 3 missions), Sécurisé (1 appli « Security Checked »), Organisateur (1 événement passé).
+    - Contrat : champ `reputation` (`xp`, `niveau`, `badges`) dans le profil.
 4. **Souk Score** : un score global sur 1000, calculé à partir de la réputation, des projets, de la sécurité et de l'activité.
 5. **Tableau de bord du dev** : vues, déploiements, revenus, bugs résolus, note.
 6. **Souk AI** : une analyse IA du bug, affichée à côté des solutions de la communauté, sans les remplacer.
 7. **Recherche avancée** : filtres par pays, prix, type de projet, niveau, open source ou commercial.
+    - Nouveaux filtres sur `GET /apps` : `categorie`, `pays` (de l'auteur), `prix_max`, `type_prix`, et le tri `tri` (`recent`, `prix_croissant`, `prix_decroissant`).
+    - **Catégorie** choisie à la publication, dans une liste fixe (`GET /categories`) : `commerce`, `gestion`, `education`, `sante`, `finance`, `association`, `restauration`, `autre`.
+    - Pas de filtre « open source ou commercial » (`?gratuit=true` existe déjà), ni « déployable » (toutes les applis le sont), ni « niveau » (il ne s'applique pas à une appli).
 8. **Communautés africaines** : des canaux par pays et par techno (ex. « Laravel Afrique de l'Ouest »).
     - **Pays sur le profil**, facultatif : champ `pays` (code ISO, ex. `BJ`), tous les pays acceptés (diaspora comprise). Modifiable avec `PATCH /me`, qui sert aussi pour la bio.
     - **Canaux par pays** : un canal peut avoir un `pays` (ex. `#laravel-benin` → `BJ`), filtre `GET /canaux?pays=BJ`. Un canal général ou régional n'a pas de pays.

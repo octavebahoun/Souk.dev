@@ -176,7 +176,7 @@ paths:
     patch:
       tags: [Comptes]
       operationId: updateMe
-      summary: Modifier mon profil (pays, bio) ; seuls les champs envoyés sont modifiés
+      summary: Modifier mon profil (pays, bio, compétences, spécialités, disponibilité) ; seuls les champs envoyés sont modifiés
       requestBody:
         required: true
         content:
@@ -237,6 +237,24 @@ paths:
           in: query
           description: true = uniquement les applis au badge « Security Checked » (statut verifie)
           schema: { type: boolean }
+        - name: categorie
+          in: query
+          schema: { $ref: '#/components/schemas/Categorie' }
+        - name: pays
+          in: query
+          description: Pays de l'auteur
+          schema: { $ref: '#/components/schemas/Pays' }
+        - name: prix_max
+          in: query
+          description: Prix maximum en FCFA (les applis gratuites sont incluses)
+          schema: { type: integer, minimum: 0 }
+        - name: type_prix
+          in: query
+          schema: { $ref: '#/components/schemas/TypePrix' }
+        - name: tri
+          in: query
+          description: Par défaut, les plus récentes d'abord
+          schema: { type: string, enum: [recent, prix_croissant, prix_decroissant], default: recent }
       responses:
         '200':
           description: Liste des applis
@@ -391,6 +409,21 @@ paths:
         '429': { $ref: '#/components/responses/TropDeRequetes' }
         '419': { $ref: '#/components/responses/CsrfInvalide' }
 
+  /categories:
+    get:
+      tags: [Applis]
+      operationId: listCategories
+      summary: Liste fixe des catégories d'appli (type de projet)
+      security: []
+      responses:
+        '200':
+          description: Les catégories
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Categorie' }
+
   /technos:
     get:
       tags: [Applis]
@@ -504,6 +537,10 @@ paths:
           in: query
           description: Sans ce filtre, toutes les discussions
           schema: { type: string, enum: [ouvertes, resolues] }
+        - name: difficulte
+          in: query
+          description: Uniquement les bugs de cette difficulté
+          schema: { $ref: '#/components/schemas/Difficulte' }
       responses:
         '200':
           description: Liste des discussions
@@ -886,6 +923,30 @@ paths:
               schema: { $ref: '#/components/schemas/Mission' }
         '403': { $ref: '#/components/responses/Interdit' }
         '404': { $ref: '#/components/responses/Introuvable' }
+
+  /missions/{id}/note:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [Missions]
+      operationId: rateMission
+      summary: Terminer la mission et noter l'auteur (client uniquement, une seule fois)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NoteMissionCreation' }
+      responses:
+        '200':
+          description: Mission terminée et notée
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Mission' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '409': { $ref: '#/components/responses/Conflit' }
+        '422': { $ref: '#/components/responses/Invalide' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
 
   /missions/{id}/messages:
     parameters:
@@ -1271,11 +1332,22 @@ components:
             - $ref: '#/components/schemas/Pays'
             - type: 'null'
         bio: { type: [string, 'null'], maxLength: 500 }
+        competences:
+          type: array
+          maxItems: 10
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/Techno' }
+        specialites:
+          type: array
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/Specialite' }
+        disponible: { type: boolean }
 
     Compte:
       description: Mon compte (GET /me)
       allOf:
         - $ref: '#/components/schemas/Dev'
+        - $ref: '#/components/schemas/ProfilPublic'
         - type: object
           required: [email, github_lie, est_admin]
           properties:
@@ -1289,14 +1361,68 @@ components:
       properties:
         email: { type: string, format: email, maxLength: 254 }
 
+    ProfilPublic:
+      type: object
+      description: Partie publique du profil ; déclarée par le dev (PATCH /me), sauf stats, calculées par la plateforme
+      required: [bio, competences, specialites, disponible, stats, reputation]
+      properties:
+        bio: { type: [string, 'null'] }
+        competences:
+          type: array
+          maxItems: 10
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/Techno' }
+        specialites:
+          type: array
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/Specialite' }
+        disponible: { type: boolean, description: Disponible pour du freelance ou une collaboration }
+        stats: { $ref: '#/components/schemas/StatsDev' }
+        reputation: { $ref: '#/components/schemas/Reputation' }
+
+    Specialite:
+      type: string
+      enum: [frontend, backend, mobile, devops, securite, data]
+
+    Reputation:
+      type: object
+      description: "Calculée par la plateforme à partir d'actions validées par quelqu'un d'autre. Barème : correctif accepté +50 ; appli publiée +100, +50 si badge Security Checked ; mission terminée +100 + 10 × la note du client ; événement organisé, une fois passé et non annulé, +50."
+      required: [xp, niveau, badges]
+      properties:
+        xp: { type: integer, minimum: 0 }
+        niveau:
+          type: string
+          enum: [debutant, contributeur, confirme, expert]
+          description: debutant dès 0 XP, contributeur dès 200, confirme dès 1 000, expert dès 3 000
+        badges:
+          type: array
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/Badge' }
+
+    Badge:
+      type: string
+      enum: [premier_correctif, chasseur_de_bugs, publie, fiable, securise, organisateur]
+      description: "premier_correctif : 1 correctif accepté ; chasseur_de_bugs : 10 bugs résolus ; publie : 1 appli publiée ; fiable : note moyenne ≥ 4,5 sur au moins 3 missions ; securise : 1 appli au badge Security Checked ; organisateur : 1 événement organisé et passé"
+
+    StatsDev:
+      type: object
+      description: Calculées par la plateforme, impossibles à modifier à la main
+      required: [bugs_resolus, applis_publiees, missions_terminees, note_moyenne, nb_notes]
+      properties:
+        bugs_resolus: { type: integer, description: Correctifs de ce dev acceptés par l'auteur d'une discussion }
+        applis_publiees: { type: integer }
+        missions_terminees: { type: integer }
+        note_moyenne: { type: [number, 'null'], minimum: 1, maximum: 5, description: Moyenne des notes laissées par les clients en fin de mission ; null sans aucune note }
+        nb_notes: { type: integer }
+
     ProfilDev:
       description: Profil public d'un dev, avec ses dépôts publics GitHub et ses applis publiées
       allOf:
         - $ref: '#/components/schemas/Dev'
+        - $ref: '#/components/schemas/ProfilPublic'
         - type: object
           required: [depots, applis]
           properties:
-            bio: { type: [string, 'null'] }
             depots:
               type: array
               items: { $ref: '#/components/schemas/Depot' }
@@ -1319,12 +1445,13 @@ components:
     # ───────────── Applis ─────────────
     App:
       type: object
-      required: [id, nom, description, prix, type_prix, demo_url, depot_url, captures, stack, backend, variables_client, securite, auteur, cree_le]
+      required: [id, nom, description, categorie, prix, type_prix, demo_url, depot_url, captures, stack, backend, variables_client, securite, auteur, cree_le]
       properties:
         id: { type: integer }
         nom: { type: string }
         description: { type: string }
         readme: { type: [string, 'null'], description: README du dépôt en Markdown }
+        categorie: { $ref: '#/components/schemas/Categorie' }
         prix: { type: integer, minimum: 0, description: Prix de l'appli en FCFA, par mois ou une seule fois selon type_prix ; 0 = gratuit }
         type_prix: { $ref: '#/components/schemas/TypePrix' }
         demo_url: { type: string, format: uri }
@@ -1364,12 +1491,13 @@ components:
     AppCreation:
       type: object
       description: Envoyé en multipart/form-data (champs texte + images)
-      required: [nom, description, depot_url, demo_url, prix, type_prix, stack, captures]
+      required: [nom, description, categorie, depot_url, demo_url, prix, type_prix, stack, captures]
       properties:
         nom: { type: string, maxLength: 100 }
         description: { type: string, maxLength: 1000 }
         depot_url: { type: string, format: uri, description: Dépôt GitHub public contenant docker-compose.yml et soukdev.json }
         demo_url: { type: string, format: uri }
+        categorie: { $ref: '#/components/schemas/Categorie' }
         prix: { type: integer, minimum: 0 }
         type_prix: { $ref: '#/components/schemas/TypePrix' }
         stack:
@@ -1379,6 +1507,11 @@ components:
           uniqueItems: true
           items: { $ref: '#/components/schemas/Techno' }
         captures: { $ref: '#/components/schemas/CapturesEnvoi' }
+
+    Categorie:
+      type: string
+      enum: [commerce, gestion, education, sante, finance, association, restauration, autre]
+      description: Type de projet, choisi à la publication ; liste fixe (GET /categories)
 
     TypePrix:
       type: string
@@ -1451,6 +1584,7 @@ components:
         nom: { type: string, maxLength: 100 }
         description: { type: string, maxLength: 1000 }
         demo_url: { type: string, format: uri }
+        categorie: { $ref: '#/components/schemas/Categorie' }
         prix: { type: integer, minimum: 0 }
         type_prix: { $ref: '#/components/schemas/TypePrix' }
         stack:
@@ -1499,7 +1633,7 @@ components:
 
     Discussion:
       type: object
-      required: [id, titre, texte, auteur, canal, app_id, depot_url, demo_url, etiquettes, copie_test, resolue, nb_messages, cree_le]
+      required: [id, titre, texte, auteur, canal, app_id, depot_url, demo_url, etiquettes, bug, copie_test, resolue, nb_messages, cree_le]
       properties:
         id: { type: integer }
         titre: { type: string }
@@ -1510,6 +1644,11 @@ components:
         depot_url: { type: [string, 'null'], format: uri, description: Dépôt GitHub public joint (même non publié) }
         demo_url: { type: [string, 'null'], format: uri, description: 'Appli déployée ailleurs (ex. Vercel), affichée dans une iframe sandbox' }
         etiquettes: { type: array, items: { $ref: '#/components/schemas/Etiquette' } }
+        bug:
+          description: Rempli seulement quand la discussion porte l'étiquette bug
+          oneOf:
+            - $ref: '#/components/schemas/Bug'
+            - type: 'null'
         copie_test:
           description: Copie de test, seulement si l'auteur l'a lancée (POST /discussions/{id}/copie-test)
           oneOf:
@@ -1534,11 +1673,18 @@ components:
         etiquettes:
           type: array
           items: { $ref: '#/components/schemas/Etiquette' }
+        bug: { $ref: '#/components/schemas/BugSaisie' }
       oneOf:
         - required: [canal]
           not: { required: [app_id] }
         - required: [app_id]
           not: { required: [canal] }
+      if:
+        required: [etiquettes]
+        properties:
+          etiquettes: { contains: { const: bug } }
+      then:
+        required: [bug]
 
     DiscussionModification:
       type: object
@@ -1552,6 +1698,40 @@ components:
           type: array
           items: { $ref: '#/components/schemas/Etiquette' }
         resolue: { type: boolean, description: "L'auteur la marque résolue (même sans correctif) ou la rouvre" }
+        bug: { $ref: '#/components/schemas/BugSaisie' }
+
+    Bug:
+      type: object
+      description: Fiche structurée d'un bug, remplie par l'auteur de la discussion
+      required: [erreur_obtenue, comportement_attendu, techno, code, difficulte]
+      properties:
+        erreur_obtenue: { type: string, description: 'Ce qui se passe, ex. « le callback renvoie 500 »' }
+        comportement_attendu: { type: string, description: 'Ce qui devrait se passer, ex. « la commande passe en payée »' }
+        techno:
+          oneOf:
+            - $ref: '#/components/schemas/Techno'
+            - type: 'null'
+        code: { type: [string, 'null'], description: Extrait de code concerné (Markdown) }
+        difficulte:
+          oneOf:
+            - $ref: '#/components/schemas/Difficulte'
+            - type: 'null'
+
+    BugSaisie:
+      type: object
+      description: Obligatoire à la création quand etiquettes contient bug
+      required: [erreur_obtenue, comportement_attendu]
+      properties:
+        erreur_obtenue: { type: string, maxLength: 2000 }
+        comportement_attendu: { type: string, maxLength: 2000 }
+        techno: { $ref: '#/components/schemas/Techno' }
+        code: { type: string, maxLength: 10000 }
+        difficulte: { $ref: '#/components/schemas/Difficulte' }
+
+    Difficulte:
+      type: string
+      enum: [facile, moyen, difficile]
+      description: Choisie par l'auteur du bug
 
     Message:
       type: object
@@ -1616,16 +1796,39 @@ components:
     Mission:
       type: object
       description: Demande privée d'un client à l'auteur d'une appli ; visible par eux seuls
-      required: [id, app_id, client, auteur, message, budget, delai, cree_le]
+      required: [id, app_id, client, auteur, message, budget, delai, statut, note, cree_le]
       properties:
         id: { type: integer }
         app_id: { type: integer }
+        statut:
+          type: string
+          enum: [en_cours, terminee]
+          description: Le client la passe à terminee en laissant sa note (POST /missions/{id}/note)
+        note:
+          description: Note du client à la fin de la mission ; null tant qu'elle n'est pas terminée
+          oneOf:
+            - $ref: '#/components/schemas/NoteMission'
+            - type: 'null'
         client: { $ref: '#/components/schemas/Dev' }
         auteur: { $ref: '#/components/schemas/Dev' }
         message: { type: string, description: Besoin exprimé par le client }
         budget: { type: [integer, 'null'], minimum: 0, description: Budget indicatif en FCFA }
         delai: { type: [string, 'null'], format: date, description: Date souhaitée }
         cree_le: { type: string, format: date-time }
+
+    NoteMission:
+      type: object
+      required: [note, commentaire]
+      properties:
+        note: { type: integer, minimum: 1, maximum: 5 }
+        commentaire: { type: [string, 'null'] }
+
+    NoteMissionCreation:
+      type: object
+      required: [note]
+      properties:
+        note: { type: integer, minimum: 1, maximum: 5 }
+        commentaire: { type: string, maxLength: 1000 }
 
     MissionCreation:
       type: object

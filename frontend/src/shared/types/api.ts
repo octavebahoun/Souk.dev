@@ -137,7 +137,7 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Modifier mon profil (pays, bio) ; seuls les champs envoyés sont modifiés */
+        /** Modifier mon profil (pays, bio, compétences, spécialités, disponibilité) ; seuls les champs envoyés sont modifiés */
         patch: operations["updateMe"];
         trace?: never;
     };
@@ -246,6 +246,23 @@ export interface paths {
         put?: never;
         /** Relancer l'analyse de sécurité (auteur uniquement), par exemple après avoir corrigé une dépendance */
         post: operations["rescanAppSecurity"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Liste fixe des catégories d'appli (type de projet) */
+        get: operations["listCategories"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -571,6 +588,25 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/missions/{id}/note": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Terminer la mission et noter l'auteur (client uniquement, une seule fois) */
+        post: operations["rateMission"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/missions/{id}/messages": {
         parameters: {
             query?: never;
@@ -746,9 +782,12 @@ export interface components {
         CompteModification: {
             pays?: components["schemas"]["Pays"] | null;
             bio?: string | null;
+            competences?: components["schemas"]["Techno"][];
+            specialites?: components["schemas"]["Specialite"][];
+            disponible?: boolean;
         };
         /** @description Mon compte (GET /me) */
-        Compte: components["schemas"]["Dev"] & {
+        Compte: components["schemas"]["Dev"] & components["schemas"]["ProfilPublic"] & {
             /** Format: email */
             email: string | null;
             /** @description Obligatoire pour publier une appli ou proposer un correctif */
@@ -759,9 +798,45 @@ export interface components {
             /** Format: email */
             email: string;
         };
+        /** @description Partie publique du profil ; déclarée par le dev (PATCH /me), sauf stats, calculées par la plateforme */
+        ProfilPublic: {
+            bio: string | null;
+            competences: components["schemas"]["Techno"][];
+            specialites: components["schemas"]["Specialite"][];
+            /** @description Disponible pour du freelance ou une collaboration */
+            disponible: boolean;
+            stats: components["schemas"]["StatsDev"];
+            reputation: components["schemas"]["Reputation"];
+        };
+        /** @enum {string} */
+        Specialite: "frontend" | "backend" | "mobile" | "devops" | "securite" | "data";
+        /** @description Calculée par la plateforme à partir d'actions validées par quelqu'un d'autre. Barème : correctif accepté +50 ; appli publiée +100, +50 si badge Security Checked ; mission terminée +100 + 10 × la note du client ; événement organisé, une fois passé et non annulé, +50. */
+        Reputation: {
+            xp: number;
+            /**
+             * @description debutant dès 0 XP, contributeur dès 200, confirme dès 1 000, expert dès 3 000
+             * @enum {string}
+             */
+            niveau: "debutant" | "contributeur" | "confirme" | "expert";
+            badges: components["schemas"]["Badge"][];
+        };
+        /**
+         * @description premier_correctif : 1 correctif accepté ; chasseur_de_bugs : 10 bugs résolus ; publie : 1 appli publiée ; fiable : note moyenne ≥ 4,5 sur au moins 3 missions ; securise : 1 appli au badge Security Checked ; organisateur : 1 événement organisé et passé
+         * @enum {string}
+         */
+        Badge: "premier_correctif" | "chasseur_de_bugs" | "publie" | "fiable" | "securise" | "organisateur";
+        /** @description Calculées par la plateforme, impossibles à modifier à la main */
+        StatsDev: {
+            /** @description Correctifs de ce dev acceptés par l'auteur d'une discussion */
+            bugs_resolus: number;
+            applis_publiees: number;
+            missions_terminees: number;
+            /** @description Moyenne des notes laissées par les clients en fin de mission ; null sans aucune note */
+            note_moyenne: number | null;
+            nb_notes: number;
+        };
         /** @description Profil public d'un dev, avec ses dépôts publics GitHub et ses applis publiées */
-        ProfilDev: components["schemas"]["Dev"] & {
-            bio?: string | null;
+        ProfilDev: components["schemas"]["Dev"] & components["schemas"]["ProfilPublic"] & {
             depots: components["schemas"]["Depot"][];
             applis: components["schemas"]["App"][];
         };
@@ -782,6 +857,7 @@ export interface components {
             description: string;
             /** @description README du dépôt en Markdown */
             readme?: string | null;
+            categorie: components["schemas"]["Categorie"];
             /** @description Prix de l'appli en FCFA */
             prix: number;
             type_prix: components["schemas"]["TypePrix"];
@@ -822,11 +898,17 @@ export interface components {
             depot_url: string;
             /** Format: uri */
             demo_url: string;
+            categorie: components["schemas"]["Categorie"];
             prix: number;
             type_prix: components["schemas"]["TypePrix"];
             stack: components["schemas"]["Techno"][];
             captures: components["schemas"]["CapturesEnvoi"];
         };
+        /**
+         * @description Type de projet, choisi à la publication ; liste fixe (GET /categories)
+         * @enum {string}
+         */
+        Categorie: "commerce" | "gestion" | "education" | "sante" | "finance" | "association" | "restauration" | "autre";
         /**
          * @description mensuel = le client paie le prix chaque mois ; unique = il le paie une seule fois. L'hébergement reste mensuel dans les deux cas. Ignoré quand prix vaut 0.
          * @enum {string}
@@ -886,6 +968,7 @@ export interface components {
             description?: string;
             /** Format: uri */
             demo_url?: string;
+            categorie?: components["schemas"]["Categorie"];
             prix?: number;
             type_prix?: components["schemas"]["TypePrix"];
             stack?: components["schemas"]["Techno"][];
@@ -940,6 +1023,8 @@ export interface components {
              */
             demo_url: string | null;
             etiquettes: components["schemas"]["Etiquette"][];
+            /** @description Rempli seulement quand la discussion porte l'étiquette bug */
+            bug: components["schemas"]["Bug"] | null;
             /** @description Copie de test, seulement si l'auteur l'a lancée (POST /discussions/{id}/copie-test) */
             copie_test: components["schemas"]["Deploiement"] | null;
             /** @description Vraie quand l'auteur accepte un correctif ou la marque résolue lui-même (PATCH) */
@@ -961,6 +1046,7 @@ export interface components {
             /** Format: uri */
             demo_url?: string;
             etiquettes?: components["schemas"]["Etiquette"][];
+            bug?: components["schemas"]["BugSaisie"];
         } & (unknown | unknown);
         /** @description Tous les champs sont optionnels ; seuls ceux envoyés sont modifiés */
         DiscussionModification: {
@@ -973,7 +1059,32 @@ export interface components {
             etiquettes?: components["schemas"]["Etiquette"][];
             /** @description L'auteur la marque résolue (même sans correctif) ou la rouvre */
             resolue?: boolean;
+            bug?: components["schemas"]["BugSaisie"];
         };
+        /** @description Fiche structurée d'un bug, remplie par l'auteur de la discussion */
+        Bug: {
+            /** @description Ce qui se passe, ex. « le callback renvoie 500 » */
+            erreur_obtenue: string;
+            /** @description Ce qui devrait se passer, ex. « la commande passe en payée » */
+            comportement_attendu: string;
+            techno: components["schemas"]["Techno"] | null;
+            /** @description Extrait de code concerné (Markdown) */
+            code: string | null;
+            difficulte: components["schemas"]["Difficulte"] | null;
+        };
+        /** @description Obligatoire à la création quand etiquettes contient bug */
+        BugSaisie: {
+            erreur_obtenue: string;
+            comportement_attendu: string;
+            techno?: components["schemas"]["Techno"];
+            code?: string;
+            difficulte?: components["schemas"]["Difficulte"];
+        };
+        /**
+         * @description Choisie par l'auteur du bug
+         * @enum {string}
+         */
+        Difficulte: "facile" | "moyen" | "difficile";
         Message: {
             id: number;
             /** @description Markdown */
@@ -1034,6 +1145,13 @@ export interface components {
         Mission: {
             id: number;
             app_id: number;
+            /**
+             * @description Le client la passe à terminee en laissant sa note (POST /missions/{id}/note)
+             * @enum {string}
+             */
+            statut: "en_cours" | "terminee";
+            /** @description Note du client à la fin de la mission ; null tant qu'elle n'est pas terminée */
+            note: components["schemas"]["NoteMission"] | null;
             client: components["schemas"]["Dev"];
             auteur: components["schemas"]["Dev"];
             /** @description Besoin exprimé par le client */
@@ -1047,6 +1165,14 @@ export interface components {
             delai: string | null;
             /** Format: date-time */
             cree_le: string;
+        };
+        NoteMission: {
+            note: number;
+            commentaire: string | null;
+        };
+        NoteMissionCreation: {
+            note: number;
+            commentaire?: string;
         };
         MissionCreation: {
             message: string;
@@ -1442,6 +1568,14 @@ export interface operations {
                 techno?: components["schemas"]["Techno"];
                 /** @description true = uniquement les applis au badge « Security Checked » (statut verifie) */
                 securite?: boolean;
+                categorie?: components["schemas"]["Categorie"];
+                /** @description Pays de l'auteur */
+                pays?: components["schemas"]["Pays"];
+                /** @description Prix maximum en FCFA (les applis gratuites sont incluses) */
+                prix_max?: number;
+                type_prix?: components["schemas"]["TypePrix"];
+                /** @description Par défaut, les plus récentes d'abord */
+                tri?: "recent" | "prix_croissant" | "prix_decroissant";
             };
             header?: never;
             path?: never;
@@ -1672,6 +1806,26 @@ export interface operations {
             429: components["responses"]["TropDeRequetes"];
         };
     };
+    listCategories: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Les catégories */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Categorie"][];
+                };
+            };
+        };
+    };
     listTechnos: {
         parameters: {
             query?: never;
@@ -1810,6 +1964,8 @@ export interface operations {
                 etiquette?: components["schemas"]["Etiquette"];
                 /** @description Sans ce filtre, toutes les discussions */
                 statut?: "ouvertes" | "resolues";
+                /** @description Uniquement les bugs de cette difficulté */
+                difficulte?: components["schemas"]["Difficulte"];
             };
             header?: never;
             path?: never;
@@ -2350,6 +2506,37 @@ export interface operations {
             };
             403: components["responses"]["Interdit"];
             404: components["responses"]["Introuvable"];
+        };
+    };
+    rateMission: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NoteMissionCreation"];
+            };
+        };
+        responses: {
+            /** @description Mission terminée et notée */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Mission"];
+                };
+            };
+            403: components["responses"]["Interdit"];
+            404: components["responses"]["Introuvable"];
+            409: components["responses"]["Conflit"];
+            419: components["responses"]["CsrfInvalide"];
+            422: components["responses"]["Invalide"];
         };
     };
     listMissionMessages: {
