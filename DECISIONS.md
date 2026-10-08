@@ -205,6 +205,10 @@ Validés par Oktav. L'équipe s'engage à les livrer d'ici le 25 octobre, **apr�
     - **Badges** : Premier correctif (1 correctif accepté), Chasseur de bugs (10 bugs résolus), Publié (1 appli), Fiable (note ≥ 4,5 sur au moins 3 missions), Sécurisé (1 appli « Security Checked »), Organisateur (1 événement passé).
     - Contrat : champ `reputation` (`xp`, `niveau`, `badges`) dans le profil.
 4. **Souk Score** : un score global sur 1000, calculé à partir de la réputation, des projets, de la sécurité et de l'activité.
+    - **Rôle** : l'XP cumule tout depuis l'arrivée ; le Souk Score mesure la **qualité et l'activité récente**. Un nouveau qui travaille bien peut dépasser un ancien devenu inactif.
+    - **Calcul**, en 5 parts plafonnées : **entraide** 25 par bug résolu (250 max) ; **projets** 50 par appli publiée (200 max) ; **clients** note moyenne / 5 × 150, plus 25 par mission terminée (100 max), soit 250 max ; **sécurité** part des applis « Security Checked » × 150 ; **activité** 15 par action validée sur 30 jours (150 max).
+    - Les compétences déclarées ne comptent pas, puisque personne ne les vérifie.
+    - Contrat : champ `souk_score` dans le profil, avec le total et le détail des cinq parts.
 5. **Tableau de bord du dev** : vues, déploiements, revenus, bugs résolus, note.
 6. **Souk AI** : une analyse IA du bug, affichée à côté des solutions de la communauté, sans les remplacer.
 7. **Recherche avancée** : filtres par pays, prix, type de projet, niveau, open source ou commercial.

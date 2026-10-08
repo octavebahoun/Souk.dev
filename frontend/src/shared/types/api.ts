@@ -807,9 +807,24 @@ export interface components {
             disponible: boolean;
             stats: components["schemas"]["StatsDev"];
             reputation: components["schemas"]["Reputation"];
+            souk_score: components["schemas"]["SoukScore"];
         };
         /** @enum {string} */
         Specialite: "frontend" | "backend" | "mobile" | "devops" | "securite" | "data";
+        /** @description Score sur 1000 qui mesure la qualité et l'activité récente (l'XP, elle, cumule tout depuis l'arrivée). Calculé par la plateforme ; les compétences déclarées ne comptent pas. total = somme des cinq parts. */
+        SoukScore: {
+            total: number;
+            /** @description 25 par bug résolu (correctif accepté) */
+            entraide: number;
+            /** @description 50 par appli publiée */
+            projets: number;
+            /** @description note moyenne / 5 × 150 (0 sans note), plus 25 par mission terminée plafonné à 100 */
+            clients: number;
+            /** @description part des applis du dev au badge Security Checked × 150 (0 sans appli) */
+            securite: number;
+            /** @description 15 par action validée sur les 30 derniers jours (correctif accepté, appli publiée, mission terminée, événement organisé passé), plafonné à 150 */
+            activite: number;
+        };
         /** @description Calculée par la plateforme à partir d'actions validées par quelqu'un d'autre. Barème : correctif accepté +50 ; appli publiée +100, +50 si badge Security Checked ; mission terminée +100 + 10 × la note du client ; événement organisé, une fois passé et non annulé, +50. */
         Reputation: {
             xp: number;

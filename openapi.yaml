@@ -1364,7 +1364,7 @@ components:
     ProfilPublic:
       type: object
       description: Partie publique du profil ; déclarée par le dev (PATCH /me), sauf stats, calculées par la plateforme
-      required: [bio, competences, specialites, disponible, stats, reputation]
+      required: [bio, competences, specialites, disponible, stats, reputation, souk_score]
       properties:
         bio: { type: [string, 'null'] }
         competences:
@@ -1379,10 +1379,23 @@ components:
         disponible: { type: boolean, description: Disponible pour du freelance ou une collaboration }
         stats: { $ref: '#/components/schemas/StatsDev' }
         reputation: { $ref: '#/components/schemas/Reputation' }
+        souk_score: { $ref: '#/components/schemas/SoukScore' }
 
     Specialite:
       type: string
       enum: [frontend, backend, mobile, devops, securite, data]
+
+    SoukScore:
+      type: object
+      description: "Score sur 1000 qui mesure la qualité et l'activité récente (l'XP, elle, cumule tout depuis l'arrivée). Calculé par la plateforme ; les compétences déclarées ne comptent pas. total = somme des cinq parts."
+      required: [total, entraide, projets, clients, securite, activite]
+      properties:
+        total: { type: integer, minimum: 0, maximum: 1000 }
+        entraide: { type: integer, minimum: 0, maximum: 250, description: 25 par bug résolu (correctif accepté), plafonné à 250 }
+        projets: { type: integer, minimum: 0, maximum: 200, description: 50 par appli publiée, plafonné à 200 }
+        clients: { type: integer, minimum: 0, maximum: 250, description: "note moyenne / 5 × 150 (0 sans note), plus 25 par mission terminée plafonné à 100" }
+        securite: { type: integer, minimum: 0, maximum: 150, description: "part des applis du dev au badge Security Checked × 150 (0 sans appli)" }
+        activite: { type: integer, minimum: 0, maximum: 150, description: "15 par action validée sur les 30 derniers jours (correctif accepté, appli publiée, mission terminée, événement organisé passé), plafonné à 150" }
 
     Reputation:
       type: object
