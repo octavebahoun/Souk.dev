@@ -546,8 +546,12 @@ paths:
     get:
       tags: [Déploiements]
       operationId: listDeployments
-      summary: Mes déploiements
+      summary: Mes déploiements (écran « mes copies » avec ?type=client)
       parameters:
+        - name: type
+          in: query
+          description: Uniquement ce type de copie ; client pour l'écran « mes copies »
+          schema: { type: string, enum: [client, test, correctif] }
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/ParPage'
       responses:
@@ -1747,10 +1751,11 @@ components:
     # ───────────── Déploiements ─────────────
     Deploiement:
       type: object
-      required: [id, app_id, type, etat, url, erreur, cree_le]
+      required: [id, app_id, app_nom, type, etat, url, erreur, cree_le]
       properties:
         id: { type: integer }
         app_id: { type: integer }
+        app_nom: { type: string, description: Nom de l'appli copiée, pour l'afficher sans la recharger }
         type:
           type: string
           enum: [client, test, correctif]

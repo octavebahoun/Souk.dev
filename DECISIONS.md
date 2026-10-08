@@ -238,6 +238,7 @@ Validés par Oktav. L'équipe s'engage à les livrer d'ici le 25 octobre, **apr�
     - Contrat : champ `securite` sur une appli (`en_cours`, `verifie`, `problemes`), filtre `GET /apps?securite=true`, relance par l'auteur avec `POST /apps/{id}/securite`. Outils interdits par leur licence : Semgrep (LGPL), Hadolint (GPL).
 11. **Paiement unique** : le dev choisit le prix de son appli, **mensuel** (ex. 15 000 F/mois) ou **unique** (ex. 150 000 F, payé une fois). L'hébergement reste mensuel. Contrat : champ `type_prix` (`mensuel` ou `unique`) sur une appli.
 12. **Écran « mes copies »** : une entreprise ou une agence voit toutes ses copies déployées au même endroit. Gratuit.
+    - Contrat : `GET /deployments?type=client`, et chaque copie porte `app_nom` pour s'afficher sans recharger l'appli. L'échéance attendra que le paiement via Datacloud soit réglé.
 
 **Écarté** : le vote pour la meilleure solution (l'auteur accepte un correctif), l'achat du code source (le client déploie une copie), toute commission sur les ventes, le premium pour les devs. **Reporté** : l'abonnement entreprises, tant que le paiement via Datacloud n'est pas réglé.
 

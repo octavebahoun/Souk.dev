@@ -363,7 +363,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Mes déploiements */
+        /** Mes déploiements (écran « mes copies » avec ?type=client) */
         get: operations["listDeployments"];
         put?: never;
         post?: never;
@@ -1092,6 +1092,8 @@ export interface components {
         Deploiement: {
             id: number;
             app_id: number;
+            /** @description Nom de l'appli copiée */
+            app_nom: string;
             /**
              * @description Copie d'un client, copie de test d'une discussion, ou version corrigée
              * @enum {string}
@@ -2095,6 +2097,8 @@ export interface operations {
     listDeployments: {
         parameters: {
             query?: {
+                /** @description Uniquement ce type de copie ; client pour l'écran « mes copies » */
+                type?: "client" | "test" | "correctif";
                 /** @description Numéro de page (commence à 1) */
                 page?: components["parameters"]["Page"];
                 /** @description Éléments par page (50 maximum) */
