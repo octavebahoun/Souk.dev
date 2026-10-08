@@ -237,6 +237,24 @@ paths:
           in: query
           description: true = uniquement les applis au badge « Security Checked » (statut verifie)
           schema: { type: boolean }
+        - name: categorie
+          in: query
+          schema: { $ref: '#/components/schemas/Categorie' }
+        - name: pays
+          in: query
+          description: Pays de l'auteur
+          schema: { $ref: '#/components/schemas/Pays' }
+        - name: prix_max
+          in: query
+          description: Prix maximum en FCFA (les applis gratuites sont incluses)
+          schema: { type: integer, minimum: 0 }
+        - name: type_prix
+          in: query
+          schema: { $ref: '#/components/schemas/TypePrix' }
+        - name: tri
+          in: query
+          description: Par défaut, les plus récentes d'abord
+          schema: { type: string, enum: [recent, prix_croissant, prix_decroissant], default: recent }
       responses:
         '200':
           description: Liste des applis
@@ -390,6 +408,21 @@ paths:
         '404': { $ref: '#/components/responses/Introuvable' }
         '429': { $ref: '#/components/responses/TropDeRequetes' }
         '419': { $ref: '#/components/responses/CsrfInvalide' }
+
+  /categories:
+    get:
+      tags: [Applis]
+      operationId: listCategories
+      summary: Liste fixe des catégories d'appli (type de projet)
+      security: []
+      responses:
+        '200':
+          description: Les catégories
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Categorie' }
 
   /technos:
     get:
@@ -1323,12 +1356,13 @@ components:
     # ───────────── Applis ─────────────
     App:
       type: object
-      required: [id, nom, description, prix, type_prix, demo_url, depot_url, captures, stack, backend, variables_client, securite, auteur, cree_le]
+      required: [id, nom, description, categorie, prix, type_prix, demo_url, depot_url, captures, stack, backend, variables_client, securite, auteur, cree_le]
       properties:
         id: { type: integer }
         nom: { type: string }
         description: { type: string }
         readme: { type: [string, 'null'], description: README du dépôt en Markdown }
+        categorie: { $ref: '#/components/schemas/Categorie' }
         prix: { type: integer, minimum: 0, description: Prix de l'appli en FCFA, par mois ou une seule fois selon type_prix ; 0 = gratuit }
         type_prix: { $ref: '#/components/schemas/TypePrix' }
         demo_url: { type: string, format: uri }
@@ -1368,12 +1402,13 @@ components:
     AppCreation:
       type: object
       description: Envoyé en multipart/form-data (champs texte + images)
-      required: [nom, description, depot_url, demo_url, prix, type_prix, stack, captures]
+      required: [nom, description, categorie, depot_url, demo_url, prix, type_prix, stack, captures]
       properties:
         nom: { type: string, maxLength: 100 }
         description: { type: string, maxLength: 1000 }
         depot_url: { type: string, format: uri, description: Dépôt GitHub public contenant docker-compose.yml et soukdev.json }
         demo_url: { type: string, format: uri }
+        categorie: { $ref: '#/components/schemas/Categorie' }
         prix: { type: integer, minimum: 0 }
         type_prix: { $ref: '#/components/schemas/TypePrix' }
         stack:
@@ -1383,6 +1418,11 @@ components:
           uniqueItems: true
           items: { $ref: '#/components/schemas/Techno' }
         captures: { $ref: '#/components/schemas/CapturesEnvoi' }
+
+    Categorie:
+      type: string
+      enum: [commerce, gestion, education, sante, finance, association, restauration, autre]
+      description: Type de projet, choisi à la publication ; liste fixe (GET /categories)
 
     TypePrix:
       type: string
@@ -1455,6 +1495,7 @@ components:
         nom: { type: string, maxLength: 100 }
         description: { type: string, maxLength: 1000 }
         demo_url: { type: string, format: uri }
+        categorie: { $ref: '#/components/schemas/Categorie' }
         prix: { type: integer, minimum: 0 }
         type_prix: { $ref: '#/components/schemas/TypePrix' }
         stack:

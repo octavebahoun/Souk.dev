@@ -252,6 +252,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Liste fixe des catégories d'appli (type de projet) */
+        get: operations["listCategories"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/technos": {
         parameters: {
             query?: never;
@@ -782,6 +799,7 @@ export interface components {
             description: string;
             /** @description README du dépôt en Markdown */
             readme?: string | null;
+            categorie: components["schemas"]["Categorie"];
             /** @description Prix de l'appli en FCFA */
             prix: number;
             type_prix: components["schemas"]["TypePrix"];
@@ -822,11 +840,17 @@ export interface components {
             depot_url: string;
             /** Format: uri */
             demo_url: string;
+            categorie: components["schemas"]["Categorie"];
             prix: number;
             type_prix: components["schemas"]["TypePrix"];
             stack: components["schemas"]["Techno"][];
             captures: components["schemas"]["CapturesEnvoi"];
         };
+        /**
+         * @description Type de projet, choisi à la publication ; liste fixe (GET /categories)
+         * @enum {string}
+         */
+        Categorie: "commerce" | "gestion" | "education" | "sante" | "finance" | "association" | "restauration" | "autre";
         /**
          * @description mensuel = le client paie le prix chaque mois ; unique = il le paie une seule fois. L'hébergement reste mensuel dans les deux cas. Ignoré quand prix vaut 0.
          * @enum {string}
@@ -886,6 +910,7 @@ export interface components {
             description?: string;
             /** Format: uri */
             demo_url?: string;
+            categorie?: components["schemas"]["Categorie"];
             prix?: number;
             type_prix?: components["schemas"]["TypePrix"];
             stack?: components["schemas"]["Techno"][];
@@ -1470,6 +1495,14 @@ export interface operations {
                 techno?: components["schemas"]["Techno"];
                 /** @description true = uniquement les applis au badge « Security Checked » (statut verifie) */
                 securite?: boolean;
+                categorie?: components["schemas"]["Categorie"];
+                /** @description Pays de l'auteur */
+                pays?: components["schemas"]["Pays"];
+                /** @description Prix maximum en FCFA (les applis gratuites sont incluses) */
+                prix_max?: number;
+                type_prix?: components["schemas"]["TypePrix"];
+                /** @description Par défaut, les plus récentes d'abord */
+                tri?: "recent" | "prix_croissant" | "prix_decroissant";
             };
             header?: never;
             path?: never;
@@ -1698,6 +1731,26 @@ export interface operations {
             404: components["responses"]["Introuvable"];
             419: components["responses"]["CsrfInvalide"];
             429: components["responses"]["TropDeRequetes"];
+        };
+    };
+    listCategories: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Les catégories */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Categorie"][];
+                };
+            };
         };
     };
     listTechnos: {

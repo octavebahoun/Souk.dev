@@ -199,6 +199,9 @@ Validés par Oktav. L'équipe s'engage à les livrer d'ici le 25 octobre, **apr�
 5. **Tableau de bord du dev** : vues, déploiements, revenus, bugs résolus, note.
 6. **Souk AI** : une analyse IA du bug, affichée à côté des solutions de la communauté, sans les remplacer.
 7. **Recherche avancée** : filtres par pays, prix, type de projet, niveau, open source ou commercial.
+    - Nouveaux filtres sur `GET /apps` : `categorie`, `pays` (de l'auteur), `prix_max`, `type_prix`, et le tri `tri` (`recent`, `prix_croissant`, `prix_decroissant`).
+    - **Catégorie** choisie à la publication, dans une liste fixe (`GET /categories`) : `commerce`, `gestion`, `education`, `sante`, `finance`, `association`, `restauration`, `autre`.
+    - Pas de filtre « open source ou commercial » (`?gratuit=true` existe déjà), ni « déployable » (toutes les applis le sont), ni « niveau » (il ne s'applique pas à une appli).
 8. **Communautés africaines** : des canaux par pays et par techno (ex. « Laravel Afrique de l'Ouest »).
     - **Pays sur le profil**, facultatif : champ `pays` (code ISO, ex. `BJ`), tous les pays acceptés (diaspora comprise). Modifiable avec `PATCH /me`, qui sert aussi pour la bio.
     - **Canaux par pays** : un canal peut avoir un `pays` (ex. `#laravel-benin` → `BJ`), filtre `GET /canaux?pays=BJ`. Un canal général ou régional n'a pas de pays.
