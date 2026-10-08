@@ -504,6 +504,10 @@ paths:
           in: query
           description: Sans ce filtre, toutes les discussions
           schema: { type: string, enum: [ouvertes, resolues] }
+        - name: difficulte
+          in: query
+          description: Uniquement les bugs de cette difficulté
+          schema: { $ref: '#/components/schemas/Difficulte' }
       responses:
         '200':
           description: Liste des discussions
@@ -1499,7 +1503,7 @@ components:
 
     Discussion:
       type: object
-      required: [id, titre, texte, auteur, canal, app_id, depot_url, demo_url, etiquettes, copie_test, resolue, nb_messages, cree_le]
+      required: [id, titre, texte, auteur, canal, app_id, depot_url, demo_url, etiquettes, bug, copie_test, resolue, nb_messages, cree_le]
       properties:
         id: { type: integer }
         titre: { type: string }
@@ -1510,6 +1514,11 @@ components:
         depot_url: { type: [string, 'null'], format: uri, description: Dépôt GitHub public joint (même non publié) }
         demo_url: { type: [string, 'null'], format: uri, description: 'Appli déployée ailleurs (ex. Vercel), affichée dans une iframe sandbox' }
         etiquettes: { type: array, items: { $ref: '#/components/schemas/Etiquette' } }
+        bug:
+          description: Rempli seulement quand la discussion porte l'étiquette bug
+          oneOf:
+            - $ref: '#/components/schemas/Bug'
+            - type: 'null'
         copie_test:
           description: Copie de test, seulement si l'auteur l'a lancée (POST /discussions/{id}/copie-test)
           oneOf:
@@ -1534,11 +1543,18 @@ components:
         etiquettes:
           type: array
           items: { $ref: '#/components/schemas/Etiquette' }
+        bug: { $ref: '#/components/schemas/BugSaisie' }
       oneOf:
         - required: [canal]
           not: { required: [app_id] }
         - required: [app_id]
           not: { required: [canal] }
+      if:
+        required: [etiquettes]
+        properties:
+          etiquettes: { contains: { const: bug } }
+      then:
+        required: [bug]
 
     DiscussionModification:
       type: object
@@ -1552,6 +1568,40 @@ components:
           type: array
           items: { $ref: '#/components/schemas/Etiquette' }
         resolue: { type: boolean, description: "L'auteur la marque résolue (même sans correctif) ou la rouvre" }
+        bug: { $ref: '#/components/schemas/BugSaisie' }
+
+    Bug:
+      type: object
+      description: Fiche structurée d'un bug, remplie par l'auteur de la discussion
+      required: [erreur_obtenue, comportement_attendu, techno, code, difficulte]
+      properties:
+        erreur_obtenue: { type: string, description: 'Ce qui se passe, ex. « le callback renvoie 500 »' }
+        comportement_attendu: { type: string, description: 'Ce qui devrait se passer, ex. « la commande passe en payée »' }
+        techno:
+          oneOf:
+            - $ref: '#/components/schemas/Techno'
+            - type: 'null'
+        code: { type: [string, 'null'], description: Extrait de code concerné (Markdown) }
+        difficulte:
+          oneOf:
+            - $ref: '#/components/schemas/Difficulte'
+            - type: 'null'
+
+    BugSaisie:
+      type: object
+      description: Obligatoire à la création quand etiquettes contient bug
+      required: [erreur_obtenue, comportement_attendu]
+      properties:
+        erreur_obtenue: { type: string, maxLength: 2000 }
+        comportement_attendu: { type: string, maxLength: 2000 }
+        techno: { $ref: '#/components/schemas/Techno' }
+        code: { type: string, maxLength: 10000 }
+        difficulte: { $ref: '#/components/schemas/Difficulte' }
+
+    Difficulte:
+      type: string
+      enum: [facile, moyen, difficile]
+      description: Choisie par l'auteur du bug
 
     Message:
       type: object

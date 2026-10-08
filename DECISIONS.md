@@ -193,6 +193,7 @@ Validés par Oktav. L'équipe s'engage à les livrer d'ici le 25 octobre, **apr�
 
 1. **Profil enrichi** : compétences, pays, disponibilité freelance, contributions, bugs résolus, note de la communauté, badges.
 2. **Bug structuré** : technologie, code concerné, erreur obtenue, comportement attendu, niveau de difficulté.
+    - Un bloc `bug` sur une discussion, **seulement avec l'étiquette `bug`**. Obligatoires : `erreur_obtenue` et `comportement_attendu`. Facultatifs : `techno` (liste du store), `code`, `difficulte` (`facile`, `moyen`, `difficile`), **choisie par l'auteur**. Filtre `GET /discussions?difficulte=facile`.
 3. **Réputation** : des points (XP) pour un bug résolu, une réponse utile, un projet publié, une aide, un événement. Pas de votes.
 4. **Souk Score** : un score global sur 1000, calculé à partir de la réputation, des projets, de la sécurité et de l'activité.
 5. **Tableau de bord du dev** : vues, déploiements, revenus, bugs résolus, note.

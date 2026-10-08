@@ -940,6 +940,8 @@ export interface components {
              */
             demo_url: string | null;
             etiquettes: components["schemas"]["Etiquette"][];
+            /** @description Rempli seulement quand la discussion porte l'étiquette bug */
+            bug: components["schemas"]["Bug"] | null;
             /** @description Copie de test, seulement si l'auteur l'a lancée (POST /discussions/{id}/copie-test) */
             copie_test: components["schemas"]["Deploiement"] | null;
             /** @description Vraie quand l'auteur accepte un correctif ou la marque résolue lui-même (PATCH) */
@@ -961,6 +963,7 @@ export interface components {
             /** Format: uri */
             demo_url?: string;
             etiquettes?: components["schemas"]["Etiquette"][];
+            bug?: components["schemas"]["BugSaisie"];
         } & (unknown | unknown);
         /** @description Tous les champs sont optionnels ; seuls ceux envoyés sont modifiés */
         DiscussionModification: {
@@ -973,7 +976,32 @@ export interface components {
             etiquettes?: components["schemas"]["Etiquette"][];
             /** @description L'auteur la marque résolue (même sans correctif) ou la rouvre */
             resolue?: boolean;
+            bug?: components["schemas"]["BugSaisie"];
         };
+        /** @description Fiche structurée d'un bug, remplie par l'auteur de la discussion */
+        Bug: {
+            /** @description Ce qui se passe, ex. « le callback renvoie 500 » */
+            erreur_obtenue: string;
+            /** @description Ce qui devrait se passer, ex. « la commande passe en payée » */
+            comportement_attendu: string;
+            techno: components["schemas"]["Techno"] | null;
+            /** @description Extrait de code concerné (Markdown) */
+            code: string | null;
+            difficulte: components["schemas"]["Difficulte"] | null;
+        };
+        /** @description Obligatoire à la création quand etiquettes contient bug */
+        BugSaisie: {
+            erreur_obtenue: string;
+            comportement_attendu: string;
+            techno?: components["schemas"]["Techno"];
+            code?: string;
+            difficulte?: components["schemas"]["Difficulte"];
+        };
+        /**
+         * @description Choisie par l'auteur du bug
+         * @enum {string}
+         */
+        Difficulte: "facile" | "moyen" | "difficile";
         Message: {
             id: number;
             /** @description Markdown */
@@ -1810,6 +1838,8 @@ export interface operations {
                 etiquette?: components["schemas"]["Etiquette"];
                 /** @description Sans ce filtre, toutes les discussions */
                 statut?: "ouvertes" | "resolues";
+                /** @description Uniquement les bugs de cette difficulté */
+                difficulte?: components["schemas"]["Difficulte"];
             };
             header?: never;
             path?: never;
