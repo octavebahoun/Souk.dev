@@ -137,7 +137,7 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Modifier mon profil (pays, bio) ; seuls les champs envoyés sont modifiés */
+        /** Modifier mon profil (pays, bio, compétences, spécialités, disponibilité) ; seuls les champs envoyés sont modifiés */
         patch: operations["updateMe"];
         trace?: never;
     };
@@ -588,6 +588,25 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/missions/{id}/note": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Terminer la mission et noter l'auteur (client uniquement, une seule fois) */
+        post: operations["rateMission"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/missions/{id}/messages": {
         parameters: {
             query?: never;
@@ -763,9 +782,12 @@ export interface components {
         CompteModification: {
             pays?: components["schemas"]["Pays"] | null;
             bio?: string | null;
+            competences?: components["schemas"]["Techno"][];
+            specialites?: components["schemas"]["Specialite"][];
+            disponible?: boolean;
         };
         /** @description Mon compte (GET /me) */
-        Compte: components["schemas"]["Dev"] & {
+        Compte: components["schemas"]["Dev"] & components["schemas"]["ProfilPublic"] & {
             /** Format: email */
             email: string | null;
             /** @description Obligatoire pour publier une appli ou proposer un correctif */
@@ -776,9 +798,29 @@ export interface components {
             /** Format: email */
             email: string;
         };
+        /** @description Partie publique du profil ; déclarée par le dev (PATCH /me), sauf stats, calculées par la plateforme */
+        ProfilPublic: {
+            bio: string | null;
+            competences: components["schemas"]["Techno"][];
+            specialites: components["schemas"]["Specialite"][];
+            /** @description Disponible pour du freelance ou une collaboration */
+            disponible: boolean;
+            stats: components["schemas"]["StatsDev"];
+        };
+        /** @enum {string} */
+        Specialite: "frontend" | "backend" | "mobile" | "devops" | "securite" | "data";
+        /** @description Calculées par la plateforme, impossibles à modifier à la main */
+        StatsDev: {
+            /** @description Correctifs de ce dev acceptés par l'auteur d'une discussion */
+            bugs_resolus: number;
+            applis_publiees: number;
+            missions_terminees: number;
+            /** @description Moyenne des notes laissées par les clients en fin de mission ; null sans aucune note */
+            note_moyenne: number | null;
+            nb_notes: number;
+        };
         /** @description Profil public d'un dev, avec ses dépôts publics GitHub et ses applis publiées */
-        ProfilDev: components["schemas"]["Dev"] & {
-            bio?: string | null;
+        ProfilDev: components["schemas"]["Dev"] & components["schemas"]["ProfilPublic"] & {
             depots: components["schemas"]["Depot"][];
             applis: components["schemas"]["App"][];
         };
@@ -1087,6 +1129,13 @@ export interface components {
         Mission: {
             id: number;
             app_id: number;
+            /**
+             * @description Le client la passe à terminee en laissant sa note (POST /missions/{id}/note)
+             * @enum {string}
+             */
+            statut: "en_cours" | "terminee";
+            /** @description Note du client à la fin de la mission ; null tant qu'elle n'est pas terminée */
+            note: components["schemas"]["NoteMission"] | null;
             client: components["schemas"]["Dev"];
             auteur: components["schemas"]["Dev"];
             /** @description Besoin exprimé par le client */
@@ -1100,6 +1149,14 @@ export interface components {
             delai: string | null;
             /** Format: date-time */
             cree_le: string;
+        };
+        NoteMission: {
+            note: number;
+            commentaire: string | null;
+        };
+        NoteMissionCreation: {
+            note: number;
+            commentaire?: string;
         };
         MissionCreation: {
             message: string;
@@ -2433,6 +2490,37 @@ export interface operations {
             };
             403: components["responses"]["Interdit"];
             404: components["responses"]["Introuvable"];
+        };
+    };
+    rateMission: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NoteMissionCreation"];
+            };
+        };
+        responses: {
+            /** @description Mission terminée et notée */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Mission"];
+                };
+            };
+            403: components["responses"]["Interdit"];
+            404: components["responses"]["Introuvable"];
+            409: components["responses"]["Conflit"];
+            419: components["responses"]["CsrfInvalide"];
+            422: components["responses"]["Invalide"];
         };
     };
     listMissionMessages: {

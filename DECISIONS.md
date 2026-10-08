@@ -132,7 +132,7 @@ On liste uniquement les routes du MVP, ressource par ressource : **Comptes**, **
 Demande de version sur mesure d'un client à l'auteur d'une appli (§5.5 du brief). Pas d'enchères, pas de mise en concurrence.
 
 - **Ressource à part, privée** : visible uniquement par le client et l'auteur, car elle contient des informations privées (besoins, budget, délais). Les discussions, elles, sont publiques.
-- Routes : `POST /apps/{id}/missions` (envoyer la demande), `GET /missions` (mes missions), `GET /missions/{id}`, `GET /missions/{id}/messages`, `POST /missions/{id}/messages`.
+- Routes : `POST /apps/{id}/missions` (envoyer la demande), `GET /missions` (mes missions), `GET /missions/{id}`, `GET /missions/{id}/messages`, `POST /missions/{id}/messages`, `POST /missions/{id}/note` (le client termine la mission et note l'auteur).
 
 ### Événements
 
@@ -192,6 +192,10 @@ Fait partie du MVP dans sa **version limitée** (§9 du brief) : une base **Post
 Validés par Oktav. L'équipe s'engage à les livrer d'ici le 25 octobre, **après** le cœur du MVP : le moteur et l'échange passent d'abord. Chaque ajout passera par le contrat (`openapi.yaml`) avant d'être codé.
 
 1. **Profil enrichi** : compétences, pays, disponibilité freelance, contributions, bugs résolus, note de la communauté, badges.
+    - **Déclaré par le dev** avec `PATCH /me` : `competences` (technos de la liste du store, 10 maximum), `specialites` (`frontend`, `backend`, `mobile`, `devops`, `securite`, `data`), `disponible` (freelance ou collaboration), en plus du pays et de la bio.
+    - **Calculé par la plateforme** (`stats`) : bugs résolus (correctifs acceptés), applis publiées, missions terminées, note moyenne et nombre de notes.
+    - **Note de la communauté** : donnée par **le client à la fin d'une mission**, de 1 à 5, avec un commentaire facultatif (`POST /missions/{id}/note`, une seule fois, qui passe la mission à `terminee`).
+    - Les badges et l'XP viendront avec l'ajout « réputation ».
 2. **Bug structuré** : technologie, code concerné, erreur obtenue, comportement attendu, niveau de difficulté.
     - Un bloc `bug` sur une discussion, **seulement avec l'étiquette `bug`**. Obligatoires : `erreur_obtenue` et `comportement_attendu`. Facultatifs : `techno` (liste du store), `code`, `difficulte` (`facile`, `moyen`, `difficile`), **choisie par l'auteur**. Filtre `GET /discussions?difficulte=facile`.
 3. **Réputation** : des points (XP) pour un bug résolu, une réponse utile, un projet publié, une aide, un événement. Pas de votes.
