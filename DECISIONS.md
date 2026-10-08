@@ -156,7 +156,7 @@ Rencontre avec date et inscription, en ligne (avec lien) ou en présentiel (avec
 - **CSRF Sanctum** : la SPA appelle d'abord `GET /sanctum/csrf-cookie`, puis renvoie l'en-tête `X-XSRF-TOKEN` à chaque requête qui modifie quelque chose. Jeton absent ou expiré : `419`.
 - **Limites de débit** (au-delà : `429`) :
   - **3 déploiements par heure** et par compte (copies de test et déploiements de correctifs compris) ;
-  - **10 par heure** pour les discussions, correctifs, missions et vérifications de dépôt ;
+  - **10 par heure** pour les discussions, correctifs, missions, vérifications de dépôt et relances de l'analyse de sécurité ;
   - **60 requêtes par minute** pour tout le reste (valeur par défaut de Laravel).
 - Canaux privés Reverb autorisés par `POST /broadcasting/auth` (route web Laravel), avec la session Sanctum.
 - Cookie de session : `soukdev_session` (variable `SESSION_COOKIE`).
@@ -200,7 +200,11 @@ Validés par Oktav. L'équipe s'engage à les livrer d'ici le 25 octobre, **apr�
 7. **Recherche avancée** : filtres par pays, prix, type de projet, niveau, open source ou commercial.
 8. **Communautés africaines** : des canaux par pays et par techno (ex. « Laravel Afrique de l'Ouest »).
 9. **Espace entreprises** : chercher un dev disponible, le recruter, demander une personnalisation, en plus des missions. Contacter un dev reste toujours gratuit.
-10. **Sécurité avant publication** : analyse des secrets, des dépendances vulnérables et de la configuration Docker, puis badge « Security Checked ». Gratuite, puisqu'elle protège les clients.
+10. **Sécurité avant publication**, gratuite puisqu'elle protège les clients. Trois niveaux :
+    - **Bloquant** (publication refusée en `422`) : un secret dans le dépôt (gitleaks, MIT) ou un `docker-compose.yml` dangereux (`privileged`, volumes de l'hôte, `network_mode: host`, ports publiés).
+    - **Avertissement** : des dépendances avec des failles connues (Trivy, Apache 2.0). L'appli est publiée avec le badge orange « Problèmes détectés » et le rapport.
+    - **Rien trouvé** : badge vert « Security Checked ».
+    - Contrat : champ `securite` sur une appli (`en_cours`, `verifie`, `problemes`), filtre `GET /apps?securite=true`, relance par l'auteur avec `POST /apps/{id}/securite`. Outils interdits par leur licence : Semgrep (LGPL), Hadolint (GPL).
 11. **Paiement unique** : le dev choisit le prix de son appli, **mensuel** (ex. 15 000 F/mois) ou **unique** (ex. 150 000 F, payé une fois). L'hébergement reste mensuel. Contrat : champ `type_prix` (`mensuel` ou `unique`) sur une appli.
 12. **Écran « mes copies »** : une entreprise ou une agence voit toutes ses copies déployées au même endroit. Gratuit.
 
