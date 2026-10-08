@@ -206,6 +206,43 @@ paths:
               schema: { $ref: '#/components/schemas/TableauDeBord' }
         '401': { $ref: '#/components/responses/NonConnecte' }
 
+  /devs:
+    get:
+      tags: [Comptes]
+      operationId: listDevs
+      summary: Chercher un dev (espace entreprises), du meilleur Souk Score au plus faible
+      security: []
+      parameters:
+        - name: disponible
+          in: query
+          description: Uniquement les devs disponibles pour du freelance ou une collaboration
+          schema: { type: boolean }
+        - name: competence
+          in: query
+          schema: { $ref: '#/components/schemas/Techno' }
+        - name: specialite
+          in: query
+          schema: { $ref: '#/components/schemas/Specialite' }
+        - name: pays
+          in: query
+          schema: { $ref: '#/components/schemas/Pays' }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/ParPage'
+      responses:
+        '200':
+          description: Liste des devs, triée par Souk Score décroissant
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Pagination'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/DevResume' }
+
   /devs/{username}:
     get:
       tags: [Comptes]
@@ -224,6 +261,33 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ProfilDev' }
         '404': { $ref: '#/components/responses/Introuvable' }
+
+  /devs/{username}/missions:
+    post:
+      tags: [Missions]
+      operationId: createMissionDev
+      summary: Recruter un dev directement, sans passer par une appli (mission privée, app_id vide)
+      parameters:
+        - name: username
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MissionCreation' }
+      responses:
+        '201':
+          description: Demande envoyée au dev
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Mission' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '422': { $ref: '#/components/responses/Invalide' }
+        '429': { $ref: '#/components/responses/TropDeRequetes' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
 
   # ───────────── Applis ─────────────
   /apps:
@@ -1510,6 +1574,12 @@ components:
               type: array
               items: { $ref: '#/components/schemas/App' }
 
+    DevResume:
+      description: Carte d'un dev dans la recherche (GET /devs), sans ses dépôts ni ses applis
+      allOf:
+        - $ref: '#/components/schemas/Dev'
+        - $ref: '#/components/schemas/ProfilPublic'
+
     Depot:
       type: object
       description: Dépôt public GitHub du dev
@@ -1894,11 +1964,11 @@ components:
     # ───────────── Missions ─────────────
     Mission:
       type: object
-      description: Demande privée d'un client à l'auteur d'une appli ; visible par eux seuls
+      description: "Demande privée d'un client à un dev, visible par eux seuls : personnalisation d'une appli (POST /apps/{id}/missions) ou recrutement direct (POST /devs/{username}/missions)"
       required: [id, app_id, client, auteur, message, budget, delai, statut, note, cree_le]
       properties:
         id: { type: integer }
-        app_id: { type: integer }
+        app_id: { type: [integer, 'null'], description: Appli à personnaliser ; null pour un recrutement direct }
         statut:
           type: string
           enum: [en_cours, terminee]

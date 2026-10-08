@@ -158,6 +158,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/devs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Chercher un dev (espace entreprises), du meilleur Souk Score au plus faible */
+        get: operations["listDevs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/devs/{username}": {
         parameters: {
             query?: never;
@@ -169,6 +186,23 @@ export interface paths {
         get: operations["getDev"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/devs/{username}/missions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Recruter un dev directement, sans passer par une appli (mission privée, app_id vide) */
+        post: operations["createMissionDev"];
         delete?: never;
         options?: never;
         head?: never;
@@ -920,6 +954,8 @@ export interface components {
             depots: components["schemas"]["Depot"][];
             applis: components["schemas"]["App"][];
         };
+        /** @description Carte d'un dev dans la recherche (GET /devs), sans ses dépôts ni ses applis */
+        DevResume: components["schemas"]["Dev"] & components["schemas"]["ProfilPublic"];
         /** @description Dépôt public GitHub du dev */
         Depot: {
             nom: string;
@@ -1235,10 +1271,11 @@ export interface components {
             /** Format: uri */
             demo_url?: string;
         };
-        /** @description Demande privée d'un client à l'auteur d'une appli ; visible par eux seuls */
+        /** @description Demande privée d'un client à un dev, visible par eux seuls : personnalisation d'une appli (POST /apps/{id}/missions) ou recrutement direct (POST /devs/{username}/missions) */
         Mission: {
             id: number;
-            app_id: number;
+            /** @description Appli à personnaliser ; null pour un recrutement direct */
+            app_id: number | null;
             /**
              * @description Le client la passe à terminee en laissant sa note (POST /missions/{id}/note)
              * @enum {string}
@@ -1645,6 +1682,38 @@ export interface operations {
             401: components["responses"]["NonConnecte"];
         };
     };
+    listDevs: {
+        parameters: {
+            query?: {
+                /** @description Uniquement les devs disponibles pour du freelance ou une collaboration */
+                disponible?: boolean;
+                competence?: components["schemas"]["Techno"];
+                specialite?: components["schemas"]["Specialite"];
+                pays?: components["schemas"]["Pays"];
+                /** @description Numéro de page (commence à 1) */
+                page?: components["parameters"]["Page"];
+                /** @description Éléments par page (50 maximum) */
+                per_page?: components["parameters"]["ParPage"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Liste des devs, triée par Souk Score décroissant */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pagination"] & {
+                        data: components["schemas"]["DevResume"][];
+                    };
+                };
+            };
+        };
+    };
     getDev: {
         parameters: {
             query?: never;
@@ -1666,6 +1735,37 @@ export interface operations {
                 };
             };
             404: components["responses"]["Introuvable"];
+        };
+    };
+    createMissionDev: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                username: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MissionCreation"];
+            };
+        };
+        responses: {
+            /** @description Demande envoyée au dev */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Mission"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            404: components["responses"]["Introuvable"];
+            419: components["responses"]["CsrfInvalide"];
+            422: components["responses"]["Invalide"];
+            429: components["responses"]["TropDeRequetes"];
         };
     };
     listApps: {

@@ -129,10 +129,10 @@ On liste uniquement les routes du MVP, ressource par ressource : **Comptes**, **
 
 ### Missions
 
-Demande de version sur mesure d'un client à l'auteur d'une appli (§5.5 du brief). Pas d'enchères, pas de mise en concurrence.
+Demande de version sur mesure d'un client à l'auteur d'une appli (§5.5 du brief), ou recrutement direct d'un dev depuis l'espace entreprises. Pas d'enchères, pas de mise en concurrence.
 
 - **Ressource à part, privée** : visible uniquement par le client et l'auteur, car elle contient des informations privées (besoins, budget, délais). Les discussions, elles, sont publiques.
-- Routes : `POST /apps/{id}/missions` (envoyer la demande), `GET /missions` (mes missions), `GET /missions/{id}`, `GET /missions/{id}/messages`, `POST /missions/{id}/messages`, `POST /missions/{id}/note` (le client termine la mission et note l'auteur).
+- Routes : `POST /apps/{id}/missions` (envoyer la demande), `POST /devs/{username}/missions` (recruter un dev sans appli), `GET /missions` (mes missions), `GET /missions/{id}`, `GET /missions/{id}/messages`, `POST /missions/{id}/messages`, `POST /missions/{id}/note` (le client termine la mission et note l'auteur).
 
 ### Événements
 
@@ -228,6 +228,9 @@ Validés par Oktav. L'équipe s'engage à les livrer d'ici le 25 octobre, **apr�
     - **Pays sur le profil**, facultatif : champ `pays` (code ISO, ex. `BJ`), tous les pays acceptés (diaspora comprise). Modifiable avec `PATCH /me`, qui sert aussi pour la bio.
     - **Canaux par pays** : un canal peut avoir un `pays` (ex. `#laravel-benin` → `BJ`), filtre `GET /canaux?pays=BJ`. Un canal général ou régional n'a pas de pays.
 9. **Espace entreprises** : chercher un dev disponible, le recruter, demander une personnalisation, en plus des missions. Contacter un dev reste toujours gratuit.
+    - **Chercher un dev** : `GET /devs`, filtres `disponible`, `competence`, `specialite` et `pays`, trié par Souk Score décroissant.
+    - **Recruter** sans passer par une appli : `POST /devs/{username}/missions`. C'est la même mission, privée, avec `app_id` vide.
+    - **Personnaliser** une appli : la mission existante, `POST /apps/{id}/missions`.
 10. **Sécurité avant publication**, gratuite puisqu'elle protège les clients. Trois niveaux :
     - **Bloquant** (publication refusée en `422`) : un secret dans le dépôt (gitleaks, MIT) ou un `docker-compose.yml` dangereux (`privileged`, volumes de l'hôte, `network_mode: host`, ports publiés).
     - **Avertissement** : des dépendances avec des failles connues (Trivy, Apache 2.0). L'appli est publiée avec le badge orange « Problèmes détectés » et le rapport.
