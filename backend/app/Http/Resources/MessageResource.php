@@ -5,7 +5,7 @@ namespace App\Http\Resources;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-class DevResource extends JsonResource
+class MessageResource extends JsonResource
 {
     /**
      * Transform the resource into an array.
@@ -16,12 +16,9 @@ class DevResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'nom' => $this->name,
-            'username' => $this->username ?? null,
-            'avatar_url' => $this->avatar_url ?? null,
-            'github_url' => $this->github_url ?? null,
-            'profil' => $this->profil ?? 'dev',
-            'pays' => $this->pays ?? null,
+            'texte' => $this->texte,
+            'auteur' => new DevResource($this->auteur),
+            'cree_le' => $this->created_at->toIso8601String(),
         ];
     }
 }

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Mission extends Model
 {
@@ -25,6 +26,11 @@ class Mission extends Model
     public function auteur(): BelongsTo
     {
         return $this->belongsTo(User::class, 'auteur_id');
+    }
+
+    public function messages(): HasMany
+    {
+        return $this->hasMany(MissionMessage::class);
     }
 
     // Seuls le client et l'auteur voient une mission.

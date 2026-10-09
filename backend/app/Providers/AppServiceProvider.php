@@ -12,6 +12,7 @@ use App\Soukdev\RandomSecretGenerator;
 use App\Soukdev\RepositoryReader;
 use App\Soukdev\SchemaValidator;
 use App\Soukdev\SecretGenerator;
+use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -54,6 +55,6 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        \Illuminate\Http\Resources\Json\JsonResource::withoutWrapping();
+        JsonResource::withoutWrapping();
     }
 }
