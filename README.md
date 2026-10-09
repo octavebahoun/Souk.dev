@@ -157,8 +157,7 @@ Hors MVP (à présenter comme la suite) : avis et notes, catégories avancées, 
 ## 10. Points ouverts
 
 - **Stack technique et architecture** : à décider par Oktav.
-- **Question technique clé** : Datacloud permet-il de créer et lancer des conteneurs par API (provisionnement automatique) ? Sinon, prévoir un VPS Datacloud avec Docker comme moteur de déploiement.
-- Choix du produit Datacloud payant à utiliser (probablement un VPS).
+- **Hébergement** : réglé le 9 octobre avec Systalink. Un VPS Datacloud partagé pour le concours, le serverless Datacloud ensuite (détail dans [`DECISIONS.md`](DECISIONS.md#hébergement)).
 - Répartition des tâches entre les membres.
 - Confirmation officielle de la date limite (25 ou 31 octobre).
 - Recrutement des trois membres restants.

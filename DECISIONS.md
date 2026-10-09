@@ -7,7 +7,7 @@ Décisions prises par l'équipe, validées par Oktav. Mis à jour au fil du proj
 **La plateforme aide tout le monde, pas seulement ceux qui déploient chez Systalink.** Poster un problème, lire un dépôt, proposer un correctif (URL d'une branche) : tout cela est gratuit et ne déclenche aucun déploiement.
 
 - **Publier** = mettre la fiche de l'appli dans le store (dépôt, démo, prix). Rien ne tourne, gratuit.
-- **Déployer** = faire tourner une copie sur un serveur Datacloud. Ça coûte de l'hébergement : le serveur est payé avant le lancement.
+- **Déployer** = faire tourner une copie sur le serveur Datacloud de Souk.dev, partagé entre toutes les copies (voir [Hébergement](#hébergement)). Ça consomme de la mémoire et du processeur sur ce serveur : d'où les limites de débit.
 - La **copie de test** reste possible, mais c'est **un choix volontaire du dev**, jamais une condition pour être aidé ni pour proposer un correctif. Joindre un dépôt ou une appli à une discussion ne lance rien automatiquement.
 
 ## Fil de la démo
@@ -57,8 +57,11 @@ Les **événements temps réel** (Reverb) sont décrits à part dans `REVERB.md`
 
 ## Hébergement
 
-- **Un seul produit Datacloud** : un **Serveur cloud** (VPS), qui fait tourner le moteur de déploiement (Docker). Il suffit pour respecter l'obligation du règlement (au moins un produit Datacloud payant). On limite la dépense tant que la victoire n'est pas acquise.
-- Configuration envisagée : offre Entreprise, **2 vCPU, 8 Go de RAM, 50 Go**, Ubuntu 24.04 LTS. Commande en attente du code promo de 40 %.
+- **Un seul serveur, partagé** : un **Serveur cloud** (VPS) Datacloud fait tourner la plateforme et toutes les copies (copies clients, copies de test, versions corrigées), chacune isolée dans son projet Docker. C'est notre produit Datacloud payant, exigé par le règlement.
+- **Commande la semaine du 13 octobre**, quand le code de réduction de 40 % sera actif. **8 ou 16 Go de RAM** selon le prix remisé, Ubuntu 24.04 LTS. 16 Go conseillés : la plateforme prend déjà 2 à 3 Go, puis chaque copie 0,5 à 1 Go, soit environ 6 à 10 copies avec 8 Go et 15 à 25 avec 16 Go.
+- **Pourquoi pas un VPS par client** : Datacloud fournit bien une API pour créer des VPS, mais chaque VPS serait un serveur de plus à maintenir (mises à jour, failles) pendant des années, un travail que le client ne paie pas.
+- **Cible après le concours : le serverless Datacloud**. Datacloud gère le système, et chaque copie démarre et grandit selon son trafic. Son API n'est pas encore ouverte : Datacloud l'annonce d'ici un à deux mois. Le moteur ne change pas pour autant : il déploie sur « une machine » sans savoir laquelle (voir [Moteur de déploiement](#moteur-de-déploiement)).
+- **Échange avec Systalink (9 octobre)**, avec Abdoulaye Sadio Barry, directeur des opérations : API VPS disponible, API serverless à venir, paiements gérés par Paxity, entité du groupe ([paxity.io](https://paxity.io)). Ils ont apprécié le projet et veulent en reparler après le concours, que nous soyons retenus ou non. Les contraintes rencontrées et l'architecture cible iront dans le brief de présentation.
 - **Base de données** : dans un conteneur Docker **sur le VPS Datacloud**, sur le réseau Docker interne, **sans port ouvert** vers l'extérieur. Dimensionné pour un hackathon, pas pour des milliers d'utilisateurs.
 - **Stockage** : sur le serveur distant d'Oktav.
 - Disque limité : nettoyer régulièrement les anciennes images Docker (`docker system prune`).
@@ -273,12 +276,10 @@ Validés par Oktav. L'équipe s'engage à les livrer d'ici le 25 octobre, **apr�
   - générée par la plateforme (ex. `DB_PASSWORD`) ;
   - valeur fixe choisie par le dev (ex. `DEVISE=FCFA`).
 - **Étape 3** : lancer avec `docker compose -p <copie>` (réseau, volumes et conteneurs isolés par copie), derrière un reverse proxy avec un sous-domaine par copie (ex. `client-a.soukdev.com`), qui n'expose que `service_web`.
-- **Machine cible** : le moteur déploie sur « une machine » sans savoir laquelle. VPS partagé pour la démo, un VPS par client si Datacloud fournit une API de création.
+- **Machine cible** : le moteur déploie sur « une machine » sans savoir laquelle. Aujourd'hui, le VPS partagé ; plus tard, le serverless Datacloud, quand son API sera ouverte.
 
 ## Points ouverts
 
-- Datacloud permet-il de créer des VPS ou des conteneurs par API ? (question posée à Systalink, en attente)
-- **Paiement du serveur** avant un déploiement : la plateforme peut-elle déclencher le paiement Datacloud (API de facturation) ? Un paiement simulé affaiblirait le critère « utilisable ». À demander à Systalink.
+- **Paiement d'un déploiement** par le client : Paxity sert à encaisser, pas à déclencher un paiement chez Datacloud. Comment le client paie l'hébergement et le prix de l'appli reste à décider.
 - Service d'envoi des emails (liens magiques, annulation d'événement) : à choisir par l'équipe.
-- Un dev qui a déjà pris un serveur pour une copie de test pourrait-il le réutiliser pour déployer son appli ensuite ? À étudier.
 - Vérifier que l'appli est vraiment prête avant de donner son URL (étape 4 du moteur).
