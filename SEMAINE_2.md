@@ -2,6 +2,19 @@
 
 En préparation : les tâches de chacun seront ajoutées après le bilan de la semaine 1.
 
+## Oktav — missions, puis les ajouts hors MVP
+
+Branche `oktav/missions`, en dehors du MVP : je ne touche pas aux branches des autres.
+
+- Migration et modèle `Mission` : client, auteur, `app_id` (vide pour un recrutement direct), message, budget, délai, statut, note.
+- `POST /apps/{id}/missions` (personnaliser une appli) et `POST /devs/{username}/missions` (recruter un dev).
+- `GET /missions` et `GET /missions/{id}`, réservés au client et à l'auteur.
+- Fil privé : `GET` et `POST /missions/{id}/messages`.
+- `POST /missions/{id}/note` : le client note l'auteur (1 à 5) une seule fois, la mission passe à `terminee`.
+- Ensuite, dans l'ordre : réputation, Souk Score, tableau de bord, recherche de devs, Souk AI.
+
+**Terminé quand** : un client demande une mission (sur une appli ou directement à un dev), échange en privé avec l'auteur, puis la termine en le notant ; un autre compte reçoit `403`.
+
 ## Mourchid — moteur branché sur la plateforme
 
 - Brancher le moteur sur l'API : file d'attente, états du déploiement (`en_file` → `construction` → `demarrage` → `en_ligne` ou `echec`), événements Reverb.
