@@ -54,6 +54,6 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        \Illuminate\Http\Resources\Json\JsonResource::withoutWrapping();
     }
 }
