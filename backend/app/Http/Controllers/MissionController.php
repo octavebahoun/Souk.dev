@@ -29,4 +29,24 @@ class MissionController extends Controller
 
         return new MissionResource($mission->load(['client', 'auteur']));
     }
+
+    // POST /missions/{id}/note : le client termine la mission et note l'auteur, une seule fois
+    public function note(Request $request, Mission $mission)
+    {
+        abort_unless($request->user()->id === $mission->client_id, 403);
+        abort_if($mission->statut === 'terminee', 409);
+
+        $donnees = $request->validate([
+            'note' => ['required', 'integer', 'between:1,5'],
+            'commentaire' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $mission->update([
+            'statut' => 'terminee',
+            'note' => $donnees['note'],
+            'note_commentaire' => $donnees['commentaire'] ?? null,
+        ]);
+
+        return new MissionResource($mission->load(['client', 'auteur']));
+    }
 }

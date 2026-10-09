@@ -9,6 +9,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/missions', [MissionController::class, 'index']);
     Route::get('/missions/{mission}', [MissionController::class, 'show']);
 
+    Route::post('/missions/{mission}/note', [MissionController::class, 'note']);
+
     Route::get('/missions/{mission}/messages', [MissionMessageController::class, 'index']);
     Route::post('/missions/{mission}/messages', [MissionMessageController::class, 'store']);
 });
