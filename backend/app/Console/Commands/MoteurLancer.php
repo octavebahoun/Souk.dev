@@ -6,6 +6,7 @@ use App\Moteur\Exceptions\DepotInvalide;
 use App\Moteur\Exceptions\LancementEchoue;
 use App\Moteur\Exceptions\ManifestInvalide;
 use App\Moteur\Exceptions\VariablesManquantes;
+use App\Moteur\LimitesTaille;
 use App\Moteur\MoteurDeploiement;
 use Illuminate\Console\Command;
 use Throwable;
@@ -16,6 +17,7 @@ class MoteurLancer extends Command
                             {depot? : URL GitHub publique du dépôt}
                             {--chemin= : Chemin local, sans cloner}
                             {--copie= : Nom du projet Docker Compose}
+                            {--taille=petite : Formule : petite (512 Mo, 0,5 cœur), moyenne (1 Go, 1 cœur) ou grande (2 Go, 2 cœurs)}
                             {--var=* : Variable client au format NOM=valeur}
                             {--dry-run : Valider et écrire le .env sans lancer Compose}';
 
@@ -38,14 +40,22 @@ class MoteurLancer extends Command
             return self::FAILURE;
         }
 
+        $taille = (string) $this->option('taille');
+
+        if (! LimitesTaille::connue($taille)) {
+            $this->error('La taille doit être petite, moyenne ou grande.');
+
+            return self::FAILURE;
+        }
+
         try {
             $variables = $this->variablesClient();
             $copie = $this->option('copie') ?: null;
             $dryRun = (bool) $this->option('dry-run');
 
             $resultat = $chemin
-                ? $moteur->depuisChemin($chemin, $variables, $copie, $dryRun)
-                : $moteur->depuisGithub($depot, $variables, $copie, $dryRun);
+                ? $moteur->depuisChemin($chemin, $variables, $copie, $dryRun, $taille)
+                : $moteur->depuisGithub($depot, $variables, $copie, $dryRun, $taille);
         } catch (ManifestInvalide|DepotInvalide|VariablesManquantes|LancementEchoue $exception) {
             $this->error($exception->getMessage());
 

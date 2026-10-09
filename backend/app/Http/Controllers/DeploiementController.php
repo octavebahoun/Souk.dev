@@ -6,6 +6,7 @@ use App\Jobs\LancerDeploiement;
 use App\Models\Appli;
 use App\Models\Deploiement;
 use App\Moteur\LanceurCompose;
+use App\Moteur\LimitesTaille;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -18,11 +19,13 @@ class DeploiementController extends Controller
     public function store(Request $request, Appli $appli): JsonResponse
     {
         $variables = $this->variables($request);
+        $taille = $this->taille($appli);
 
         $deploiement = Deploiement::query()->create([
             'user_id' => $request->user()->id,
             'appli_id' => $appli->id,
             'type' => 'client',
+            'taille' => $taille,
             'etat' => 'en_file',
             'variables' => $variables,
         ]);
@@ -94,5 +97,18 @@ class DeploiementController extends Controller
         }
 
         return $variables;
+    }
+
+    private function taille(Appli $appli): string
+    {
+        $taille = (string) $appli->taille;
+
+        if (! LimitesTaille::connue($taille)) {
+            throw ValidationException::withMessages([
+                'taille' => 'La taille doit être petite, moyenne ou grande.',
+            ]);
+        }
+
+        return $taille;
     }
 }

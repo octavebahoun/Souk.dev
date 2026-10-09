@@ -17,7 +17,7 @@ class MoteurDeploiement
     /**
      * @param  array<string, string>  $variablesClient
      */
-    public function depuisGithub(string $url, array $variablesClient = [], ?string $copie = null, bool $dryRun = false): CopieLocale
+    public function depuisGithub(string $url, array $variablesClient = [], ?string $copie = null, bool $dryRun = false, string $taille = 'petite'): CopieLocale
     {
         $depot = DepotGithub::depuisUrl($url);
         $copie ??= $this->nouveauId($depot->owner.'-'.$depot->repo);
@@ -25,13 +25,13 @@ class MoteurDeploiement
 
         $repertoire = $this->cloneur->cloner($url, $copie);
 
-        return $this->preparer($repertoire, $variablesClient, $copie, $dryRun);
+        return $this->preparer($repertoire, $variablesClient, $copie, $dryRun, $taille);
     }
 
     /**
      * @param  array<string, string>  $variablesClient
      */
-    public function depuisChemin(string $chemin, array $variablesClient = [], ?string $copie = null, bool $dryRun = false): CopieLocale
+    public function depuisChemin(string $chemin, array $variablesClient = [], ?string $copie = null, bool $dryRun = false, string $taille = 'petite'): CopieLocale
     {
         $repertoire = realpath($chemin);
 
@@ -42,13 +42,13 @@ class MoteurDeploiement
         $copie ??= $this->nouveauId(basename($repertoire));
         $this->lanceur->verifierNomCopie($copie);
 
-        return $this->preparer($repertoire, $variablesClient, $copie, $dryRun);
+        return $this->preparer($repertoire, $variablesClient, $copie, $dryRun, $taille);
     }
 
     /**
      * @param  array<string, string>  $variablesClient
      */
-    public function preparer(string $repertoire, array $variablesClient, string $copie, bool $dryRun = false): CopieLocale
+    public function preparer(string $repertoire, array $variablesClient, string $copie, bool $dryRun = false, string $taille = 'petite'): CopieLocale
     {
         $manifeste = $this->validateur->validerFichier($repertoire.DIRECTORY_SEPARATOR.'soukdev.json');
         $this->lanceur->verifier($repertoire, $manifeste['service_web']['nom']);
@@ -68,12 +68,12 @@ class MoteurDeploiement
             return $copieLocale;
         }
 
-        return $this->mettreEnLigne($copieLocale);
+        return $this->mettreEnLigne($copieLocale, $taille);
     }
 
-    public function mettreEnLigne(CopieLocale $copie): CopieLocale
+    public function mettreEnLigne(CopieLocale $copie, string $taille = 'petite'): CopieLocale
     {
-        $this->lanceur->lancer($copie->repertoire, $copie->id);
+        $this->lanceur->lancer($copie->repertoire, $copie->id, $taille);
 
         try {
             $nom = $copie->manifeste['service_web']['nom'];

@@ -98,6 +98,55 @@ YAML);
             ->assertSuccessful();
 
         $this->assertFalse($arretee);
+        $limites = file_get_contents($repertoire.DIRECTORY_SEPARATOR.'docker-compose.soukdev.yml');
+        $this->assertIsString($limites);
+        $this->assertStringContainsString('mem_limit: 512m', $limites);
+        $this->assertStringContainsString('cpus: "0.5"', $limites);
+        Process::assertRan(function (\Illuminate\Process\PendingProcess $process) {
+            return in_array('up', $process->command, true)
+                && in_array('docker-compose.yml', $process->command, true)
+                && in_array('docker-compose.soukdev.yml', $process->command, true);
+        });
+    }
+
+    public function test_une_grande_copie_plafonne_a_2_go_et_2_coeurs(): void
+    {
+        $repertoire = $this->depotCobaye();
+        $this->app->instance(SondeServiceWeb::class, new SondeServiceWeb(
+            fn (string $hote, int $port): bool => true,
+            1,
+            0,
+        ));
+        $arretee = false;
+        $this->simulerDocker($arretee);
+
+        $this->artisan('moteur:lancer', [
+            '--chemin' => $repertoire,
+            '--copie' => 'cobaye-web',
+            '--taille' => 'grande',
+            '--var' => ['APP_NOM=Test'],
+        ])->assertSuccessful();
+
+        $limites = file_get_contents($repertoire.DIRECTORY_SEPARATOR.'docker-compose.soukdev.yml');
+        $this->assertIsString($limites);
+        $this->assertStringContainsString("  front:\n    mem_limit: 2g", $limites);
+        $this->assertStringContainsString('cpus: "2"', $limites);
+    }
+
+    public function test_refuse_une_taille_inconnue(): void
+    {
+        $repertoire = $this->depotCobaye();
+
+        $this->artisan('moteur:lancer', [
+            '--chemin' => $repertoire,
+            '--taille' => 'enorme',
+            '--var' => ['APP_NOM=Test'],
+        ])
+            ->expectsOutputToContain('petite, moyenne ou grande')
+            ->assertFailed();
+
+        $this->assertFileDoesNotExist($repertoire.DIRECTORY_SEPARATOR.'.env');
+        $this->assertFileDoesNotExist($repertoire.DIRECTORY_SEPARATOR.'docker-compose.soukdev.yml');
     }
 
     public function test_arrete_la_copie_si_le_service_ne_repond_pas(): void

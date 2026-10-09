@@ -59,7 +59,7 @@ class LancerDeploiement implements ShouldQueue
             }
 
             $enDemarrage = true;
-            $moteur->mettreEnLigne($copie);
+            $moteur->mettreEnLigne($copie, (string) $deploiement->taille);
 
             $enLigne = $this->estArrete($deploiement)
                 ? false

@@ -14,6 +14,7 @@ class Deploiement extends Model
         'user_id',
         'appli_id',
         'type',
+        'taille',
         'etat',
         'url',
         'erreur',
@@ -79,7 +80,7 @@ class Deploiement extends Model
     }
 
     /**
-     * @return array{id: int, app_id: int, app_nom: string, type: string, etat: string, url: string|null, erreur: string|null, cree_le: string}
+     * @return array{id: int, app_id: int, app_nom: string, taille: string, type: string, etat: string, url: string|null, erreur: string|null, cree_le: string}
      */
     public function versApi(): array
     {
@@ -89,6 +90,7 @@ class Deploiement extends Model
             'id' => $this->id,
             'app_id' => $this->appli_id,
             'app_nom' => $this->appli->nom,
+            'taille' => $this->taille,
             'type' => $this->type,
             'etat' => $this->etat,
             'url' => $this->url,

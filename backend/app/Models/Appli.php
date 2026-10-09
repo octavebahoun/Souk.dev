@@ -13,6 +13,7 @@ class Appli extends Model
         'user_id',
         'nom',
         'depot_url',
+        'taille',
     ];
 
     public function deploiements(): HasMany

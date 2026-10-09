@@ -13,6 +13,7 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->string('nom');
             $table->string('depot_url');
+            $table->string('taille');
             $table->timestamps();
         });
 
@@ -21,6 +22,7 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->foreignId('appli_id')->constrained('applis')->cascadeOnDelete();
             $table->string('type');
+            $table->string('taille');
             $table->string('etat');
             $table->string('url')->nullable();
             $table->text('erreur')->nullable();

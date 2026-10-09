@@ -34,7 +34,7 @@ class DeploiementTest extends TestCase
         Queue::fake();
         Event::fake([DeploiementEtat::class]);
         $utilisateur = User::factory()->create();
-        $appli = $this->appli($utilisateur);
+        $appli = $this->appli($utilisateur, 'moyenne');
 
         $reponse = $this->actingAs($utilisateur)->postJson('/api/apps/'.$appli->id.'/deployments', [
             'variables' => ['APP_NOM' => 'Pharmacie du Port'],
@@ -44,6 +44,7 @@ class DeploiementTest extends TestCase
             ->assertJsonPath('etat', 'en_file')
             ->assertJsonPath('app_id', $appli->id)
             ->assertJsonPath('app_nom', 'Cobaye')
+            ->assertJsonPath('taille', 'moyenne')
             ->assertJsonPath('url', null);
 
         Queue::assertPushed(LancerDeploiement::class);
@@ -165,7 +166,7 @@ class DeploiementTest extends TestCase
                 ->once()
                 ->with($deploiement->appli->depot_url, [], 'd'.$deploiement->id, true)
                 ->andReturn($copie);
-            $mock->shouldReceive('mettreEnLigne')->once()->with($copie)->andReturn($copie);
+            $mock->shouldReceive('mettreEnLigne')->once()->with($copie, 'petite')->andReturn($copie);
         });
 
         app()->call([new LancerDeploiement($deploiement->id), 'handle']);
@@ -251,6 +252,56 @@ class DeploiementTest extends TestCase
         Queue::assertNothingPushed();
     }
 
+    public function test_la_copie_garde_la_taille_du_lancement(): void
+    {
+        Queue::fake();
+        Event::fake([DeploiementEtat::class]);
+        $utilisateur = User::factory()->create();
+        $appli = $this->appli($utilisateur, 'moyenne');
+
+        $reponse = $this->actingAs($utilisateur)->postJson('/api/apps/'.$appli->id.'/deployments', [
+            'variables' => [],
+        ]);
+
+        $reponse->assertStatus(202)->assertJsonPath('taille', 'moyenne');
+        $appli->update(['taille' => 'grande']);
+
+        $this->actingAs($utilisateur)
+            ->getJson('/api/deployments/'.$reponse->json('id'))
+            ->assertOk()
+            ->assertJsonPath('taille', 'moyenne');
+    }
+
+    public function test_une_taille_inconnue_est_refusee(): void
+    {
+        Queue::fake();
+        $utilisateur = User::factory()->create();
+        $appli = $this->appli($utilisateur, 'enorme');
+
+        $this->actingAs($utilisateur)
+            ->postJson('/api/apps/'.$appli->id.'/deployments', ['variables' => []])
+            ->assertStatus(422);
+
+        Queue::assertNothingPushed();
+    }
+
+    public function test_arreter_une_copie_encore_en_file_ne_lance_pas_docker(): void
+    {
+        Event::fake([DeploiementEtat::class]);
+        $client = User::factory()->create();
+        $deploiement = $this->deploiement($client);
+
+        $this->mock(LanceurCompose::class, function ($mock) {
+            $mock->shouldNotReceive('arreter');
+        });
+
+        $this->actingAs($client)
+            ->deleteJson('/api/deployments/'.$deploiement->id)
+            ->assertNoContent();
+
+        $this->assertSame('arrete', $deploiement->refresh()->etat);
+    }
+
     /**
      * @return list<string>
      */
@@ -262,21 +313,23 @@ class DeploiementTest extends TestCase
             ->all();
     }
 
-    private function appli(User $auteur): Appli
+    private function appli(User $auteur, string $taille = 'petite'): Appli
     {
         return Appli::query()->create([
             'user_id' => $auteur->id,
             'nom' => 'Cobaye',
             'depot_url' => 'https://github.com/MourchidFOLARIN/cobaye',
+            'taille' => $taille,
         ]);
     }
 
-    private function deploiement(User $client, string $type = 'client'): Deploiement
+    private function deploiement(User $client, string $type = 'client', string $taille = 'petite'): Deploiement
     {
         return Deploiement::query()->create([
             'user_id' => $client->id,
-            'appli_id' => $this->appli(User::factory()->create())->id,
+            'appli_id' => $this->appli(User::factory()->create(), $taille)->id,
             'type' => $type,
+            'taille' => $taille,
             'etat' => 'en_file',
             'variables' => [],
         ]);

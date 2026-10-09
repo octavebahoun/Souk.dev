@@ -79,15 +79,30 @@ class LanceurCompose
         return $noms;
     }
 
-    public function lancer(string $repertoire, string $copie): void
+    public function lancer(string $repertoire, string $copie, string $taille = 'petite'): void
     {
         $this->verifierNomCopie($copie);
+
+        $compose = $repertoire.DIRECTORY_SEPARATOR.'docker-compose.yml';
+        $contenu = is_file($compose) ? file_get_contents($compose) : false;
+
+        if ($contenu === false || trim($contenu) === '') {
+            throw new LancementEchoue('docker-compose.yml est absent à la racine du dépôt.');
+        }
+
+        (new LimitesTaille)->ecrire($repertoire, $this->nomsServices($contenu), $taille);
 
         $env = $repertoire.DIRECTORY_SEPARATOR.'.env';
 
         $resultat = Process::path($repertoire)
             ->timeout((int) config('moteur.compose_timeout'))
-            ->run(['docker', 'compose', '-p', $copie, '--env-file', $env, 'up', '-d', '--build']);
+            ->run([
+                'docker', 'compose', '-p', $copie,
+                '-f', 'docker-compose.yml',
+                '-f', 'docker-compose.soukdev.yml',
+                '--env-file', $env,
+                'up', '-d', '--build',
+            ]);
 
         if ($resultat->failed()) {
             $sortie = trim($resultat->errorOutput().' '.$resultat->output());
