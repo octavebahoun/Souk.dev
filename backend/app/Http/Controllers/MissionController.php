@@ -45,6 +45,7 @@ class MissionController extends Controller
             'statut' => 'terminee',
             'note' => $donnees['note'],
             'note_commentaire' => $donnees['commentaire'] ?? null,
+            'terminee_le' => now(),
         ]);
 
         return new MissionResource($mission->load(['client', 'auteur']));

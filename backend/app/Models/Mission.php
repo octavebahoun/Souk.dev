@@ -10,12 +10,17 @@ class Mission extends Model
 {
     protected $fillable = [
         'client_id', 'auteur_id', 'app_id', 'message',
-        'budget', 'delai', 'statut', 'note', 'note_commentaire',
+        'budget', 'delai', 'statut', 'note', 'note_commentaire', 'terminee_le',
     ];
 
     protected function casts(): array
     {
-        return ['delai' => 'date', 'budget' => 'integer', 'note' => 'integer'];
+        return [
+            'delai' => 'date',
+            'budget' => 'integer',
+            'note' => 'integer',
+            'terminee_le' => 'datetime',
+        ];
     }
 
     public function client(): BelongsTo
