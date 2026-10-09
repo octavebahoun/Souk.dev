@@ -103,17 +103,19 @@ Positionnement : **les devs d'abord**. Ce sont eux qui publient, échangent, cor
 - **Pas d'enchères, pas de mise en concurrence** : l'auteur décroche la mission directement.
 
 ### 5.6 Paiement
-- Le client paie sur Datacloud, au même endroit que l'hébergement, par Mobile Money ou carte. Un seul paiement couvre hébergement + prix de l'appli.
-- La plateforme reverse la part de l'appli au dev. **Aucune commission** sur ce montant.
+- Le client paie Souk.dev chaque mois, par Mobile Money ou carte. Un seul paiement couvre le prix de l'appli et l'hébergement de sa copie.
+- La plateforme reverse le prix de l'appli au dev. **Aucune commission** sur ce montant.
+- L'hébergement dépend de la taille de l'appli : 3 500, 7 000 ou 13 500 F/mois (détail dans [`DECISIONS.md`](DECISIONS.md#business-model)).
 - Si l'abonnement n'est pas payé, l'appli du client est **suspendue**, puis réactivée dès le paiement. Le dev n'a jamais à relancer un client.
 
 ---
 
 ## 6. Business model
 
-- **Devs** : revenus via le prix de leurs applis et les missions sur mesure.
-- **Systalink** : revenus via l'hébergement de chaque copie déployée (serveurs, bases, stockage). Aucune commission prélevée sur les devs.
-- Exemple : 20 pharmacies déploient un template à 15 000 F/mois, le dev touche 300 000 F/mois, Systalink facture 20 hébergements.
+- **Devs** : revenus via le prix de leurs applis et les missions sur mesure. Aucune commission prélevée sur leurs ventes.
+- **Souk.dev** : revenus via l'hébergement des copies. Souk.dev loue les serveurs Datacloud, les maintient, et facture chaque copie selon sa taille, avec une marge de 50 %.
+- **Systalink** : revenus via les serveurs que Souk.dev loue. Plus il y a de copies, plus Souk.dev loue de serveurs Datacloud, puis de serverless.
+- Exemple : 20 pharmacies déploient un template à 15 000 F/mois, de taille moyenne. Le dev touche 300 000 F/mois, et Souk.dev encaisse 140 000 F/mois d'hébergement, dont environ 90 000 F reversés à Systalink pour les serveurs.
 
 ---
 

@@ -58,7 +58,9 @@ Les **événements temps réel** (Reverb) sont décrits à part dans `REVERB.md`
 ## Hébergement
 
 - **Un seul serveur, partagé** : un **Serveur cloud** (VPS) Datacloud fait tourner la plateforme et toutes les copies (copies clients, copies de test, versions corrigées), chacune isolée dans son projet Docker. C'est notre produit Datacloud payant, exigé par le règlement.
-- **Commande la semaine du 13 octobre**, quand le code de réduction de 40 % sera actif. **8 ou 16 Go de RAM** selon le prix remisé, Ubuntu 24.04 LTS. 16 Go conseillés : la plateforme prend déjà 2 à 3 Go, puis chaque copie 0,5 à 1 Go, soit environ 6 à 10 copies avec 8 Go et 15 à 25 avec 16 Go.
+- **Pour le concours : un VPS de 8 Go**, Ubuntu 24.04 LTS, commandé la semaine du 13 octobre avec la réduction de 40 % (valable sur la première période seulement). La plateforme prend 2 à 3 Go, ce qui laisse 5 à 8 copies pour la démo.
+- **Ensuite : un VPS de 16 Go** (6 cœurs, 88,80 € par mois au prix normal, soit environ 58 250 F), pris par Systalink si nous sommes retenus, ou par nous sinon.
+- **Plusieurs serveurs** : quand un VPS est plein, on en ajoute un autre à la liste des serveurs du moteur. Chaque nouvelle copie part sur le serveur qui a le plus de mémoire libre.
 - **Pourquoi pas un VPS par client** : Datacloud fournit bien une API pour créer des VPS, mais chaque VPS serait un serveur de plus à maintenir (mises à jour, failles) pendant des années, un travail que le client ne paie pas.
 - **Cible après le concours : le serverless Datacloud**. Datacloud gère le système, et chaque copie démarre et grandit selon son trafic. Son API n'est pas encore ouverte : Datacloud l'annonce d'ici un à deux mois. Le moteur ne change pas pour autant : il déploie sur « une machine » sans savoir laquelle (voir [Moteur de déploiement](#moteur-de-déploiement)).
 - **Échange avec Systalink (9 octobre)**, avec Abdoulaye Sadio Barry, directeur des opérations : API VPS disponible, API serverless à venir, paiements gérés par Paxity, entité du groupe ([paxity.io](https://paxity.io)). Ils ont apprécié le projet et veulent en reparler après le concours, que nous soyons retenus ou non. Les contraintes rencontrées et l'architecture cible iront dans le brief de présentation.
@@ -66,6 +68,24 @@ Les **événements temps réel** (Reverb) sont décrits à part dans `REVERB.md`
 - **Stockage** : sur le serveur distant d'Oktav.
 - Disque limité : nettoyer régulièrement les anciennes images Docker (`docker system prune`).
 
+## Business model
+
+- **Le client paie deux montants par mois** : le prix de l'appli, fixé par le dev, et l'hébergement de sa copie, fixé par Souk.dev.
+- **Le prix de l'appli va entièrement au dev**. Aucune commission sur ses ventes.
+- **Souk.dev gagne sur l'hébergement** : il paie les serveurs Datacloud et leur maintenance, et facture chaque copie selon sa taille.
+- **Prix de l'hébergement**, calculés sur le prix normal du VPS de 16 Go (environ 4 480 F par Go et par mois, 13 Go libres pour les copies), avec une marge de 50 % :
+
+| Formule | Mémoire | Processeur | Coût pour Souk.dev | Prix au client |
+| --- | --- | --- | --- | --- |
+| Petite | 512 Mo | 0,5 cœur | 2 240 F/mois | 3 500 F/mois |
+| Moyenne | 1 Go | 1 cœur | 4 480 F/mois | 7 000 F/mois |
+| Grande | 2 Go | 2 cœurs | 8 960 F/mois | 13 500 F/mois |
+
+- **La formule est choisie par le dev** à la publication (champ `taille` de l'appli). Le formulaire affiche clairement le prix d'hébergement que paiera le client. Le moteur applique les limites de mémoire et de processeur à chaque copie.
+- **Mesure de la mémoire** : après la publication, la plateforme lance l'appli quelques minutes en tâche de fond et mesure son pic de mémoire (champ `mesure`). Elle recommande la formule au-dessus du pic : une appli qui monte à 450 Mo est recommandée en Moyenne, pas en Petite.
+- **Un changement de taille ne touche que les nouveaux clients** : chaque copie garde la formule et le prix de son déploiement (`taille` du déploiement). Si une copie manque de mémoire, c'est au dev d'optimiser son appli.
+- **Systalink gagne aussi** : plus il y a de copies, plus Souk.dev loue de serveurs Datacloud, puis de serverless.
+- Les montants seront recalculés si le prix du VPS change.
 ## Organisation du code
 
 Un seul dépôt : `frontend/` (React) + `backend/` (Laravel).
@@ -280,6 +300,6 @@ Validés par Oktav. L'équipe s'engage à les livrer d'ici le 25 octobre, **apr�
 
 ## Points ouverts
 
-- **Paiement d'un déploiement** par le client : Paxity sert à encaisser, pas à déclencher un paiement chez Datacloud. Comment le client paie l'hébergement et le prix de l'appli reste à décider.
+- **Encaissement** : le client paie Souk.dev (hébergement et prix de l'appli), puis Souk.dev reverse le prix de l'appli au dev. Le prestataire de paiement reste à choisir ; Paxity, entité de Systalink, est envisagé.
 - Service d'envoi des emails (liens magiques, annulation d'événement) : à choisir par l'équipe.
 - Vérifier que l'appli est vraiment prête avant de donner son URL (étape 4 du moteur).
