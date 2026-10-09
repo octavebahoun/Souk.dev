@@ -17,3 +17,6 @@ Mis à jour au fil du projet.
 | 2026-10-07 | Cursor | Lecture d'un dépôt GitHub public : clone superficiel, docker-compose.yml et soukdev.json (backend/app/Soukdev) |
 | 2026-10-07 | mourchid | Lancement d'une copie isolée : .env conservé et docker compose -p (backend/app/Soukdev) |
 | 2026-10-07 | Cursor (Grok) | Moteur de déploiement : validateur soukdev.json, générateur .env, clone GitHub, commande artisan moteur:lancer |
+| 2026-10-09 | Cursor (Grok) | Moteur : refus d'un docker-compose.yml dangereux (privileged, volume de l'hôte, network_mode host, ports publiés) |
+| 2026-10-09 | Cursor (Grok) | Moteur : soukdev.schema.json rangé dans backend/ |
+| 2026-10-09 | Cursor (Grok) | Moteur : la copie n'est en ligne que si service_web répond |
