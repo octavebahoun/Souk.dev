@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Moteur;
 
+use App\Moteur\SondeServiceWeb;
 use Illuminate\Support\Facades\Process;
 use Tests\TestCase;
 
@@ -54,6 +55,67 @@ class MoteurLancerCommandTest extends TestCase
         ])
             ->expectsOutputToContain('docker-compose.yml')
             ->assertFailed();
+    }
+
+    public function test_refuse_un_compose_dangereux(): void
+    {
+        $repertoire = $this->depotCobaye();
+        file_put_contents($repertoire.DIRECTORY_SEPARATOR.'docker-compose.yml', <<<'YAML'
+services:
+  front:
+    image: nginx:alpine
+    privileged: true
+YAML);
+
+        $this->artisan('moteur:lancer', [
+            '--chemin' => $repertoire,
+            '--var' => ['APP_NOM=Test'],
+            '--dry-run' => true,
+        ])
+            ->expectsOutputToContain('privileged')
+            ->assertFailed();
+
+        $this->assertFileDoesNotExist($repertoire.DIRECTORY_SEPARATOR.'.env');
+    }
+
+    public function test_declare_la_copie_en_ligne_quand_le_service_repond(): void
+    {
+        $repertoire = $this->depotCobaye();
+        $this->app->instance(SondeServiceWeb::class, new SondeServiceWeb(
+            fn (string $hote, int $port): bool => $hote === '172.18.0.2' && $port === 3000,
+            2,
+            0,
+        ));
+        $arretee = false;
+        $this->simulerDocker($arretee);
+
+        $this->artisan('moteur:lancer', [
+            '--chemin' => $repertoire,
+            '--copie' => 'cobaye-web',
+            '--var' => ['APP_NOM=Test'],
+        ])
+            ->expectsOutputToContain('il répond')
+            ->assertSuccessful();
+
+        $this->assertFalse($arretee);
+    }
+
+    public function test_arrete_la_copie_si_le_service_ne_repond_pas(): void
+    {
+        $repertoire = $this->depotCobaye();
+        $this->app->instance(SondeServiceWeb::class, new SondeServiceWeb(fn (): bool => false, 2, 0));
+        $arretee = false;
+        $this->simulerDocker($arretee);
+
+        $this->artisan('moteur:lancer', [
+            '--chemin' => $repertoire,
+            '--copie' => 'cobaye-web',
+            '--var' => ['APP_NOM=Test'],
+        ])
+            ->expectsOutputToContain('ne répond pas')
+            ->assertFailed();
+
+        $this->assertTrue($arretee);
     }
 
     public function test_refuse_un_service_web_absent_du_compose(): void
@@ -118,6 +180,31 @@ class MoteurLancerCommandTest extends TestCase
         parent::tearDown();
     }
 
+    private function simulerDocker(bool &$arretee): void
+    {
+        Process::fake(function (\Illuminate\Process\PendingProcess $process) use (&$arretee) {
+            $commande = $process->command;
+
+            if (($commande[0] ?? '') !== 'docker') {
+                return Process::result(exitCode: 1);
+            }
+
+            if (($commande[1] ?? '') === 'inspect') {
+                return Process::result(output: '{"bridge":{"IPAddress":"172.18.0.2"}}');
+            }
+
+            if (in_array('ps', $commande, true)) {
+                return Process::result(output: "a1b2c3d4e5f67890abcd1234\n");
+            }
+
+            if (in_array('down', $commande, true)) {
+                $arretee = true;
+            }
+
+            return Process::result();
+        });
+    }
+
     private function depotCobaye(): string
     {
         $repertoire = sys_get_temp_dir().'/soukdev-cobaye-'.bin2hex(random_bytes(4));
@@ -138,8 +225,8 @@ class MoteurLancerCommandTest extends TestCase
 services:
   front:
     image: nginx:alpine
-    ports:
-      - "3000:80"
+    expose:
+      - "3000"
 YAML);
 
         $this->beforeApplicationDestroyed(function () use ($repertoire) {

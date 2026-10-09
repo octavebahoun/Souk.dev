@@ -8,11 +8,12 @@ return [
     |--------------------------------------------------------------------------
     |
     | Le moteur clone un dépôt GitHub public, valide soukdev.json, écrit un
-    | .env par copie, puis lance docker compose -p <copie>.
+    | .env par copie, lance docker compose -p <copie>, puis vérifie que
+    | le service web répond avant de déclarer la copie en ligne.
     |
     */
 
-    'schema' => dirname(base_path()).'/soukdev.schema.json',
+    'schema' => base_path('soukdev.schema.json'),
 
     'copies' => storage_path('app/private/copies'),
 

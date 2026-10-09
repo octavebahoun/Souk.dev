@@ -22,7 +22,7 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(SchemaValidator::class, function () {
-            return new SchemaValidator(dirname(base_path()).'/soukdev.schema.json');
+            return new SchemaValidator(base_path('soukdev.schema.json'));
         });
 
         $this->app->singleton(SecretGenerator::class, RandomSecretGenerator::class);

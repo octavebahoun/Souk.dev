@@ -35,6 +35,20 @@ class LanceurComposeTest extends TestCase
         }
     }
 
+    public function test_refuse_un_port_publie(): void
+    {
+        $lanceur = new LanceurCompose;
+        $repertoire = $this->depot("services:\n  front:\n    image: nginx\n    ports:\n      - \"80:80\"\n");
+
+        try {
+            $this->expectException(LancementEchoue::class);
+            $this->expectExceptionMessage('publie des ports');
+            $lanceur->verifier($repertoire, 'front');
+        } finally {
+            $this->nettoyer($repertoire);
+        }
+    }
+
     public function test_lit_un_compose_indenté_à_4_espaces(): void
     {
         $yaml = <<<'YAML'

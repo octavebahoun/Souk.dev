@@ -31,6 +31,8 @@ final class LanceurCompose
             throw new LancementEchoue("Le service web « {$nomService} » est absent de docker-compose.yml.");
         }
 
+        (new VerificateurCompose)->verifier($contenu);
+
         return $compose;
     }
 
@@ -96,6 +98,39 @@ final class LanceurCompose
 
             throw new LancementEchoue('Le lancement Docker Compose a échoué.');
         }
+    }
+
+    public function adresseService(string $repertoire, string $copie, string $service): string
+    {
+        $this->verifierNomCopie($copie);
+
+        if (preg_match('/^[A-Za-z0-9][A-Za-z0-9_.-]{0,62}$/', $service) !== 1) {
+            throw new LancementEchoue('Le nom du service web est invalide.');
+        }
+
+        $liste = Process::path($repertoire)
+            ->timeout(30)
+            ->run(['docker', 'compose', '-p', $copie, 'ps', '-q', $service]);
+
+        if ($liste->failed()) {
+            throw new LancementEchoue("Impossible de trouver le conteneur du service « {$service} ».");
+        }
+
+        $id = strtok(trim($liste->output()), "\n") ?: '';
+
+        if (preg_match('/^[a-f0-9]{12,64}$/', $id) !== 1) {
+            throw new LancementEchoue("Le service « {$service} » n'a pas de conteneur.");
+        }
+
+        $inspection = Process::timeout(30)->run([
+            'docker', 'inspect', '-f', '{{json .NetworkSettings.Networks}}', $id,
+        ]);
+
+        if ($inspection->failed()) {
+            throw new LancementEchoue("Impossible de lire l'adresse du service « {$service} ».");
+        }
+
+        return (new SondeServiceWeb)->adresseDepuisInspection($inspection->output());
     }
 
     public function arreter(string $repertoire, string $copie): void

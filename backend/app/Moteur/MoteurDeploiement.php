@@ -11,6 +11,7 @@ final class MoteurDeploiement
         private GenerateurEnv $generateur,
         private CloneurGithub $cloneur,
         private LanceurCompose $lanceur,
+        private SondeServiceWeb $sonde,
     ) {}
 
     /**
@@ -59,6 +60,16 @@ final class MoteurDeploiement
 
         if (! $dryRun) {
             $this->lanceur->lancer($repertoire, $copie);
+
+            try {
+                $hote = $this->lanceur->adresseService($repertoire, $copie, $manifeste['service_web']['nom']);
+                $this->sonde->attendre($hote, (int) $manifeste['service_web']['port']);
+            } catch (Exceptions\LancementEchoue $exception) {
+                $this->lanceur->arreter($repertoire, $copie);
+
+                throw $exception;
+            }
+
             $lancee = true;
         }
 

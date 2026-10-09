@@ -60,7 +60,9 @@ class MoteurLancer extends Command
         $this->line('Répertoire : '.$resultat->repertoire);
         $this->line('Variables : '.implode(', ', array_keys($resultat->env)));
 
-        if (! $resultat->lancee) {
+        if ($resultat->lancee) {
+            $this->line('Service web : il répond.');
+        } else {
             $this->comment('Dry-run : Docker Compose n\'a pas été lancé.');
         }
 
