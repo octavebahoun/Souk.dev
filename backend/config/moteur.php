@@ -21,4 +21,7 @@ return [
 
     'compose_timeout' => 600,
 
+    // URL publique une fois la copie en ligne. {copie} devient l'identifiant Compose.
+    'url_copie' => 'http://{copie}.localhost',
+
 ];

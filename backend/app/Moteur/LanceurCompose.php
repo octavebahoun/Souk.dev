@@ -5,7 +5,7 @@ namespace App\Moteur;
 use App\Moteur\Exceptions\LancementEchoue;
 use Illuminate\Support\Facades\Process;
 
-final class LanceurCompose
+class LanceurCompose
 {
     public function verifier(string $repertoire, string $nomService): string
     {

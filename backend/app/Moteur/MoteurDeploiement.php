@@ -4,7 +4,7 @@ namespace App\Moteur;
 
 use Illuminate\Support\Str;
 
-final class MoteurDeploiement
+class MoteurDeploiement
 {
     public function __construct(
         private ValidateurSoukdev $validateur,
@@ -56,30 +56,48 @@ final class MoteurDeploiement
         $env = $this->generateur->generer($manifeste, $variablesClient);
         $this->generateur->ecrire($repertoire.DIRECTORY_SEPARATOR.'.env', $env);
 
-        $lancee = false;
-
-        if (! $dryRun) {
-            $this->lanceur->lancer($repertoire, $copie);
-
-            try {
-                $hote = $this->lanceur->adresseService($repertoire, $copie, $manifeste['service_web']['nom']);
-                $this->sonde->attendre($hote, (int) $manifeste['service_web']['port']);
-            } catch (Exceptions\LancementEchoue $exception) {
-                $this->lanceur->arreter($repertoire, $copie);
-
-                throw $exception;
-            }
-
-            $lancee = true;
-        }
-
-        return new CopieLocale(
+        $copieLocale = new CopieLocale(
             id: $copie,
             repertoire: $repertoire,
             manifeste: $manifeste,
             env: $env,
-            lancee: $lancee,
+            lancee: false,
         );
+
+        if ($dryRun) {
+            return $copieLocale;
+        }
+
+        return $this->mettreEnLigne($copieLocale);
+    }
+
+    public function mettreEnLigne(CopieLocale $copie): CopieLocale
+    {
+        $this->lanceur->lancer($copie->repertoire, $copie->id);
+
+        try {
+            $nom = $copie->manifeste['service_web']['nom'];
+            $port = (int) $copie->manifeste['service_web']['port'];
+            $hote = $this->lanceur->adresseService($copie->repertoire, $copie->id, $nom);
+            $this->sonde->attendre($hote, $port);
+        } catch (Exceptions\LancementEchoue $exception) {
+            $this->lanceur->arreter($copie->repertoire, $copie->id);
+
+            throw $exception;
+        }
+
+        return new CopieLocale(
+            id: $copie->id,
+            repertoire: $copie->repertoire,
+            manifeste: $copie->manifeste,
+            env: $copie->env,
+            lancee: true,
+        );
+    }
+
+    public function arreter(CopieLocale $copie): void
+    {
+        $this->lanceur->arreter($copie->repertoire, $copie->id);
     }
 
     public function nouveauId(string $base): string
