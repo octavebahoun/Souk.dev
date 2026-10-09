@@ -5,7 +5,8 @@ En préparation : les tâches de chacun seront ajoutées après le bilan de la s
 ## Mourchid — moteur branché sur la plateforme
 
 - Brancher le moteur sur l'API : file d'attente, états du déploiement (`en_file` → `construction` → `demarrage` → `en_ligne` ou `echec`), événements Reverb.
-- Arrêter une copie (état `arrete`), et limiter la mémoire et le CPU de chaque copie.
+- Arrêter une copie (état `arrete`), et limiter la mémoire et le CPU de chaque copie selon sa `taille` (petite : 512 Mo et 0,5 cœur ; moyenne : 1 Go et 1 cœur ; grande : 2 Go et 2 cœurs).
+- Mesurer la mémoire d'une appli après sa publication : la lancer quelques minutes, relever son pic avec `docker stats`, remplir le champ `mesure` avec la formule recommandée.
 - Backend intégré : appliquer les `migrations` déclarées dans `soukdev.json`.
 
 ## Jean-Baptiste — sécurité avant publication

@@ -81,7 +81,9 @@ Les **événements temps réel** (Reverb) sont décrits à part dans `REVERB.md`
 | Moyenne | 1 Go | 1 cœur | 4 480 F/mois | 7 000 F/mois |
 | Grande | 2 Go | 2 cœurs | 8 960 F/mois | 13 500 F/mois |
 
-- **La formule est choisie par le dev** pour son appli, selon la mémoire dont elle a besoin. Le moteur applique ces limites à chaque copie.
+- **La formule est choisie par le dev** à la publication (champ `taille` de l'appli). Le formulaire affiche clairement le prix d'hébergement que paiera le client. Le moteur applique les limites de mémoire et de processeur à chaque copie.
+- **Mesure de la mémoire** : après la publication, la plateforme lance l'appli quelques minutes en tâche de fond et mesure son pic de mémoire (champ `mesure`). Elle recommande la formule au-dessus du pic : une appli qui monte à 450 Mo est recommandée en Moyenne, pas en Petite.
+- **Un changement de taille ne touche que les nouveaux clients** : chaque copie garde la formule et le prix de son déploiement (`taille` du déploiement). Si une copie manque de mémoire, c'est au dev d'optimiser son appli.
 - **Systalink gagne aussi** : plus il y a de copies, plus Souk.dev loue de serveurs Datacloud, puis de serverless.
 - Les montants seront recalculés si le prix du VPS change.
 ## Organisation du code
