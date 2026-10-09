@@ -977,6 +977,8 @@ export interface components {
             /** @description Prix de l'appli en FCFA */
             prix: number;
             type_prix: components["schemas"]["TypePrix"];
+            taille: components["schemas"]["Taille"];
+            mesure: components["schemas"]["MesureMemoire"];
             /** Format: uri */
             demo_url: string;
             /** Format: uri */
@@ -1017,6 +1019,7 @@ export interface components {
             categorie: components["schemas"]["Categorie"];
             prix: number;
             type_prix: components["schemas"]["TypePrix"];
+            taille: components["schemas"]["Taille"];
             stack: components["schemas"]["Techno"][];
             captures: components["schemas"]["CapturesEnvoi"];
         };
@@ -1030,6 +1033,21 @@ export interface components {
          * @enum {string}
          */
         TypePrix: "mensuel" | "unique";
+        /**
+         * @description Formule d'hébergement de chaque copie, choisie par le dev ; elle fixe le prix d'hébergement payé par le client. petite = 512 Mo, 0,5 cœur, 3 500 F/mois ; moyenne = 1 Go, 1 cœur, 7 000 F/mois ; grande = 2 Go, 2 cœurs, 13 500 F/mois. Le moteur applique ces limites à chaque copie.
+         * @enum {string}
+         */
+        Taille: "petite" | "moyenne" | "grande";
+        /** @description Mémoire réellement consommée par l'appli, mesurée en tâche de fond après la publication (la plateforme la lance quelques minutes). La formule recommandée est celle au-dessus du pic mesuré. */
+        MesureMemoire: {
+            /** @enum {string} */
+            statut: "en_cours" | "terminee" | "echec";
+            /** @description Pic de mémoire mesuré */
+            memoire_max_mo: number | null;
+            taille_recommandee: components["schemas"]["Taille"] | null;
+            /** Format: date-time */
+            mesure_le: string | null;
+        };
         /** @description Analyse des dépendances du dépôt (Trivy). Secrets et docker-compose.yml dangereux bloquent la publication et n'apparaissent donc jamais ici. */
         Securite: {
             /**
@@ -1087,6 +1105,8 @@ export interface components {
             categorie?: components["schemas"]["Categorie"];
             prix?: number;
             type_prix?: components["schemas"]["TypePrix"];
+            /** @description Ne s'applique qu'aux nouveaux déploiements ; les clients déjà installés gardent leur formule et leur prix */
+            taille?: components["schemas"]["Taille"];
             stack?: components["schemas"]["Techno"][];
         };
         Deploiement: {
@@ -1094,6 +1114,8 @@ export interface components {
             app_id: number;
             /** @description Nom de l'appli copiée */
             app_nom: string;
+            /** @description Formule de la copie, figée au déploiement (un changement de taille de l'appli ne la modifie pas) */
+            taille: components["schemas"]["Taille"];
             /**
              * @description Copie d'un client, copie de test d'une discussion, ou version corrigée
              * @enum {string}
