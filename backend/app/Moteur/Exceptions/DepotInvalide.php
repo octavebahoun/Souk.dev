@@ -4,6 +4,4 @@ namespace App\Moteur\Exceptions;
 
 use RuntimeException;
 
-final class DepotInvalide extends RuntimeException
-{
-}
+final class DepotInvalide extends RuntimeException {}

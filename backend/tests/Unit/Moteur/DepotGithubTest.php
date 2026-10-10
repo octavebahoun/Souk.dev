@@ -60,7 +60,10 @@ class DepotGithubTest extends TestCase
         $this->expectException(DepotInvalide::class);
         $this->expectExceptionMessage('identifiants');
 
-        DepotGithub::depuisUrl('https://user:token@github.com/excellence-team/cobaye');
+        $utilisateur = 'invite';
+        $jeton = 'faux-jeton';
+
+        DepotGithub::depuisUrl("https://{$utilisateur}:{$jeton}@github.com/excellence-team/cobaye");
     }
 
     public function test_refuse_une_url_de_fichier(): void

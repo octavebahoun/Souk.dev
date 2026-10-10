@@ -3,6 +3,7 @@
 namespace Tests\Feature\Moteur;
 
 use App\Moteur\SondeServiceWeb;
+use Illuminate\Process\PendingProcess;
 use Illuminate\Support\Facades\Process;
 use Tests\TestCase;
 
@@ -27,7 +28,19 @@ class MoteurLancerCommandTest extends TestCase
         $this->assertIsString($env);
         $this->assertStringContainsString('APP_NOM="Pharmacie Test"', $env);
         $this->assertStringContainsString('DEVISE=FCFA', $env);
-        $this->assertMatchesRegularExpression('/DB_PASSWORD=[a-f0-9]{48}/', $env);
+
+        $paires = [];
+        foreach (explode("\n", $env) as $ligne) {
+            if ($ligne === '' || ! str_contains($ligne, '=')) {
+                continue;
+            }
+
+            [$nom, $valeur] = explode('=', $ligne, 2);
+            $paires[$nom] = $valeur;
+        }
+
+        $this->assertArrayHasKey('DB_PASSWORD', $paires);
+        $this->assertMatchesRegularExpression('/^[a-f0-9]{48}$/', $paires['DB_PASSWORD']);
     }
 
     public function test_refuse_un_manifeste_invalide(): void
@@ -102,7 +115,7 @@ YAML);
         $this->assertIsString($limites);
         $this->assertStringContainsString('mem_limit: 512m', $limites);
         $this->assertStringContainsString('cpus: "0.5"', $limites);
-        Process::assertRan(function (\Illuminate\Process\PendingProcess $process) {
+        Process::assertRan(function (PendingProcess $process) {
             return in_array('up', $process->command, true)
                 && in_array('docker-compose.yml', $process->command, true)
                 && in_array('docker-compose.soukdev.yml', $process->command, true);
@@ -187,7 +200,7 @@ YAML);
 
         Process::preventStrayProcesses();
         Process::fake([
-            'git clone *' => function (\Illuminate\Process\PendingProcess $process) use ($repertoire) {
+            'git clone *' => function (PendingProcess $process) use ($repertoire) {
                 $destination = $process->command[array_key_last($process->command)];
                 mkdir($destination, 0777, true);
                 copy($repertoire.DIRECTORY_SEPARATOR.'soukdev.json', $destination.DIRECTORY_SEPARATOR.'soukdev.json');
@@ -204,7 +217,7 @@ YAML);
             '--dry-run' => true,
         ])->assertSuccessful();
 
-        Process::assertRan(function (\Illuminate\Process\PendingProcess $process) {
+        Process::assertRan(function (PendingProcess $process) {
             return $process->command[0] === 'git'
                 && $process->command[1] === 'clone'
                 && in_array('https://github.com/excellence-team/cobaye.git', $process->command, true);
@@ -231,7 +244,7 @@ YAML);
 
     private function simulerDocker(bool &$arretee): void
     {
-        Process::fake(function (\Illuminate\Process\PendingProcess $process) use (&$arretee) {
+        Process::fake(function (PendingProcess $process) use (&$arretee) {
             $commande = $process->command;
 
             if (($commande[0] ?? '') !== 'docker') {
