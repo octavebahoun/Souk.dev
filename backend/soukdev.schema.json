@@ -24,7 +24,7 @@
     },
     "migrations": {
       "type": "string",
-      "description": "Chemin relatif des fichiers de migration. Obligatoire si backend = integre, absent sinon.",
+      "description": "Dossier relatif de fichiers .sql, appliqués dans l'ordre des noms. Obligatoire si backend = integre, absent sinon. Pas de DB_PASSWORD : la plateforme injecte SOUKDEV_URL et SOUKDEV_CLE.",
       "pattern": "^(?!/)(?!.*\\.\\.)[a-zA-Z0-9_./-]+$",
       "maxLength": 200
     },

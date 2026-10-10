@@ -139,7 +139,7 @@ class CopyLauncherTest extends TestCase
     private function launcher(GitCloner $git, ComposeRunner $compose, string $copies): CopyLauncher
     {
         return new CopyLauncher(
-            new RepositoryReader($git, new SchemaValidator(dirname(__DIR__, 3).'/soukdev.schema.json'), $copies.'/lectures'),
+            new RepositoryReader($git, new SchemaValidator(dirname(__DIR__, 2).'/soukdev.schema.json'), $copies.'/lectures'),
             new EnvGenerator(new class implements SecretGenerator
             {
                 public function generate(): string
