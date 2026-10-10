@@ -51,6 +51,15 @@ class MoteurDeploiement
      */
     public function preparer(string $repertoire, array $variablesClient, string $copie, bool $dryRun = false, string $taille = 'petite'): CopieLocale
     {
+        // Ces fichiers sont écrits par la plateforme. Venus du dépôt, ils seraient lancés sans vérification.
+        foreach (LanceurCompose::FICHIERS_RESERVES as $fichier) {
+            $chemin = $repertoire.DIRECTORY_SEPARATOR.$fichier;
+
+            if (is_file($chemin) || is_link($chemin)) {
+                unlink($chemin);
+            }
+        }
+
         $manifeste = $this->validateur->validerFichier($repertoire.DIRECTORY_SEPARATOR.'soukdev.json');
         $this->lanceur->verifier($repertoire, $manifeste['service_web']['nom']);
 
