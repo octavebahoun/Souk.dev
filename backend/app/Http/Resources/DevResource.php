@@ -1,0 +1,27 @@
+<?php
+
+namespace App\Http\Resources;
+
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
+
+class DevResource extends JsonResource
+{
+    /**
+     * Transform the resource into an array.
+     *
+     * @return array<string, mixed>
+     */
+    public function toArray(Request $request): array
+    {
+        return [
+            'id' => $this->id,
+            'nom' => $this->name,
+            'username' => $this->username ?? null,
+            'avatar_url' => $this->avatar_url ?? null,
+            'github_url' => $this->github_url ?? null,
+            'profil' => $this->profil ?? 'dev',
+            'pays' => $this->pays ?? null,
+        ];
+    }
+}

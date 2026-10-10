@@ -25,4 +25,9 @@ Mis à jour au fil du projet.
 | 2026-10-10 | Cursor (Grok) | Moteur : mesure du pic mémoire après publication et formule recommandée (backend/app/Moteur, job MesurerMemoire) |
 | 2026-10-10 | Cursor (Grok) | Moteur : backend intégré, application des migrations .sql et injection de SOUKDEV_URL / SOUKDEV_CLE |
 | 2026-10-10 | Cursor (Grok) | Publication : POST /apps valide le dépôt puis lance demanderMesure() |
+| 2026-10-09 | Claude Code | Missions : lecture (migration, modèle Mission, resources, contrôleur, routes GET /missions et /missions/{id}, tests), code fourni étape par étape |
+| 2026-10-09 | Cursor | Missions : fil de messages privé (migration, modèle, resource, routes, tests) |
+| 2026-10-09 | Cursor | Missions : terminer et noter une mission (route, validation, tests) |
+| 2026-10-09 | Cursor | Réputation : calculs XP, niveau, badges et Souk Score, et leurs tests |
+| 2026-10-09 | Cursor | Réputation : bilan d'un dev construit depuis les missions terminées |
 | 2026-10-10 | Claude Code | Moteur : relecture de sécurité du docker-compose.yml (liste de réglages autorisés, build et env_file dans le dépôt, réseaux et volumes externes, variables, clés entre guillemets) et suppression des fichiers Compose réservés venus du dépôt |
