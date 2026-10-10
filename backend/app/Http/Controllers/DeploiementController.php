@@ -84,7 +84,7 @@ class DeploiementController extends Controller
     private function variables(Request $request): array
     {
         $donnees = $request->validate([
-            'variables' => ['required', 'array'],
+            'variables' => ['present', 'array'],
             'variables.*' => ['string', 'max:500'],
         ]);
 

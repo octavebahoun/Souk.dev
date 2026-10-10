@@ -199,16 +199,20 @@ YAML);
         $repertoire = $this->depotCobaye();
 
         Process::preventStrayProcesses();
-        Process::fake([
-            'git clone *' => function (PendingProcess $process) use ($repertoire) {
-                $destination = $process->command[array_key_last($process->command)];
-                mkdir($destination, 0777, true);
-                copy($repertoire.DIRECTORY_SEPARATOR.'soukdev.json', $destination.DIRECTORY_SEPARATOR.'soukdev.json');
-                copy($repertoire.DIRECTORY_SEPARATOR.'docker-compose.yml', $destination.DIRECTORY_SEPARATOR.'docker-compose.yml');
+        Process::fake(function (PendingProcess $process) use ($repertoire) {
+            $commande = $process->command;
 
-                return Process::result();
-            },
-        ]);
+            if (! is_array($commande) || ($commande[0] ?? '') !== 'git' || ($commande[1] ?? '') !== 'clone') {
+                return Process::result(exitCode: 1);
+            }
+
+            $destination = $commande[array_key_last($commande)];
+            mkdir($destination, 0777, true);
+            copy($repertoire.DIRECTORY_SEPARATOR.'soukdev.json', $destination.DIRECTORY_SEPARATOR.'soukdev.json');
+            copy($repertoire.DIRECTORY_SEPARATOR.'docker-compose.yml', $destination.DIRECTORY_SEPARATOR.'docker-compose.yml');
+
+            return Process::result();
+        });
 
         $this->artisan('moteur:lancer', [
             'depot' => 'https://github.com/excellence-team/cobaye',
