@@ -24,4 +24,9 @@ return [
     // URL publique une fois la copie en ligne. {copie} devient l'identifiant Compose.
     'url_copie' => 'http://{copie}.localhost',
 
+    // Après la publication : durée de lecture du pic, puis écart entre deux docker stats.
+    'mesure_duree' => 180,
+
+    'mesure_intervalle' => 5,
+
 ];

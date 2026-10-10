@@ -27,6 +27,23 @@ final class LimitesTaille
     }
 
     /**
+     * Plafond mémoire de la formule, en Mo (512m, 1g, 2g).
+     */
+    public static function plafondMo(string $taille): int
+    {
+        if (! self::connue($taille)) {
+            throw new LancementEchoue('La taille doit être petite, moyenne ou grande.');
+        }
+
+        return match (self::FORMULES[$taille]['memoire']) {
+            '512m' => 512,
+            '1g' => 1024,
+            '2g' => 2048,
+            default => throw new LancementEchoue('Plafond mémoire inconnu.'),
+        };
+    }
+
+    /**
      * @param  list<string>  $services
      */
     public function ecrire(string $repertoire, array $services, string $taille): string
