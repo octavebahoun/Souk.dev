@@ -44,6 +44,23 @@ class MoteurLancerCommandTest extends TestCase
         $this->assertFileDoesNotExist($repertoire.DIRECTORY_SEPARATOR.'docker-compose.backend.yml');
     }
 
+    public function test_un_compose_reserve_venu_du_depot_est_supprime(): void
+    {
+        $repertoire = $this->depotCobaye();
+        file_put_contents($repertoire.DIRECTORY_SEPARATOR.'docker-compose.backend.yml', "services:\n  front:\n    privileged: true\n");
+        file_put_contents($repertoire.DIRECTORY_SEPARATOR.'docker-compose.soukdev.yml', "services:\n  front:\n    privileged: true\n");
+
+        $this->artisan('moteur:lancer', [
+            '--chemin' => $repertoire,
+            '--copie' => 'cobaye-reserve',
+            '--var' => ['APP_NOM=Pharmacie Test'],
+            '--dry-run' => true,
+        ])->assertSuccessful();
+
+        $this->assertFileDoesNotExist($repertoire.DIRECTORY_SEPARATOR.'docker-compose.backend.yml');
+        $this->assertFileDoesNotExist($repertoire.DIRECTORY_SEPARATOR.'docker-compose.soukdev.yml');
+    }
+
     public function test_dry_run_integre_injecte_l_url_et_la_cle(): void
     {
         $repertoire = $this->depotCobaye();

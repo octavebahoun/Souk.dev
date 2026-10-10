@@ -10,12 +10,40 @@ use App\Moteur\Exceptions\LancementEchoue;
  */
 final class VerificateurCompose
 {
+    /** Clés de premier niveau acceptées (plus les extensions x-*). */
+    private const CLES_RACINE = ['services', 'volumes', 'networks', 'name', 'version'];
+
+    /**
+     * Clés d'un service acceptées (plus les extensions x-*). Tout le reste est refusé :
+     * cap_add, devices, pid, ipc, userns_mode, security_opt, sysctls, volumes_from,
+     * container_name, secrets, configs, runtime…
+     */
+    private const CLES_SERVICE = [
+        'image', 'build', 'command', 'entrypoint', 'environment', 'env_file',
+        'depends_on', 'volumes', 'tmpfs', 'expose', 'ports', 'networks', 'network_mode',
+        'privileged', 'restart', 'healthcheck', 'working_dir', 'user', 'labels',
+        'hostname', 'domainname', 'init', 'tty', 'stdin_open', 'stop_signal',
+        'stop_grace_period', 'read_only', 'deploy', 'mem_limit', 'mem_reservation',
+        'memswap_limit', 'cpus', 'cpu_shares', 'cap_drop', 'links', 'platform',
+        'pull_policy', 'profiles', 'extra_hosts', 'dns', 'dns_search', 'annotations',
+        'attach', 'shm_size',
+    ];
+
+    /** Clés acceptées dans la forme longue de build. */
+    private const CLES_BUILD = ['context', 'dockerfile', 'args', 'target', 'labels'];
+
     public function verifier(string $yaml): void
     {
         $document = $this->document($yaml);
 
         if (array_key_exists('include', $document)) {
             throw new LancementEchoue('docker-compose.yml utilise include et ne peut pas être vérifié.');
+        }
+
+        foreach (array_keys($document) as $cle) {
+            if (! $this->cleAutorisee((string) $cle, self::CLES_RACINE)) {
+                throw new LancementEchoue("docker-compose.yml utilise « {$cle} », qui n'est pas autorisé.");
+            }
         }
 
         $services = $document['services'] ?? null;
@@ -37,13 +65,22 @@ final class VerificateurCompose
                 throw new LancementEchoue("Le service « {$nom} » utilise extends et ne peut pas être vérifié.");
             }
 
+            foreach (array_keys($service) as $cle) {
+                if (! $this->cleAutorisee((string) $cle, self::CLES_SERVICE)) {
+                    $erreurs[] = "Le service « {$nom} » utilise « {$cle} », qui n'est pas autorisé.";
+                }
+            }
+
             $this->verifierPrivileged($nom, $service, $erreurs);
             $this->verifierNetworkMode($nom, $service, $erreurs);
             $this->verifierPorts($nom, $service, $erreurs);
             $this->verifierVolumesService($nom, $service, $erreurs);
+            $this->verifierBuild($nom, $service, $erreurs);
+            $this->verifierEnvFile($nom, $service, $erreurs);
         }
 
         $this->verifierVolumesRacine($document['volumes'] ?? null, $erreurs);
+        $this->verifierReseauxRacine($document['networks'] ?? null, $erreurs);
 
         if ($erreurs !== []) {
             throw new LancementEchoue("docker-compose.yml est dangereux :\n".implode("\n", $erreurs));
@@ -85,8 +122,17 @@ final class VerificateurCompose
             throw new LancementEchoue('docker-compose.yml ne peut pas être vérifié.');
         }
 
-        if (strtolower($service['network_mode']) === 'host') {
+        $mode = strtolower($service['network_mode']);
+
+        if ($mode === 'host') {
             $erreurs[] = "Le service « {$nom} » utilise network_mode host.";
+
+            return;
+        }
+
+        // container:… et service:… feraient entrer la copie dans le réseau d'un autre conteneur.
+        if (! in_array($mode, ['bridge', 'none'], true)) {
+            $erreurs[] = "Le service « {$nom} » utilise network_mode « {$service['network_mode']} », qui n'est pas autorisé.";
         }
     }
 
@@ -138,6 +184,19 @@ final class VerificateurCompose
         }
 
         foreach ($volumes as $volume) {
+            // Une variable ${…} serait remplacée par Docker au lancement, après notre vérification.
+            if ($this->contientVariable($volume)) {
+                $erreurs[] = "Le service « {$nom} » utilise une variable dans un volume.";
+
+                continue;
+            }
+
+            if (is_array($volume) && isset($volume['type']) && ! in_array(strtolower((string) $volume['type']), ['volume', 'tmpfs', 'bind', 'npipe'], true)) {
+                $erreurs[] = "Le service « {$nom} » utilise un volume de type « {$volume['type']} », qui n'est pas autorisé.";
+
+                continue;
+            }
+
             $source = $this->sourceHote($volume);
 
             if ($source !== null) {
@@ -168,6 +227,19 @@ final class VerificateurCompose
                 throw new LancementEchoue('docker-compose.yml ne peut pas être vérifié.');
             }
 
+            // external ou name pourraient viser le volume d'une autre copie ou de la plateforme.
+            if (array_key_exists('external', $definition) && ! $this->estFaux($definition['external'])) {
+                $erreurs[] = "Le volume « {$nom} » est externe.";
+            }
+
+            if (array_key_exists('name', $definition)) {
+                $erreurs[] = "Le volume « {$nom} » fixe son nom (name), ce qui n'est pas autorisé.";
+            }
+
+            if ($this->contientVariable($definition)) {
+                $erreurs[] = "Le volume « {$nom} » utilise une variable.";
+            }
+
             $options = $definition['driver_opts'] ?? null;
 
             if ($options === null) {
@@ -187,6 +259,160 @@ final class VerificateurCompose
                 $erreurs[] = "Le volume « {$nom} » monte un chemin de l'hôte{$cible}.";
             }
         }
+    }
+
+    /**
+     * @param  list<string>  $erreurs
+     */
+    private function verifierReseauxRacine(mixed $reseaux, array &$erreurs): void
+    {
+        if ($reseaux === null) {
+            return;
+        }
+
+        if (! is_array($reseaux) || array_is_list($reseaux)) {
+            throw new LancementEchoue('docker-compose.yml ne peut pas être vérifié.');
+        }
+
+        foreach ($reseaux as $nom => $definition) {
+            if ($definition === null) {
+                continue;
+            }
+
+            if (! is_array($definition) || array_is_list($definition)) {
+                throw new LancementEchoue('docker-compose.yml ne peut pas être vérifié.');
+            }
+
+            // Un réseau externe ou nommé ferait sortir la copie de son propre projet.
+            if (array_key_exists('external', $definition) && ! $this->estFaux($definition['external'])) {
+                $erreurs[] = "Le réseau « {$nom} » est externe.";
+            }
+
+            if (array_key_exists('name', $definition)) {
+                $erreurs[] = "Le réseau « {$nom} » fixe son nom (name), ce qui n'est pas autorisé.";
+            }
+
+            $pilote = $definition['driver'] ?? null;
+
+            if ($pilote !== null && strtolower((string) $pilote) !== 'bridge') {
+                $erreurs[] = "Le réseau « {$nom} » utilise le pilote « {$pilote} », qui n'est pas autorisé.";
+            }
+
+            if (array_key_exists('driver_opts', $definition) || $this->contientVariable($definition)) {
+                $erreurs[] = "Le réseau « {$nom} » utilise des options qui ne sont pas autorisées.";
+            }
+        }
+    }
+
+    /**
+     * build doit rester dans le dépôt : un contexte « / » copierait les fichiers du serveur dans l'image.
+     *
+     * @param  array<string, mixed>  $service
+     * @param  list<string>  $erreurs
+     */
+    private function verifierBuild(string $nom, array $service, array &$erreurs): void
+    {
+        if (! array_key_exists('build', $service) || $service['build'] === null) {
+            return;
+        }
+
+        $build = $service['build'];
+
+        if (is_string($build)) {
+            $build = ['context' => $build];
+        }
+
+        if (! is_array($build) || array_is_list($build)) {
+            throw new LancementEchoue('docker-compose.yml ne peut pas être vérifié.');
+        }
+
+        foreach (array_keys($build) as $cle) {
+            if (! in_array((string) $cle, self::CLES_BUILD, true)) {
+                $erreurs[] = "Le service « {$nom} » utilise build.{$cle}, qui n'est pas autorisé.";
+            }
+        }
+
+        foreach (['context', 'dockerfile'] as $cle) {
+            if (isset($build[$cle]) && ! $this->cheminDansDepot($build[$cle])) {
+                $erreurs[] = "Le service « {$nom} » utilise un build.{$cle} hors du dépôt.";
+            }
+        }
+    }
+
+    /**
+     * env_file lirait un fichier du serveur s'il pointait hors du dépôt.
+     *
+     * @param  array<string, mixed>  $service
+     * @param  list<string>  $erreurs
+     */
+    private function verifierEnvFile(string $nom, array $service, array &$erreurs): void
+    {
+        if (! array_key_exists('env_file', $service) || $service['env_file'] === null) {
+            return;
+        }
+
+        $fichiers = is_array($service['env_file']) ? $service['env_file'] : [$service['env_file']];
+
+        if (! array_is_list($fichiers)) {
+            throw new LancementEchoue('docker-compose.yml ne peut pas être vérifié.');
+        }
+
+        foreach ($fichiers as $fichier) {
+            $chemin = is_array($fichier) ? ($fichier['path'] ?? null) : $fichier;
+
+            if (! $this->cheminDansDepot($chemin)) {
+                $erreurs[] = "Le service « {$nom} » lit un env_file hors du dépôt.";
+            }
+        }
+    }
+
+    private function cheminDansDepot(mixed $chemin): bool
+    {
+        if (! is_string($chemin) || $chemin === '' || $this->contientVariable($chemin)) {
+            return false;
+        }
+
+        if (
+            str_starts_with($chemin, '/')
+            || str_starts_with($chemin, '~')
+            || str_contains($chemin, '://')
+            || preg_match('/^[A-Za-z]:[\\\\\/]/', $chemin) === 1
+        ) {
+            return false;
+        }
+
+        foreach (preg_split('#[\\\\/]#', $chemin) ?: [] as $segment) {
+            if ($segment === '..') {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private function contientVariable(mixed $valeur): bool
+    {
+        if (is_string($valeur)) {
+            return str_contains($valeur, '$');
+        }
+
+        if (is_array($valeur)) {
+            foreach ($valeur as $cle => $element) {
+                if ($this->contientVariable((string) $cle) || $this->contientVariable($element)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param  list<string>  $autorisees
+     */
+    private function cleAutorisee(string $cle, array $autorisees): bool
+    {
+        return in_array($cle, $autorisees, true) || str_starts_with($cle, 'x-');
     }
 
     private function sourceHote(mixed $volume): ?string
@@ -472,7 +698,34 @@ final class VerificateurCompose
             return null;
         }
 
-        return [rtrim($morceaux[1]), trim($reste)];
+        return [$this->cle(rtrim($morceaux[1])), trim($reste)];
+    }
+
+    /**
+     * Docker lit "privileged" comme privileged : on retire les guillemets pour voir la même clé que lui.
+     */
+    private function cle(string $cle): string
+    {
+        if (
+            (strlen($cle) >= 2 && $cle[0] === '"' && str_ends_with($cle, '"'))
+            || (strlen($cle) >= 2 && $cle[0] === "'" && str_ends_with($cle, "'"))
+        ) {
+            $this->refuserEchappement($cle);
+
+            return substr($cle, 1, -1);
+        }
+
+        return $cle;
+    }
+
+    /**
+     * Docker décoderait un échappement ("\x70rivileged"), pas nous : on refuse plutôt que de deviner.
+     */
+    private function refuserEchappement(string $texte): void
+    {
+        if ($texte !== '' && $texte[0] === '"' && str_contains($texte, '\\')) {
+            throw new LancementEchoue('docker-compose.yml utilise un échappement YAML et ne peut pas être vérifié.');
+        }
     }
 
     private function refuserBlocScalaire(string $reste): void
@@ -498,6 +751,8 @@ final class VerificateurCompose
             (strlen($valeur) >= 2 && $premier === '"' && str_ends_with($valeur, '"'))
             || (strlen($valeur) >= 2 && $premier === "'" && str_ends_with($valeur, "'"))
         ) {
+            $this->refuserEchappement($valeur);
+
             return substr($valeur, 1, -1);
         }
 
