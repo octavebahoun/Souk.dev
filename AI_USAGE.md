@@ -16,3 +16,4 @@ Mis à jour au fil du projet.
 | 2026-10-07 | mourchid | Validation de soukdev.json et génération du .env d'une copie (backend/app/Soukdev) |
 | 2026-10-07 | Cursor | Lecture d'un dépôt GitHub public : clone superficiel, docker-compose.yml et soukdev.json (backend/app/Soukdev) |
 | 2026-10-07 | mourchid | Lancement d'une copie isolée : .env conservé et docker compose -p (backend/app/Soukdev) |
+| 2026-10-10 | Cursor | Socle Laravel de Wasfade : PHP 8.4, Sanctum, connexion GitHub, lien magique, discussions, messages et Reverb |

@@ -2,6 +2,11 @@
 
 namespace App\Providers;
 
+use App\Comptes\FrontUrl;
+use App\Models\Discussion;
+use App\Models\Message;
+use App\Policies\DiscussionPolicy;
+use App\Policies\MessagePolicy;
 use App\Soukdev\ComposeRunner;
 use App\Soukdev\CopyLauncher;
 use App\Soukdev\EnvGenerator;
@@ -12,6 +17,11 @@ use App\Soukdev\RandomSecretGenerator;
 use App\Soukdev\RepositoryReader;
 use App\Soukdev\SchemaValidator;
 use App\Soukdev\SecretGenerator;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -47,6 +57,10 @@ class AppServiceProvider extends ServiceProvider
                 storage_path('app/copies'),
             );
         });
+
+        $this->app->singleton(FrontUrl::class, function () {
+            return new FrontUrl((string) config('app.frontend_url'));
+        });
     }
 
     /**
@@ -54,6 +68,13 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        JsonResource::withoutWrapping();
+
+        RateLimiter::for('discussions', function (Request $request) {
+            return Limit::perHour(10)->by($request->user()?->id ?: $request->ip());
+        });
+
+        Gate::policy(Discussion::class, DiscussionPolicy::class);
+        Gate::policy(Message::class, MessagePolicy::class);
     }
 }
