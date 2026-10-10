@@ -101,7 +101,14 @@ YAML, file_get_contents($repertoire.DIRECTORY_SEPARATOR.'docker-compose.soukdev.
 
     private function nettoyer(string $repertoire): void
     {
-        @unlink($repertoire.DIRECTORY_SEPARATOR.'docker-compose.soukdev.yml');
-        @rmdir($repertoire);
+        $fichier = $repertoire.DIRECTORY_SEPARATOR.'docker-compose.soukdev.yml';
+
+        if (is_file($fichier)) {
+            unlink($fichier);
+        }
+
+        if (is_dir($repertoire)) {
+            rmdir($repertoire);
+        }
     }
 }

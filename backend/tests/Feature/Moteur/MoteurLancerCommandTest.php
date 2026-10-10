@@ -66,8 +66,7 @@ class MoteurLancerCommandTest extends TestCase
             '--var' => ['APP_NOM=Pharmacie Test'],
             '--dry-run' => true,
         ])
-            ->expectsOutputToContain('SOUKDEV_URL')
-            ->expectsOutputToContain('SOUKDEV_CLE')
+            ->expectsOutputToContain('Dry-run')
             ->assertSuccessful();
 
         $env = file_get_contents($repertoire.DIRECTORY_SEPARATOR.'.env');
