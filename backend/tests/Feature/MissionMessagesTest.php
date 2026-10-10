@@ -64,6 +64,17 @@ class MissionMessagesTest extends TestCase
             ->assertJsonValidationErrors('texte');
     }
 
+    public function test_un_texte_trop_long_est_refuse(): void
+    {
+        [$client, $auteur] = User::factory()->count(2)->create();
+        $mission = $this->mission($client, $auteur);
+
+        $this->actingAs($client)
+            ->postJson("/api/missions/{$mission->id}/messages", ['texte' => str_repeat('a', 5001)])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('texte');
+    }
+
     public function test_les_messages_arrivent_dans_l_ordre_d_envoi(): void
     {
         [$client, $auteur] = User::factory()->count(2)->create();

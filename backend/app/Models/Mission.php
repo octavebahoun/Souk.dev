@@ -16,6 +16,8 @@ class Mission extends Model
     protected function casts(): array
     {
         return [
+            'client_id' => 'integer',
+            'auteur_id' => 'integer',
             'delai' => 'date',
             'budget' => 'integer',
             'note' => 'integer',

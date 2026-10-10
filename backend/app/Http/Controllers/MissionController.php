@@ -41,13 +41,19 @@ class MissionController extends Controller
             'commentaire' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        $mission->update([
-            'statut' => 'terminee',
-            'note' => $donnees['note'],
-            'note_commentaire' => $donnees['commentaire'] ?? null,
-            'terminee_le' => now(),
-        ]);
+        // Mise à jour conditionnelle : deux notes envoyées au même instant ne passent pas toutes les deux.
+        $notee = Mission::query()
+            ->whereKey($mission->id)
+            ->where('statut', 'en_cours')
+            ->update([
+                'statut' => 'terminee',
+                'note' => $donnees['note'],
+                'note_commentaire' => $donnees['commentaire'] ?? null,
+                'terminee_le' => now(),
+            ]);
 
-        return new MissionResource($mission->load(['client', 'auteur']));
+        abort_if($notee === 0, 409);
+
+        return new MissionResource($mission->refresh()->load(['client', 'auteur']));
     }
 }

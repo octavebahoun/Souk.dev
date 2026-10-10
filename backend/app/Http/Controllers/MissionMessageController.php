@@ -29,7 +29,7 @@ class MissionMessageController extends Controller
     {
         abort_unless($mission->concerne($request->user()), 403);
 
-        $donnees = $request->validate(['texte' => ['required', 'string']]);
+        $donnees = $request->validate(['texte' => ['required', 'string', 'max:5000']]);
 
         $message = $mission->messages()->create([
             'auteur_id' => $request->user()->id,
