@@ -90,16 +90,26 @@ class LanceurCompose
             throw new LancementEchoue('docker-compose.yml est absent à la racine du dépôt.');
         }
 
-        (new LimitesTaille)->ecrire($repertoire, $this->nomsServices($contenu), $taille);
+        $services = $this->nomsServices($contenu);
+
+        if (is_file($repertoire.DIRECTORY_SEPARATOR.'docker-compose.backend.yml')) {
+            foreach (['soukdev-db', 'soukdev-api'] as $reserve) {
+                if (in_array($reserve, $services, true)) {
+                    throw new LancementEchoue("Le service « {$reserve} » est réservé au backend intégré.");
+                }
+            }
+
+            $services = array_merge($services, ['soukdev-db', 'soukdev-api']);
+        }
+
+        (new LimitesTaille)->ecrire($repertoire, $services, $taille);
 
         $env = $repertoire.DIRECTORY_SEPARATOR.'.env';
 
         $resultat = Process::path($repertoire)
             ->timeout((int) config('moteur.compose_timeout'))
             ->run([
-                'docker', 'compose', '-p', $copie,
-                '-f', 'docker-compose.yml',
-                '-f', 'docker-compose.soukdev.yml',
+                ...$this->argumentsCompose($repertoire, $copie),
                 '--env-file', $env,
                 'up', '-d', '--build',
             ]);
@@ -155,6 +165,27 @@ class LanceurCompose
         Process::path($repertoire)
             ->timeout(120)
             ->run(['docker', 'compose', '-p', $copie, 'down', '--remove-orphans']);
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function argumentsCompose(string $repertoire, string $copie): array
+    {
+        $this->verifierNomCopie($copie);
+
+        $arguments = [
+            'docker', 'compose', '-p', $copie,
+            '-f', 'docker-compose.yml',
+            '-f', 'docker-compose.soukdev.yml',
+        ];
+
+        if (is_file($repertoire.DIRECTORY_SEPARATOR.'docker-compose.backend.yml')) {
+            $arguments[] = '-f';
+            $arguments[] = 'docker-compose.backend.yml';
+        }
+
+        return $arguments;
     }
 
     public function verifierNomCopie(string $copie): void

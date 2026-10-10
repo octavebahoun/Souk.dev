@@ -12,6 +12,7 @@ class MoteurDeploiement
         private CloneurGithub $cloneur,
         private LanceurCompose $lanceur,
         private SondeServiceWeb $sonde,
+        private BackendIntegre $backend,
     ) {}
 
     /**
@@ -53,7 +54,11 @@ class MoteurDeploiement
         $manifeste = $this->validateur->validerFichier($repertoire.DIRECTORY_SEPARATOR.'soukdev.json');
         $this->lanceur->verifier($repertoire, $manifeste['service_web']['nom']);
 
-        $env = $this->generateur->generer($manifeste, $variablesClient);
+        $env = $this->backend->completerEnv(
+            $repertoire,
+            $manifeste,
+            $this->generateur->generer($manifeste, $variablesClient),
+        );
         $this->generateur->ecrire($repertoire.DIRECTORY_SEPARATOR.'.env', $env);
 
         $copieLocale = new CopieLocale(
@@ -76,6 +81,8 @@ class MoteurDeploiement
         $this->lanceur->lancer($copie->repertoire, $copie->id, $taille);
 
         try {
+            $this->backend->appliquer($copie);
+
             $nom = $copie->manifeste['service_web']['nom'];
             $port = (int) $copie->manifeste['service_web']['port'];
             $hote = $this->lanceur->adresseService($copie->repertoire, $copie->id, $nom);

@@ -107,6 +107,33 @@ class ValidateurSoukdevTest extends TestCase
         $this->assertSame('db/migrations', $manifeste['migrations']);
     }
 
+    public function test_refuse_db_password_quand_le_backend_est_integre(): void
+    {
+        $donnees = $this->exemple();
+        $donnees['backend'] = 'integre';
+        $donnees['migrations'] = 'db/migrations';
+
+        $this->expectException(ManifestInvalide::class);
+        $this->expectExceptionMessage('DB_PASSWORD');
+
+        $this->validateur->valider($donnees);
+    }
+
+    public function test_refuse_une_variable_reservee_au_backend_integre(): void
+    {
+        $donnees = $this->exemple();
+        $donnees['backend'] = 'integre';
+        $donnees['migrations'] = 'db/migrations';
+        $donnees['variables'] = [
+            ['nom' => 'SOUKDEV_URL', 'source' => 'fixe', 'valeur' => 'http://localhost'],
+        ];
+
+        $this->expectException(ManifestInvalide::class);
+        $this->expectExceptionMessage('réservé');
+
+        $this->validateur->valider($donnees);
+    }
+
     public function test_refuse_un_chemin_de_migrations_absolu(): void
     {
         $donnees = $this->exemple();

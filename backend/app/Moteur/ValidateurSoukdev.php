@@ -83,6 +83,10 @@ final class ValidateurSoukdev
             $this->verifierVariables($donnees['variables'], $erreurs);
         }
 
+        if (($donnees['backend'] ?? null) === 'integre' && is_array($donnees['variables'] ?? null)) {
+            $this->verifierVariablesIntegrees($donnees['variables'], $erreurs);
+        }
+
         if ($erreurs !== []) {
             throw new ManifestInvalide(implode("\n", $erreurs));
         }
@@ -119,6 +123,29 @@ final class ValidateurSoukdev
 
         if (! is_int($service['port']) || $service['port'] < 1 || $service['port'] > 65535) {
             $erreurs[] = 'service_web.port doit être un entier entre 1 et 65535.';
+        }
+    }
+
+    /**
+     * @param  list<mixed>  $variables
+     * @param  list<string>  $erreurs
+     */
+    private function verifierVariablesIntegrees(array $variables, array &$erreurs): void
+    {
+        foreach ($variables as $variable) {
+            if (! is_array($variable)) {
+                continue;
+            }
+
+            $nom = $variable['nom'] ?? null;
+
+            if ($nom === 'DB_PASSWORD') {
+                $erreurs[] = 'DB_PASSWORD est absent quand backend vaut integre : la plateforme injecte SOUKDEV_URL et SOUKDEV_CLE.';
+            }
+
+            if ($nom === 'SOUKDEV_URL' || $nom === 'SOUKDEV_CLE') {
+                $erreurs[] = "{$nom} est réservé au backend intégré.";
+            }
         }
     }
 

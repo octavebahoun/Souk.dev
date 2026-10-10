@@ -41,6 +41,48 @@ class MoteurLancerCommandTest extends TestCase
 
         $this->assertArrayHasKey('DB_PASSWORD', $paires);
         $this->assertMatchesRegularExpression('/^[a-f0-9]{48}$/', $paires['DB_PASSWORD']);
+        $this->assertFileDoesNotExist($repertoire.DIRECTORY_SEPARATOR.'docker-compose.backend.yml');
+    }
+
+    public function test_dry_run_integre_injecte_l_url_et_la_cle(): void
+    {
+        $repertoire = $this->depotCobaye();
+        mkdir($repertoire.DIRECTORY_SEPARATOR.'db');
+        file_put_contents($repertoire.DIRECTORY_SEPARATOR.'db'.DIRECTORY_SEPARATOR.'001_init.sql', "CREATE TABLE pharmacies (id int);\n");
+        file_put_contents($repertoire.DIRECTORY_SEPARATOR.'soukdev.json', json_encode([
+            'version' => 1,
+            'service_web' => ['nom' => 'front', 'port' => 3000],
+            'backend' => 'integre',
+            'migrations' => 'db',
+            'variables' => [
+                ['nom' => 'APP_NOM', 'source' => 'client', 'libelle' => 'Nom de votre structure', 'requis' => true],
+                ['nom' => 'DEVISE', 'source' => 'fixe', 'valeur' => 'FCFA'],
+            ],
+        ], JSON_THROW_ON_ERROR));
+
+        $this->artisan('moteur:lancer', [
+            '--chemin' => $repertoire,
+            '--copie' => 'cobaye-integre',
+            '--var' => ['APP_NOM=Pharmacie Test'],
+            '--dry-run' => true,
+        ])
+            ->expectsOutputToContain('SOUKDEV_URL')
+            ->expectsOutputToContain('SOUKDEV_CLE')
+            ->assertSuccessful();
+
+        $env = file_get_contents($repertoire.DIRECTORY_SEPARATOR.'.env');
+        $backend = file_get_contents($repertoire.DIRECTORY_SEPARATOR.'docker-compose.backend.yml');
+
+        $this->assertIsString($env);
+        $this->assertIsString($backend);
+        $this->assertStringContainsString('SOUKDEV_URL=http://soukdev-api:3000', $env);
+        $this->assertMatchesRegularExpression('/^SOUKDEV_CLE=[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/m', $env);
+        $this->assertStringNotContainsString('DB_PASSWORD', $env);
+        $this->assertStringContainsString('image: postgres:16-alpine', $backend);
+        $this->assertStringContainsString('image: postgrest/postgrest:v12.2.3', $backend);
+        $this->assertStringNotContainsString('ports:', $backend);
+        $this->assertStringNotContainsString('privileged:', $backend);
+        $this->assertFileDoesNotExist($repertoire.DIRECTORY_SEPARATOR.'docker-compose.soukdev.yml');
     }
 
     public function test_refuse_un_manifeste_invalide(): void

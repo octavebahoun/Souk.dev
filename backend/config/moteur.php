@@ -29,4 +29,11 @@ return [
 
     'mesure_intervalle' => 5,
 
+    // Backend intégré : images épinglées, et essais en attendant que Postgres réponde.
+    'backend_image_postgres' => 'postgres:16-alpine',
+
+    'backend_image_postgrest' => 'postgrest/postgrest:v12.2.3',
+
+    'backend_tentatives' => 30,
+
 ];
