@@ -1,15 +1,32 @@
 <?php
 
+use App\Http\Controllers\AppliController;
 use App\Http\Controllers\CanalController;
 use App\Http\Controllers\CompteController;
+use App\Http\Controllers\DeploiementController;
 use App\Http\Controllers\DiscussionController;
 use App\Http\Controllers\EtiquetteController;
 use App\Http\Controllers\MessageController;
+use App\Http\Controllers\MissionController;
+use App\Http\Controllers\MissionMessageController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('/me', [CompteController::class, 'show']);
     Route::patch('/me', [CompteController::class, 'update']);
+
+    Route::post('/apps', [AppliController::class, 'store']);
+    Route::post('/apps/{appli}/deployments', [DeploiementController::class, 'store'])
+        ->middleware('throttle:deploiements');
+    Route::get('/deployments', [DeploiementController::class, 'index']);
+    Route::get('/deployments/{deploiement}', [DeploiementController::class, 'show']);
+    Route::delete('/deployments/{deploiement}', [DeploiementController::class, 'destroy']);
+
+    Route::get('/missions', [MissionController::class, 'index']);
+    Route::get('/missions/{mission}', [MissionController::class, 'show']);
+    Route::post('/missions/{mission}/note', [MissionController::class, 'note']);
+    Route::get('/missions/{mission}/messages', [MissionMessageController::class, 'index']);
+    Route::post('/missions/{mission}/messages', [MissionMessageController::class, 'store']);
 });
 
 Route::get('/discussions', [DiscussionController::class, 'index']);

@@ -34,5 +34,7 @@ Versions exactes déjà installées. Les autres lignes attendent leur installati
 | @testing-library/jest-dom | 6.10.0 | MIT |
 | license-checker | 25.0.1 | BSD-3-Clause |
 | osteel/openapi-httpfoundation-testing | pas encore installé | MIT |
+| PostgreSQL (image postgres:16-alpine) | 16 | licence PostgreSQL |
+| PostgREST (image postgrest/postgrest) | v12.2.3 | MIT |
 
 `nette/utils` et `nette/schema` (tirés par Laravel) sont en triple licence BSD-3-Clause, GPL-2.0 ou GPL-3.0. On retient BSD-3-Clause. Le front ne contient aucune licence GPL, AGPL ou LGPL.

@@ -169,7 +169,7 @@ class SchemaValidatorTest extends TestCase
 
     private function validator(): SchemaValidator
     {
-        return new SchemaValidator(dirname(__DIR__, 3).'/soukdev.schema.json');
+        return new SchemaValidator(dirname(__DIR__, 2).'/soukdev.schema.json');
     }
 
     /**

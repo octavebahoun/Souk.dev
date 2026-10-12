@@ -245,7 +245,7 @@ class RepositoryReaderTest extends TestCase
     {
         return new RepositoryReader(
             $git,
-            new SchemaValidator(dirname(__DIR__, 3).'/soukdev.schema.json'),
+            new SchemaValidator(dirname(__DIR__, 2).'/soukdev.schema.json'),
             $work,
         );
     }
