@@ -33,3 +33,4 @@ Mis à jour au fil du projet.
 | 2026-10-10 | Cursor (Grok) | Publication : POST /apps valide le dépôt puis lance demanderMesure() |
 | 2026-10-10 | Claude Code | Moteur : relecture de sécurité du docker-compose.yml (liste de réglages autorisés, build et env_file dans le dépôt, réseaux et volumes externes, variables, clés entre guillemets) et suppression des fichiers Compose réservés venus du dépôt |
 | 2026-10-12 | Claude Code | Comptes : lien magique (compte créé à l'ouverture du lien, 3 liens par quart d'heure pour une même adresse, lien utilisable une seule fois même en parallèle) |
+| 2026-10-12 | Claude Code | Missions : création (POST /devs/{username}/missions et POST /apps/{id}/missions, 10 par heure, clé étrangère sur app_id) et leurs tests |
