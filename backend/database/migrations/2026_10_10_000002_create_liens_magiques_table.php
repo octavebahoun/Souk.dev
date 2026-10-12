@@ -10,7 +10,8 @@ return new class extends Migration
     {
         Schema::create('liens_magiques', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            // Le compte n'est créé qu'à l'ouverture du lien : on garde l'adresse, pas le compte.
+            $table->string('email')->index();
             $table->string('token_hash', 64)->unique();
             $table->timestamp('expire_le');
             $table->timestamp('utilise_le')->nullable();

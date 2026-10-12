@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class LienMagique extends Model
 {
@@ -15,6 +14,7 @@ class LienMagique extends Model
      * @var list<string>
      */
     protected $fillable = [
+        'email',
         'token_hash',
         'expire_le',
     ];
@@ -28,13 +28,5 @@ class LienMagique extends Model
             'expire_le' => 'datetime',
             'utilise_le' => 'datetime',
         ];
-    }
-
-    /**
-     * @return BelongsTo<User, $this>
-     */
-    public function compte(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'user_id');
     }
 }

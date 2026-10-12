@@ -32,3 +32,4 @@ Mis à jour au fil du projet.
 | 2026-10-10 | Cursor (Grok) | Moteur : backend intégré, application des migrations .sql et injection de SOUKDEV_URL / SOUKDEV_CLE |
 | 2026-10-10 | Cursor (Grok) | Publication : POST /apps valide le dépôt puis lance demanderMesure() |
 | 2026-10-10 | Claude Code | Moteur : relecture de sécurité du docker-compose.yml (liste de réglages autorisés, build et env_file dans le dépôt, réseaux et volumes externes, variables, clés entre guillemets) et suppression des fichiers Compose réservés venus du dépôt |
+| 2026-10-12 | Claude Code | Comptes : lien magique (compte créé à l'ouverture du lien, 3 liens par quart d'heure pour une même adresse, lien utilisable une seule fois même en parallèle) |

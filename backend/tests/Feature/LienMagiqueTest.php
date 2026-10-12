@@ -33,6 +33,9 @@ final class LienMagiqueTest extends TestCase
         $this->assertNotNull($url);
         $token = basename((string) parse_url((string) $url, PHP_URL_PATH));
 
+        // Pas de compte tant que le lien n'est pas ouvert.
+        $this->assertDatabaseCount('users', 0);
+
         $this->get('/auth/lien-magique/'.$token)
             ->assertRedirect('http://localhost:5173/store');
 
@@ -58,6 +61,21 @@ final class LienMagiqueTest extends TestCase
 
         $this->assertDatabaseCount('users', 1);
         Mail::assertSent(LienMagiqueMail::class, 2);
+    }
+
+    public function test_une_meme_adresse_recoit_trois_liens_par_quart_d_heure_au_maximum(): void
+    {
+        Mail::fake();
+
+        foreach (range(1, 3) as $essai) {
+            $this->postJson('/auth/lien-magique', ['email' => 'afi@example.com'])->assertStatus(202);
+        }
+
+        $this->postJson('/auth/lien-magique', ['email' => ' Afi@Example.com '])->assertStatus(429);
+        $this->postJson('/auth/lien-magique', ['email' => 'mariam@example.com'])->assertStatus(202);
+
+        Mail::assertSent(LienMagiqueMail::class, 4);
+        $this->assertDatabaseCount('users', 0);
     }
 
     public function test_une_adresse_invalide_est_refusee(): void

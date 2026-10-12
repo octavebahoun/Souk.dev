@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Comptes\EmetteurLienMagique;
 use App\Comptes\FrontUrl;
 use App\Models\Discussion;
 use App\Models\Message;
@@ -72,6 +73,16 @@ class AppServiceProvider extends ServiceProvider
 
         RateLimiter::for('discussions', function (Request $request) {
             return Limit::perHour(10)->by($request->user()?->id ?: $request->ip());
+        });
+
+        // Par adresse IP comme avant, et 3 liens par quart d'heure pour une même adresse email.
+        RateLimiter::for('lien-magique', function (Request $request) {
+            $email = $request->input('email');
+
+            return [
+                Limit::perMinute(60)->by('ip:'.$request->ip()),
+                Limit::perMinutes(15, 3)->by('email:'.(is_string($email) ? EmetteurLienMagique::normaliser($email) : '')),
+            ];
         });
 
         RateLimiter::for('deploiements', function (Request $request) {

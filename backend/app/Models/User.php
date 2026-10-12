@@ -52,12 +52,4 @@ class User extends Authenticatable
     {
         return $this->hasMany(Message::class);
     }
-
-    /**
-     * @return HasMany<LienMagique, $this>
-     */
-    public function liensMagiques(): HasMany
-    {
-        return $this->hasMany(LienMagique::class);
-    }
 }
