@@ -107,6 +107,8 @@ class LanceurCompose
 
         (new LimitesTaille)->ecrire($repertoire, $services, $taille);
 
+        $this->verifierConfigFinale($repertoire, $copie);
+
         $env = $repertoire.DIRECTORY_SEPARATOR.'.env';
 
         $resultat = Process::path($repertoire)
@@ -117,15 +119,7 @@ class LanceurCompose
                 'up', '-d', '--build',
             ]);
 
-        if ($resultat->failed()) {
-            $sortie = trim($resultat->errorOutput().' '.$resultat->output());
-
-            if (str_contains($sortie, 'not found') || $resultat->exitCode() === 127) {
-                throw new LancementEchoue('Docker Compose est introuvable. Installez Docker pour lancer une copie.');
-            }
-
-            throw new LancementEchoue('Le lancement Docker Compose a échoué.');
-        }
+        $this->echouerSiComposeRate($resultat, 'Le lancement Docker Compose a échoué.');
     }
 
     public function adresseService(string $repertoire, string $copie, string $service): string
@@ -189,6 +183,166 @@ class LanceurCompose
         }
 
         return $arguments;
+    }
+
+    private function verifierConfigFinale(string $repertoire, string $copie): void
+    {
+        $env = $repertoire.DIRECTORY_SEPARATOR.'.env';
+
+        $resultat = Process::path($repertoire)
+            ->timeout(30)
+            ->run([
+                ...$this->argumentsCompose($repertoire, $copie),
+                '--env-file', $env,
+                'config',
+                '--format',
+                'json',
+            ]);
+
+        $this->echouerSiComposeRate($resultat, 'La configuration Docker Compose finale est invalide.');
+
+        $document = json_decode($resultat->output(), true);
+
+        if (! is_array($document) || array_is_list($document)) {
+            throw new LancementEchoue('La configuration Docker Compose finale ne peut pas être vérifiée.');
+        }
+
+        (new VerificateurCompose)->verifierDocument(
+            $this->preparerDocumentConfig($document, $repertoire, $copie),
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $document
+     * @return array<string, mixed>
+     */
+    private function preparerDocumentConfig(array $document, string $repertoire, string $copie): array
+    {
+        $projet = is_string($document['name'] ?? null) ? $document['name'] : $copie;
+
+        foreach (['networks', 'volumes'] as $section) {
+            if (! isset($document[$section]) || ! is_array($document[$section]) || array_is_list($document[$section])) {
+                continue;
+            }
+
+            foreach ($document[$section] as $nom => $definition) {
+                if (! is_array($definition) || ($definition['name'] ?? null) !== $projet.'_'.$nom) {
+                    continue;
+                }
+
+                unset($document[$section][$nom]['name']);
+            }
+        }
+
+        return $this->relativiserCheminsConfig($document, $repertoire);
+    }
+
+    /**
+     * @param  array<string, mixed>  $document
+     * @return array<string, mixed>
+     */
+    private function relativiserCheminsConfig(array $document, string $repertoire): array
+    {
+        $racine = realpath($repertoire) ?: $repertoire;
+        $prefixe = rtrim($racine, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR;
+
+        if (! isset($document['services']) || ! is_array($document['services'])) {
+            return $document;
+        }
+
+        foreach ($document['services'] as $nom => $service) {
+            if (! is_array($service)) {
+                continue;
+            }
+
+            if (array_key_exists('build', $service)) {
+                $document['services'][$nom]['build'] = $this->relativiserBuildConfig($service['build'], $prefixe, $racine);
+            }
+
+            if (array_key_exists('env_file', $service)) {
+                $document['services'][$nom]['env_file'] = $this->relativiserEnvFileConfig($service['env_file'], $prefixe, $racine);
+            }
+        }
+
+        return $document;
+    }
+
+    private function relativiserBuildConfig(mixed $build, string $prefixe, string $racine): mixed
+    {
+        if (is_string($build)) {
+            return $this->relativiserCheminConfig($build, $prefixe, $racine);
+        }
+
+        if (! is_array($build) || array_is_list($build)) {
+            return $build;
+        }
+
+        foreach (['context', 'dockerfile'] as $cle) {
+            if (isset($build[$cle])) {
+                $build[$cle] = $this->relativiserCheminConfig($build[$cle], $prefixe, $racine);
+            }
+        }
+
+        return $build;
+    }
+
+    private function relativiserEnvFileConfig(mixed $fichiers, string $prefixe, string $racine): mixed
+    {
+        if (! is_array($fichiers)) {
+            return $this->relativiserCheminConfig($fichiers, $prefixe, $racine);
+        }
+
+        if (! array_is_list($fichiers)) {
+            return $fichiers;
+        }
+
+        foreach ($fichiers as $index => $fichier) {
+            if (is_string($fichier)) {
+                $fichiers[$index] = $this->relativiserCheminConfig($fichier, $prefixe, $racine);
+
+                continue;
+            }
+
+            if (is_array($fichier) && isset($fichier['path'])) {
+                $fichiers[$index]['path'] = $this->relativiserCheminConfig($fichier['path'], $prefixe, $racine);
+            }
+        }
+
+        return $fichiers;
+    }
+
+    private function relativiserCheminConfig(mixed $chemin, string $prefixe, string $racine): mixed
+    {
+        if (! is_string($chemin)) {
+            return $chemin;
+        }
+
+        if ($chemin === $racine) {
+            return '.';
+        }
+
+        if (str_starts_with($chemin, $prefixe)) {
+            $relatif = substr($chemin, strlen($prefixe));
+
+            return $relatif === '' ? '.' : $relatif;
+        }
+
+        return $chemin;
+    }
+
+    private function echouerSiComposeRate(mixed $resultat, string $message): void
+    {
+        if (! $resultat->failed()) {
+            return;
+        }
+
+        $sortie = trim($resultat->errorOutput().' '.$resultat->output());
+
+        if (str_contains($sortie, 'not found') || $resultat->exitCode() === 127) {
+            throw new LancementEchoue('Docker Compose est introuvable. Installez Docker pour lancer une copie.');
+        }
+
+        throw new LancementEchoue($message);
     }
 
     public function verifierNomCopie(string $copie): void
