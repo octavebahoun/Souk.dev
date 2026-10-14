@@ -10,22 +10,96 @@ use App\Moteur\LimitesTaille;
 use App\Moteur\PublicationDepot;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class AppliController extends Controller
 {
-    private const CATEGORIES = [
-        'commerce', 'gestion', 'education', 'sante', 'finance',
-        'association', 'restauration', 'autre',
-    ];
+    public function index(Request $request): JsonResource
+    {
+        $request->validate([
+            'q' => ['sometimes', 'string', 'max:100'],
+            'gratuit' => ['sometimes'],
+            'techno' => ['sometimes', 'string', Rule::in(Appli::TECHNOS)],
+            'securite' => ['sometimes'],
+            'categorie' => ['sometimes', Rule::in(Appli::CATEGORIES)],
+            'pays' => ['sometimes', 'string', 'size:2', 'regex:/^[A-Z]{2}$/'],
+            'prix_max' => ['sometimes', 'integer', 'min:0'],
+            'type_prix' => ['sometimes', Rule::in(['mensuel', 'unique'])],
+            'tri' => ['sometimes', 'in:recent,prix_croissant,prix_decroissant'],
+            'per_page' => ['sometimes', 'integer', 'min:1', 'max:50'],
+        ]);
 
-    private const TECHNOS = [
-        'laravel', 'symfony', 'php', 'node', 'express', 'nestjs', 'nextjs',
-        'react', 'vue', 'angular', 'svelte', 'django', 'flask', 'fastapi',
-        'spring', 'dotnet', 'go', 'postgresql', 'mysql', 'mongodb', 'redis', 'autre',
-    ];
+        $applis = Appli::query()
+            ->with('auteur')
+            ->when($request->filled('q'), function ($requete) use ($request): void {
+                $terme = '%'.$request->string('q')->toString().'%';
+                $requete->where(function ($recherche) use ($terme): void {
+                    $recherche->where('nom', 'like', $terme)
+                        ->orWhere('description', 'like', $terme);
+                });
+            })
+            ->when($request->has('gratuit'), fn ($requete) => $requete->where(
+                'prix',
+                $request->boolean('gratuit') ? '=' : '>',
+                0,
+            ))
+            ->when($request->filled('techno'), fn ($requete) => $requete->whereJsonContains(
+                'stack',
+                $request->string('techno')->toString(),
+            ))
+            ->when($request->boolean('securite'), fn ($requete) => $requete->where('securite_statut', 'verifie'))
+            ->when($request->filled('categorie'), fn ($requete) => $requete->where(
+                'categorie',
+                $request->string('categorie')->toString(),
+            ))
+            ->when($request->filled('pays') && Schema::hasColumn('users', 'pays'), function ($requete) use ($request): void {
+                $requete->whereHas(
+                    'auteur',
+                    fn ($auteur) => $auteur->where('pays', $request->string('pays')->toString()),
+                );
+            })
+            ->when($request->filled('prix_max'), fn ($requete) => $requete->where(
+                'prix',
+                '<=',
+                $request->integer('prix_max'),
+            ))
+            ->when($request->filled('type_prix'), fn ($requete) => $requete->where(
+                'type_prix',
+                $request->string('type_prix')->toString(),
+            ))
+            ->when(
+                $request->input('tri') === 'prix_croissant',
+                fn ($requete) => $requete->orderBy('prix')->orderByDesc('id'),
+            )
+            ->when(
+                $request->input('tri') === 'prix_decroissant',
+                fn ($requete) => $requete->orderByDesc('prix')->orderByDesc('id'),
+            )
+            ->when(
+                ! in_array($request->input('tri'), ['prix_croissant', 'prix_decroissant'], true),
+                fn ($requete) => $requete->latest(),
+            )
+            ->paginate($request->integer('per_page', 20))
+            ->through(fn (Appli $appli) => $appli->versApi());
+
+        return JsonResource::collection($applis);
+    }
+
+    public function show(Request $request, Appli $appli): JsonResponse
+    {
+        $appli->compterVue($request);
+
+        return response()->json($appli->fresh()->versApi());
+    }
+
+    public function categories(): JsonResponse
+    {
+        return response()->json(Appli::CATEGORIES);
+    }
 
     public function store(Request $request, PublicationDepot $depot): JsonResponse
     {
@@ -75,14 +149,14 @@ class AppliController extends Controller
         $donnees = $request->validate([
             'nom' => ['required', 'string', 'max:100'],
             'description' => ['required', 'string', 'max:1000'],
-            'categorie' => ['required', Rule::in(self::CATEGORIES)],
+            'categorie' => ['required', Rule::in(Appli::CATEGORIES)],
             'depot_url' => ['required', 'string', 'url', 'max:500'],
             'demo_url' => ['required', 'string', 'url', 'max:500'],
             'prix' => ['required', 'integer', 'min:0'],
             'type_prix' => ['required', Rule::in(['mensuel', 'unique'])],
             'taille' => ['required', Rule::in(['petite', 'moyenne', 'grande'])],
             'stack' => ['required', 'array', 'min:1', 'max:8'],
-            'stack.*' => ['string', Rule::in(self::TECHNOS)],
+            'stack.*' => ['string', Rule::in(Appli::TECHNOS)],
             'captures' => ['required', 'array', 'min:1', 'max:5'],
             'captures.*' => ['file', 'mimes:png,jpeg,jpg,webp', 'max:5120'],
         ]);

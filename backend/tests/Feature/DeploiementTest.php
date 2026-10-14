@@ -385,6 +385,10 @@ class DeploiementTest extends TestCase
         ]);
 
         Broadcast::purge('reverb');
+
+        // Les canaux sont enregistrés sur le driver au boot (null en test).
+        // Après le basculement vers Reverb, il faut les recharger sur ce driver.
+        require base_path('routes/channels.php');
     }
 
     /**

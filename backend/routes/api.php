@@ -6,6 +6,10 @@ use App\Http\Controllers\MissionController;
 use App\Http\Controllers\MissionMessageController;
 use Illuminate\Support\Facades\Route;
 
+Route::get('/apps', [AppliController::class, 'index']);
+Route::get('/apps/{appli}', [AppliController::class, 'show']);
+Route::get('/categories', [AppliController::class, 'categories']);
+
 // « auth » passera à « auth:sanctum » quand Sanctum de Wasfade sera sur main.
 Route::middleware('auth')->group(function () {
     Route::post('/apps', [AppliController::class, 'store']);
