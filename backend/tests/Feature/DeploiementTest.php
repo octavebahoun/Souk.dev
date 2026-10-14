@@ -11,6 +11,9 @@ use App\Moteur\CopieLocale;
 use App\Moteur\Exceptions\DepotInvalide;
 use App\Moteur\LanceurCompose;
 use App\Moteur\MoteurDeploiement;
+use GuzzleHttp\Handler\MockHandler;
+use GuzzleHttp\HandlerStack;
+use GuzzleHttp\Psr7\Response;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Cache;
@@ -98,6 +101,60 @@ class DeploiementTest extends TestCase
         $this->assertTrue($autorisation($client, (string) $deploiement->id));
         $this->assertFalse($autorisation($autre, (string) $deploiement->id));
         $this->assertFalse($autorisation($client, '999999'));
+    }
+
+    public function test_le_proprietaire_peut_s_abonner_au_canal_reverb(): void
+    {
+        $this->configurerReverb();
+        $client = User::factory()->create();
+        $deploiement = $this->deploiement($client);
+
+        $this->actingAs($client)
+            ->postJson('/broadcasting/auth', [
+                'channel_name' => 'private-deploiement.'.$deploiement->id,
+                'socket_id' => '1234.5678',
+            ])
+            ->assertOk()
+            ->assertJsonStructure(['auth']);
+    }
+
+    public function test_un_autre_compte_ne_peut_pas_s_abonner_au_canal_reverb(): void
+    {
+        $this->configurerReverb();
+        $client = User::factory()->create();
+        $autre = User::factory()->create();
+        $deploiement = $this->deploiement($client);
+
+        $this->actingAs($autre)
+            ->postJson('/broadcasting/auth', [
+                'channel_name' => 'private-deploiement.'.$deploiement->id,
+                'socket_id' => '1234.5678',
+            ])
+            ->assertForbidden();
+    }
+
+    public function test_un_changement_d_etat_est_pousse_vers_reverb(): void
+    {
+        $http = new MockHandler([
+            new Response(200, [], '{}'),
+        ]);
+        $this->configurerReverb($http);
+        $deploiement = $this->deploiement(User::factory()->create());
+
+        $deploiement->changerEtat('en_ligne', url: 'http://d1.localhost');
+
+        $requete = $http->getLastRequest();
+        $this->assertNotNull($requete);
+        $this->assertStringContainsString('/apps/soukdev/events', (string) $requete->getUri());
+
+        $corps = json_decode((string) $requete->getBody(), true);
+        $this->assertSame('deploiement.etat', $corps['name']);
+        $this->assertSame('private-deploiement.'.$deploiement->id, $corps['channel']);
+
+        $payload = json_decode($corps['data'], true);
+        $this->assertSame('en_ligne', $payload['etat']);
+        $this->assertSame('http://d1.localhost', $payload['url']);
+        $this->assertSame($deploiement->id, $payload['id']);
     }
 
     public function test_la_liste_ne_montre_que_mes_copies_du_type_demande(): void
@@ -300,6 +357,34 @@ class DeploiementTest extends TestCase
             ->assertNoContent();
 
         $this->assertSame('arrete', $deploiement->refresh()->etat);
+    }
+
+    private function configurerReverb(?MockHandler $http = null): void
+    {
+        $client = [];
+
+        if ($http instanceof MockHandler) {
+            $client['handler'] = HandlerStack::create($http);
+        }
+
+        config([
+            'broadcasting.default' => 'reverb',
+            'broadcasting.connections.reverb' => [
+                'driver' => 'reverb',
+                'key' => 'valeur-de-test',
+                'secret' => 'valeur-de-test',
+                'app_id' => 'soukdev',
+                'options' => [
+                    'host' => 'localhost',
+                    'port' => 8080,
+                    'scheme' => 'http',
+                    'useTLS' => false,
+                ],
+                'client_options' => $client,
+            ],
+        ]);
+
+        Broadcast::purge('reverb');
     }
 
     /**
