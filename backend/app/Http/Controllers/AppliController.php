@@ -56,6 +56,24 @@ class AppliController extends Controller
         return response()->json($appli->fresh()->versApi(), 201);
     }
 
+    public function verification(Request $request, PublicationDepot $depot): JsonResponse
+    {
+        $donnees = $request->validate([
+            'depot_url' => ['required', 'string', 'url', 'max:500'],
+        ]);
+
+        $manifeste = $this->manifeste($donnees['depot_url'], $depot);
+
+        return response()->json([
+            'service_web' => [
+                'nom' => $manifeste['service_web']['nom'],
+                'port' => $manifeste['service_web']['port'],
+            ],
+            'backend' => $manifeste['backend'],
+            'variables_client' => $this->variablesClient($manifeste),
+        ]);
+    }
+
     /**
      * @return array{
      *     nom: string,
