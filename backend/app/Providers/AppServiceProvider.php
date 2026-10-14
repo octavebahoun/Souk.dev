@@ -14,6 +14,7 @@ use App\Soukdev\SchemaValidator;
 use App\Soukdev\SecretGenerator;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
@@ -57,6 +58,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        JsonResource::withoutWrapping();
+
         RateLimiter::for('deploiements', function (Request $request) {
             return Limit::perHour(3)->by('deploiements:'.($request->user()?->id ?? $request->ip()));
         });

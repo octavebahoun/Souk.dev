@@ -7,6 +7,9 @@ use Illuminate\Support\Facades\Process;
 
 class LanceurCompose
 {
+    /** Fichiers Compose écrits par la plateforme, jamais repris du dépôt du dev. */
+    public const FICHIERS_RESERVES = ['docker-compose.soukdev.yml', 'docker-compose.backend.yml'];
+
     public function verifier(string $repertoire, string $nomService): string
     {
         $compose = $repertoire.DIRECTORY_SEPARATOR.'docker-compose.yml';

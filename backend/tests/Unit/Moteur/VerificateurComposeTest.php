@@ -4,6 +4,7 @@ namespace Tests\Unit\Moteur;
 
 use App\Moteur\Exceptions\LancementEchoue;
 use App\Moteur\VerificateurCompose;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 class VerificateurComposeTest extends TestCase
@@ -164,5 +165,64 @@ services:
     image: &img nginx
     privileged: *img
 YAML);
+    }
+
+    /**
+     * @return array<string, array{0: string, 1: string}>
+     */
+    public static function composeDangereux(): array
+    {
+        return [
+            'clé entre guillemets' => ["services:\n  web:\n    image: nginx\n    \"privileged\": true\n", 'privileged'],
+            'échappement dans une clé' => ["services:\n  web:\n    image: nginx\n    \"\\x70rivileged\": true\n", 'échappement'],
+            'cap_add' => ["services:\n  web:\n    image: nginx\n    cap_add:\n      - SYS_ADMIN\n", 'cap_add'],
+            'devices' => ["services:\n  web:\n    image: nginx\n    devices:\n      - /dev/sda:/dev/sda\n", 'devices'],
+            'pid host' => ["services:\n  web:\n    image: nginx\n    pid: host\n", 'pid'],
+            'container_name' => ["services:\n  web:\n    image: nginx\n    container_name: plateforme\n", 'container_name'],
+            'volumes_from' => ["services:\n  web:\n    image: nginx\n    volumes_from:\n      - autre\n", 'volumes_from'],
+            'réseau d\'un autre conteneur' => ["services:\n  web:\n    image: nginx\n    network_mode: container:soukdev-db\n", 'network_mode'],
+            'build hors du dépôt' => ["services:\n  web:\n    build: /\n", 'hors du dépôt'],
+            'build remonte au parent' => ["services:\n  web:\n    build:\n      context: ../..\n", 'hors du dépôt'],
+            'dockerfile hors du dépôt' => ["services:\n  web:\n    build:\n      context: .\n      dockerfile: /etc/Dockerfile\n", 'hors du dépôt'],
+            'build.network' => ["services:\n  web:\n    build:\n      context: .\n      network: host\n", 'build.network'],
+            'env_file du serveur' => ["services:\n  web:\n    image: nginx\n    env_file: /etc/environment\n", 'env_file'],
+            'variable dans un volume' => ["services:\n  web:\n    image: nginx\n    volumes:\n      - \${SOURCE}:/data\n", 'variable'],
+            'secrets' => ["services:\n  web:\n    image: nginx\nsecrets:\n  cle:\n    file: /etc/shadow\n", 'secrets'],
+            'volume externe' => ["services:\n  web:\n    image: nginx\nvolumes:\n  data:\n    external: true\n", 'externe'],
+            'volume nommé' => ["services:\n  web:\n    image: nginx\nvolumes:\n  data:\n    name: soukdev_db\n", 'name'],
+            'réseau externe' => ["services:\n  web:\n    image: nginx\nnetworks:\n  plateforme:\n    external: true\n", 'externe'],
+        ];
+    }
+
+    #[DataProvider('composeDangereux')]
+    public function test_refuse_les_reglages_qui_sortent_de_la_copie(string $yaml, string $message): void
+    {
+        $this->expectException(LancementEchoue::class);
+        $this->expectExceptionMessage($message);
+
+        $this->verificateur->verifier($yaml);
+    }
+
+    public function test_accepte_un_build_et_un_env_file_dans_le_depot(): void
+    {
+        $this->verificateur->verifier(<<<'YAML'
+services:
+  web:
+    build:
+      context: ./front
+      dockerfile: Dockerfile
+      args:
+        NODE_ENV: production
+    env_file:
+      - .env
+    environment:
+      DB_PASSWORD: ${DB_PASSWORD}
+    x-note: interne
+networks:
+  interne:
+    driver: bridge
+YAML);
+
+        $this->expectNotToPerformAssertions();
     }
 }
