@@ -76,6 +76,14 @@ class BackendIntegreTest extends TestCase
         Process::fake(function (PendingProcess $process) use (&$coupe) {
             $commande = $process->command;
 
+            if (in_array('config', $commande, true)) {
+                return Process::result(output: json_encode([
+                    'services' => [
+                        'front' => ['image' => 'nginx:alpine'],
+                    ],
+                ], JSON_THROW_ON_ERROR));
+            }
+
             if (in_array('up', $commande, true)) {
                 return Process::result();
             }

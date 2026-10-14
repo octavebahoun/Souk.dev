@@ -32,3 +32,4 @@ Mis à jour au fil du projet.
 | 2026-10-09 | octave | Réputation : bilan d'un dev construit depuis les missions terminées |
 | 2026-10-10 | Claude Code | Moteur : relecture de sécurité du docker-compose.yml (liste de réglages autorisés, build et env_file dans le dépôt, réseaux et volumes externes, variables, clés entre guillemets) et suppression des fichiers Compose réservés venus du dépôt |
 | 2026-10-12 | Claude Code | Planning : répartition des tâches de la semaine 2 (SEMAINE_2.md) d'après l'état de main et des branches |
+| 2026-10-14 | Cursor (Grok) | Moteur : docker compose config --format json avant up (filet VerificateurCompose) |

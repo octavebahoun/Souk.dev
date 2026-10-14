@@ -321,6 +321,15 @@ YAML);
                 return Process::result(output: "a1b2c3d4e5f67890abcd1234\n");
             }
 
+            if (in_array('config', $commande, true)) {
+                return Process::result(output: json_encode([
+                    'name' => 'cobaye-test',
+                    'services' => [
+                        'front' => ['image' => 'nginx:alpine'],
+                    ],
+                ], JSON_THROW_ON_ERROR));
+            }
+
             if (in_array('down', $commande, true)) {
                 $arretee = true;
             }
