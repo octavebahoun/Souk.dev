@@ -98,9 +98,9 @@ class DeploiementTest extends TestCase
         $autorisation = Broadcast::getChannels()->get('deploiement.{id}');
 
         $this->assertIsCallable($autorisation);
-        $this->assertTrue($autorisation($client, (string) $deploiement->id));
-        $this->assertFalse($autorisation($autre, (string) $deploiement->id));
-        $this->assertFalse($autorisation($client, '999999'));
+        $this->assertTrue((bool) $autorisation($client, (string) $deploiement->id));
+        $this->assertFalse((bool) $autorisation($autre, (string) $deploiement->id));
+        $this->assertFalse((bool) $autorisation($client, '999999'));
     }
 
     public function test_le_proprietaire_peut_s_abonner_au_canal_reverb(): void
@@ -109,8 +109,10 @@ class DeploiementTest extends TestCase
         $client = User::factory()->create();
         $deploiement = $this->deploiement($client);
 
+        $this->assertTrue(Broadcast::getChannels()->has('deploiement.{id}'));
+
         $this->actingAs($client)
-            ->postJson('/broadcasting/auth', [
+            ->post('/broadcasting/auth', [
                 'channel_name' => 'private-deploiement.'.$deploiement->id,
                 'socket_id' => '1234.5678',
             ])
@@ -126,7 +128,7 @@ class DeploiementTest extends TestCase
         $deploiement = $this->deploiement($client);
 
         $this->actingAs($autre)
-            ->postJson('/broadcasting/auth', [
+            ->post('/broadcasting/auth', [
                 'channel_name' => 'private-deploiement.'.$deploiement->id,
                 'socket_id' => '1234.5678',
             ])
@@ -367,6 +369,8 @@ class DeploiementTest extends TestCase
             $client['handler'] = HandlerStack::create($http);
         }
 
+        $canaux = Broadcast::getChannels();
+
         config([
             'broadcasting.default' => 'reverb',
             'broadcasting.connections.reverb' => [
@@ -384,11 +388,21 @@ class DeploiementTest extends TestCase
             ],
         ]);
 
-        Broadcast::purge('reverb');
+        // phpunit.xml met BROADCAST_CONNECTION=null ; la CI copie .env.example
+        // (reverb). Dans les deux cas les canaux sont sur le driver du boot.
+        // forgetDrivers() jette cette instance : on recopie les callbacks.
+        Broadcast::forgetDrivers();
+        Broadcast::setDefaultDriver('reverb');
 
-        // Les canaux sont enregistrés sur le driver au boot (null en test).
-        // Après le basculement vers Reverb, il faut les recharger sur ce driver.
-        require base_path('routes/channels.php');
+        if ($canaux->isEmpty()) {
+            require base_path('routes/channels.php');
+
+            return;
+        }
+
+        foreach ($canaux as $nom => $callback) {
+            Broadcast::channel($nom, $callback);
+        }
     }
 
     /**

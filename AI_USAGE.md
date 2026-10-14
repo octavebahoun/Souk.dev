@@ -35,3 +35,4 @@ Mis à jour au fil du projet.
 | 2026-10-10 | Cursor (Grok) | Moteur : diffusion Reverb des états de déploiement (laravel/reverb, canal privé deploiement.{id}) |
 | 2026-10-14 | Cursor (Grok) | Moteur : corriger l'auth Reverb en test (canaux rechargés après bascule de driver) et publier config/broadcasting.php |
 | 2026-10-14 | Cursor (Grok) | Store : GET /apps (filtres, pagination), GET /apps/{id} (vue unique par jour), GET /categories |
+| 2026-10-14 | Cursor (Grok) | Moteur : auth Reverb du propriétaire (canaux recopiés après bascule de driver, phpunit force l'env) |
