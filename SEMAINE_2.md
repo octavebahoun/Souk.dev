@@ -1,28 +1,64 @@
 # Semaine 2 — du 13 au 19 octobre
 
-En préparation : les tâches de chacun seront ajoutées après le bilan de la semaine 1.
+Priorité : le fil de la démo doit marcher de bout en bout (bug posté, correctif accepté, appli publiée, déployée, mission demandée). Une PR = une tâche, petite.
 
 ## Oktav — missions, puis les ajouts hors MVP
 
 Branche `oktav/missions`, en dehors du MVP : je ne touche pas aux branches des autres.
 
-- Migration et modèle `Mission` : client, auteur, `app_id` (vide pour un recrutement direct), message, budget, délai, statut, note.
-- `POST /apps/{id}/missions` (personnaliser une appli) et `POST /devs/{username}/missions` (recruter un dev).
-- `GET /missions` et `GET /missions/{id}`, réservés au client et à l'auteur.
-- Fil privé : `GET` et `POST /missions/{id}/messages`.
-- `POST /missions/{id}/note` : le client note l'auteur (1 à 5) une seule fois, la mission passe à `terminee`.
-- Ensuite, dans l'ordre : réputation, Souk Score, tableau de bord, recherche de devs, Souk AI.
+Fait : lecture des missions, fil privé, note, calcul de la réputation et du Souk Score.
+
+- Créer une mission : `POST /devs/{username}/missions` dès que la branche de Wasfade est sur `main` (Sanctum et `username`), puis `POST /apps/{id}/missions` quand le Store de Mourchid existe.
+- Brancher la réputation et le Souk Score sur `GET /me` et `GET /devs/{username}` (aujourd'hui des zéros dans `ProfilCalcule`).
+- Ensuite, dans l'ordre : recherche de devs (`GET /devs`), tableau de bord, Souk AI.
 
 **Terminé quand** : un client demande une mission (sur une appli ou directement à un dev), échange en privé avec l'auteur, puis la termine en le notant ; un autre compte reçoit `403`.
 
-## Mourchid — moteur branché sur la plateforme
+## Wasfade — correctifs, profil public, événements
 
-- Brancher le moteur sur l'API : file d'attente, états du déploiement (`en_file` → `construction` → `demarrage` → `en_ligne` ou `echec`), événements Reverb.
-- Arrêter une copie (état `arrete`), et limiter la mémoire et le CPU de chaque copie selon sa `taille` (petite : 512 Mo et 0,5 cœur ; moyenne : 1 Go et 1 cœur ; grande : 2 Go et 2 cœurs).
-- Mesurer la mémoire d'une appli après sa publication : la lancer quelques minutes, relever son pic avec `docker stats`, remplir le champ `mesure` avec la formule recommandée.
-- Backend intégré : appliquer les `migrations` déclarées dans `soukdev.json`.
+Fait (branche `wasfade`) : Sanctum, connexion GitHub, lien magique, discussions, messages, canaux, Reverb.
+
+- D'abord : ouvrir la PR de `wasfade` vers `main`. Les Missions en dépendent.
+- Correctifs : `POST` et `GET /discussions/{id}/correctifs`, `POST /correctifs/{id}/accepter`. Auteur de la discussion seulement, un seul correctif accepté, la discussion passe à `resolue`. Événements Reverb `correctif.propose` et `correctif.accepte`.
+- Profil public : `GET /devs/{username}`.
+- `GET /technos`.
+- Événements : `GET` et `POST /events`, `GET`, `PATCH` et `DELETE /events/{id}`, inscription, participants et avis (règles dans `DECISIONS.md`, section Événements, et canaux dans `REVERB.md`).
+
+**Terminé quand** : un dev propose un correctif, l'auteur de la discussion l'accepte et les autres restent visibles ; un dev crée un événement, d'autres s'y inscrivent puis laissent un avis après la date.
+
+## Mourchid — Publier et Store
+
+Fait : moteur branché sur l'API (file d'attente, états, Reverb), arrêt d'une copie, limites par `taille`, mesure de la mémoire, backend intégré.
+
+- Juste avant `up`, vérifier la configuration finale avec `docker compose config --format json` (les trois fichiers réunis) et refuser ce que `VerificateurCompose` refuse. C'est un filet en plus de la lecture du YAML.
+- Store : `GET /apps` (filtres et pagination), `GET /apps/{id}`, `GET /categories`.
+- Publier : `POST /apps/verification`, `PATCH` et `DELETE /apps/{id}`, `POST /apps/{id}/captures`.
+- Copie de test : `POST /discussions/{id}/copie-test` (3 par heure), état diffusé par `copie_test.etat`.
+- Après les correctifs de Wasfade : `POST /correctifs/{id}/deploiement`.
+
+**Terminé quand** : une appli publiée apparaît dans le Store avec sa fiche, un client la déploie en un clic, et l'auteur d'une discussion lance une copie de test.
+
+## Hope — les écrans du fil de la démo
+
+Rien n'est encore sur `main` côté front. On suit le fil de la démo, dans l'ordre, sur la fausse API (`npm run prism`).
+
+- Connexion : GitHub pour un dev, lien magique pour un client.
+- Échange : fil des discussions, création d'une discussion, page d'une discussion (démo dans son cadre isolé, messages, correctifs, accepter).
+- Publier une appli (avec le choix de la `taille`), puis le Store et la fiche d'une appli.
+- Déployer en un clic avec le suivi des états, puis « Mes copies ».
+- Missions : demander, fil privé, noter.
+- Ensuite : profil, recherche de devs, tableau de bord, événements, d'après le document du designer.
+
+**Terminé quand** : on rejoue le fil de la démo de bout en bout sur la fausse API.
 
 ## Jean-Baptiste — sécurité avant publication
+
+Reporté de la semaine 1 :
+
+- CI : bloquer une PR qui s'écarte du contrat (`openapi.yaml`).
+- Reverse proxy : un sous-domaine par copie, seul `service_web` exposé.
+
+Semaine 2 :
 
 - Secrets : lancer gitleaks (MIT) sur le dépôt cloné, à la vérification et à la publication. Un secret trouvé : réponse `422`, publication refusée.
 - `docker-compose.yml` dangereux : réutiliser la vérification écrite par Mourchid dans le moteur (semaine 1), et la brancher aussi sur `POST /apps/verification` et `POST /apps`.
@@ -30,4 +66,4 @@ Branche `oktav/missions`, en dehors du MVP : je ne touche pas aux branches des a
 - `POST /apps/{id}/securite` : relance de l'analyse par l'auteur.
 - Avec Hope : le badge vert « Security Checked » ou orange « Problèmes détectés » sur la carte et la fiche d'une appli, et le rapport sur la fiche.
 
-**Terminé quand** : un dépôt contenant un faux secret est refusé, et une appli avec une dépendance vulnérable connue reçoit le badge orange avec son rapport.
+**Terminé quand** : une PR qui s'écarte du contrat est bloquée ; l'appli cobaye répond sur son sous-domaine ; un dépôt contenant un faux secret est refusé, et une appli avec une dépendance vulnérable connue reçoit le badge orange avec son rapport.

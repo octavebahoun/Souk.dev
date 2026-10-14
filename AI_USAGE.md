@@ -18,18 +18,19 @@ Mis à jour au fil du projet.
 | 2026-10-07 | mourchid | Lancement d'une copie isolée : .env conservé et docker compose -p (backend/app/Soukdev) |
 | 2026-10-07 | Cursor (Grok) | Moteur de déploiement : validateur soukdev.json, générateur .env, clone GitHub, commande artisan moteur:lancer |
 | 2026-10-09 | Cursor (Grok) | Moteur : refus d'un docker-compose.yml dangereux (privileged, volume de l'hôte, network_mode host, ports publiés) |
-| 2026-10-09 | Cursor (Grok) | Moteur : soukdev.schema.json rangé dans backend/ |
+| 2026-10-09 | octave | Moteur : soukdev.schema.json rangé dans backend/ |
 | 2026-10-09 | Cursor (Grok) | Moteur : la copie n'est en ligne que si service_web répond |
-| 2026-10-09 | Cursor (Grok) | Moteur : file d'attente, états du déploiement et événement Reverb deploiement.etat |
-| 2026-10-09 | Cursor (Grok) | Moteur : arrêt d'une copie (arrete) et plafonds mémoire/CPU selon la taille |
+| 2026-10-09 | octave | Moteur : file d'attente, états du déploiement et événement Reverb deploiement.etat |
+| 2026-10-09 | octave | Moteur : arrêt d'une copie (arrete) et plafonds mémoire/CPU selon la taille |
 | 2026-10-09 | Claude Code | Missions : lecture (migration, modèle Mission, resources, contrôleur, routes GET /missions et /missions/{id}, tests), code fourni étape par étape |
 | 2026-10-09 | Cursor | Missions : fil de messages privé (migration, modèle, resource, routes, tests) |
-| 2026-10-09 | Cursor | Missions : terminer et noter une mission (route, validation, tests) |
-| 2026-10-09 | Cursor | Réputation : calculs XP, niveau, badges et Souk Score, et leurs tests |
-| 2026-10-09 | Cursor | Réputation : bilan d'un dev construit depuis les missions terminées |
+| 2026-10-09 | mourchid | Missions : terminer et noter une mission (route, validation, tests) |
+| 2026-10-09 | octave | Réputation : calculs XP, niveau, badges et Souk Score, et leurs tests |
+| 2026-10-09 | octave | Réputation : bilan d'un dev construit depuis les missions terminées |
+| 2026-10-10 | octave | Moteur : mesure du pic mémoire après publication et formule recommandée (backend/app/Moteur, job MesurerMemoire) |
+| 2026-10-10 | mourchid | Moteur : backend intégré, application des migrations .sql et injection de SOUKDEV_URL / SOUKDEV_CLE |
+| 2026-10-10 | mourchid | Publication : POST /apps valide le dépôt puis lance demanderMesure() |
 | 2026-10-10 | Cursor | Socle Laravel de Wasfade : PHP 8.4, Sanctum, connexion GitHub, lien magique, discussions, messages et Reverb |
-| 2026-10-10 | Cursor (Grok) | Moteur : mesure du pic mémoire après publication et formule recommandée (backend/app/Moteur, job MesurerMemoire) |
-| 2026-10-10 | Cursor (Grok) | Moteur : backend intégré, application des migrations .sql et injection de SOUKDEV_URL / SOUKDEV_CLE |
-| 2026-10-10 | Cursor (Grok) | Publication : POST /apps valide le dépôt puis lance demanderMesure() |
 | 2026-10-10 | Claude Code | Moteur : relecture de sécurité du docker-compose.yml (liste de réglages autorisés, build et env_file dans le dépôt, réseaux et volumes externes, variables, clés entre guillemets) et suppression des fichiers Compose réservés venus du dépôt |
 | 2026-10-12 | Claude Code | Comptes : lien magique (compte créé à l'ouverture du lien, 3 liens par quart d'heure pour une même adresse, lien utilisable une seule fois même en parallèle) |
+| 2026-10-12 | Claude Code | Planning : répartition des tâches de la semaine 2 (SEMAINE_2.md) d'après l'état de main et des branches |
