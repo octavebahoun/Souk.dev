@@ -12,6 +12,7 @@ Route::get('/categories', [AppliController::class, 'categories']);
 
 // « auth » passera à « auth:sanctum » quand Sanctum de Wasfade sera sur main.
 Route::middleware('auth')->group(function () {
+    Route::post('/apps/verification', [AppliController::class, 'verification']);
     Route::post('/apps', [AppliController::class, 'store']);
     Route::post('/apps/{appli}/deployments', [DeploiementController::class, 'store'])
         ->middleware('throttle:deploiements');
