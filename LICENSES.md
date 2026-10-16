@@ -20,6 +20,17 @@ Versions exactes déjà installées. Les autres lignes attendent leur installati
 | Tailwind CSS | 4.3.3 | MIT |
 | @tailwindcss/vite | 4.3.3 | MIT |
 | Axios | 1.20.0 | MIT |
+| react-router | 8.4.0 | MIT |
+| @remix-run/route-pattern (tiré par react-router) | 0.22.1 | MIT |
+| cookie-es (tiré par react-router) | 3.1.1 | MIT |
+| @tanstack/react-query | 5.104.3 | MIT |
+| @tanstack/query-core (tiré par react-query) | 5.104.3 | MIT |
+| motion | 14.3.0 | MIT |
+| framer-motion (tiré par motion) | 14.3.0 | MIT |
+| motion-dom (tiré par motion) | 14.3.0 | MIT |
+| motion-utils (tiré par motion) | 14.1.1 | MIT |
+| @fontsource/plus-jakarta-sans | 5.3.0 | OFL-1.1 |
+| @fontsource/ibm-plex-mono | 5.3.0 | OFL-1.1 |
 | openapi-typescript | 7.13.0 | MIT |
 | @stoplight/prism-cli | 5.15.11 | Apache 2.0 |
 | PHPUnit | 12.5.38 | BSD-3-Clause |
@@ -38,3 +49,5 @@ Versions exactes déjà installées. Les autres lignes attendent leur installati
 | PostgREST (image postgrest/postgrest) | v12.2.3 | MIT |
 
 `nette/utils` et `nette/schema` (tirés par Laravel) sont en triple licence BSD-3-Clause, GPL-2.0 ou GPL-3.0. On retient BSD-3-Clause. Le front ne contient aucune licence GPL, AGPL ou LGPL.
+
+Les deux polices sont en SIL Open Font License 1.1. Ce n'est ni GPL, ni AGPL, ni LGPL : on peut les embarquer dans le site, on ne peut pas les vendre seules. Elles sont demandées par les maquettes (`design/ecrans/LISEZ-MOI.md`). `npm run check-licenses` ne bloque que GPL, AGPL et LGPL.
