@@ -13,8 +13,8 @@ Versions exactes déjà installées. Les autres lignes attendent leur installati
 | Laravel Reverb | 1.12.0 | MIT |
 | pusher/pusher-php-server | 7.3.0 | MIT |
 | Laravel Echo | pas encore installé | MIT |
-| Laravel Sanctum | pas encore installé | MIT |
-| Laravel Socialite | pas encore installé | MIT |
+| Laravel Sanctum | 4.3.3 | MIT |
+| Laravel Socialite | 5.31.0 | MIT |
 | React et react-dom | 19.3.0 | MIT |
 | Vite | 8.3.3 | MIT |
 | TypeScript | 6.0.3 | Apache 2.0 |

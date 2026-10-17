@@ -225,4 +225,19 @@ YAML);
 
         $this->expectNotToPerformAssertions();
     }
+
+    public function test_refuse_un_document_json_privileged(): void
+    {
+        $this->expectException(LancementEchoue::class);
+        $this->expectExceptionMessage('Le service « web » est privileged.');
+
+        $this->verificateur->verifierDocument([
+            'services' => [
+                'web' => [
+                    'image' => 'nginx',
+                    'privileged' => true,
+                ],
+            ],
+        ]);
+    }
 }

@@ -11,8 +11,10 @@ use App\Moteur\PublicationDepot;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Http\Response;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -148,6 +150,42 @@ class AppliController extends Controller
         ]);
     }
 
+    public function update(Request $request, Appli $appli): JsonResponse
+    {
+        abort_unless($appli->user_id === $request->user()->id, 403);
+
+        $appli->fill($this->donneesModification($request))->save();
+
+        return response()->json($appli->fresh()->versApi());
+    }
+
+    public function destroy(Request $request, Appli $appli): Response
+    {
+        abort_unless($appli->user_id === $request->user()->id, 403);
+
+        Storage::disk('public')->deleteDirectory('captures/'.$appli->id);
+        $appli->delete();
+
+        return response()->noContent();
+    }
+
+    public function captures(Request $request, Appli $appli): JsonResponse
+    {
+        abort_unless($appli->user_id === $request->user()->id, 403);
+
+        $donnees = $request->validate([
+            'captures' => ['required', 'array', 'min:1', 'max:5'],
+            'captures.*' => ['file', 'mimes:png,jpeg,jpg,webp', 'max:5120'],
+        ]);
+
+        Storage::disk('public')->deleteDirectory('captures/'.$appli->id);
+        $appli->forceFill([
+            'captures' => $this->enregistrerCaptures($appli, $donnees['captures']),
+        ])->save();
+
+        return response()->json($appli->fresh()->versApi());
+    }
+
     /**
      * @return array{
      *     nom: string,
@@ -197,6 +235,44 @@ class AppliController extends Controller
             ...$donnees,
             'stack' => $stack,
         ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function donneesModification(Request $request): array
+    {
+        $donnees = $request->validate([
+            'nom' => ['sometimes', 'string', 'max:100'],
+            'description' => ['sometimes', 'string', 'max:1000'],
+            'demo_url' => ['sometimes', 'string', 'url', 'max:500'],
+            'categorie' => ['sometimes', Rule::in(Appli::CATEGORIES)],
+            'prix' => ['sometimes', 'integer', 'min:0'],
+            'type_prix' => ['sometimes', Rule::in(['mensuel', 'unique'])],
+            'taille' => ['sometimes', Rule::in(['petite', 'moyenne', 'grande'])],
+            'stack' => ['sometimes', 'array', 'min:1', 'max:8'],
+            'stack.*' => ['string', Rule::in(Appli::TECHNOS)],
+        ]);
+
+        if (array_key_exists('stack', $donnees)) {
+            $stack = array_values(array_unique($donnees['stack']));
+
+            if (count($stack) !== count($donnees['stack'])) {
+                throw ValidationException::withMessages([
+                    'stack' => 'Chaque techno ne peut apparaître qu\'une fois.',
+                ]);
+            }
+
+            $donnees['stack'] = $stack;
+        }
+
+        if (isset($donnees['taille']) && ! LimitesTaille::connue($donnees['taille'])) {
+            throw ValidationException::withMessages([
+                'taille' => 'La taille doit être petite, moyenne ou grande.',
+            ]);
+        }
+
+        return $donnees;
     }
 
     /**
