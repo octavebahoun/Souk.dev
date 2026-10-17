@@ -28,4 +28,12 @@ enum Techno: string
     case Mongodb = 'mongodb';
     case Redis = 'redis';
     case Autre = 'autre';
+
+    /**
+     * @return list<string>
+     */
+    public static function valeurs(): array
+    {
+        return array_column(self::cases(), 'value');
+    }
 }

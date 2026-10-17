@@ -66,4 +66,12 @@ class Discussion extends Model
     {
         return $this->hasMany(Message::class);
     }
+
+    /**
+     * @return HasMany<Correctif, $this>
+     */
+    public function correctifs(): HasMany
+    {
+        return $this->hasMany(Correctif::class);
+    }
 }

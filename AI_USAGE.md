@@ -35,3 +35,4 @@ Mis à jour au fil du projet.
 | 2026-10-12 | Claude Code | Comptes : lien magique (compte créé à l'ouverture du lien, 3 liens par quart d'heure pour une même adresse, lien utilisable une seule fois même en parallèle) |
 | 2026-10-12 | Claude Code | Planning : répartition des tâches de la semaine 2 (SEMAINE_2.md) d'après l'état de main et des branches |
 | 2026-10-14 | Cursor (Grok) | Publier : POST /apps/verification (contrôle du dépôt sans rien publier) |
+| 2026-10-17 | Cursor | Wasfade : correctifs, profil public, liste des technos et événements |
