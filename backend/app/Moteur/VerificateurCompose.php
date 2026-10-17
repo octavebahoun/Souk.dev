@@ -34,8 +34,14 @@ final class VerificateurCompose
 
     public function verifier(string $yaml): void
     {
-        $document = $this->document($yaml);
+        $this->verifierDocument($this->document($yaml));
+    }
 
+    /**
+     * @param  array<string, mixed>  $document
+     */
+    public function verifierDocument(array $document): void
+    {
         if (array_key_exists('include', $document)) {
             throw new LancementEchoue('docker-compose.yml utilise include et ne peut pas être vérifié.');
         }

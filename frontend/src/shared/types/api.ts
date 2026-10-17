@@ -1111,8 +1111,9 @@ export interface components {
         };
         Deploiement: {
             id: number;
-            app_id: number;
-            /** @description Nom de l'appli copiée */
+            /** @description null pour une copie de test lancée depuis le depot_url d'une discussion, sans appli publiée */
+            app_id: number | null;
+            /** @description Nom de l'appli copiée, pour l'afficher sans la recharger ; sans appli, owner/repo du dépôt */
             app_nom: string;
             /** @description Formule de la copie, figée au déploiement (un changement de taille de l'appli ne la modifie pas) */
             taille: components["schemas"]["Taille"];
