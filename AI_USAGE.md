@@ -33,3 +33,6 @@ Mis à jour au fil du projet.
 | 2026-10-10 | Claude Code | Moteur : relecture de sécurité du docker-compose.yml (liste de réglages autorisés, build et env_file dans le dépôt, réseaux et volumes externes, variables, clés entre guillemets) et suppression des fichiers Compose réservés venus du dépôt |
 | 2026-10-12 | Claude Code | Planning : répartition des tâches de la semaine 2 (SEMAINE_2.md) d'après l'état de main et des branches |
 | 2026-10-14 | Cursor (Grok) | Publier : POST /apps/verification (contrôle du dépôt sans rien publier) |
+| 2026-10-16 | Cursor (Grok 4.7) | Front : jetons @theme, react-router, react-query, motion, polices OFL |
+| 2026-10-17 | Cursor (Grok 4.7) | Front : socle (routeur, layout, QueryClient, CSRF au démarrage) |
+| 2026-10-17 | Cursor (Grok 4.7) | Front : fil des discussions (liste, filtres, création, bandeau Reverb) |
