@@ -361,6 +361,48 @@ class DeploiementTest extends TestCase
         $this->assertSame('arrete', $deploiement->refresh()->etat);
     }
 
+    public function test_une_copie_de_test_sans_appli_clone_le_depot_joint(): void
+    {
+        Event::fake([DeploiementEtat::class]);
+        $deploiement = Deploiement::query()->create([
+            'user_id' => User::factory()->create()->id,
+            'appli_id' => null,
+            'depot_url' => 'https://github.com/wasfade/momo',
+            'type' => 'test',
+            'taille' => 'petite',
+            'etat' => 'en_file',
+            'variables' => [],
+        ]);
+        $copie = new CopieLocale('d'.$deploiement->id, '/tmp/copie', ['service_web' => ['nom' => 'web', 'port' => 80]], [], true);
+
+        $this->mock(MoteurDeploiement::class, function ($mock) use ($copie, $deploiement) {
+            $mock->shouldReceive('depuisGithub')
+                ->once()
+                ->with('https://github.com/wasfade/momo', [], 'd'.$deploiement->id, true)
+                ->andReturn($copie);
+            $mock->shouldReceive('mettreEnLigne')->once()->with($copie, 'petite')->andReturn($copie);
+        });
+
+        app()->call([new LancerDeploiement($deploiement->id), 'handle']);
+
+        $this->assertSame('en_ligne', $deploiement->refresh()->etat);
+        $this->assertSame(['construction', 'demarrage', 'en_ligne'], $this->etatsDiffuses());
+
+        $api = $deploiement->versApi();
+        $this->assertNull($api['app_id']);
+        $this->assertSame('wasfade/momo', $api['app_nom']);
+        $this->assertSame('test', $api['type']);
+    }
+
+    public function test_une_copie_d_appli_garde_le_depot_de_l_appli(): void
+    {
+        $deploiement = $this->deploiement(User::factory()->create());
+        $deploiement->update(['depot_url' => 'https://github.com/autre/depot']);
+
+        $this->assertSame('https://github.com/MourchidFOLARIN/cobaye', $deploiement->depotACloner());
+        $this->assertSame('Cobaye', $deploiement->versApi()['app_nom']);
+    }
+
     private function configurerReverb(?MockHandler $http = null): void
     {
         $client = [];

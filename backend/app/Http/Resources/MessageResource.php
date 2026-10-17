@@ -1,24 +1,30 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Resources;
 
+use App\Models\Message;
+use App\Models\MissionMessage;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-class MessageResource extends JsonResource
+final class MessageResource extends JsonResource
 {
     /**
-     * Transform the resource into an array.
-     *
      * @return array<string, mixed>
      */
     public function toArray(Request $request): array
     {
+        /** @var Message|MissionMessage $message */
+        $message = $this->resource;
+        $message->loadMissing('auteur');
+
         return [
-            'id' => $this->id,
-            'texte' => $this->texte,
-            'auteur' => new DevResource($this->auteur),
-            'cree_le' => $this->created_at->toIso8601String(),
+            'id' => $message->id,
+            'texte' => $message->texte,
+            'auteur' => DevResource::champs($message->auteur),
+            'cree_le' => $message->created_at?->toIso8601String(),
         ];
     }
 }

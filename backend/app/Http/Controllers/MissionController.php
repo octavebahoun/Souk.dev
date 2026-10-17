@@ -2,9 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\Profil;
 use App\Http\Resources\MissionResource;
+use App\Models\Appli;
 use App\Models\Mission;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class MissionController extends Controller
 {
@@ -28,6 +32,23 @@ class MissionController extends Controller
         abort_unless($mission->concerne($request->user()), 403);
 
         return new MissionResource($mission->load(['client', 'auteur']));
+    }
+
+    // POST /devs/{username}/missions : recruter un dev directement, sans appli
+    public function pourDev(Request $request, string $username)
+    {
+        $dev = User::query()
+            ->where('username', $username)
+            ->where('profil', Profil::Dev)
+            ->firstOrFail();
+
+        return $this->creer($request, $dev, null);
+    }
+
+    // POST /apps/{id}/missions : demander une version sur mesure à l'auteur de l'appli
+    public function pourAppli(Request $request, Appli $appli)
+    {
+        return $this->creer($request, $appli->auteur, $appli->id);
     }
 
     // POST /missions/{id}/note : le client termine la mission et note l'auteur, une seule fois
@@ -55,5 +76,35 @@ class MissionController extends Controller
         abort_if($notee === 0, 409);
 
         return new MissionResource($mission->refresh()->load(['client', 'auteur']));
+    }
+
+    private function creer(Request $request, User $auteur, ?int $appId)
+    {
+        $donnees = $request->validate([
+            'message' => ['required', 'string', 'max:5000'],
+            'budget' => ['nullable', 'integer', 'min:0', 'max:4294967295'],
+            'delai' => ['nullable', 'date_format:Y-m-d'],
+        ]);
+
+        if ($auteur->is($request->user())) {
+            throw ValidationException::withMessages([
+                'auteur' => 'Vous ne pouvez pas vous envoyer une mission.',
+            ]);
+        }
+
+        // Client, auteur et appli viennent de la session et de l'URL, jamais du corps de la requête.
+        $mission = Mission::create([
+            'client_id' => $request->user()->id,
+            'auteur_id' => $auteur->id,
+            'app_id' => $appId,
+            'message' => $donnees['message'],
+            'budget' => $donnees['budget'] ?? null,
+            'delai' => $donnees['delai'] ?? null,
+            'statut' => 'en_cours',
+        ]);
+
+        return (new MissionResource($mission->load(['client', 'auteur'])))
+            ->response()
+            ->setStatusCode(201);
     }
 }
