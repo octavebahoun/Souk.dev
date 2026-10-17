@@ -36,3 +36,4 @@ Mis à jour au fil du projet.
 | 2026-10-16 | Cursor (Grok 4.7) | Front : jetons @theme, react-router, react-query, motion, polices OFL |
 | 2026-10-17 | Cursor (Grok 4.7) | Front : socle (routeur, layout, QueryClient, CSRF au démarrage) |
 | 2026-10-17 | Cursor (Grok 4.7) | Front : fil des discussions (liste, filtres, création, bandeau Reverb) |
+| 2026-10-17 | Cursor (Grok 4.7) | Front : page d'une discussion (messages, correctifs, copie, analyse) |
