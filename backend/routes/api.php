@@ -14,6 +14,9 @@ Route::get('/categories', [AppliController::class, 'categories']);
 Route::middleware('auth')->group(function () {
     Route::post('/apps/verification', [AppliController::class, 'verification']);
     Route::post('/apps', [AppliController::class, 'store']);
+    Route::patch('/apps/{appli}', [AppliController::class, 'update']);
+    Route::delete('/apps/{appli}', [AppliController::class, 'destroy']);
+    Route::post('/apps/{appli}/captures', [AppliController::class, 'captures']);
     Route::post('/apps/{appli}/deployments', [DeploiementController::class, 'store'])
         ->middleware('throttle:deploiements');
     Route::get('/deployments', [DeploiementController::class, 'index']);
