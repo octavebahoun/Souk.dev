@@ -30,6 +30,11 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('/deployments/{deploiement}', [DeploiementController::class, 'show']);
     Route::delete('/deployments/{deploiement}', [DeploiementController::class, 'destroy']);
 
+    Route::post('/devs/{username}/missions', [MissionController::class, 'pourDev'])
+        ->middleware('throttle:missions');
+    Route::post('/apps/{appli}/missions', [MissionController::class, 'pourAppli'])
+        ->middleware('throttle:missions');
+
     Route::get('/missions', [MissionController::class, 'index']);
     Route::get('/missions/{mission}', [MissionController::class, 'show']);
     Route::post('/missions/{mission}/note', [MissionController::class, 'note']);
