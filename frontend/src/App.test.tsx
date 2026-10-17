@@ -1,13 +1,42 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { createMemoryRouter, RouterProvider } from 'react-router'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
+import { preparerCsrf } from './app/preparerCsrf'
+import { routes } from './app/router'
+import { client } from './shared/client'
 
-describe('App', () => {
-  it('incrémente le compteur au clic', () => {
+vi.mock('./shared/client', () => ({
+  client: {
+    get: vi.fn().mockResolvedValue({ status: 204 }),
+  },
+}))
+
+describe('socle', () => {
+  beforeEach(() => {
+    vi.mocked(client.get).mockClear()
+  })
+
+  it('affiche l’accueil et demande le cookie CSRF', async () => {
     render(<App />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Count is 0' }))
+    expect(await screen.findByRole('heading', { name: 'Accueil' })).toBeInTheDocument()
+    expect(client.get).toHaveBeenCalledWith('/sanctum/csrf-cookie')
+  })
 
-    expect(screen.getByRole('button', { name: 'Count is 1' })).toBeInTheDocument()
+  it('ne bloque pas l’écran si le cookie CSRF est absent', async () => {
+    vi.mocked(client.get).mockRejectedValueOnce(new Error('absent'))
+
+    await expect(preparerCsrf()).resolves.toBeUndefined()
+  })
+
+  it('marque le lien Store quand on est sur le Store', () => {
+    const router = createMemoryRouter(routes, { initialEntries: ['/echange'] })
+    render(<RouterProvider router={router} />)
+
+    fireEvent.click(screen.getByRole('link', { name: 'Store' }))
+
+    expect(screen.getByRole('heading', { name: 'Store' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Store' })).toHaveAttribute('aria-current', 'page')
   })
 })
