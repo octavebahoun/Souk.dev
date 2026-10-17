@@ -6,9 +6,22 @@ use App\Jobs\MesurerMemoire;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class Appli extends Model
 {
+    public const CATEGORIES = [
+        'commerce', 'gestion', 'education', 'sante', 'finance',
+        'association', 'restauration', 'autre',
+    ];
+
+    public const TECHNOS = [
+        'laravel', 'symfony', 'php', 'node', 'express', 'nestjs', 'nextjs',
+        'react', 'vue', 'angular', 'svelte', 'django', 'flask', 'fastapi',
+        'spring', 'dotnet', 'go', 'postgresql', 'mysql', 'mongodb', 'redis', 'autre',
+    ];
+
     protected $table = 'applis';
 
     protected $fillable = [
@@ -31,6 +44,7 @@ class Appli extends Model
     {
         return [
             'prix' => 'integer',
+            'vues' => 'integer',
             'stack' => 'array',
             'captures' => 'array',
             'variables_client' => 'array',
@@ -50,6 +64,19 @@ class Appli extends Model
     public function deploiements(): HasMany
     {
         return $this->hasMany(Deploiement::class);
+    }
+
+    /**
+     * Un visiteur (compte ou IP) n'est compté qu'une fois par jour sur la fiche.
+     */
+    public function compterVue(Request $request): void
+    {
+        $visiteur = $request->user()?->id ?? $request->ip();
+        $cle = 'appli-vue:'.$this->id.':'.$visiteur.':'.now()->toDateString();
+
+        if (Cache::add($cle, true, now()->endOfDay())) {
+            $this->increment('vues');
+        }
     }
 
     /**
@@ -113,6 +140,7 @@ class Appli extends Model
             'id' => $this->id,
             'nom' => $this->nom,
             'description' => (string) $this->description,
+            'readme' => null,
             'categorie' => (string) $this->categorie,
             'prix' => (int) $this->prix,
             'type_prix' => (string) $this->type_prix,

@@ -17,7 +17,9 @@ return [
                 'scheme' => env('REVERB_SCHEME', 'https'),
                 'useTLS' => env('REVERB_SCHEME', 'https') === 'https',
             ],
-            'client_options' => [],
+            'client_options' => [
+                // Guzzle : handler de test, timeouts…
+            ],
         ],
 
         'log' => [

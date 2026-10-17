@@ -11,10 +11,15 @@ use App\Http\Controllers\MissionController;
 use App\Http\Controllers\MissionMessageController;
 use Illuminate\Support\Facades\Route;
 
+Route::get('/apps', [AppliController::class, 'index']);
+Route::get('/apps/{appli}', [AppliController::class, 'show']);
+Route::get('/categories', [AppliController::class, 'categories']);
+
 Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('/me', [CompteController::class, 'show']);
     Route::patch('/me', [CompteController::class, 'update']);
 
+    Route::post('/apps/verification', [AppliController::class, 'verification']);
     Route::post('/apps', [AppliController::class, 'store']);
     Route::post('/apps/{appli}/deployments', [DeploiementController::class, 'store'])
         ->middleware('throttle:deploiements');

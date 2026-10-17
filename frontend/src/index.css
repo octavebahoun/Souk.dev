@@ -1,4 +1,40 @@
+@import "@fontsource/plus-jakarta-sans/400.css";
+@import "@fontsource/plus-jakarta-sans/500.css";
+@import "@fontsource/plus-jakarta-sans/600.css";
+@import "@fontsource/plus-jakarta-sans/700.css";
+@import "@fontsource/plus-jakarta-sans/800.css";
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/500.css";
 @import "tailwindcss";
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --color-accent: #1f4fe0;
+  --color-accent-hover: #1839a8;
+  --color-ink: #0f172a;
+  --color-muted: #64748b;
+  --color-subtle: #475569;
+  --color-line: #dfe5f1;
+  --color-canvas: #ffffff;
+  --color-warm: #e4e2dd;
+  --color-page: #f4f6fb;
+  --color-nav: #e8eefd;
+  --color-gold: #ffcc00;
+
+  --color-success: #166534;
+  --color-success-bg: #dcfce7;
+  --color-danger: #b91c1c;
+  --color-danger-bg: #fee2e2;
+  --color-warning: #92400e;
+  --color-warning-bg: #fff7ed;
+  --color-online: #16a34a;
+
+  --radius-controle: 0.625rem;
+  --radius-carte: 0.875rem;
+  --spacing-cible: 2.75rem;
+}
 
 :root {
   --text: #6b6375;
