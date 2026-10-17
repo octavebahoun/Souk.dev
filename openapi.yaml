@@ -1786,8 +1786,8 @@ components:
       required: [id, app_id, app_nom, taille, type, etat, url, erreur, cree_le]
       properties:
         id: { type: integer }
-        app_id: { type: integer }
-        app_nom: { type: string, description: Nom de l'appli copiée, pour l'afficher sans la recharger }
+        app_id: { type: [integer, 'null'], description: "null pour une copie de test lancée depuis le depot_url d'une discussion, sans appli publiée" }
+        app_nom: { type: string, description: "Nom de l'appli copiée, pour l'afficher sans la recharger ; sans appli, owner/repo du dépôt" }
         taille:
           description: Formule de la copie, figée au déploiement (un changement de taille de l'appli ne la modifie pas)
           allOf:
