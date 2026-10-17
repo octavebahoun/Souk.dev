@@ -21,11 +21,11 @@
         <env name="APP_ENV" value="testing"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
-        <env name="APP_URL" value="http://localhost:8000"/>
-        <env name="FRONTEND_URL" value="http://localhost:5173"/>
+        <env name="APP_URL" value="http://localhost:8000" force="true"/>
+        <env name="FRONTEND_URL" value="http://localhost:5173" force="true"/>
+        <env name="BROADCAST_CONNECTION" value="null" force="true"/>
         <env name="GITHUB_CLIENT_ID" value="valeur-de-test" force="true"/>
         <env name="GITHUB_CLIENT_SECRET" value="valeur-de-test" force="true"/>
-        <env name="BROADCAST_CONNECTION" value="null" force="true"/>
         <env name="CACHE_STORE" value="array" force="true"/>
         <env name="DB_CONNECTION" value="sqlite" force="true"/>
         <env name="DB_DATABASE" value=":memory:" force="true"/>

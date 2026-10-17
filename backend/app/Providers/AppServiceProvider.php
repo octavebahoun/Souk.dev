@@ -5,8 +5,10 @@ namespace App\Providers;
 use App\Comptes\EmetteurLienMagique;
 use App\Comptes\FrontUrl;
 use App\Models\Discussion;
+use App\Models\Evenement;
 use App\Models\Message;
 use App\Policies\DiscussionPolicy;
+use App\Policies\EvenementPolicy;
 use App\Policies\MessagePolicy;
 use App\Soukdev\ComposeRunner;
 use App\Soukdev\CopyLauncher;
@@ -89,11 +91,16 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perHour(10)->by('missions:'.($request->user()?->id ?? $request->ip()));
         });
 
+        RateLimiter::for('correctifs', function (Request $request) {
+            return Limit::perHour(10)->by('correctifs:'.($request->user()?->id ?: $request->ip()));
+        });
+
         RateLimiter::for('deploiements', function (Request $request) {
             return Limit::perHour(3)->by('deploiements:'.($request->user()?->id ?? $request->ip()));
         });
 
         Gate::policy(Discussion::class, DiscussionPolicy::class);
         Gate::policy(Message::class, MessagePolicy::class);
+        Gate::policy(Evenement::class, EvenementPolicy::class);
     }
 }

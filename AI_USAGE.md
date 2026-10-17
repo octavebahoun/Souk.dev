@@ -39,3 +39,4 @@ Mis à jour au fil du projet.
 | 2026-10-14 | Cursor (Grok) | Moteur : docker compose config --format json avant up (filet VerificateurCompose) |
 | 2026-10-14 | Cursor (Grok) | Publier : PATCH/DELETE /apps/{id} et POST /apps/{id}/captures |
 | 2026-10-14 | Cursor | Moteur : déploiement de type test lancé depuis un depot_url, sans appli publiée (préparation de la copie de test) |
+| 2026-10-17 | Cursor | Wasfade : correctifs, profil public, liste des technos et événements |
