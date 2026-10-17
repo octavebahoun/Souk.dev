@@ -30,7 +30,26 @@ class UserFactory extends Factory
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
+            'profil' => 'dev',
+            'github_lie' => false,
+            'est_admin' => false,
+            'disponible' => false,
         ];
+    }
+
+    public function client(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'profil' => 'client',
+            'github_lie' => false,
+        ]);
+    }
+
+    public function admin(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'est_admin' => true,
+        ]);
     }
 
     /**
