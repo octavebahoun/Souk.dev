@@ -9,3 +9,10 @@ export const client = axios.create({
   xsrfCookieName: 'XSRF-TOKEN',
   xsrfHeaderName: 'X-XSRF-TOKEN',
 })
+
+// Prism sert les chemins du contrat à la racine (/discussions).
+// Laravel les préfixe avec /api. Les routes web (CSRF, connexion) ne passent pas ici.
+export function cheminApi(chemin: string): string {
+  if (apiUrl) return chemin
+  return `/api${chemin}`
+}
