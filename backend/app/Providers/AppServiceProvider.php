@@ -2,6 +2,14 @@
 
 namespace App\Providers;
 
+use App\Comptes\EmetteurLienMagique;
+use App\Comptes\FrontUrl;
+use App\Models\Discussion;
+use App\Models\Evenement;
+use App\Models\Message;
+use App\Policies\DiscussionPolicy;
+use App\Policies\EvenementPolicy;
+use App\Policies\MessagePolicy;
 use App\Soukdev\ComposeRunner;
 use App\Soukdev\CopyLauncher;
 use App\Soukdev\EnvGenerator;
@@ -15,6 +23,7 @@ use App\Soukdev\SecretGenerator;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
@@ -51,6 +60,10 @@ class AppServiceProvider extends ServiceProvider
                 storage_path('app/copies'),
             );
         });
+
+        $this->app->singleton(FrontUrl::class, function () {
+            return new FrontUrl((string) config('app.frontend_url'));
+        });
     }
 
     /**
@@ -60,8 +73,30 @@ class AppServiceProvider extends ServiceProvider
     {
         JsonResource::withoutWrapping();
 
+        RateLimiter::for('discussions', function (Request $request) {
+            return Limit::perHour(10)->by($request->user()?->id ?: $request->ip());
+        });
+
+        // Par adresse IP comme avant, et 3 liens par quart d'heure pour une même adresse email.
+        RateLimiter::for('lien-magique', function (Request $request) {
+            $email = $request->input('email');
+
+            return [
+                Limit::perMinute(60)->by('ip:'.$request->ip()),
+                Limit::perMinutes(15, 3)->by('email:'.(is_string($email) ? EmetteurLienMagique::normaliser($email) : '')),
+            ];
+        });
+
+        RateLimiter::for('correctifs', function (Request $request) {
+            return Limit::perHour(10)->by('correctifs:'.($request->user()?->id ?: $request->ip()));
+        });
+
         RateLimiter::for('deploiements', function (Request $request) {
             return Limit::perHour(3)->by('deploiements:'.($request->user()?->id ?? $request->ip()));
         });
+
+        Gate::policy(Discussion::class, DiscussionPolicy::class);
+        Gate::policy(Message::class, MessagePolicy::class);
+        Gate::policy(Evenement::class, EvenementPolicy::class);
     }
 }
