@@ -40,7 +40,7 @@ class LancerDeploiement implements ShouldQueue
             }
 
             $copie = $moteur->depuisGithub(
-                $deploiement->appli->depot_url,
+                $deploiement->depotACloner(),
                 is_array($deploiement->variables) ? $deploiement->variables : [],
                 'd'.$deploiement->id,
                 true,

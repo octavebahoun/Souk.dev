@@ -34,5 +34,9 @@ Mis à jour au fil du projet.
 | 2026-10-10 | Claude Code | Moteur : relecture de sécurité du docker-compose.yml (liste de réglages autorisés, build et env_file dans le dépôt, réseaux et volumes externes, variables, clés entre guillemets) et suppression des fichiers Compose réservés venus du dépôt |
 | 2026-10-12 | Claude Code | Comptes : lien magique (compte créé à l'ouverture du lien, 3 liens par quart d'heure pour une même adresse, lien utilisable une seule fois même en parallèle) |
 | 2026-10-12 | Claude Code | Planning : répartition des tâches de la semaine 2 (SEMAINE_2.md) d'après l'état de main et des branches |
+| 2026-10-12 | Claude Code | Missions : création (POST /devs/{username}/missions et POST /apps/{id}/missions, 10 par heure, clé étrangère sur app_id) et leurs tests |
 | 2026-10-14 | Cursor (Grok) | Publier : POST /apps/verification (contrôle du dépôt sans rien publier) |
+| 2026-10-14 | Cursor (Grok) | Moteur : docker compose config --format json avant up (filet VerificateurCompose) |
+| 2026-10-14 | Cursor (Grok) | Publier : PATCH/DELETE /apps/{id} et POST /apps/{id}/captures |
+| 2026-10-14 | Cursor | Moteur : déploiement de type test lancé depuis un depot_url, sans appli publiée (préparation de la copie de test) |
 | 2026-10-17 | Cursor | Wasfade : correctifs, profil public, liste des technos et événements |

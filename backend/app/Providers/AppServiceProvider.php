@@ -87,6 +87,10 @@ class AppServiceProvider extends ServiceProvider
             ];
         });
 
+        RateLimiter::for('missions', function (Request $request) {
+            return Limit::perHour(10)->by('missions:'.($request->user()?->id ?? $request->ip()));
+        });
+
         RateLimiter::for('correctifs', function (Request $request) {
             return Limit::perHour(10)->by('correctifs:'.($request->user()?->id ?: $request->ip()));
         });

@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Events\DeploiementEtat;
+use App\Moteur\DepotGithub;
+use App\Moteur\Exceptions\DepotInvalide;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -13,6 +15,7 @@ class Deploiement extends Model
     protected $fillable = [
         'user_id',
         'appli_id',
+        'depot_url',
         'type',
         'taille',
         'etat',
@@ -80,7 +83,17 @@ class Deploiement extends Model
     }
 
     /**
-     * @return array{id: int, app_id: int, app_nom: string, taille: string, type: string, etat: string, url: string|null, erreur: string|null, cree_le: string}
+     * Une copie de test peut partir d'un dépôt joint à une discussion, sans appli publiée.
+     */
+    public function depotACloner(): string
+    {
+        $this->loadMissing('appli');
+
+        return (string) ($this->appli?->depot_url ?? $this->depot_url);
+    }
+
+    /**
+     * @return array{id: int, app_id: int|null, app_nom: string, taille: string, type: string, etat: string, url: string|null, erreur: string|null, cree_le: string}
      */
     public function versApi(): array
     {
@@ -89,7 +102,7 @@ class Deploiement extends Model
         return [
             'id' => $this->id,
             'app_id' => $this->appli_id,
-            'app_nom' => $this->appli->nom,
+            'app_nom' => $this->appli?->nom ?? $this->nomDepot(),
             'taille' => $this->taille,
             'type' => $this->type,
             'etat' => $this->etat,
@@ -97,5 +110,16 @@ class Deploiement extends Model
             'erreur' => $this->erreur,
             'cree_le' => $this->created_at->toIso8601String(),
         ];
+    }
+
+    private function nomDepot(): string
+    {
+        try {
+            $depot = DepotGithub::depuisUrl((string) $this->depot_url);
+
+            return $depot->owner.'/'.$depot->repo;
+        } catch (DepotInvalide) {
+            return (string) $this->depot_url;
+        }
     }
 }
