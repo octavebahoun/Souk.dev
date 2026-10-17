@@ -6,11 +6,15 @@ import { preparerCsrf } from './app/preparerCsrf'
 import { routes } from './app/router'
 import { client } from './shared/client'
 
-vi.mock('./shared/client', () => ({
-  client: {
-    get: vi.fn().mockResolvedValue({ status: 204 }),
-  },
-}))
+vi.mock('./shared/client', async () => {
+  const reel = await vi.importActual<typeof import('./shared/client')>('./shared/client')
+  return {
+    ...reel,
+    client: {
+      get: vi.fn().mockResolvedValue({ status: 204 }),
+    },
+  }
+})
 
 describe('socle', () => {
   beforeEach(() => {
