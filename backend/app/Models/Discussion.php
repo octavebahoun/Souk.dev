@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Discussion extends Model
 {
@@ -57,6 +58,16 @@ class Discussion extends Model
     public function canal(): BelongsTo
     {
         return $this->belongsTo(Canal::class);
+    }
+
+    /**
+     * Dernière copie de test lancée par l'auteur, null s'il n'en a jamais demandé.
+     *
+     * @return HasOne<Deploiement, $this>
+     */
+    public function copieTest(): HasOne
+    {
+        return $this->hasOne(Deploiement::class)->where('type', 'test')->latestOfMany();
     }
 
     /**

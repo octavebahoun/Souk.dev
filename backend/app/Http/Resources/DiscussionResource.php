@@ -30,7 +30,7 @@ final class DiscussionResource extends JsonResource
             'demo_url' => $discussion->demo_url,
             'etiquettes' => array_values($discussion->etiquettes ?? []),
             'bug' => $this->bug($discussion),
-            'copie_test' => null,
+            'copie_test' => $discussion->copieTest?->versApi(),
             'analyse_ia' => null,
             'resolue' => $discussion->resolue,
             'nb_messages' => $discussion->messages_count ?? $discussion->messages()->count(),

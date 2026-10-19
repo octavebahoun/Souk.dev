@@ -36,6 +36,9 @@ return [
 
     'backend_tentatives' => 30,
 
+    // Durée de vie d'une copie de test (en minutes), écrite dans expire_le au lancement.
+    'copie_test_minutes' => 120,
+
     // Durcissement imposé à chaque conteneur (voir App\Moteur\Durcissement).
     // Plafond de processus par formule : bloque une fork bomb sans gêner un serveur web.
     'pids_limit' => [

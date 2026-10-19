@@ -15,6 +15,7 @@ class Deploiement extends Model
     protected $fillable = [
         'user_id',
         'appli_id',
+        'discussion_id',
         'depot_url',
         'type',
         'taille',
@@ -24,6 +25,7 @@ class Deploiement extends Model
         'copie',
         'repertoire',
         'variables',
+        'expire_le',
     ];
 
     protected function casts(): array
@@ -31,13 +33,20 @@ class Deploiement extends Model
         return [
             'user_id' => 'integer',
             'appli_id' => 'integer',
+            'discussion_id' => 'integer',
             'variables' => 'array',
+            'expire_le' => 'datetime',
         ];
     }
 
     public function appli(): BelongsTo
     {
         return $this->belongsTo(Appli::class);
+    }
+
+    public function discussion(): BelongsTo
+    {
+        return $this->belongsTo(Discussion::class);
     }
 
     public function utilisateur(): BelongsTo

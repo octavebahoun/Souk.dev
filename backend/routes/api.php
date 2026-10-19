@@ -3,6 +3,7 @@
 use App\Http\Controllers\AppliController;
 use App\Http\Controllers\CanalController;
 use App\Http\Controllers\CompteController;
+use App\Http\Controllers\CopieTestController;
 use App\Http\Controllers\DeploiementController;
 use App\Http\Controllers\DiscussionController;
 use App\Http\Controllers\EtiquetteController;
@@ -49,6 +50,10 @@ Route::post('/discussions', [DiscussionController::class, 'store'])
 Route::get('/discussions/{discussion}', [DiscussionController::class, 'show']);
 Route::patch('/discussions/{discussion}', [DiscussionController::class, 'update'])->middleware('auth:sanctum');
 Route::delete('/discussions/{discussion}', [DiscussionController::class, 'destroy'])->middleware('auth:sanctum');
+
+// Copie de test : seulement à la demande de l'auteur, dans la limite des 3 déploiements par heure.
+Route::post('/discussions/{discussion}/copie-test', [CopieTestController::class, 'store'])
+    ->middleware(['auth:sanctum', 'throttle:deploiements']);
 
 Route::get('/discussions/{discussion}/messages', [MessageController::class, 'index']);
 Route::post('/discussions/{discussion}/messages', [MessageController::class, 'store'])->middleware('auth:sanctum');
