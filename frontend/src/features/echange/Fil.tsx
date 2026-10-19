@@ -3,12 +3,42 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams, Link } from 'react-router'
 import { EmptyState } from '../../shared/ui/EmptyState'
 import { Modal } from '../../shared/ui/Modal'
-import { listerCanaux, listerDiscussions, listerEtiquettes, type Discussion } from './api'
+import { listerCanaux, listerDiscussions, listerEtiquettes, type Discussion, type Etiquette } from './api'
 import { CarteDiscussion } from './CarteDiscussion'
 import { nomPays } from './texte'
 import { FormulaireDiscussion } from './FormulaireDiscussion'
 import { correspond, ecrireFiltres, filtresActifs, lireFiltres, type FiltresFil } from './filtres'
 import { useBandeau } from './tempsReel'
+
+const puceActive: Record<Etiquette, string> = {
+  bug: 'border-danger bg-danger text-canvas',
+  question: 'border-question bg-question text-canvas',
+  tuto: 'border-success bg-success text-canvas',
+  projet: 'border-projet bg-projet text-canvas',
+  entraide: 'border-nav-texte bg-nav-texte text-canvas',
+}
+
+const puceRepos: Record<Etiquette, string> = {
+  bug: 'border-line bg-canvas text-danger',
+  question: 'border-line bg-canvas text-question',
+  tuto: 'border-line bg-canvas text-success',
+  projet: 'border-line bg-canvas text-projet',
+  entraide: 'border-line bg-canvas text-nav-texte',
+}
+
+const difficulteActive = {
+  facile: 'border-success bg-success text-canvas',
+  moyen: 'border-warning bg-warning text-canvas',
+  difficile: 'border-difficile bg-difficile text-canvas',
+} as const
+
+const difficulteRepos = {
+  facile: 'border-line bg-canvas text-success',
+  moyen: 'border-line bg-canvas text-warning',
+  difficile: 'border-line bg-canvas text-difficile',
+} as const
+
+const libelleDifficulte = { facile: 'Facile', moyen: 'Moyen', difficile: 'Difficile' } as const
 
 function phraseCompte(total: number, filtres: boolean): string {
   const mot = total > 1 ? 'discussions' : 'discussion'
@@ -78,10 +108,10 @@ export function Fil() {
   const etiquettesAffichees = etiquettes.data ?? []
 
   return (
-    <main className="mx-auto flex max-w-[1200px] flex-col gap-6 px-4 py-7 sm:px-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div className="min-w-0 flex-1">
-          <h1 className="m-0 text-[30px] font-bold tracking-tight text-ink">Échange</h1>
+    <main className="mx-auto flex max-w-[1200px] flex-col gap-6 overflow-x-clip px-4 py-7 min-[761px]:px-6">
+      <div className="flex flex-col gap-4 min-[761px]:flex-row min-[761px]:items-end min-[761px]:justify-between">
+        <div className="min-w-0">
+          <h1 className="m-0 text-[30px] leading-[1.2] font-bold tracking-tight text-ink">Échange</h1>
           <p className="m-0 text-muted">
             Posez votre problème avec votre dépôt : d’autres devs le voient, le corrigent et vous proposent leur branche.
           </p>
@@ -89,14 +119,14 @@ export function Fil() {
         <button
           type="button"
           onClick={() => setOuverte(true)}
-          className="inline-flex min-h-cible items-center gap-2 rounded-controle bg-accent px-5 font-semibold text-canvas"
+          className="rebond inline-flex min-h-cible w-full items-center justify-center gap-2 rounded-controle bg-accent px-5 font-semibold text-canvas hover:bg-accent-hover min-[761px]:w-auto"
         >
           <span aria-hidden="true">+</span>
           Nouvelle discussion
         </button>
       </div>
 
-      <div className="flex flex-col items-start gap-6 md:flex-row">
+      <div className="flex flex-col items-start gap-6 min-[761px]:flex-row">
         <Canaux
           generaux={generaux}
           parPays={parPays}
@@ -122,22 +152,17 @@ export function Fil() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div role="group" aria-label="Étiquettes" className="flex flex-wrap gap-2">
                 {etiquettesAffichees.map((etiquette) => (
-                  <button
+                  <Puce
                     key={etiquette}
-                    type="button"
-                    aria-pressed={filtres.etiquette === etiquette}
+                    presse={filtres.etiquette === etiquette}
                     onClick={() => changer({ etiquette: filtres.etiquette === etiquette ? undefined : etiquette })}
-                    className={`inline-flex min-h-cible items-center rounded-full border px-3.5 text-sm font-semibold ${
-                      filtres.etiquette === etiquette
-                        ? 'border-accent bg-accent text-canvas'
-                        : 'border-line bg-canvas text-ink'
-                    }`}
+                    classes={filtres.etiquette === etiquette ? puceActive[etiquette] : puceRepos[etiquette]}
                   >
                     {etiquette}
-                  </button>
+                  </Puce>
                 ))}
               </div>
-              <div role="group" aria-label="Statut" className="inline-flex rounded-controle bg-[#E9EEF7] p-0.5">
+              <div role="group" aria-label="Statut" className="inline-flex rounded-controle bg-statut p-[3px]">
                 <BoutonStatut
                   libelle="Toutes"
                   presse={!filtres.statut}
@@ -156,25 +181,21 @@ export function Fil() {
               </div>
             </div>
             <div role="group" aria-labelledby="t-difficulte" className="flex flex-wrap items-center gap-2">
-              <span id="t-difficulte" className="text-sm font-semibold text-ink">
+              <span id="t-difficulte" className="mr-1 text-sm font-semibold text-nav-texte">
                 Difficulté <span className="font-medium text-muted">(bugs)</span>
               </span>
               {(['facile', 'moyen', 'difficile'] as const).map((difficulte) => (
-                <button
+                <Puce
                   key={difficulte}
-                  type="button"
-                  aria-pressed={filtres.difficulte === difficulte}
+                  presse={filtres.difficulte === difficulte}
                   onClick={() =>
                     changer({ difficulte: filtres.difficulte === difficulte ? undefined : difficulte })
                   }
-                  className={`inline-flex min-h-cible items-center rounded-full border px-3.5 text-sm font-semibold ${
-                    filtres.difficulte === difficulte
-                      ? 'border-accent bg-accent text-canvas'
-                      : 'border-line bg-canvas text-ink'
-                  }`}
+                  classes={filtres.difficulte === difficulte ? difficulteActive[difficulte] : difficulteRepos[difficulte]}
                 >
-                  {difficulte}
-                </button>
+                  <Barres niveau={difficulte === 'facile' ? 1 : difficulte === 'moyen' ? 2 : 3} />
+                  {libelleDifficulte[difficulte]}
+                </Puce>
               ))}
             </div>
           </div>
@@ -183,9 +204,9 @@ export function Fil() {
             <button
               type="button"
               onClick={montrerNouvelles}
-              className="inline-flex min-h-cible items-center justify-center gap-2 rounded-xl border border-[#BFD0FA] bg-nav font-semibold text-accent"
+              className="inline-flex min-h-cible items-center justify-center gap-2 rounded-xl border border-banner-line bg-nav font-semibold text-accent"
             >
-              <span aria-hidden="true" className="size-2 rounded-full bg-accent" />
+              <span aria-hidden="true" className="bandeau-point size-2 rounded-full bg-accent" />
               {bandeau.nombre > 1
                 ? `${bandeau.nombre} nouvelles discussions · Afficher`
                 : '1 nouvelle discussion · Afficher'}
@@ -203,11 +224,7 @@ export function Fil() {
             ) : null}
           </div>
 
-          {discussions.isPending ? (
-            <p role="status" className="m-0 text-muted">
-              Chargement des discussions…
-            </p>
-          ) : null}
+          {discussions.isPending ? <SquelettesFil /> : null}
           {discussions.isError ? (
             <div role="alert" className="flex flex-col items-start gap-3 rounded-carte bg-canvas p-5">
               <p className="m-0 text-ink">Les discussions n’ont pas pu être chargées.</p>
@@ -242,7 +259,7 @@ export function Fil() {
             </EmptyState>
           ) : null}
           {lignes.length > 0 ? (
-            <ol className="m-0 flex list-none flex-col gap-3 p-0">
+            <ol className="fil-vivant m-0 flex list-none flex-col gap-3 p-0">
               {lignes.map((discussion) => (
                 <CarteDiscussion
                   key={discussion.id}
@@ -293,17 +310,37 @@ export function Fil() {
       {toast ? (
         <div
           role="status"
-          className="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-xl bg-ink px-4 py-3 font-semibold text-canvas"
+          className="fixed bottom-6 left-1/2 z-50 flex max-w-[calc(100vw-2rem)] -translate-x-1/2 items-center gap-3 rounded-xl bg-ink px-[18px] py-3 font-semibold text-canvas shadow-toast"
         >
           {toast.texte}
           {toast.id ? (
-            <Link to={`/echange/${toast.id}`} className="text-[#93B4FF] no-underline">
+            <Link to={`/echange/${toast.id}`} className="font-bold text-toast-link no-underline">
               Voir
             </Link>
           ) : null}
         </div>
       ) : null}
     </main>
+  )
+}
+
+function Barres({ niveau }: { niveau: 1 | 2 | 3 }) {
+  return (
+    <svg width="14" height="12" viewBox="0 0 14 12" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="5" rx="1" fill="currentColor" />
+      <rect x="5.5" y="4" width="3" height="8" rx="1" fill="currentColor" opacity={niveau >= 2 ? 1 : 0.3} />
+      <rect x="11" y="0" width="3" height="12" rx="1" fill="currentColor" opacity={niveau >= 3 ? 1 : 0.3} />
+    </svg>
+  )
+}
+
+function SquelettesFil() {
+  return (
+    <div role="status" aria-label="Chargement des discussions" className="fil-vivant flex flex-col gap-3">
+      {[0, 1, 2].map((indice) => (
+        <div key={indice} className="squelette h-32 rounded-carte" />
+      ))}
+    </div>
   )
 }
 
@@ -342,29 +379,29 @@ function Canaux({
   onChoisir: (canal?: string) => void
 }) {
   return (
-    <aside aria-label="Canaux" className="w-full md:w-60 md:shrink-0">
-      <nav className="hidden flex-col gap-0.5 rounded-carte border border-line bg-canvas p-2.5 md:flex">
+    <aside aria-label="Canaux" className="w-full min-w-0 min-[761px]:w-[220px] min-[761px]:shrink-0">
+      <nav className="hidden flex-col gap-0.5 rounded-carte border border-line bg-canvas p-2.5 min-[761px]:flex">
         <p className="m-1.5 text-[12.5px] font-semibold tracking-wide text-muted uppercase">Canaux</p>
         <BoutonCanal actif={!canalActif} onClick={() => onChoisir(undefined)}>
           Tous les canaux
         </BoutonCanal>
-        <p className="mt-3 mb-1 px-2.5 text-xs font-semibold text-[#94A3B8]">Généraux</p>
+        <p className="mt-3 mb-1 px-2.5 text-xs font-semibold text-nav-doux">Généraux</p>
         {generaux.map((canal) => (
           <BoutonCanal key={canal.slug} actif={canalActif === canal.slug} onClick={() => onChoisir(canal.slug)}>
             #{canal.slug}
           </BoutonCanal>
         ))}
-        <p className="mt-3 mb-1 px-2.5 text-xs font-semibold text-[#94A3B8]">Par pays</p>
+        <p className="mt-3 mb-1 px-2.5 text-xs font-semibold text-nav-doux">Par pays</p>
         {parPays.map((canal) => (
           <BoutonCanal key={canal.slug} actif={canalActif === canal.slug} onClick={() => onChoisir(canal.slug)}>
-            <span className="flex flex-col leading-tight">
-              <span>#{canal.slug}</span>
+            <span className="flex min-w-0 flex-col leading-tight">
+              <span className="break-all">#{canal.slug}</span>
               {canal.pays ? <span className="text-xs font-medium text-muted">{nomPays(canal.pays)}</span> : null}
             </span>
           </BoutonCanal>
         ))}
       </nav>
-      <div className="flex flex-col gap-1.5 md:hidden">
+      <div className="flex flex-col gap-1.5 min-[761px]:hidden">
         <label htmlFor="canal-mobile" className="text-sm font-semibold text-ink">
           Canal
         </label>
@@ -395,6 +432,31 @@ function Canaux({
   )
 }
 
+function Puce({
+  presse,
+  onClick,
+  classes,
+  children,
+}: {
+  presse: boolean
+  onClick: () => void
+  classes: string
+  children: ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={presse}
+      onClick={onClick}
+      className="inline-flex min-h-cible items-center border-0 bg-transparent p-0"
+    >
+      <span className={`inline-flex h-9 items-center gap-1.5 rounded-full border px-3.5 text-sm font-semibold ${classes}`}>
+        {children}
+      </span>
+    </button>
+  )
+}
+
 function BoutonCanal({
   actif,
   onClick,
@@ -409,8 +471,8 @@ function BoutonCanal({
       type="button"
       aria-pressed={actif}
       onClick={onClick}
-      className={`flex min-h-cible items-center rounded-lg px-2.5 text-left ${
-        actif ? 'bg-nav font-semibold text-accent' : 'font-medium text-ink'
+      className={`flex min-h-cible items-center rounded-lg px-2.5 text-left break-all ${
+        actif ? 'bg-nav font-semibold text-accent' : 'font-medium text-nav-texte hover:bg-page'
       }`}
     >
       {children}

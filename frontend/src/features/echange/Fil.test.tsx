@@ -2,18 +2,18 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { createMemoryRouter, RouterProvider } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { routes } from '../../app/router'
-import { cheminApi, client } from '../../shared/client'
+import { cheminLaravel, client } from '../../shared/client'
 import type { Canal, Discussion, Etiquette } from './api'
 
 vi.mock('../../shared/client', async () => {
   const reel = await vi.importActual<typeof import('../../shared/client')>('../../shared/client')
-  return {
-    ...reel,
-    client: {
-      get: vi.fn(),
-      post: vi.fn(),
-    },
+  const http = {
+    get: vi.fn(),
+    post: vi.fn(),
+    patch: vi.fn(),
+    delete: vi.fn(),
   }
+  return { ...reel, client: http, clientLocal: http }
 })
 
 const canaux: Canal[] = [
@@ -53,9 +53,9 @@ function discussion(id: number, titre: string): Discussion {
 
 function reponses(discussions: Discussion[]) {
   vi.mocked(client.get).mockImplementation((url: string) => {
-    if (url === cheminApi('/canaux')) return Promise.resolve({ data: canaux })
-    if (url === cheminApi('/etiquettes')) return Promise.resolve({ data: etiquettes })
-    if (url === cheminApi('/discussions')) {
+    if (url === cheminLaravel('/canaux')) return Promise.resolve({ data: canaux })
+    if (url === cheminLaravel('/etiquettes')) return Promise.resolve({ data: etiquettes })
+    if (url === cheminLaravel('/discussions')) {
       return Promise.resolve({
         data: {
           data: discussions,
@@ -89,7 +89,7 @@ describe('fil des discussions', () => {
       expect(router.state.location.search).toContain('etiquette=bug')
     })
     expect(client.get).toHaveBeenCalledWith(
-      cheminApi('/discussions'),
+      cheminLaravel('/discussions'),
       expect.objectContaining({ params: expect.objectContaining({ etiquette: 'bug' }) }),
     )
   })
@@ -104,9 +104,9 @@ describe('fil des discussions', () => {
 
   it('propose de réessayer quand le chargement échoue', async () => {
     vi.mocked(client.get).mockImplementation((url: string) => {
-      if (url === cheminApi('/discussions')) return Promise.reject(new Error('réseau'))
-      if (url === cheminApi('/canaux')) return Promise.resolve({ data: canaux })
-      if (url === cheminApi('/etiquettes')) return Promise.resolve({ data: etiquettes })
+      if (url === cheminLaravel('/discussions')) return Promise.reject(new Error('réseau'))
+      if (url === cheminLaravel('/canaux')) return Promise.resolve({ data: canaux })
+      if (url === cheminLaravel('/etiquettes')) return Promise.resolve({ data: etiquettes })
       return Promise.reject(new Error(url))
     })
     rendu()
@@ -114,7 +114,7 @@ describe('fil des discussions', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Réessayer' }))
 
     await waitFor(() => {
-      const appels = vi.mocked(client.get).mock.calls.filter((appel) => appel[0] === cheminApi('/discussions'))
+      const appels = vi.mocked(client.get).mock.calls.filter((appel) => appel[0] === cheminLaravel('/discussions'))
       expect(appels.length).toBeGreaterThan(1)
     })
   })

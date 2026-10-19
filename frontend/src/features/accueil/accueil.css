@@ -1,0 +1,199 @@
+.accueil {
+  background: #e4e2dd;
+  color: #0f172a;
+}
+
+.accueil-hero {
+  position: relative;
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+  min-height: 680px;
+  margin: 0 auto;
+  padding: 22px 40px 48px;
+  border-radius: 0;
+  background: transparent;
+}
+
+.accueil-aurore {
+  position: absolute;
+  z-index: 0;
+  border-radius: 50%;
+  filter: blur(70px);
+  pointer-events: none;
+}
+
+.accueil-a1 { width: 620px; height: 520px; left: -120px; top: -140px; background: #ced8ea; animation: accueil-derive1 26s ease-in-out infinite; }
+.accueil-a2 { width: 560px; height: 480px; right: -80px; top: 80px; background: #dfd2bc; animation: accueil-derive2 30s ease-in-out infinite; }
+.accueil-a3 { width: 460px; height: 380px; left: 38%; bottom: -200px; background: #cfdbd6; animation: accueil-derive1 34s ease-in-out infinite reverse; }
+
+@keyframes accueil-derive1 { 50% { transform: translate(60px, 40px) scale(1.08); } }
+@keyframes accueil-derive2 { 50% { transform: translate(-50px, 30px) scale(1.06); } }
+
+.accueil-grain {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at 1px 1px, rgb(15 23 42 / 0.07) 1px, transparent 0) 0 0 / 22px 22px;
+}
+
+.accueil-verre {
+  background: rgb(246 243 237 / 0.55);
+  border: 1px solid rgb(255 255 255 / 0.5);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 10px 30px rgb(120 100 70 / 0.12);
+}
+
+.accueil-ico {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #0f172a;
+  text-decoration: none;
+}
+
+.accueil-ico:hover { background: rgb(15 23 42 / 0.06); }
+
+.accueil-scene { position: relative; height: 500px; perspective: 1300px; }
+
+.accueil-pile {
+  position: absolute;
+  top: 48%;
+  left: 50%;
+  width: 360px;
+  height: 300px;
+  margin: -150px 0 0 -180px;
+  transform-style: preserve-3d;
+  animation: accueil-flotte 9s ease-in-out infinite;
+}
+
+@keyframes accueil-flotte {
+  0%, 100% { transform: rotateX(14deg) rotateY(-24deg) rotateZ(3deg); }
+  50% { transform: rotateX(11deg) rotateY(-18deg) rotateZ(2deg) translateY(-14px); }
+}
+
+.accueil-plaque {
+  position: absolute;
+  box-sizing: border-box;
+  padding: 16px 18px;
+  border-radius: 18px;
+  background: rgb(244 241 235 / 0.72);
+  border: 1px solid rgb(255 255 255 / 0.55);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.4), 0 24px 50px rgb(120 100 70 / 0.18);
+  backdrop-filter: blur(12px);
+}
+
+.accueil-p-code { top: 8px; left: 0; width: 350px; transform: translateZ(-70px); }
+.accueil-p-fix { top: 150px; left: 150px; width: 250px; transform: translateZ(40px); }
+.accueil-p-app { top: 222px; left: -40px; display: flex; width: 300px; align-items: center; gap: 12px; transform: translateZ(110px); }
+
+.accueil-ombre {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  width: 340px;
+  height: 40px;
+  margin-left: -170px;
+  border-radius: 50%;
+  background: rgb(120 100 70 / 0.2);
+  filter: blur(18px);
+  animation: accueil-ombre 9s ease-in-out infinite;
+}
+
+@keyframes accueil-ombre { 50% { transform: scale(0.9); opacity: 0.75; } }
+
+.accueil-pouls { animation: accueil-pouls 2.4s ease-out infinite; }
+@keyframes accueil-pouls { 80%, 100% { box-shadow: 0 0 0 7px rgb(22 163 74 / 0); } }
+
+.accueil-sceau-texte { animation: accueil-tourne 40s linear infinite; }
+@keyframes accueil-tourne { to { transform: rotate(360deg); } }
+
+.accueil-rail { position: relative; height: 64px; }
+.accueil-ligne { position: absolute; top: 50%; right: 12.5%; left: 12.5%; border-top: 2px dashed rgb(15 23 42 / 0.22); }
+.accueil-arret { position: absolute; top: 50%; width: 12px; height: 12px; margin: -7px 0 0 -7px; border: 2px solid rgb(15 23 42 / 0.28); border-radius: 50%; background: #f4f1eb; }
+.accueil-pastille {
+  position: absolute;
+  top: 50%;
+  left: 12.5%;
+  z-index: 2;
+  width: 50px;
+  height: 50px;
+  margin: -25px 0 0 -25px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 6px rgb(244 241 235 / 0.85), 0 10px 24px rgb(120 100 70 / 0.28);
+  animation: accueil-voyage 16s ease-in-out infinite;
+}
+.accueil-ic { position: absolute; inset: 0; display: grid; place-items: center; border-radius: 50%; color: #fff; opacity: 0; animation: accueil-icone 16s linear infinite; }
+.accueil-i2, .accueil-etape:nth-child(2) { animation-delay: 4s; }
+.accueil-i3, .accueil-etape:nth-child(3) { animation-delay: 8s; }
+.accueil-i4, .accueil-etape:nth-child(4) { animation-delay: 12s; }
+
+@keyframes accueil-voyage {
+  0%, 18% { left: 12.5%; opacity: 1; }
+  25%, 43% { left: 37.5%; }
+  50%, 68% { left: 62.5%; }
+  75%, 92% { left: 87.5%; opacity: 1; }
+  95% { left: 87.5%; opacity: 0; }
+  97% { left: 12.5%; opacity: 0; }
+  100% { left: 12.5%; opacity: 1; }
+}
+@keyframes accueil-icone { 0% { opacity: 0; } 3%, 19% { opacity: 1; } 24%, 100% { opacity: 0; } }
+
+.accueil-etape { animation: accueil-eclaire 16s ease-in-out infinite; transition: transform 0.35s ease, box-shadow 0.35s ease, background 0.35s ease; }
+@keyframes accueil-eclaire {
+  4%, 19% { transform: translateY(-6px); background: rgb(251 250 247 / 0.96); box-shadow: 0 18px 36px rgb(120 100 70 / 0.18); }
+}
+
+.accueil-parcours:has(.accueil-etape:hover) .accueil-pastille,
+.accueil-parcours:has(.accueil-etape:hover) .accueil-ic,
+.accueil-parcours:has(.accueil-etape:hover) .accueil-etape { animation: none; }
+.accueil-parcours:has(.accueil-etape:hover) .accueil-pastille { transition: left 0.6s cubic-bezier(0.3, 0.7, 0.2, 1); }
+.accueil-parcours:has(.accueil-etape:nth-child(1):hover) .accueil-pastille { left: 12.5%; }
+.accueil-parcours:has(.accueil-etape:nth-child(1):hover) .accueil-i1 { opacity: 1; }
+.accueil-parcours:has(.accueil-etape:nth-child(2):hover) .accueil-pastille { left: 37.5%; }
+.accueil-parcours:has(.accueil-etape:nth-child(2):hover) .accueil-i2 { opacity: 1; }
+.accueil-parcours:has(.accueil-etape:nth-child(3):hover) .accueil-pastille { left: 62.5%; }
+.accueil-parcours:has(.accueil-etape:nth-child(3):hover) .accueil-i3 { opacity: 1; }
+.accueil-parcours:has(.accueil-etape:nth-child(4):hover) .accueil-pastille { left: 87.5%; }
+.accueil-parcours:has(.accueil-etape:nth-child(4):hover) .accueil-i4 { opacity: 1; }
+.accueil-etape:hover { transform: translateY(-6px); background: rgb(251 250 247 / 0.96); box-shadow: 0 18px 36px rgb(120 100 70 / 0.18); }
+
+.accueil-echange { position: absolute; top: 170px; left: 50%; z-index: 2; width: 230px; height: 60px; margin-left: -115px; pointer-events: none; }
+.accueil-echange::before { content: ""; position: absolute; top: 50%; right: 17px; left: 17px; border-top: 2px dashed rgb(15 23 42 / 0.22); }
+.accueil-jeton { position: absolute; top: 50%; z-index: 1; display: grid; width: 34px; height: 34px; margin-top: -17px; place-items: center; opacity: 0; box-shadow: 0 8px 18px rgb(120 100 70 / 0.3); }
+.accueil-j-app { left: 0; border-radius: 10px; background: #1f4fe0; animation: accueil-droite 8s ease-in-out infinite; }
+.accueil-j-piece { right: 0; border: 2px solid #f59e0b; border-radius: 50%; background: #ffcc00; color: #92400e; font-weight: 800; animation: accueil-gauche 8s ease-in-out 4s infinite; }
+@keyframes accueil-droite { 0% { transform: translateX(0); opacity: 0; } 8% { opacity: 1; } 40% { transform: translateX(196px); opacity: 1; } 48%, 100% { transform: translateX(196px); opacity: 0; } }
+@keyframes accueil-gauche { 0% { transform: translateX(0); opacity: 0; } 8% { opacity: 1; } 40% { transform: translateX(-196px); opacity: 1; } 48%, 100% { transform: translateX(-196px); opacity: 0; } }
+
+.accueil-carte { background: rgb(246 243 237 / 0.72); border: 1px solid rgb(255 255 255 / 0.6); transition: transform 0.45s cubic-bezier(0.2, 0.7, 0.2, 1), box-shadow 0.45s ease; }
+.accueil-carte:hover { transform: translateY(-6px); background: rgb(251 250 247 / 0.96); box-shadow: 0 22px 44px rgb(120 100 70 / 0.18); }
+.accueil-carte:hover .accueil-voir { opacity: 1; transform: none; }
+
+@media (max-width: 1100px) { .accueil-rail { display: none; } }
+@media (max-width: 960px) { .accueil-echange { display: none; } }
+@media (max-width: 900px) {
+  .accueil-nav { order: 3; width: 100%; }
+  .accueil-info, .accueil-fil, .accueil-ombre, .accueil-sceau { display: none; }
+  .accueil-hero { min-height: 0; padding: 16px 16px 28px; }
+  .accueil-scene, .accueil-scene-echelle { height: auto; transform: none; }
+  .accueil-pile { position: static; display: flex; width: auto; height: auto; margin: 0; flex-direction: column; gap: 12px; animation: none; }
+  .accueil-p-code, .accueil-p-fix, .accueil-p-app { position: relative; top: auto; left: auto; width: 100%; transform: none; }
+}
+@media (max-width: 640px) {
+  .accueil h1 { font-size: 40px; }
+  .accueil-bloc { padding: 28px 16px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .accueil-aurore, .accueil-pile, .accueil-ombre, .accueil-sceau-texte, .accueil-pouls,
+  .accueil-pastille, .accueil-ic, .accueil-etape, .accueil-j-app, .accueil-j-piece { animation: none; }
+  .accueil-i1 { opacity: 1; }
+}

@@ -1,3 +1,8 @@
+export function nomAuteur(nom: string | null, username: string | null): string {
+  if (username) return `@${username}`
+  return nom || 'Quelqu’un'
+}
+
 export function ilYA(iso: string, maintenant = Date.now()): string {
   const ecartSecondes = Math.round((new Date(iso).getTime() - maintenant) / 1000)
   const format = new Intl.RelativeTimeFormat('fr', { numeric: 'auto' })

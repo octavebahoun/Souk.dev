@@ -2,16 +2,16 @@ import type { ReactNode } from 'react'
 
 const tons = {
   bug: 'bg-danger-bg text-danger',
-  question: 'bg-[#DBEAFE] text-[#1E40AF]',
+  question: 'bg-question-bg text-question',
   tuto: 'bg-success-bg text-success',
-  projet: 'bg-[#EDE9FE] text-[#5B21B6]',
-  entraide: 'bg-[#EEF2F9] text-[#334155]',
+  projet: 'bg-ia-bg text-projet',
+  entraide: 'bg-chip text-nav-texte',
   resolue: 'bg-success-bg text-success',
   nouveau: 'bg-accent text-canvas',
-  ia: 'border border-[#DDD6FE] bg-[#F5F3FF] text-[#6D28D9]',
+  ia: 'border border-ia-line bg-ia-bg text-ia',
   facile: 'bg-success-bg text-success',
-  moyen: 'bg-warning-bg text-warning',
-  difficile: 'bg-[#FFE4E6] text-[#BE123C]',
+  moyen: 'bg-moyen-bg text-warning',
+  difficile: 'bg-difficile-bg text-difficile',
 } as const
 
 type BadgeProps = {
