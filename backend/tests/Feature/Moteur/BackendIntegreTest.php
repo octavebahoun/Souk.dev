@@ -12,6 +12,8 @@ use Tests\TestCase;
 
 class BackendIntegreTest extends TestCase
 {
+    use ConfigDurcie;
+
     public function test_applique_les_sql_dans_l_ordre_puis_recharge_l_api(): void
     {
         $repertoire = $this->depot();
@@ -77,11 +79,11 @@ class BackendIntegreTest extends TestCase
             $commande = $process->command;
 
             if (in_array('config', $commande, true)) {
-                return Process::result(output: json_encode([
+                return Process::result(output: json_encode(self::configDurcie([
                     'services' => [
                         'front' => ['image' => 'nginx:alpine'],
                     ],
-                ], JSON_THROW_ON_ERROR));
+                ]), JSON_THROW_ON_ERROR));
             }
 
             if (in_array('up', $commande, true)) {

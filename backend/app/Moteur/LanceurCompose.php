@@ -107,7 +107,7 @@ class LanceurCompose
 
         (new LimitesTaille)->ecrire($repertoire, $services, $taille);
 
-        $this->verifierConfigFinale($repertoire, $copie);
+        $this->verifierConfigFinale($repertoire, $copie, $taille);
 
         $env = $repertoire.DIRECTORY_SEPARATOR.'.env';
 
@@ -185,7 +185,7 @@ class LanceurCompose
         return $arguments;
     }
 
-    private function verifierConfigFinale(string $repertoire, string $copie): void
+    private function verifierConfigFinale(string $repertoire, string $copie, string $taille): void
     {
         $env = $repertoire.DIRECTORY_SEPARATOR.'.env';
 
@@ -209,6 +209,7 @@ class LanceurCompose
 
         (new VerificateurCompose)->verifierDocument(
             $this->preparerDocumentConfig($document, $repertoire, $copie),
+            $taille,
         );
     }
 

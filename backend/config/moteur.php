@@ -36,4 +36,16 @@ return [
 
     'backend_tentatives' => 30,
 
+    // Durcissement imposé à chaque conteneur (voir App\Moteur\Durcissement).
+    // Plafond de processus par formule : bloque une fork bomb sans gêner un serveur web.
+    'pids_limit' => [
+        'petite' => 256,
+        'moyenne' => 512,
+        'grande' => 1024,
+    ],
+
+    // Toutes les capacités sont retirées (cap_drop: ALL), puis seules celles-ci sont rendues.
+    // Le minimum pour nginx, postgres, node et php-fpm. Un cap_add du dépôt hors de cette liste est refusé.
+    'capacites_autorisees' => ['CHOWN', 'DAC_OVERRIDE', 'FOWNER', 'KILL', 'NET_BIND_SERVICE', 'SETGID', 'SETUID'],
+
 ];
