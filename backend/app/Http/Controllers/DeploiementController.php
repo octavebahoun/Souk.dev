@@ -5,14 +5,13 @@ namespace App\Http\Controllers;
 use App\Jobs\LancerDeploiement;
 use App\Models\Appli;
 use App\Models\Deploiement;
-use App\Moteur\LanceurCompose;
 use App\Moteur\LimitesTaille;
+use App\Moteur\NettoyeurCopie;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Http\Response;
 use Illuminate\Validation\ValidationException;
-use Throwable;
 
 class DeploiementController extends Controller
 {
@@ -61,18 +60,14 @@ class DeploiementController extends Controller
         return response()->json($deploiement->versApi());
     }
 
-    public function destroy(Request $request, Deploiement $deploiement, LanceurCompose $lanceur): Response
+    public function destroy(Request $request, Deploiement $deploiement, NettoyeurCopie $nettoyeur): Response|JsonResponse
     {
         abort_unless($deploiement->user_id === $request->user()->id, 403);
 
-        $deploiement->changerEtat('arrete');
-
-        if (is_string($deploiement->copie) && is_string($deploiement->repertoire)) {
-            try {
-                $lanceur->arreter($deploiement->repertoire, $deploiement->copie);
-            } catch (Throwable) {
-                // La copie est déjà arrêtée côté plateforme.
-            }
+        // Idempotent : une copie déjà arrêtée répond 204. Si docker compose down échoue deux fois,
+        // la copie passe en echec (jamais arrete) et moteur:nettoyer la retentera.
+        if (! $nettoyeur->arreter($deploiement)) {
+            return response()->json(['message' => 'L\'arrêt de la copie a échoué, il sera retenté.'], 503);
         }
 
         return response()->noContent();

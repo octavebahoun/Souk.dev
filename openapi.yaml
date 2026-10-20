@@ -591,9 +591,14 @@ paths:
       summary: Arrêter un déploiement
       responses:
         '204':
-          description: Déploiement arrêté
+          description: Déploiement arrêté (conteneurs, volumes et dossier supprimés) ; aussi si déjà arrêté
         '403': { $ref: '#/components/responses/Interdit' }
         '404': { $ref: '#/components/responses/Introuvable' }
+        '503':
+          description: Arrêt Docker impossible après deux essais ; le déploiement passe en echec et sera retenté
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Erreur' }
         '419': { $ref: '#/components/responses/CsrfInvalide' }
 
   # ───────────── Discussions ─────────────

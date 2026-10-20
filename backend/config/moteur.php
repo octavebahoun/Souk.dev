@@ -36,6 +36,11 @@ return [
 
     'backend_tentatives' => 30,
 
+    // Arrêt d'une copie : essais de docker compose down avant de passer en echec, et délai de chacun.
+    'arret_tentatives' => 2,
+
+    'down_timeout' => 120,
+
     // Durée de vie d'une copie de test (en minutes), écrite dans expire_le au lancement.
     'copie_test_minutes' => 120,
 

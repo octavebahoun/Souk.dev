@@ -159,9 +159,13 @@ class LanceurCompose
     {
         $this->verifierNomCopie($copie);
 
-        Process::path($repertoire)
-            ->timeout(120)
-            ->run(['docker', 'compose', '-p', $copie, 'down', '--remove-orphans']);
+        // -v supprime aussi les volumes (dont la base intégrée), --rmi local les images construites.
+        // Le dossier a pu disparaître : -p suffit à retrouver les conteneurs du projet.
+        $resultat = Process::path(is_dir($repertoire) ? $repertoire : sys_get_temp_dir())
+            ->timeout((int) (function_exists('config') ? config('moteur.down_timeout', 120) : 120))
+            ->run(['docker', 'compose', '-p', $copie, 'down', '-v', '--remove-orphans', '--rmi', 'local']);
+
+        $this->echouerSiComposeRate($resultat, 'L\'arrêt Docker Compose a échoué.');
     }
 
     /**
