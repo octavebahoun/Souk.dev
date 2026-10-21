@@ -208,19 +208,20 @@ export function FormulaireDiscussion({
           {etiquettesPossibles.map((etiquette) => {
             const cochee = choisies.includes(etiquette)
             return (
-              <label
-                key={etiquette}
-                className={`inline-flex min-h-cible cursor-pointer items-center gap-2 rounded-full border px-3.5 text-sm font-semibold ${
-                  cochee ? 'border-accent bg-nav text-accent' : 'border-line bg-canvas text-ink'
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  checked={cochee}
-                  onChange={() => basculer(etiquette)}
-                  className="size-4 accent-accent"
-                />
-                {etiquette}
+              <label key={etiquette} className="inline-flex min-h-cible cursor-pointer items-center">
+                <span
+                  className={`inline-flex h-9 items-center gap-2 rounded-full border px-3.5 text-sm font-semibold ${
+                    cochee ? 'border-accent bg-nav text-accent' : 'border-line bg-canvas text-ink'
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={cochee}
+                    onChange={() => basculer(etiquette)}
+                    className="size-4 accent-accent"
+                  />
+                  {etiquette}
+                </span>
               </label>
             )
           })}
@@ -277,12 +278,12 @@ export function FormulaireDiscussion({
             <legend className="mb-2 text-sm font-semibold text-ink">Difficulté</legend>
             <div className="flex flex-wrap gap-2">
               {difficultes.map((item) => (
-                <label
-                  key={item}
-                  className={`inline-flex min-h-cible cursor-pointer items-center gap-2 rounded-full border px-3.5 text-sm font-semibold ${
-                    difficulte === item ? 'border-accent bg-nav text-accent' : 'border-line bg-canvas text-ink'
-                  }`}
-                >
+                <label key={item} className="inline-flex min-h-cible cursor-pointer items-center">
+                  <span
+                    className={`inline-flex h-9 items-center gap-2 rounded-full border px-3.5 text-sm font-semibold ${
+                      difficulte === item ? 'border-accent bg-nav text-accent' : 'border-line bg-canvas text-ink'
+                    }`}
+                  >
                   <input
                     type="radio"
                     name="nd-difficulte"
@@ -292,6 +293,7 @@ export function FormulaireDiscussion({
                     className="size-4 accent-accent"
                   />
                   {item}
+                  </span>
                 </label>
               ))}
             </div>

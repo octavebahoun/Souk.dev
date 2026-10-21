@@ -72,7 +72,7 @@ export function Modal({ titre, onFermer, children }: ModalProps) {
             type="button"
             aria-label="Fermer"
             onClick={onFermer}
-            className="grid size-10 place-items-center rounded-controle bg-page text-ink"
+            className="grid min-h-cible min-w-cible place-items-center rounded-controle bg-page text-ink"
           >
             <span aria-hidden="true">×</span>
           </button>

@@ -1,9 +1,9 @@
-import { client } from '../shared/client'
+import { clientLocal } from '../shared/client'
 
-// Demande le cookie XSRF-TOKEN. Prism répond 204 sans vrai cookie.
-// Laravel n'a pas encore Sanctum : un 404 ne doit pas bloquer l'écran.
+// Cookie XSRF-TOKEN, toujours via le proxy vers Laravel (pas vers Prism).
+// Un échec ne bloque pas l'écran : la prochaine écriture renverra 419.
 export function preparerCsrf(): Promise<void> {
-  return client
+  return clientLocal
     .get('/sanctum/csrf-cookie')
     .then(() => undefined)
     .catch(() => undefined)

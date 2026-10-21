@@ -43,3 +43,7 @@ Mis à jour au fil du projet.
 | 2026-10-17 | Cursor | Wasfade : correctifs, profil public, liste des technos et événements |
 | 2026-10-17 | Cursor (Grok 4.7) | Front : socle (routeur, layout, QueryClient, CSRF au démarrage) |
 | 2026-10-17 | Cursor (Grok 4.7) | Front : fil des discussions (liste, filtres, création, bandeau Reverb) |
+| 2026-10-17 | Cursor (Grok 4.7) | Front : page d'une discussion (messages, correctifs, copie, analyse) |
+| 2026-10-18 | Cursor (Grok 4.7) | Front : fin de la page discussion (puces 36/44, menu du compte, déploiement d’un correctif, bandeau sans Reverb) |
+| 2026-10-18 | Cursor (Grok 4.7) | Front : comptes (connexion GitHub, lien magique, profil, tableau de bord) |
+| 2026-10-19 | Cursor (Grok 4.7) | Front : accueil, store, fiche, déployer, publier, copies, événements, missions, recherche, fils de page |
