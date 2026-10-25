@@ -303,3 +303,29 @@ Validés par Oktav. L'équipe s'engage à les livrer d'ici le 25 octobre, **apr�
 - **Encaissement** : le client paie Souk.dev (hébergement et prix de l'appli), puis Souk.dev reverse le prix de l'appli au dev. Le prestataire de paiement reste à choisir ; Paxity, entité de Systalink, est envisagé.
 - Service d'envoi des emails (liens magiques, annulation d'événement) : à choisir par l'équipe.
 - Vérifier que l'appli est vraiment prête avant de donner son URL (étape 4 du moteur).
+
+## Décisions de l'agent
+
+Choix faits par l'agent en exécutant `BRIEF.md` (le brief passe avant ce fichier, voir sa section 2). Une ligne par décision, avec la raison.
+
+### Tranché par le brief (25 octobre)
+
+- **Encaissement** (point ouvert ci-dessus) : SasPay, en Mobile Money et carte. Frais en `ADD_ON` (le client les paie), reversements aux devs sans commission, frais de reversement pris sur la marge de Souk.dev.
+- **E-mails** (point ouvert ci-dessus) : Resend, déjà branché.
+- **Vérifier que l'appli est prête** (point ouvert ci-dessus) : fait, la sonde du service web décide de `en_ligne`.
+- **Souk AI** : l'API officielle DeepSeek remplace Claude pour l'instant, derrière l'adaptateur `FournisseurIa`.
+- **Revenus du tableau de bord** : réels dès que la facturation tourne, plus « estimés ».
+- **Concours CADEV** : terminé ; les règles du concours ne s'appliquent plus, la règle des licences permissives reste.
+
+### Socle (phase 1)
+
+- **2026-10-25 — Branche** : `saas-complet` part de `main`, où la PR #28 (`fin-mvp`) est déjà fusionnée.
+- **2026-10-25 — Laravel Boost** (MIT, dev) installé, comme le demande `backend/CLAUDE.md` : règles et skills Laravel pour les agents.
+- **2026-10-25 — Dépôts clonés** : `git clone --config core.symlinks=false` et git en `LC_ALL=C`. Un lien symbolique du dépôt vers `backend/.env` ou le `.env` d'une autre copie était lu par le validateur ou envoyé par Docker Compose (faille corrigée).
+- **2026-10-25 — Plateforme en conteneurs** : une seule image PHP (FrankenPHP, Alpine) pour l'API, les workers, Reverb et le planificateur. Raison : un seul environnement, du poste de dev au VPS.
+- **2026-10-25 — Docker réservé au moteur** : seul le service `moteur` (file `moteur`) reçoit le socket Docker. L'API, exposée à Internet, ne lance jamais de conteneur. Conséquence : `DELETE /deployments/{id}` répond `202` (`arret_en_cours`, puis `arrete` par Reverb) au lieu de `204`/`503` ; contrat mis à jour.
+- **2026-10-25 — Sonde du service web** : depuis un conteneur jetable (`curlimages/curl`) branché sur le réseau de la copie. Raison : Docker isole les réseaux entre eux, et la même sonde servira pour une autre machine.
+- **2026-10-25 — Secrets internes** (mot de passe PostgreSQL, clés Reverb) : générés au premier `docker compose up` dans un volume, chargés par Laravel au démarrage. Raison : démarrage à froid sans étape manuelle, rien dans le dépôt.
+- **2026-10-25 — Autorisation** : une Policy par ressource ; un refus garde sa raison, et une Policy peut répondre `404` pour ne pas révéler qu'une ressource existe (factures, revenus, notifications). Les routes déjà au contrat gardent leur `403`.
+- **2026-10-25 — GitHub lié** : contrôlé aussi pour `POST /apps` et `POST /apps/verification` (le contrat l'exigeait, le code non).
+- **2026-10-25 — Souk Score de la recherche de devs** : une copie du profil calculé est rangée sur le compte, rafraîchie à chaque action validée et chaque nuit, pour trier sans tout recalculer. Le profil d'un dev reste calculé en direct.
