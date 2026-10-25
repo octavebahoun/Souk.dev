@@ -160,6 +160,22 @@ class DeploiementTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_chacun_ecoute_seulement_son_propre_canal_de_factures(): void
+    {
+        $this->configurerReverb();
+        $client = User::factory()->create();
+        $autre = User::factory()->create();
+
+        $this->actingAs($client)
+            ->post('/broadcasting/auth', ['channel_name' => 'private-utilisateur.'.$client->id, 'socket_id' => '1234.5678'])
+            ->assertOk()
+            ->assertJsonStructure(['auth']);
+
+        $this->actingAs($autre)
+            ->post('/broadcasting/auth', ['channel_name' => 'private-utilisateur.'.$client->id, 'socket_id' => '1234.5678'])
+            ->assertForbidden();
+    }
+
     public function test_un_changement_d_etat_est_pousse_vers_reverb(): void
     {
         $http = new MockHandler([
