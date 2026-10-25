@@ -1,9 +1,8 @@
 import { useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import type { components } from '../../shared/types/api'
-import { lireErreurHttp } from '../echange/api'
+import { messageAction } from '../echange/api'
 import { categories, fcfa, publierAppli, verifierDepot, type Categorie } from './api'
-import { Fenetre } from './Fenetre'
 
 type Techno = components['schemas']['Techno']
 
@@ -14,11 +13,12 @@ export function Publier() {
   const [depot, setDepot] = useState('')
   const [nom, setNom] = useState('')
   const [description, setDescription] = useState('')
-  const [categorie, setCategorie] = useState<Categorie>('commerce')
-  const [prix, setPrix] = useState('15000')
-  const [typePrix, setTypePrix] = useState<'mensuel' | 'unique'>('mensuel')
-  const [taille, setTaille] = useState<'petite' | 'moyenne' | 'grande'>('moyenne')
-  const [stack, setStack] = useState<Techno[]>(['laravel'])
+  const [categorie, setCategorie] = useState<Categorie | ''>('')
+  const [prix, setPrix] = useState('')
+  const [typePrix, setTypePrix] = useState<'mensuel' | 'unique' | ''>('')
+  const [taille, setTaille] = useState<'petite' | 'moyenne' | 'grande' | ''>('')
+  const [stack, setStack] = useState<Techno[]>([])
+  const [captures, setCaptures] = useState<File[]>([])
   const [demo, setDemo] = useState('')
   const [verif, setVerif] = useState<string | null>(null)
   const [erreur, setErreur] = useState<string | null>(null)
@@ -31,7 +31,7 @@ export function Publier() {
       setVerif(`Dépôt valide. Service ${recu.service_web.nom}, backend ${recu.backend}.`)
     } catch (erreurHttp) {
       setVerif(null)
-      setErreur(lireErreurHttp(erreurHttp, 'Le dépôt n’a pas passé la vérification.').message)
+      setErreur(messageAction(erreurHttp, 'Le dépôt n’a pas passé la vérification.'))
     }
   }
 
@@ -40,6 +40,14 @@ export function Publier() {
     setEnvoi(true)
     setErreur(null)
     try {
+      if (!categorie || prix === '' || !typePrix || !taille || stack.length === 0) {
+        setErreur('Renseignez la catégorie, le prix, le type de paiement, la taille d’hébergement et au moins une technologie.')
+        return
+      }
+      if (captures.length < 1 || captures.length > 5) {
+        setErreur('Ajoutez entre 1 et 5 images (PNG, JPEG ou WebP).')
+        return
+      }
       const creee = await publierAppli({
         nom: nom.trim(),
         description: description.trim(),
@@ -50,56 +58,75 @@ export function Publier() {
         type_prix: typePrix,
         taille,
         stack,
+        captures,
       })
       void naviguer(`/store/${creee.id}`)
     } catch (erreurHttp) {
-      setErreur(lireErreurHttp(erreurHttp, 'La publication a échoué.').message)
+      setErreur(messageAction(erreurHttp, 'La publication a échoué.'))
     } finally {
       setEnvoi(false)
     }
   }
 
   return (
-    <div className="mx-auto grid max-w-[1100px] items-start gap-6 px-4 py-8 min-[961px]:grid-cols-[minmax(0,1fr)_280px]">
+    <div className="mx-auto grid max-w-[1320px] items-start gap-6 px-4 py-8 min-[761px]:px-9 min-[961px]:grid-cols-[minmax(0,1fr)_320px]">
       <form onSubmit={(evenement) => void envoyer(evenement)} className="flex flex-col gap-4">
-        <h1 className="m-0 text-[30px] font-bold">Publier une appli</h1>
-        <p className="m-0 text-muted">Dépôt public, soukdev.json, prix. Publier ne coûte rien.</p>
-        <section className="flex flex-col gap-3 rounded-[18px] border border-line bg-canvas p-5">
-          <h2 className="m-0 text-lg">Le dépôt</h2>
+        <nav aria-label="Fil d'Ariane" className="text-sm text-muted"><Link to="/store" className="text-muted">Store</Link> <span aria-hidden="true">/</span> Publier</nav>
+        <h1 className="m-0 text-[30px] font-bold tracking-tight">Publier une appli</h1>
+        <p className="m-0 text-muted">Publier est gratuit et ne lance aucun serveur. Votre appli tournera seulement quand un client la déploiera.</p>
+        <section className="verre flex flex-col gap-3 rounded-[18px] p-6">
+          <div className="flex items-center gap-2.5">
+            <Etape numero="1" fait={Boolean(verif)} />
+            <h2 className="m-0 text-lg">Le dépôt GitHub</h2>
+          </div>
+          <p className="m-0 text-sm text-muted">Un dépôt public, avec un docker-compose.yml et un soukdev.json à la racine.</p>
         <label className="flex flex-col gap-1 font-semibold">Adresse du dépôt
           <input value={depot} onChange={(e) => setDepot(e.target.value)} required className="min-h-cible w-full rounded-controle border border-line bg-canvas px-3 font-normal" placeholder="https://github.com/orga/appli" />
         </label>
         <button type="button" onClick={() => void verifier()} className="min-h-cible w-fit rounded-controle border border-line bg-page px-4 font-semibold">Vérifier le dépôt</button>
         {verif ? <p role="status" className="m-0 text-[#166534]">{verif}</p> : null}
         </section>
-        <section className="flex flex-col gap-3 rounded-[18px] border border-line bg-canvas p-5">
-          <h2 className="m-0 text-lg">Les infos</h2>
+        <section className="verre flex flex-col gap-3 rounded-[18px] p-6">
+          <div className="flex items-center gap-2.5">
+            <Etape numero="2" fait={false} />
+            <h2 className="m-0 text-lg">Analyse de sécurité</h2>
+          </div>
+          <p className="m-0 text-sm text-muted">La vérification du dépôt contrôle l’accès, le docker-compose et les secrets. L’analyse des dépendances démarre après la publication, et le badge apparaît alors sur la fiche.</p>
+        </section>
+        <section className="verre flex flex-col gap-3 rounded-[18px] p-6">
+          <div className="flex items-center gap-2.5">
+            <Etape numero="3" fait={nom.trim().length > 0 && description.trim().length > 0} />
+            <h2 className="m-0 text-lg">Les infos</h2>
+          </div>
         <label className="flex flex-col gap-1 font-semibold">Nom
           <input value={nom} onChange={(e) => setNom(e.target.value)} required className="min-h-cible w-full rounded-controle border border-line bg-canvas px-3 font-normal" />
         </label>
         <label className="flex flex-col gap-1 font-semibold">Description
           <textarea value={description} onChange={(e) => setDescription(e.target.value)} required rows={4} className="w-full rounded-controle border border-line bg-canvas p-3 font-normal" />
         </label>
-        <label className="flex flex-col gap-1 font-semibold">Démo
-          <input value={demo} onChange={(e) => setDemo(e.target.value)} required type="url" placeholder="https://demo.exemple.dev" className="min-h-cible w-full rounded-controle border border-line bg-canvas px-3 font-normal" />
+        <label className="flex flex-col gap-1 font-semibold">URL de l’application en ligne
+          <input value={demo} onChange={(e) => setDemo(e.target.value)} required type="url" placeholder="https://votre-domaine.bj" className="min-h-cible w-full rounded-controle border border-line bg-canvas px-3 font-normal" />
         </label>
         <label className="flex flex-col gap-1 font-semibold">Catégorie
-          <select value={categorie} onChange={(e) => setCategorie(e.target.value as Categorie)} className="champ-select mt-1 w-full">
+          <select required value={categorie} onChange={(e) => setCategorie(e.target.value as Categorie | '')} className="champ-select mt-1 w-full">
+            <option value="">Choisir une catégorie</option>
             {categories.map((item) => <option key={item.valeur} value={item.valeur}>{item.libelle}</option>)}
           </select>
         </label>
         <div className="grid gap-3 min-[761px]:grid-cols-2">
           <label className="flex flex-col gap-1 font-semibold">Prix (FCFA)
-            <input value={prix} onChange={(e) => setPrix(e.target.value.replace(/\D/g, ''))} className="min-h-cible w-full rounded-controle border border-line bg-canvas px-3 font-normal" />
+            <input value={prix} onChange={(e) => setPrix(e.target.value)} type="number" min="0" step="1" required inputMode="numeric" placeholder="0 si l’application est gratuite" className="min-h-cible w-full rounded-controle border border-line bg-canvas px-3 font-normal" />
           </label>
           <label className="flex flex-col gap-1 font-semibold">Type
-            <select value={typePrix} onChange={(e) => setTypePrix(e.target.value as 'mensuel' | 'unique')} className="champ-select mt-1 w-full">
+            <select required value={typePrix} onChange={(e) => setTypePrix(e.target.value as 'mensuel' | 'unique' | '')} className="champ-select mt-1 w-full">
+              <option value="">Choisir le paiement</option>
               <option value="mensuel">Mensuel</option>
               <option value="unique">Paiement unique</option>
             </select>
           </label>
         </div>
-        <div className="font-semibold">Taille
+        <div role="group" aria-label="Taille d’hébergement" className="font-semibold">Taille d’hébergement
+          {!taille ? <span className="block text-sm font-normal text-muted">Choisissez une formule avant de publier.</span> : null}
           <span className="mt-1 grid grid-cols-3 gap-2 font-normal">
             {([
               ['petite', 'Petite', '3 500 F'],
@@ -112,7 +139,16 @@ export function Publier() {
             ))}
           </span>
         </div>
-        <p className="m-0 text-sm text-muted">Les captures (1 à 5 images) sont exigées par l’API. Ce formulaire ne les envoie pas encore : la publication répondra une erreur tant qu’elles manquent.</p>
+        <div className="font-semibold">Les captures
+          <input
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            multiple
+            className="mt-1 block w-full text-sm font-normal"
+            onChange={(e) => setCaptures([...(e.target.files ?? [])].slice(0, 5))}
+          />
+          <span className="mt-1 block text-sm font-normal text-muted">{captures.length === 0 ? '1 à 5 images. La première est la couverture.' : captures.map((fichier) => fichier.name).join(', ')}</span>
+        </div>
         <fieldset className="m-0 border-0 p-0">
           <legend className="font-semibold">La stack</legend>
           <div className="mt-2 flex flex-wrap gap-2">
@@ -132,14 +168,26 @@ export function Publier() {
         {erreur ? <p role="alert" className="m-0 text-danger">{erreur}</p> : null}
         <button type="submit" disabled={envoi} className="min-h-[52px] rounded-controle bg-accent font-bold text-canvas">Publier</button>
       </form>
-      <aside className="rounded-2xl border border-line bg-canvas p-4">
-        <p className="m-0 text-xs font-bold tracking-wide text-muted uppercase">Aperçu dans le store</p>
-        <div className="mt-3 overflow-hidden rounded-xl">
-          <Fenetre nom={nom || 'Votre appli'} categorie={categorie} />
-        </div>
-        <p className="m-0 mt-3 font-bold">{nom || 'Votre appli'}</p>
-        <p className="m-0 text-sm text-muted">{fcfa(Number(prix) || 0)}{typePrix === 'mensuel' ? '/mois' : ''}</p>
+      <aside className="flex flex-col gap-3 rounded-2xl border border-line bg-canvas p-5">
+        <h2 className="m-0 text-lg font-bold">Récapitulatif de publication</h2>
+        <dl className="m-0 grid grid-cols-[auto_1fr] gap-x-3 gap-y-2 text-sm">
+          <dt className="text-muted">Appli</dt><dd className="m-0 font-semibold">{nom || 'À renseigner'}</dd>
+          <dt className="text-muted">Catégorie</dt><dd className="m-0">{categories.find((item) => item.valeur === categorie)?.libelle ?? 'À choisir'}</dd>
+          <dt className="text-muted">Prix</dt><dd className="m-0">{prix === '' ? 'À renseigner' : `${fcfa(Number(prix))}${typePrix === 'mensuel' ? '/mois' : typePrix === 'unique' ? ' · paiement unique' : ''}`}</dd>
+          <dt className="text-muted">Hébergement</dt><dd className="m-0">{taille ? `${taille} · ${taille === 'petite' ? '3 500' : taille === 'moyenne' ? '7 000' : '13 500'} F/mois` : 'À choisir'}</dd>
+          <dt className="text-muted">Dépôt</dt><dd className="m-0 break-all">{depot || 'URL GitHub publique requise'}</dd>
+          <dt className="text-muted">Application en ligne</dt><dd className="m-0 break-all">{demo || 'URL HTTPS requise'}</dd>
+          <dt className="text-muted">Captures</dt><dd className="m-0">{captures.length}/5{captures[0] ? ` · couverture : ${captures[0].name}` : ' · au moins une requise'}</dd>
+        </dl>
       </aside>
     </div>
+  )
+}
+
+function Etape({ numero, fait }: { numero: string; fait: boolean }) {
+  return (
+    <span aria-hidden="true" className={`grid size-7 place-items-center rounded-full text-sm font-bold ${fait ? 'bg-success text-canvas' : 'bg-nav text-accent'}`}>
+      {fait ? '✓' : numero}
+    </span>
   )
 }

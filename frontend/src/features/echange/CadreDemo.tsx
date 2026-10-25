@@ -21,26 +21,6 @@ const etapes = [
   ['en_ligne', 'En ligne'],
 ] as const
 
-function Vitrine({ titre }: { titre: string }) {
-  return (
-    <div className="overflow-hidden rounded-xl border border-line bg-[#FBF7F1]" aria-hidden="true">
-      <div className="flex h-9 items-center gap-1.5 bg-canvas px-3">
-        <i className="size-2 rounded-full bg-[#F87171]" />
-        <i className="size-2 rounded-full bg-[#FBBF24]" />
-        <i className="size-2 rounded-full bg-[#34D399]" />
-        <span className="mx-auto max-w-[28ch] truncate rounded-full bg-[#EEF2F9] px-3 font-mono text-[11px] text-muted">{titre}</span>
-      </div>
-      <div className="flex flex-col items-center gap-3 px-4 py-8 text-center">
-        <p className="m-0 text-sm text-muted">Aperçu illustré · la vraie démo remplace ce dessin</p>
-        <p className="m-0 text-sm">Votre panier · 3 articles</p>
-        <p className="m-0 text-3xl font-extrabold">12 500 F</p>
-        <span className="rounded-lg bg-[#F6C445] px-5 py-2.5 text-sm font-bold text-ink">Payer avec MTN MoMo</span>
-        <span className="rounded-full bg-[#FEE2E2] px-3 py-1 text-xs font-semibold text-[#991B1B]">Erreur 500 · callback</span>
-      </div>
-    </div>
-  )
-}
-
 function adresseVisible(url: string): string {
   try {
     const lue = new URL(url)
@@ -115,7 +95,11 @@ export function CadreDemo({ discussion, auteur }: CadreDemoProps) {
         ) : null}
       </div>
 
-      {!cadre ? <Vitrine titre={discussion.titre} /> : null}
+      {!cadre ? (
+        <p className="m-0 rounded-xl border border-dashed border-line bg-page px-4 py-6 text-center text-sm text-muted">
+          Aucun lien d’application en ligne n’a été renseigné dans cette discussion.
+        </p>
+      ) : null}
       {cadre ? (
         <div className="overflow-hidden rounded-controle border border-line">
           <div className="flex items-center gap-2 border-b border-line bg-[#EEF2F9] px-3 py-2">

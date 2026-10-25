@@ -88,13 +88,17 @@ final class SondeServiceWeb
         ]);
 
         $reponse = @file_get_contents(sprintf('http://%s:%d/', $hote, $port), false, $contexte);
+        $entetes = function_exists('http_get_last_response_headers')
+            ? http_get_last_response_headers()
+            : ($http_response_header ?? []);
+        $statut = is_array($entetes) ? ($entetes[0] ?? null) : null;
 
-        if ($reponse === false && ! isset($http_response_header[0])) {
+        if ($reponse === false && ! is_string($statut)) {
             return false;
         }
 
-        return isset($http_response_header[0])
-            && preg_match('#^HTTP/\d(?:\.\d)? \d{3}#', $http_response_header[0]) === 1;
+        return is_string($statut)
+            && preg_match('#^HTTP/\d(?:\.\d)? \d{3}#', $statut) === 1;
     }
 
     private function ipv4Privee(string $ip): bool

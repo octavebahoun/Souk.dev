@@ -19,7 +19,7 @@ final readonly class FrontUrl
 
     public function erreur(string $code): string
     {
-        return $this->vers('/?erreur='.$code);
+        return $this->vers('/connexion?erreur='.$code);
     }
 
     private function vers(string $chemin): string

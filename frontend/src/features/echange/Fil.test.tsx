@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { createMemoryRouter, RouterProvider } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { routes } from '../../app/router'
+import { creerRoutes } from '../../app/router'
 import { cheminLaravel, client } from '../../shared/client'
 import type { Canal, Discussion, Etiquette } from './api'
 
@@ -68,9 +68,10 @@ function reponses(discussions: Discussion[]) {
   })
 }
 
-function rendu(url = '/echange') {
-  const router = createMemoryRouter(routes, { initialEntries: [url] })
+async function rendu(url = '/echange') {
+  const router = createMemoryRouter(creerRoutes(), { initialEntries: [url] })
   render(<RouterProvider router={router} />)
+  await screen.findByRole('heading', { name: 'Échange' })
   return router
 }
 
@@ -81,7 +82,7 @@ describe('fil des discussions', () => {
 
   it('écrit le filtre étiquette dans l’URL', async () => {
     reponses([discussion(1, 'Callback MoMo')])
-    const router = rendu()
+    const router = await rendu()
 
     fireEvent.click(await screen.findByRole('button', { name: 'bug' }))
 
@@ -96,7 +97,7 @@ describe('fil des discussions', () => {
 
   it('affiche l’état vide quand les filtres ne ramènent rien', async () => {
     reponses([])
-    rendu('/echange?etiquette=bug')
+    await rendu('/echange?etiquette=bug')
 
     expect(await screen.findByText(/Aucune discussion pour ces filtres/)).toBeInTheDocument()
     expect(screen.getAllByRole('button', { name: 'Effacer les filtres' }).length).toBeGreaterThan(0)
@@ -109,7 +110,7 @@ describe('fil des discussions', () => {
       if (url === cheminLaravel('/etiquettes')) return Promise.resolve({ data: etiquettes })
       return Promise.reject(new Error(url))
     })
-    rendu()
+    await rendu()
 
     fireEvent.click(await screen.findByRole('button', { name: 'Réessayer' }))
 

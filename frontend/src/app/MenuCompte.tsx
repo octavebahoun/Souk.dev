@@ -73,7 +73,7 @@ export function MenuCompte() {
         aria-haspopup="menu"
         aria-expanded={ouvert}
         onClick={() => setOuvert((valeur) => !valeur)}
-        className="grid size-11 place-items-center rounded-full border-0 bg-accent text-sm font-semibold text-canvas"
+        className="grid size-11 place-items-center rounded-full border-0 bg-accent text-sm font-semibold text-canvas min-[761px]:size-[52px]"
       >
         {initiales(compte.nom, compte.username)}
       </button>

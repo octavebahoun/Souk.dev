@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams, Link } from 'react-router'
 import { EmptyState } from '../../shared/ui/EmptyState'
 import { Modal } from '../../shared/ui/Modal'
-import { listerCanaux, listerDiscussions, listerEtiquettes, type Discussion, type Etiquette } from './api'
+import { listerCanaux, listerDiscussions, listerEtiquettes, messageAction, type Discussion, type Etiquette } from './api'
 import { CarteDiscussion } from './CarteDiscussion'
 import { nomPays } from './texte'
 import { FormulaireDiscussion } from './FormulaireDiscussion'
@@ -108,7 +108,7 @@ export function Fil() {
   const etiquettesAffichees = etiquettes.data ?? []
 
   return (
-    <main className="mx-auto flex max-w-[1200px] flex-col gap-6 overflow-x-clip px-4 py-7 min-[761px]:px-6">
+    <main className="echange-page mx-auto flex max-w-[1440px] flex-col gap-6 overflow-x-clip px-4 py-7 min-[761px]:px-9">
       <div className="flex flex-col gap-4 min-[761px]:flex-row min-[761px]:items-end min-[761px]:justify-between">
         <div className="min-w-0">
           <h1 className="m-0 text-[30px] leading-[1.2] font-bold tracking-tight text-ink">Échange</h1>
@@ -227,7 +227,7 @@ export function Fil() {
           {discussions.isPending ? <SquelettesFil /> : null}
           {discussions.isError ? (
             <div role="alert" className="flex flex-col items-start gap-3 rounded-carte bg-canvas p-5">
-              <p className="m-0 text-ink">Les discussions n’ont pas pu être chargées.</p>
+              <p className="m-0 text-ink">{messageAction(discussions.error, 'Les discussions n’ont pas pu être chargées.')}</p>
               <button
                 type="button"
                 onClick={() => void discussions.refetch()}

@@ -17,6 +17,8 @@ final class GithubConnexionTest extends TestCase
 
     public function test_la_redirection_demande_uniquement_les_depots_publics(): void
     {
+        config(['services.github.client_id' => 'client-local', 'services.github.client_secret' => 'secret-local']);
+
         $driver = \Mockery::mock();
         $driver->shouldReceive('scopes')
             ->once()
@@ -30,6 +32,14 @@ final class GithubConnexionTest extends TestCase
 
         $this->get('/auth/github?profil=dev')
             ->assertRedirect('https://github.com/login/oauth/authorize');
+    }
+
+    public function test_une_configuration_github_absente_est_expliquee_sur_la_page_de_connexion(): void
+    {
+        config(['services.github.client_id' => null, 'services.github.client_secret' => null]);
+
+        $this->get('/auth/github?profil=dev')
+            ->assertRedirect('http://localhost:5173/connexion?erreur=github_non_configure');
     }
 
     public function test_le_retour_github_ouvre_la_session_dun_dev(): void
@@ -80,7 +90,7 @@ final class GithubConnexionTest extends TestCase
 
         $this->actingAs($client)
             ->get('/auth/github/callback')
-            ->assertRedirect('http://localhost:5173/?erreur=github_deja_lie');
+            ->assertRedirect('http://localhost:5173/connexion?erreur=github_deja_lie');
 
         $client->refresh();
         $this->assertFalse($client->github_lie);

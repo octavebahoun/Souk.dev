@@ -91,7 +91,6 @@
 }
 
 .accueil-p-code { top: 8px; left: 0; width: 350px; transform: translateZ(-70px); }
-.accueil-p-fix { top: 150px; left: 150px; width: 250px; transform: translateZ(40px); }
 .accueil-p-app { top: 222px; left: -40px; display: flex; width: 300px; align-items: center; gap: 12px; transform: translateZ(110px); }
 
 .accueil-ombre {
@@ -185,15 +184,9 @@
   .accueil-hero { min-height: 0; padding: 16px 16px 28px; }
   .accueil-scene, .accueil-scene-echelle { height: auto; transform: none; }
   .accueil-pile { position: static; display: flex; width: auto; height: auto; margin: 0; flex-direction: column; gap: 12px; animation: none; }
-  .accueil-p-code, .accueil-p-fix, .accueil-p-app { position: relative; top: auto; left: auto; width: 100%; transform: none; }
+  .accueil-p-code, .accueil-p-app { position: relative; top: auto; left: auto; width: 100%; transform: none; }
 }
 @media (max-width: 640px) {
   .accueil h1 { font-size: 40px; }
   .accueil-bloc { padding: 28px 16px; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .accueil-aurore, .accueil-pile, .accueil-ombre, .accueil-sceau-texte, .accueil-pouls,
-  .accueil-pastille, .accueil-ic, .accueil-etape, .accueil-j-app, .accueil-j-piece { animation: none; }
-  .accueil-i1 { opacity: 1; }
 }

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
+import { isAxiosError } from 'axios'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { arreterCopie, listerCopies, type Deploiement } from './api'
 import { messageAction } from '../echange/api'
@@ -13,13 +14,26 @@ const etats: Record<Deploiement['etat'], { libelle: string; fond: string; texte:
   arrete: { libelle: 'Arrêtée', fond: '#F1F5F9', texte: '#475569' },
 }
 
+type FiltreCopie = 'toutes' | 'en_ligne' | 'en_cours' | 'echec' | 'arrete'
+
 export function Copies() {
   const copies = useQuery({ queryKey: ['copies'], queryFn: listerCopies })
   const client = useQueryClient()
-  const [filtre, setFiltre] = useState<Deploiement['etat'] | 'toutes'>('toutes')
+  const [filtre, setFiltre] = useState<FiltreCopie>('toutes')
   const [cible, setCible] = useState<Deploiement | null>(null)
   const [erreur, setErreur] = useState<string | null>(null)
-  const liste = (copies.data?.data ?? []).filter((copie) => filtre === 'toutes' || copie.etat === filtre)
+  const toutes = copies.data?.data ?? []
+  const enCours = (copie: Deploiement) => ['en_file', 'construction', 'demarrage'].includes(copie.etat)
+  const liste = toutes.filter((copie) => {
+    if (filtre === 'toutes') return true
+    if (filtre === 'en_cours') return enCours(copie)
+    return copie.etat === filtre
+  })
+  const nombre = (etat: FiltreCopie) => etat === 'toutes'
+    ? toutes.length
+    : etat === 'en_cours'
+      ? toutes.filter(enCours).length
+      : toutes.filter((copie) => copie.etat === etat).length
 
   async function confirmer() {
     if (!cible) return
@@ -33,31 +47,41 @@ export function Copies() {
   }
 
   return (
-    <main className="mx-auto flex max-w-[1200px] flex-col gap-5 px-4 py-8 min-[761px]:px-6">
-      <div className="rounded-[22px] bg-[#0B1A3D] px-5 py-6 text-canvas min-[761px]:px-8 min-[761px]:py-8">
-        <div className="flex flex-col gap-4 min-[761px]:flex-row min-[761px]:items-center min-[761px]:justify-between">
-          <div>
-            <h1 className="m-0 text-[34px] font-extrabold">Mes copies</h1>
-            <p className="m-0 max-w-[42ch] text-[#D6E0F5]">Toutes les applis que vous avez déployées, au même endroit.</p>
-          </div>
-          <Link to="/store" className="inline-flex min-h-cible w-full items-center justify-center rounded-controle bg-[#F6C445] px-4 font-semibold text-ink no-underline min-[761px]:w-auto">Déployer une autre appli</Link>
+    <main className="copies-traits mx-auto flex max-w-[1440px] flex-col gap-5 px-4 pb-8 pt-0 min-[761px]:px-9">
+      <div className="copies-nuit relative left-1/2 -mt-0 flex min-h-[205px] w-screen -translate-x-1/2 flex-col justify-center gap-4 overflow-hidden px-5 py-7 text-canvas min-[761px]:flex-row min-[761px]:items-center min-[761px]:justify-between min-[761px]:px-9">
+        <div>
+          <h1 className="m-0 text-[34px] font-extrabold">Mes copies</h1>
+          <p className="m-0 max-w-[42ch] text-[#D6E0F5]">Toutes les applis que vous avez déployées, au même endroit.</p>
         </div>
+        <Link to="/store" className="inline-flex min-h-cible w-full items-center justify-center rounded-controle bg-[#F6C445] px-4 font-semibold text-ink no-underline min-[761px]:w-auto">Déployer une autre appli</Link>
       </div>
-      <div role="group" aria-label="Filtrer par état" className="flex flex-wrap gap-2">
-        {(['toutes', 'en_ligne', 'construction', 'echec', 'arrete'] as const).map((etat) => (
+      <div role="group" aria-label="Filtrer par état" className="relative z-10 -mt-14 flex flex-wrap gap-2">
+        {(['toutes', 'en_ligne', 'en_cours', 'echec', 'arrete'] as const).map((etat) => (
           <button key={etat} type="button" aria-pressed={filtre === etat} onClick={() => setFiltre(etat)} className={`min-h-10 rounded-full border px-3.5 text-sm font-semibold ${filtre === etat ? 'border-accent bg-nav text-accent' : 'border-line bg-canvas'}`}>
-            {etat === 'toutes' ? 'Toutes' : etats[etat].libelle}
+            {etat === 'toutes' ? 'Toutes' : etat === 'en_cours' ? 'En cours' : etats[etat].libelle} {nombre(etat)}
           </button>
         ))}
       </div>
       {copies.isPending ? <div role="status" className="squelette h-32 rounded-xl" /> : null}
-      {copies.isError ? <button type="button" onClick={() => copies.refetch()} className="min-h-cible w-fit rounded-controle bg-accent px-4 font-semibold text-canvas">Réessayer</button> : null}
+      {copies.isError ? (
+        <section className="rounded-xl border border-line bg-canvas p-5">
+          <p role="alert" className="m-0">{messageAction(copies.error, 'Les copies n’ont pas pu être chargées.')}</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {isAxiosError(copies.error) && copies.error.response?.status === 401 ? (
+              <>
+                <Link to="/connexion" className="inline-flex min-h-cible items-center rounded-controle bg-accent px-4 font-semibold text-canvas no-underline">Se connecter</Link>
+              </>
+            ) : null}
+            <button type="button" onClick={() => copies.refetch()} className="min-h-cible rounded-controle border border-line px-4 font-semibold">Réessayer</button>
+          </div>
+        </section>
+      ) : null}
       {copies.isSuccess && liste.length === 0 ? <p className="rounded-xl border border-line bg-canvas p-8 text-center text-subtle">Aucune copie dans cet état.</p> : null}
       <ul className="m-0 flex list-none flex-col gap-3 p-0">
         {liste.map((copie) => {
           const etat = etats[copie.etat]
           return (
-            <li key={copie.id} className="flex flex-wrap items-center gap-4 rounded-[14px] border border-line bg-canvas px-4 py-3">
+            <li key={copie.id} data-reveal-item className="carte-vive flex flex-wrap items-center gap-4 rounded-[14px] border border-line bg-canvas px-4 py-3">
               <span className="grid size-11 place-items-center rounded-[10px] bg-nav font-bold text-accent">{copie.app_nom.slice(0, 2).toUpperCase()}</span>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
@@ -65,10 +89,12 @@ export function Copies() {
                   <span className="rounded-full px-2 py-0.5 text-sm font-semibold" style={{ background: etat.fond, color: etat.texte }}>{etat.libelle}</span>
                 </div>
                 {copie.url ? <a href={copie.url} className="font-mono text-sm">{copie.url}</a> : null}
+                <p className="m-0 text-sm text-muted">{copie.etat === 'en_ligne' ? 'En ligne depuis' : copie.etat === 'arrete' ? 'Arrêtée le' : 'Lancée le'} {new Date(copie.cree_le).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}</p>
                 {copie.erreur ? <p className="m-0 text-sm text-danger">{copie.erreur}</p> : null}
               </div>
               <div className="flex flex-wrap gap-2">
                 {copie.url ? <a href={copie.url} className="inline-flex min-h-cible items-center rounded-controle border border-line px-3.5 font-semibold no-underline">Ouvrir</a> : null}
+                {copie.etat === 'echec' || copie.etat === 'arrete' ? <Link to={`/store/${copie.app_id}/deployer`} className="inline-flex min-h-cible items-center rounded-controle bg-accent px-3.5 font-semibold text-canvas no-underline">Redéployer</Link> : null}
                 {copie.etat !== 'arrete' ? (
                   <button type="button" onClick={() => { setErreur(null); setCible(copie) }} className="min-h-cible rounded-controle border border-[#FECACA] px-3.5 font-semibold text-[#B91C1C]">Arrêter</button>
                 ) : null}
