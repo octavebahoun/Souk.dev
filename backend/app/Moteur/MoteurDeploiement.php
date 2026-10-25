@@ -97,7 +97,11 @@ class MoteurDeploiement
             $hote = $this->lanceur->adresseService($copie->repertoire, $copie->id, $nom);
             $this->sonde->attendre($hote, $port);
         } catch (Exceptions\LancementEchoue $exception) {
-            $this->lanceur->arreter($copie->repertoire, $copie->id);
+            try {
+                $this->lanceur->arreter($copie->repertoire, $copie->id);
+            } catch (Exceptions\LancementEchoue) {
+                // L'erreur de lancement reste celle à montrer ; le job libère la copie ensuite.
+            }
 
             throw $exception;
         }
