@@ -197,12 +197,15 @@ class DeploiementTest extends TestCase
                 ->with('/tmp/copie', 'd'.$deploiement->id);
         });
 
+        // Le moteur arrête la copie en arrière-plan (file synchrone dans les tests).
         $this->actingAs($client)
             ->deleteJson('/api/deployments/'.$deploiement->id)
-            ->assertNoContent();
+            ->assertAccepted()
+            ->assertJsonPath('etat', 'arrete');
 
         $this->assertSame('arrete', $deploiement->refresh()->etat);
         $this->assertNull($deploiement->url);
+        Event::assertDispatched(DeploiementEtat::class, fn (DeploiementEtat $event) => $event->payload['etat'] === 'arret_en_cours');
         Event::assertDispatched(DeploiementEtat::class, function (DeploiementEtat $event) {
             return $event->payload['etat'] === 'arrete' && $event->payload['url'] === null;
         });
@@ -356,7 +359,7 @@ class DeploiementTest extends TestCase
 
         $this->actingAs($client)
             ->deleteJson('/api/deployments/'.$deploiement->id)
-            ->assertNoContent();
+            ->assertAccepted();
 
         $this->assertSame('arrete', $deploiement->refresh()->etat);
     }

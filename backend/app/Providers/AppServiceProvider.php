@@ -5,10 +5,12 @@ namespace App\Providers;
 use App\Comptes\EmetteurLienMagique;
 use App\Comptes\FrontUrl;
 use App\Exploitation\Battements;
+use App\Models\Deploiement;
 use App\Models\Discussion;
 use App\Models\Evenement;
 use App\Models\Message;
 use App\Moteur\RouteurCopies;
+use App\Policies\DeploiementPolicy;
 use App\Policies\DiscussionPolicy;
 use App\Policies\EvenementPolicy;
 use App\Policies\MessagePolicy;
@@ -112,6 +114,7 @@ class AppServiceProvider extends ServiceProvider
 
         $this->battreDansLesWorkers();
 
+        Gate::policy(Deploiement::class, DeploiementPolicy::class);
         Gate::policy(Discussion::class, DiscussionPolicy::class);
         Gate::policy(Message::class, MessagePolicy::class);
         Gate::policy(Evenement::class, EvenementPolicy::class);

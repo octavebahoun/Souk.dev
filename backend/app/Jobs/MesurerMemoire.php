@@ -30,6 +30,8 @@ class MesurerMemoire implements ShouldQueue
         if ($this->copie === '') {
             $this->copie = 'm'.$appliId.'-'.bin2hex(random_bytes(4));
         }
+
+        $this->onQueue('moteur');
     }
 
     /**

@@ -18,7 +18,10 @@ class LancerDeploiement implements ShouldQueue
 {
     use Queueable;
 
-    public function __construct(public int $deploiementId) {}
+    public function __construct(public int $deploiementId)
+    {
+        $this->onQueue('moteur');
+    }
 
     public function handle(MoteurDeploiement $moteur): void
     {
@@ -104,7 +107,7 @@ class LancerDeploiement implements ShouldQueue
     {
         $deploiement->refresh();
 
-        return $deploiement->etat === 'arrete';
+        return $deploiement->estEnCoursArret();
     }
 
     private function couper(MoteurDeploiement $moteur, CopieLocale $copie): void

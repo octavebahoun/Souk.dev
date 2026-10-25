@@ -589,16 +589,19 @@ paths:
       tags: [Déploiements]
       operationId: deleteDeployment
       summary: Arrêter un déploiement
+      description: >-
+        L'arrêt tourne en arrière-plan sur le moteur : l'état passe à arret_en_cours, puis à arrete
+        (conteneurs, volumes et dossier supprimés), diffusé par Reverb. Si Docker refuse deux fois,
+        le déploiement passe en echec avec son message et l'arrêt est retenté par le nettoyage planifié.
+        Déjà arrêté ou en cours d'arrêt : rien ne change.
       responses:
-        '204':
-          description: Déploiement arrêté (conteneurs, volumes et dossier supprimés) ; aussi si déjà arrêté
-        '403': { $ref: '#/components/responses/Interdit' }
-        '404': { $ref: '#/components/responses/Introuvable' }
-        '503':
-          description: Arrêt Docker impossible après deux essais ; le déploiement passe en echec et sera retenté
+        '202':
+          description: Arrêt demandé ; le déploiement tel qu'il est maintenant
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Erreur' }
+              schema: { $ref: '#/components/schemas/Deploiement' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
         '419': { $ref: '#/components/responses/CsrfInvalide' }
 
   # ───────────── Discussions ─────────────
@@ -1803,7 +1806,8 @@ components:
           description: Copie d'un client, copie de test d'une discussion, ou version corrigée
         etat:
           type: string
-          enum: [en_file, construction, demarrage, en_ligne, echec, arrete]
+          enum: [en_file, construction, demarrage, en_ligne, echec, arret_en_cours, arrete]
+          description: "en_file → construction → demarrage → en_ligne ; echec à n'importe quelle étape ; arret_en_cours puis arrete après DELETE /deployments/{id}"
         url:
           type: [string, 'null']
           format: uri

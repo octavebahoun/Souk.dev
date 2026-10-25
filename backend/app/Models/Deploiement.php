@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Events\CopieTestEtat;
 use App\Events\CorrectifEtat;
 use App\Events\DeploiementEtat;
+use App\Jobs\ArreterDeploiement;
 use App\Moteur\DepotGithub;
 use App\Moteur\Exceptions\DepotInvalide;
 use Illuminate\Database\Eloquent\Model;
@@ -71,6 +72,11 @@ class Deploiement extends Model
             return false;
         }
 
+        // Un arrêt demandé ne peut plus être annulé par le lancement en cours.
+        if ($this->etat === 'arret_en_cours' && ! in_array($etat, ['arrete', 'echec'], true)) {
+            return false;
+        }
+
         $this->etat = $etat;
 
         if ($etat === 'en_ligne') {
@@ -91,6 +97,26 @@ class Deploiement extends Model
         $this->diffuser();
 
         return true;
+    }
+
+    /**
+     * Demande l'arrêt de la copie au moteur, seul à parler à Docker (voir ArreterDeploiement).
+     */
+    public function demanderArret(): void
+    {
+        $this->refresh();
+
+        if (in_array($this->etat, ['arrete', 'arret_en_cours'], true)) {
+            return;
+        }
+
+        $this->changerEtat('arret_en_cours');
+        ArreterDeploiement::dispatch($this->id);
+    }
+
+    public function estEnCoursArret(): bool
+    {
+        return in_array($this->etat, ['arrete', 'arret_en_cours'], true);
     }
 
     public function diffuser(): void

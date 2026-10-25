@@ -6,11 +6,10 @@ use App\Jobs\LancerDeploiement;
 use App\Models\Appli;
 use App\Models\Deploiement;
 use App\Moteur\LimitesTaille;
-use App\Moteur\NettoyeurCopie;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 
 class DeploiementController extends Controller
@@ -53,24 +52,23 @@ class DeploiementController extends Controller
         return JsonResource::collection($deploiements);
     }
 
-    public function show(Request $request, Deploiement $deploiement): JsonResponse
+    public function show(Deploiement $deploiement): JsonResponse
     {
-        abort_unless($deploiement->user_id === $request->user()->id, 403);
+        Gate::authorize('view', $deploiement);
 
         return response()->json($deploiement->versApi());
     }
 
-    public function destroy(Request $request, Deploiement $deploiement, NettoyeurCopie $nettoyeur): Response|JsonResponse
+    /**
+     * L'arrêt tourne sur le moteur : arret_en_cours tout de suite, arrete par Reverb ensuite.
+     */
+    public function destroy(Deploiement $deploiement): JsonResponse
     {
-        abort_unless($deploiement->user_id === $request->user()->id, 403);
+        Gate::authorize('delete', $deploiement);
 
-        // Idempotent : une copie déjà arrêtée répond 204. Si docker compose down échoue deux fois,
-        // la copie passe en echec (jamais arrete) et moteur:nettoyer la retentera.
-        if (! $nettoyeur->arreter($deploiement)) {
-            return response()->json(['message' => 'L\'arrêt de la copie a échoué, il sera retenté.'], 503);
-        }
+        $deploiement->demanderArret();
 
-        return response()->noContent();
+        return response()->json($deploiement->refresh()->versApi(), 202);
     }
 
     /**

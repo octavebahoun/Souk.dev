@@ -386,7 +386,10 @@ export interface paths {
         get: operations["getDeployment"];
         put?: never;
         post?: never;
-        /** Arrêter un déploiement */
+        /**
+         * Arrêter un déploiement
+         * @description L'arrêt tourne en arrière-plan sur le moteur : l'état passe à arret_en_cours, puis à arrete (conteneurs, volumes et dossier supprimés), diffusé par Reverb. Si Docker refuse deux fois, le déploiement passe en echec avec son message et l'arrêt est retenté par le nettoyage planifié. Déjà arrêté ou en cours d'arrêt : rien ne change.
+         */
         delete: operations["deleteDeployment"];
         options?: never;
         head?: never;
@@ -1122,8 +1125,11 @@ export interface components {
              * @enum {string}
              */
             type: "client" | "test" | "correctif";
-            /** @enum {string} */
-            etat: "en_file" | "construction" | "demarrage" | "en_ligne" | "echec" | "arrete";
+            /**
+             * @description en_file → construction → demarrage → en_ligne ; echec à n'importe quelle étape ; arret_en_cours puis arrete après DELETE /deployments/{id}
+             * @enum {string}
+             */
+            etat: "en_file" | "construction" | "demarrage" | "en_ligne" | "echec" | "arret_en_cours" | "arrete";
             /**
              * Format: uri
              * @description Renseignée quand l'état est en_ligne
@@ -2182,25 +2188,18 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Déploiement arrêté (conteneurs, volumes et dossier supprimés) ; aussi si déjà arrêté */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            403: components["responses"]["Interdit"];
-            404: components["responses"]["Introuvable"];
-            419: components["responses"]["CsrfInvalide"];
-            /** @description Arrêt Docker impossible après deux essais ; le déploiement passe en echec et sera retenté */
-            503: {
+            /** @description Arrêt demandé ; le déploiement tel qu'il est maintenant */
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erreur"];
+                    "application/json": components["schemas"]["Deploiement"];
                 };
             };
+            403: components["responses"]["Interdit"];
+            404: components["responses"]["Introuvable"];
+            419: components["responses"]["CsrfInvalide"];
         };
     };
     listDiscussions: {

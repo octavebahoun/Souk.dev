@@ -15,7 +15,7 @@ class NettoyageCopieTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_delete_rate_deux_fois_passe_en_echec_et_repond_503(): void
+    public function test_un_arret_rate_deux_fois_passe_en_echec_pour_etre_retente(): void
     {
         Event::fake([DeploiementEtat::class]);
         $client = User::factory()->create();
@@ -25,10 +25,12 @@ class NettoyageCopieTest extends TestCase
             $mock->shouldReceive('arreter')->twice()->andThrow(new LancementEchoue('daemon injoignable'));
         });
 
-        $this->actingAs($client)->deleteJson('/api/deployments/'.$deploiement->id)->assertStatus(503);
+        $this->actingAs($client)->deleteJson('/api/deployments/'.$deploiement->id)->assertAccepted();
 
-        $this->assertSame('echec', $deploiement->refresh()->etat);
-        Event::assertDispatched(DeploiementEtat::class);
+        $deploiement->refresh();
+        $this->assertSame('echec', $deploiement->etat);
+        $this->assertSame('L\'arrêt de la copie a échoué, il sera retenté.', $deploiement->erreur);
+        Event::assertDispatched(DeploiementEtat::class, fn (DeploiementEtat $event) => $event->payload['etat'] === 'arret_en_cours');
     }
 
     public function test_delete_est_idempotent(): void
@@ -39,7 +41,9 @@ class NettoyageCopieTest extends TestCase
 
         $this->mock(LanceurCompose::class, fn ($mock) => $mock->shouldNotReceive('arreter'));
 
-        $this->actingAs($client)->deleteJson('/api/deployments/'.$deploiement->id)->assertNoContent();
+        $this->actingAs($client)->deleteJson('/api/deployments/'.$deploiement->id)
+            ->assertAccepted()
+            ->assertJsonPath('etat', 'arrete');
         $this->assertSame('arrete', $deploiement->refresh()->etat);
     }
 

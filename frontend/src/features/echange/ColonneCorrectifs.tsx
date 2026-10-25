@@ -252,6 +252,7 @@ const etatCopie = {
   demarrage: 'Démarrage',
   en_ligne: 'En ligne',
   echec: 'Échec',
+  arret_en_cours: 'Arrêt en cours',
   arrete: 'Arrêtée',
 } as const
 

@@ -24,7 +24,7 @@ Le back diffuse avec Laravel Reverb, le front écoute avec Laravel Echo.
 
 | Canal | Événement | Payload (schéma OpenAPI) | Quand |
 |---|---|---|---|
-| `deploiement.{id}` | `deploiement.etat` | `Deploiement` | À chaque changement d'état : `en_file` → `construction` → `demarrage` → `en_ligne` ou `echec` ; `arrete` après un arrêt |
+| `deploiement.{id}` | `deploiement.etat` | `Deploiement` | À chaque changement d'état : `en_file` → `construction` → `demarrage` → `en_ligne` ou `echec` ; `arret_en_cours` puis `arrete` après un arrêt |
 | `mission.{id}` | `message.cree` | `Message` | Nouveau message dans le fil privé |
 | `discussions` | `discussion.creee` | `Discussion` | Nouvelle discussion ; le front filtre lui-même par canal ou étiquette |
 | `discussion.{id}` | `discussion.modifiee` | `Discussion` | L'auteur modifie la discussion (y compris `resolue`, ou acceptation d'un correctif) |

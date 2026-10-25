@@ -33,6 +33,7 @@ function adresseVisible(url: string): string {
 function messageCopie(copie: Deploiement): string {
   if (copie.etat === 'echec') return copie.erreur || 'La copie a échoué.'
   if (copie.etat === 'arrete') return 'Copie arrêtée.'
+  if (copie.etat === 'arret_en_cours') return 'Arrêt de la copie en cours.'
   if (copie.etat === 'en_ligne') return 'La copie tourne.'
   return 'La copie avance. La page se met à jour toute seule.'
 }
@@ -52,7 +53,7 @@ export function CadreDemo({ discussion, auteur }: CadreDemoProps) {
   const cadre = demo || (copie?.etat === 'en_ligne' ? copie.url : null)
   const peutLancer = auteur && !copie && (discussion.depot_url !== null || discussion.app_id !== null)
   const peutArreter =
-    auteur && copie !== null && copie.etat !== 'echec' && copie.etat !== 'arrete'
+    auteur && copie !== null && copie.etat !== 'echec' && copie.etat !== 'arrete' && copie.etat !== 'arret_en_cours'
 
   const lancer = useMutation({
     mutationFn: () => lancerCopieTest(discussion.id),

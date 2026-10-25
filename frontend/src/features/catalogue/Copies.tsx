@@ -11,6 +11,7 @@ const etats: Record<Deploiement['etat'], { libelle: string; fond: string; texte:
   demarrage: { libelle: 'Démarrage', fond: '#FEF3C7', texte: '#92400E' },
   en_ligne: { libelle: 'En ligne', fond: '#DCFCE7', texte: '#166534' },
   echec: { libelle: 'Échec', fond: '#FEE2E2', texte: '#991B1B' },
+  arret_en_cours: { libelle: 'Arrêt en cours', fond: '#F1F5F9', texte: '#475569' },
   arrete: { libelle: 'Arrêtée', fond: '#F1F5F9', texte: '#475569' },
 }
 
@@ -95,7 +96,7 @@ export function Copies() {
               <div className="flex flex-wrap gap-2">
                 {copie.url ? <a href={copie.url} className="inline-flex min-h-cible items-center rounded-controle border border-line px-3.5 font-semibold no-underline">Ouvrir</a> : null}
                 {copie.etat === 'echec' || copie.etat === 'arrete' ? <Link to={`/store/${copie.app_id}/deployer`} className="inline-flex min-h-cible items-center rounded-controle bg-accent px-3.5 font-semibold text-canvas no-underline">Redéployer</Link> : null}
-                {copie.etat !== 'arrete' ? (
+                {copie.etat !== 'arrete' && copie.etat !== 'arret_en_cours' ? (
                   <button type="button" onClick={() => { setErreur(null); setCible(copie) }} className="min-h-cible rounded-controle border border-[#FECACA] px-3.5 font-semibold text-[#B91C1C]">Arrêter</button>
                 ) : null}
               </div>

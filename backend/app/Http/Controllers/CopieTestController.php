@@ -19,7 +19,7 @@ use Illuminate\Validation\ValidationException;
 class CopieTestController extends Controller
 {
     /** États où la copie occupe encore le serveur. */
-    public const ETATS_ACTIFS = ['en_file', 'construction', 'demarrage', 'en_ligne'];
+    public const ETATS_ACTIFS = ['en_file', 'construction', 'demarrage', 'en_ligne', 'arret_en_cours'];
 
     public function store(Request $request, Discussion $discussion): JsonResponse
     {
