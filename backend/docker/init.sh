@@ -25,3 +25,6 @@ if [ "$(readlink public/storage 2>/dev/null || true)" != "../storage/app/public"
 fi
 
 php artisan migrate --force --no-interaction
+
+# Copie rangée des profils (tri de la recherche de devs par Souk Score), à jour dès le démarrage.
+php artisan profils:recalculer --no-interaction

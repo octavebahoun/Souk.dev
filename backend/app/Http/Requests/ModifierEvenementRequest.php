@@ -26,7 +26,7 @@ final class ModifierEvenementRequest extends FormRequest
         return [
             'titre' => ['sometimes', 'string', 'max:200'],
             'description' => ['sometimes', 'string', 'max:10000'],
-            'date' => ['sometimes', 'date'],
+            'date' => ['sometimes', 'date', 'after:now'],
             'type' => ['sometimes', Rule::in(['en_ligne', 'presentiel'])],
             'lieu' => ['sometimes', 'nullable', 'string', 'max:200'],
             'lien' => ['sometimes', 'nullable', 'url', 'max:2048'],

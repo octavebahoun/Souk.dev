@@ -22,7 +22,8 @@ final class CreerEvenementRequest extends FormRequest
         return [
             'titre' => ['required', 'string', 'max:200'],
             'description' => ['required', 'string', 'max:10000'],
-            'date' => ['required', 'date'],
+            // Un événement se crée pour l'avenir : un événement « déjà passé » compterait aussitôt dans l'XP.
+            'date' => ['required', 'date', 'after:now'],
             'type' => ['required', Rule::in(['en_ligne', 'presentiel'])],
             'lieu' => ['required_if:type,presentiel', 'nullable', 'string', 'max:200'],
             'lien' => ['required_if:type,en_ligne', 'nullable', 'url', 'max:2048'],

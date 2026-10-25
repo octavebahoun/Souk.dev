@@ -23,10 +23,12 @@ final readonly class ConstruireBilan
     {
         $depuis = now()->subDays(self::JOURS_RECENTS);
 
+        // Validé par quelqu'un d'autre : un correctif accepté sur sa propre discussion ne compte pas.
         $correctifs = Correctif::query()
-            ->where('user_id', $dev->id)
+            ->where('correctifs.user_id', $dev->id)
             ->where('accepte', true)
-            ->get(['accepte_le']);
+            ->whereHas('discussion', fn ($discussion) => $discussion->where('user_id', '!=', $dev->id))
+            ->get(['correctifs.accepte_le']);
 
         $applis = Appli::query()
             ->where('user_id', $dev->id)
@@ -38,10 +40,12 @@ final readonly class ConstruireBilan
             ->where('statut', 'terminee')
             ->get(['note', 'terminee_le']);
 
-        // Un événement annulé est supprimé : ceux qui restent ont eu lieu.
+        // Un événement annulé est supprimé : ceux qui restent ont eu lieu. Il compte s'il a réuni
+        // au moins un inscrit autre que l'organisateur.
         $evenements = Evenement::query()
             ->where('user_id', $dev->id)
             ->where('date', '<=', now())
+            ->whereHas('inscriptions', fn ($inscription) => $inscription->where('user_id', '!=', $dev->id))
             ->get(['date']);
 
         $recents = $correctifs->filter(fn (Correctif $correctif) => $correctif->accepte_le?->greaterThanOrEqualTo($depuis) ?? false)->count()

@@ -29,7 +29,7 @@ final class EvenementTest extends TestCase
         $cree = $this->actingAs($organisateur)->postJson('/api/events', [
             'titre' => 'Atelier Laravel',
             'description' => 'On corrige un callback.',
-            'date' => now()->subHour()->toIso8601String(),
+            'date' => now()->addHour()->toIso8601String(),
             'type' => 'en_ligne',
             'lien' => 'https://meet.example.com/atelier',
         ]);
@@ -69,6 +69,9 @@ final class EvenementTest extends TestCase
         $this->actingAs($organisateur)->getJson('/api/events/'.$id.'/participants')
             ->assertOk()
             ->assertJsonPath('meta.total', 1);
+
+        // L'atelier a eu lieu : les inscrits peuvent laisser un avis.
+        $this->travel(2)->hours();
 
         $futur = $this->actingAs($organisateur)->postJson('/api/events', [
             'titre' => 'Plus tard',
