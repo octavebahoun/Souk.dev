@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -50,20 +49,20 @@ return Application::configure(basePath: dirname(__DIR__))
             }
         });
 
-        // Une Policy peut répondre 404 (denyAsNotFound) pour ne pas révéler qu'une ressource existe,
-        // ou donner la raison du refus (Response::deny) : on garde l'un et l'autre.
-        $exceptions->render(function (AuthorizationException $exception, Request $request) use ($json) {
-            if ($request->is('api/*') || $request->expectsJson()) {
-                $status = $exception->status() ?? 403;
-
-                if ($status === 404) {
-                    return $json('Introuvable.', 404);
-                }
-
-                $message = $exception->getMessage();
-
-                return $json($message !== '' && $message !== 'This action is unauthorized.' ? $message : 'Action non autorisée.', $status);
+        // Laravel convertit un refus de Policy en HttpException (403, ou 404 avec denyAsNotFound)
+        // avant ces rappels : on traduit ses messages par défaut et on garde la raison d'un refus.
+        $exceptions->render(function (HttpExceptionInterface $exception, Request $request) use ($json) {
+            if (! $request->is('api/*') && ! $request->expectsJson()) {
+                return null;
             }
+
+            $message = $exception->getMessage();
+
+            return match ($exception->getStatusCode()) {
+                403 => $json($message === '' || $message === 'This action is unauthorized.' ? 'Action non autorisée.' : $message, 403),
+                404 => $json('Introuvable.', 404),
+                default => null,
+            };
         });
 
         $exceptions->render(function (NotFoundHttpException $exception, Request $request) use ($json) {
