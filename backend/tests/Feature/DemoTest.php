@@ -59,6 +59,17 @@ class DemoTest extends TestCase
         $this->getJson('/api/me')->assertOk()->assertJsonPath('username', 'soukdemo-awa');
     }
 
+    public function test_le_compte_admin_de_demo_reste_ferme_hors_du_poste_de_dev(): void
+    {
+        config(['app.demo_connexion' => true]);
+        $this->seed(DemoSeeder::class);
+        $this->app->detectEnvironment(fn () => 'staging');
+
+        $this->withoutMiddleware(PreventRequestForgery::class)
+            ->postJson('/auth/demo', ['compte' => 'soukdemo-admin'])
+            ->assertNotFound();
+    }
+
     public function test_la_connexion_de_demo_reste_fermee_en_production(): void
     {
         config(['app.demo_connexion' => true]);

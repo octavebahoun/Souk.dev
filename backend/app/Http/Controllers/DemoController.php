@@ -31,6 +31,10 @@ final class DemoController extends Controller
 
         abort_if($compte === null, 404);
 
+        // Le compte admin de démo ne s'ouvre que sur un poste de développement, jamais sur une
+        // préproduction joignable de l'extérieur (même avec DEMO_CONNEXION=true).
+        abort_if($compte->est_admin && ! app()->environment('local', 'testing'), 404);
+
         Auth::login($compte);
         $request->session()->regenerate();
 
