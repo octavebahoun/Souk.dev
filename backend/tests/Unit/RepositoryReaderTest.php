@@ -125,6 +125,24 @@ class RepositoryReaderTest extends TestCase
         }
     }
 
+    public function test_un_lien_symbolique_du_depot_devient_un_simple_fichier(): void
+    {
+        $secret = $this->directory().'/platform.env';
+        file_put_contents($secret, "SASPAY_SECRET_KEY=valeur-de-test\n");
+
+        $origin = $this->directory();
+        $this->git($origin, ['init', '-b', 'main']);
+        symlink($secret, $origin.'/soukdev.json');
+        $this->git($origin, ['add', '.']);
+        $this->git($origin, ['-c', 'user.email=test@example.com', '-c', 'user.name=Test', 'commit', '-m', 'lien']);
+
+        $destination = $this->path();
+        (new ProcessGitCloner)->checkout('file://'.$origin, null, $destination);
+
+        $this->assertFalse(is_link($destination.'/soukdev.json'));
+        $this->assertSame($secret, file_get_contents($destination.'/soukdev.json'));
+    }
+
     public function test_il_refuse_une_adresse_de_clone_qui_nest_pas_github(): void
     {
         try {

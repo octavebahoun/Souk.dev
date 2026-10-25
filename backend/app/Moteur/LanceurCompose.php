@@ -14,6 +14,10 @@ class LanceurCompose
     {
         $compose = $repertoire.DIRECTORY_SEPARATOR.'docker-compose.yml';
 
+        if (is_link($compose)) {
+            throw new LancementEchoue('docker-compose.yml ne doit pas être un lien symbolique.');
+        }
+
         if (! is_file($compose)) {
             throw new LancementEchoue('docker-compose.yml est absent à la racine du dépôt.');
         }

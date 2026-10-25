@@ -39,6 +39,25 @@ class ValidateurSoukdevTest extends TestCase
         }
     }
 
+    public function test_refuse_un_soukdev_json_qui_est_un_lien_symbolique(): void
+    {
+        $dossier = sys_get_temp_dir().'/soukdev-lien-'.bin2hex(random_bytes(4));
+        mkdir($dossier);
+        file_put_contents($dossier.'/secret.json', json_encode($this->exemple(), JSON_THROW_ON_ERROR));
+        symlink($dossier.'/secret.json', $dossier.'/soukdev.json');
+
+        try {
+            $this->validateur->validerFichier($dossier.'/soukdev.json');
+            $this->fail('Un lien symbolique aurait dû être refusé.');
+        } catch (ManifestInvalide $exception) {
+            $this->assertSame('soukdev.json ne doit pas être un lien symbolique.', $exception->getMessage());
+        } finally {
+            @unlink($dossier.'/soukdev.json');
+            @unlink($dossier.'/secret.json');
+            @rmdir($dossier);
+        }
+    }
+
     public function test_refuse_un_fichier_absent(): void
     {
         $this->expectException(ManifestInvalide::class);

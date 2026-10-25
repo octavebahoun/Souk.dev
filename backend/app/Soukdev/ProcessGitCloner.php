@@ -8,11 +8,15 @@ use Symfony\Component\Process\Process;
 
 final class ProcessGitCloner implements GitCloner
 {
+    /** Messages de git en anglais (LC_ALL=C) : ils sont lus plus bas pour choisir l'erreur. */
     private const array GIT_ENV = [
         'GIT_TERMINAL_PROMPT' => '0',
         'GIT_CONFIG_GLOBAL' => '/dev/null',
         'GIT_CONFIG_SYSTEM' => '/dev/null',
         'GIT_CONFIG_NOSYSTEM' => '1',
+        'GIT_LFS_SKIP_SMUDGE' => '1',
+        'LC_ALL' => 'C',
+        'LANG' => 'C',
     ];
 
     public function checkout(string $remote, ?string $branch, string $destination): void
@@ -20,7 +24,8 @@ final class ProcessGitCloner implements GitCloner
         $this->assertRemote($remote);
         $this->assertBranch($branch);
 
-        $command = ['git', 'clone', '--depth', '1', '--quiet'];
+        // Un lien symbolique du dépôt devient un simple fichier : la plateforme ne lit jamais hors du dépôt.
+        $command = ['git', 'clone', '--depth', '1', '--quiet', '--config', 'core.symlinks=false'];
 
         if ($branch !== null) {
             $command[] = '--branch';
