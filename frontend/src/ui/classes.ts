@@ -15,7 +15,7 @@ export const variantesBouton: Record<VarianteBouton, string> = {
   secondaire: 'bg-primaire-doux text-sur-primaire-doux hover:bg-primaire-doux-survol',
   contour: 'border border-bordure-champ bg-surface text-titre shadow-1 hover:bg-surface-douce',
   fantome: 'text-texte hover:bg-surface-douce hover:text-titre',
-  danger: 'bg-danger-solide text-white shadow-1 hover:brightness-95',
+  danger: 'bg-danger-solide text-sur-couleur shadow-1 hover:brightness-95',
 }
 
 // 44 px sur mobile (loi de Fitts), plus dense à partir de la tablette.

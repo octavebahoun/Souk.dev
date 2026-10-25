@@ -35,13 +35,17 @@
   --color-primaire-survol: #0f56be;
   --color-primaire-actif: #0c489f;
   --color-sur-primaire: #ffffff;
+  /* Texte et formes posés sur une couleur pleine (bouton danger, étape terminée, bandeau nuit). */
+  --color-sur-couleur: #ffffff;
   --color-primaire-doux: #ecf3ff;
   --color-primaire-doux-survol: #dce8fd;
-  --color-sur-primaire-doux: #1265dd;
+  --color-sur-primaire-doux: #0f56be;
   --color-lien: #0c60f7;
   --color-vert-marque: #0ccf87;
   --color-succes: #067647;
   --color-succes-solide: #12b76a;
+  /* Pastille pleine avec une icône blanche (étape terminée) : contraste de 3:1 au moins. */
+  --color-succes-plein: #067647;
   --color-fond-succes: #ecfdf3;
   --color-bordure-succes: #abefc6;
   --color-alerte: #b54708;
@@ -146,8 +150,8 @@
   --color-texte-doux: #98a2b8;
   --color-texte-indice: #8790a6;
   --color-primaire: #1265dd;
-  --color-primaire-survol: #2c7aea;
-  --color-primaire-actif: #4a8cf0;
+  --color-primaire-survol: #0f56be;
+  --color-primaire-actif: #0c489f;
   --color-primaire-doux: #16264d;
   --color-primaire-doux-survol: #1d3263;
   --color-sur-primaire-doux: #8db8ff;

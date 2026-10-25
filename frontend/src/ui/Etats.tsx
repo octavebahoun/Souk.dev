@@ -129,7 +129,7 @@ export function BandeauHorsLigne() {
   return (
     <div role="status" aria-live="polite">
       {enLigne ? null : (
-        <div className="flex items-center justify-center gap-2 bg-nuit px-4 py-2 text-center text-petit text-white">
+        <div className="flex items-center justify-center gap-2 bg-nuit px-4 py-2 text-center text-petit text-sur-couleur">
           <WifiOff aria-hidden="true" className="size-4 shrink-0" />
           {t.etats.horsLigne}
         </div>

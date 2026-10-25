@@ -36,3 +36,25 @@ export function SelecteurTheme({ className }: { className?: string }) {
     </fieldset>
   )
 }
+
+const suivant: Record<ChoixTheme, ChoixTheme> = { clair: 'sombre', sombre: 'systeme', systeme: 'clair' }
+
+/** Bouton de l'en-tête : passe de clair à sombre, puis au réglage du système. */
+export function BoutonTheme({ className }: { className?: string }) {
+  const [choix, changer] = useTheme()
+  const actuel = options.find((option) => option.valeur === choix) ?? options[2]
+  const Icone = actuel.icone
+  const libelle = `${t.theme.libelle} : ${actuel.libelle.toLowerCase()}. Changer de thème`
+  return (
+    <button
+      type="button"
+      onClick={() => changer(suivant[choix])}
+      aria-label={libelle}
+      title={libelle}
+      className={cx('grid size-11 place-items-center rounded-moyen transition-colors duration-150 tablette:size-9', className)}
+    >
+      <Icone aria-hidden="true" className="size-5" />
+    </button>
+  )
+}
+

@@ -41,12 +41,24 @@ type InterrupteurProps = {
   disabled?: boolean
 }
 
-/** Choix binaire appliqué tout de suite (préférence de notification, disponibilité). */
+/**
+ * Choix binaire appliqué tout de suite (préférence de notification, disponibilité).
+ * Toute la ligne est la cible (44 px au moins) : cliquer sur le libellé bascule aussi.
+ */
 export function Interrupteur({ actif, onChange, libelle, aide, disabled }: InterrupteurProps) {
   const id = useId()
   return (
-    <div className="flex items-start justify-between gap-4">
-      <div className="flex flex-col gap-0.5">
+    <button
+      type="button"
+      role="switch"
+      aria-checked={actif}
+      aria-labelledby={`${id}-libelle`}
+      aria-describedby={aide ? `${id}-aide` : undefined}
+      disabled={disabled}
+      onClick={() => onChange(!actif)}
+      className="flex min-h-11 w-full cursor-pointer items-center justify-between gap-4 rounded-moyen py-1.5 text-left disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      <span className="flex flex-col gap-0.5">
         <span id={`${id}-libelle`} className="text-corps text-titre">
           {libelle}
         </span>
@@ -55,29 +67,22 @@ export function Interrupteur({ actif, onChange, libelle, aide, disabled }: Inter
             {aide}
           </span>
         ) : null}
-      </div>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={actif}
-        aria-labelledby={`${id}-libelle`}
-        aria-describedby={aide ? `${id}-aide` : undefined}
-        disabled={disabled}
-        onClick={() => onChange(!actif)}
+      </span>
+      <span
+        aria-hidden="true"
         className={cx(
-          'relative inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-pastille border transition-colors duration-150 ease-souk disabled:opacity-50',
+          'relative inline-flex h-7 w-12 shrink-0 items-center rounded-pastille border transition-colors duration-150 ease-souk',
           actif ? 'border-primaire bg-primaire' : 'border-bordure-champ bg-surface-douce',
         )}
       >
         <span
-          aria-hidden="true"
           className={cx(
-            'inline-block size-5 rounded-pastille bg-white shadow-2 transition-transform duration-200 ease-souk',
+            'inline-block size-5 rounded-pastille bg-sur-couleur shadow-2 transition-transform duration-200 ease-souk',
             actif ? 'translate-x-6' : 'translate-x-1',
           )}
         />
-      </button>
-    </div>
+      </span>
+    </button>
   )
 }
 
@@ -151,7 +156,7 @@ export function ChoixCartes<V extends string>({
                 aria-hidden="true"
                 className={cx(
                   'mt-0.5 grid size-5 shrink-0 place-items-center rounded-pastille border',
-                  choisie ? 'border-primaire bg-primaire text-white' : 'border-bordure-champ bg-surface',
+                  choisie ? 'border-primaire bg-primaire text-sur-couleur' : 'border-bordure-champ bg-surface',
                 )}
               >
                 {choisie ? <Check className="size-3.5" strokeWidth={3} /> : null}

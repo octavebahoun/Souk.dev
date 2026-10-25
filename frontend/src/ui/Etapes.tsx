@@ -21,8 +21,8 @@ type EtapesProps = {
 const pastilles: Record<EtatEtape, string> = {
   a_venir: 'border-bordure-champ bg-surface text-texte-doux',
   en_cours: 'border-primaire bg-primaire-doux text-primaire',
-  terminee: 'border-succes-solide bg-succes-solide text-white',
-  echec: 'border-danger-solide bg-danger-solide text-white',
+  terminee: 'border-succes-plein bg-succes-plein text-sur-couleur',
+  echec: 'border-danger-solide bg-danger-solide text-sur-couleur',
 }
 
 function Pastille({ etat, numero }: { etat: EtatEtape; numero: number }) {

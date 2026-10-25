@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router'
 import { ChevronDown, Gauge, LogOut, Package, Search, Server, UserRound } from 'lucide-react'
 import { t } from '../i18n'
-import { Avatar, cx, LienBouton, Logo, MenuDeroulant, SelecteurTheme, Squelette, type ElementMenu } from '../ui'
+import { Avatar, BoutonTheme, cx, LienBouton, Logo, MenuDeroulant, Squelette, type ElementMenu } from '../ui'
 import { nomPays } from '../features/echange/texte'
 import { useCompte, useDeconnexion } from './compte'
 import { liensPrincipaux } from './navigation'
@@ -27,7 +27,7 @@ function Recherche({ surFondSombre }: { surFondSombre: boolean }) {
       <label htmlFor="recherche-site" className="pour-lecteur">
         {t.navigation.rechercher}
       </label>
-      <Search aria-hidden="true" className={cx('pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2', surFondSombre ? 'text-white/70' : 'text-texte-indice')} />
+      <Search aria-hidden="true" className={cx('pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2', surFondSombre ? 'text-sur-couleur/70' : 'text-texte-indice')} />
       <input
         id="recherche-site"
         type="search"
@@ -37,7 +37,7 @@ function Recherche({ surFondSombre }: { surFondSombre: boolean }) {
         className={cx(
           'h-9 w-64 rounded-moyen border pr-3 pl-9 text-petit transition-[border-color,box-shadow,width] duration-200 ease-souk focus:w-80 focus:shadow-focus focus:outline-none focus-visible:outline-none',
           surFondSombre
-            ? 'border-white/20 bg-white/10 text-white placeholder:text-white/70 focus:border-white/60'
+            ? 'border-sur-couleur/20 bg-sur-couleur/10 text-sur-couleur placeholder:text-sur-couleur/70 focus:border-sur-couleur/60'
             : 'border-bordure bg-surface-douce text-titre focus:border-lien focus:bg-surface',
         )}
       />
@@ -76,16 +76,6 @@ function MenuDuCompte() {
     { type: 'lien', libelle: t.navigation.mesCopies, vers: '/copies', icone: <Server aria-hidden="true" className="size-4 text-texte-doux" /> },
     { type: 'lien', libelle: t.navigation.mesApplis, vers: '/publier', icone: <Package aria-hidden="true" className="size-4 text-texte-doux" /> },
     { type: 'separateur' },
-    {
-      type: 'contenu',
-      contenu: (
-        <div className="px-1.5 py-1">
-          <p className="m-0 mb-1.5 px-1.5 text-etiquette text-texte-doux uppercase">{t.theme.libelle}</p>
-          <SelecteurTheme />
-        </div>
-      ),
-    },
-    { type: 'separateur' },
     { type: 'action', libelle: t.navigation.seDeconnecter, onClick: () => void deconnecter(), danger: true, icone: <LogOut aria-hidden="true" className="size-4" /> },
   ]
 
@@ -111,7 +101,7 @@ export function EnTeteSite({ surFondSombre = false }: EnTeteSiteProps) {
     <header
       className={cx(
         'sticky top-0 z-30 border-b backdrop-blur',
-        surFondSombre ? 'border-white/10 bg-nuit/85 text-white' : 'border-bordure bg-surface/90',
+        surFondSombre ? 'border-sur-couleur/10 bg-nuit/85 text-sur-couleur' : 'border-bordure bg-surface/90',
       )}
     >
       <div className="mx-auto flex h-16 w-full max-w-site items-center gap-6 px-4 tablette:px-6 bureau:px-8">
@@ -129,7 +119,7 @@ export function EnTeteSite({ surFondSombre = false }: EnTeteSiteProps) {
                 cx(
                   'inline-flex h-9 items-center rounded-moyen px-3 text-corps font-medium no-underline transition-colors duration-150',
                   surFondSombre
-                    ? isActive ? 'bg-white/15 text-white' : 'text-white/80 hover:bg-white/10 hover:text-white'
+                    ? isActive ? 'bg-sur-couleur/15 text-sur-couleur' : 'text-sur-couleur/80 hover:bg-sur-couleur/10 hover:text-sur-couleur'
                     : isActive ? 'bg-surface-accent text-sur-primaire-doux' : 'text-texte hover:bg-surface-douce hover:text-titre',
                 )
               }
@@ -141,6 +131,12 @@ export function EnTeteSite({ surFondSombre = false }: EnTeteSiteProps) {
 
         <div className="ml-auto flex items-center gap-2">
           <Recherche surFondSombre={surFondSombre} />
+          <BoutonTheme
+            className={cx(
+              'max-tablette:hidden',
+              surFondSombre ? 'text-sur-couleur/80 hover:bg-sur-couleur/10 hover:text-sur-couleur' : 'text-texte-doux hover:bg-surface-douce hover:text-titre',
+            )}
+          />
           {isPending ? null : compte ? (
             <>
               {compte.profil === 'dev' ? (
@@ -152,7 +148,7 @@ export function EnTeteSite({ surFondSombre = false }: EnTeteSiteProps) {
             </>
           ) : (
             <>
-              <LienBouton to="/connexion" variante={surFondSombre ? 'fantome' : 'contour'} taille="sm" className={cx(surFondSombre && 'text-white hover:bg-white/10 hover:text-white')}>
+              <LienBouton to="/connexion" variante={surFondSombre ? 'fantome' : 'contour'} taille="sm" className={cx(surFondSombre && 'text-sur-couleur hover:bg-sur-couleur/10 hover:text-sur-couleur')}>
                 {t.navigation.seConnecter}
               </LienBouton>
               <LienBouton to="/connexion?profil=dev" taille="sm" className="max-bureau:hidden">

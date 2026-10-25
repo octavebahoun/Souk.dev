@@ -26,13 +26,20 @@ test.describe('socle', () => {
     await expect(page.getByRole('menu')).toHaveCount(0)
   })
 
-  test('le thème sombre se choisit et reste après rechargement', async ({ page }) => {
-    await connexionDemo(page, 'soukdemo-kofi')
-    await page.goto('/store')
-    await page.getByRole('button', { name: 'Menu du compte' }).click()
-    await page.getByRole('menu').getByText('Sombre', { exact: true }).click()
+  test('le thème sombre se choisit au clavier et reste après rechargement', async ({ page }) => {
+    await page.goto('/page-inconnue')
+    const bouton = page.getByRole('button', { name: /Changer de thème/ })
+    // Système → clair → sombre.
+    await bouton.focus()
+    await page.keyboard.press('Enter')
+    await page.keyboard.press('Enter')
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+    expect(resumer(await auditAxe(page))).toBe('')
     await page.reload()
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+
+    // Un écran pas encore refait reste en clair.
+    await page.goto('/store')
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
   })
 })
