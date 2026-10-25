@@ -34,6 +34,10 @@ return [
     // de GitHub pour les applis du jeu de démo (php artisan demo:miroirs). Ignoré hors local et tests.
     'miroirs' => env('MOTEUR_MIROIRS'),
 
+    // Traefik applique les changements de routes au plus toutes les 2 secondes : la copie n'est
+    // annoncée en ligne qu'après ce délai, sinon un clic trop rapide tomberait sur un 404.
+    'delai_proxy' => (int) env('MOTEUR_DELAI_PROXY', 3),
+
     // Page « copie suspendue » (impayé) : l'API vue depuis Traefik. En développement, Traefik est
     // sur le réseau de la machine et joint l'API sur son port publié.
     'page_suspendue' => env('MOTEUR_PAGE_SUSPENDUE', 'http://127.0.0.1:8000'),

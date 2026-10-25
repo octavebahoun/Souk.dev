@@ -439,7 +439,8 @@ class DemoSeeder extends Seeder
         // Nouvelle commande, pas encore payée : la copie attend le paiement.
         $facturation->commander($this->applis['pharmastock'], $this->comptes['pharmacie'], []);
 
-        $numero = NumeroMobileMoney::normaliser('BJ', '0197000000');
+        // Un numéro qui finit par 0000 simule un refus du réseau (SimulateurSasPay) : pas celui-ci.
+        $numero = NumeroMobileMoney::normaliser('BJ', '0197123456');
         CoordonneesReversement::query()->create([
             'user_id' => $this->comptes['awa']->id,
             'pays' => 'BJ',

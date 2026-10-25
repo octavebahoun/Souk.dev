@@ -13,3 +13,43 @@ const format = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 })
 export function formaterFcfa(valeur: number): string {
   return `${format.format(Math.round(valeur))} F`
 }
+
+const jours = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+const joursCourts = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' })
+const heures = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+
+/**
+ * « 2026-11-05 » (date seule) se lit comme un jour du calendrier, sans décalage de fuseau ;
+ * une date et heure ISO garde son instant.
+ */
+function lireDate(valeur: string): Date {
+  const jour = /^(\d{4})-(\d{2})-(\d{2})$/.exec(valeur)
+  return jour ? new Date(Number(jour[1]), Number(jour[2]) - 1, Number(jour[3])) : new Date(valeur)
+}
+
+/** « 5 novembre 2026 » ; court : « 5 nov. » ; avecHeure : « 5 novembre 2026 à 14:30 ». */
+export function formaterDate(valeur: string, style: 'long' | 'court' | 'avecHeure' = 'long'): string {
+  const date = lireDate(valeur)
+  if (Number.isNaN(date.getTime())) return valeur
+  const texte = style === 'court' ? joursCourts.format(date) : style === 'avecHeure' ? heures.format(date) : jours.format(date)
+  // Le premier du mois s'écrit « 1er » en français.
+  return date.getDate() === 1 ? texte.replace(/^1 /, '1er ') : texte
+}
+
+/** « du 5 novembre au 4 décembre 2026 ». */
+export function formaterPeriode(debut: string, fin: string): string {
+  const a = lireDate(debut)
+  const b = lireDate(fin)
+  const memeAnnee = a.getFullYear() === b.getFullYear()
+  const premier = new Intl.DateTimeFormat('fr-FR', memeAnnee ? { day: 'numeric', month: 'long' } : { day: 'numeric', month: 'long', year: 'numeric' }).format(a)
+  const dernier = jours.format(b)
+  return `du ${a.getDate() === 1 ? premier.replace(/^1 /, '1er ') : premier} au ${b.getDate() === 1 ? dernier.replace(/^1 /, '1er ') : dernier}`
+}
+
+/** Jours entiers entre aujourd'hui et une date (négatif : dans le passé). */
+export function joursAvant(valeur: string): number {
+  const cible = lireDate(valeur)
+  const aujourdhui = new Date()
+  const debut = new Date(aujourdhui.getFullYear(), aujourdhui.getMonth(), aujourdhui.getDate())
+  return Math.round((new Date(cible.getFullYear(), cible.getMonth(), cible.getDate()).getTime() - debut.getTime()) / 86_400_000)
+}

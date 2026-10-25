@@ -100,6 +100,7 @@ class MoteurDeploiement
 
             // Le sous-domaine ne s'ouvre qu'une fois le service web joignable, et vers lui seul.
             $this->routeur->publier($copie->id, $hote, $port);
+            $this->attendreLeProxy();
         } catch (Exceptions\LancementEchoue $exception) {
             try {
                 $this->lanceur->arreter($copie->repertoire, $copie->id);
@@ -145,6 +146,17 @@ class MoteurDeploiement
         $hote = $this->lanceur->adresseService($repertoire, $copie, $nom);
         $this->sonde->attendre($hote, $port, $copie.'_'.Durcissement::RESEAU);
         $this->routeur->publier($copie, $hote, $port);
+        $this->attendreLeProxy();
+    }
+
+    /** Laisse à Traefik le temps de charger la route avant d'annoncer la copie en ligne. */
+    private function attendreLeProxy(): void
+    {
+        $secondes = (int) (function_exists('config') ? config('moteur.delai_proxy', 0) : 0);
+
+        if ($secondes > 0) {
+            sleep($secondes);
+        }
     }
 
     public function nouveauId(string $base): string

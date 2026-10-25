@@ -14,6 +14,7 @@ export type LienNavigation = {
 }
 
 const connecte = (compte: Compte | null) => compte !== null
+const admin = (compte: Compte | null) => compte?.est_admin === true
 
 /** Destinations publiques, dans l'en-tête (bureau) et le menu (mobile). */
 export const liensPrincipaux: LienNavigation[] = [
@@ -28,13 +29,14 @@ export const liensEspace: LienNavigation[] = [
   { vers: '/tableau', libelle: t.navigation.tableau, icone: Gauge, visible: connecte },
   { vers: '/publier', libelle: t.navigation.mesApplis, icone: Package, visible: connecte },
   { vers: '/copies', libelle: t.navigation.mesCopies, icone: Server, visible: connecte },
+  { vers: '/paiements', libelle: t.navigation.paiements, icone: CreditCard, visible: connecte },
+  { vers: '/revenus', libelle: t.navigation.revenus, icone: Wallet, visible: connecte },
   { vers: '/missions', libelle: t.navigation.missions, icone: Briefcase, visible: connecte },
+  { vers: '/admin/finances', libelle: t.navigation.finances, icone: Shield, visible: admin },
 ]
 
 /** Écrans à venir dans l'espace, gardés ici pour l'ordre de la navigation. */
 export const liensEspaceAVenir = {
-  paiements: { vers: '/paiements', libelle: t.navigation.paiements, icone: CreditCard },
-  revenus: { vers: '/revenus', libelle: t.navigation.revenus, icone: Wallet },
   notifications: { vers: '/notifications', libelle: t.navigation.notifications, icone: Bell },
   parametres: { vers: '/parametres', libelle: t.navigation.parametres, icone: Settings },
   administration: { vers: '/admin', libelle: t.navigation.administration, icone: Shield },

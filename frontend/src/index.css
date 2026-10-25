@@ -37,6 +37,8 @@
   --color-sur-primaire: #ffffff;
   /* Texte et formes posés sur une couleur pleine (bouton danger, étape terminée, bandeau nuit). */
   --color-sur-couleur: #ffffff;
+  /* Carreau des logos de marques (images sur fond blanc), identique dans les deux thèmes. */
+  --color-fond-logo: #ffffff;
   --color-primaire-doux: #ecf3ff;
   --color-primaire-doux-survol: #dce8fd;
   --color-sur-primaire-doux: #0f56be;
@@ -290,5 +292,42 @@
 @keyframes tourne {
   to {
     transform: rotate(360deg);
+  }
+}
+
+/*
+ * Impression d'un reçu (« Mes paiements ») : seul le document .imprimable sort, en clair,
+ * quel que soit le thème choisi à l'écran.
+ */
+@media print {
+  :root,
+  :root[data-theme="dark"] {
+    --color-fond: #ffffff;
+    --color-surface: #ffffff;
+    --color-surface-douce: #f7faff;
+    --color-titre: #1f1f1f;
+    --color-texte: #364153;
+    --color-texte-doux: #5f6b7e;
+    --color-bordure: #e3e9f3;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  .imprimable,
+  .imprimable * {
+    visibility: visible;
+  }
+
+  .imprimable {
+    position: absolute;
+    inset: 0 0 auto 0;
+    border: 0;
+    box-shadow: none;
+  }
+
+  .ne-pas-imprimer {
+    display: none !important;
   }
 }

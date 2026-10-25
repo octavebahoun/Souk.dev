@@ -45,6 +45,7 @@
         <env name="REVERSEMENTS_REELS" value="false" force="true"/>
         <env name="SIMULATEUR_WEBHOOK_URL" value="http://localhost:8000/api/webhooks/saspay" force="true"/>
         <env name="ADMIN_EMAIL" value="admin@exemple.test" force="true"/>
+        <env name="MOTEUR_DELAI_PROXY" value="0" force="true"/>
         <server name="PAIEMENT_PASSERELLE" value="simulee"/>
         <server name="SASPAY_SECRET_KEY" value=""/>
         <server name="SASPAY_WEBHOOK_SECRET" value="secret-webhook-de-test"/>
@@ -52,6 +53,7 @@
         <server name="REVERSEMENTS_REELS" value="false"/>
         <server name="SIMULATEUR_WEBHOOK_URL" value="http://localhost:8000/api/webhooks/saspay"/>
         <server name="ADMIN_EMAIL" value="admin@exemple.test"/>
+        <server name="MOTEUR_DELAI_PROXY" value="0"/>
         <server name="BROADCAST_CONNECTION" value="null"/>
         <server name="DEMO_CONNEXION" value="false"/>
         <server name="CACHE_STORE" value="array"/>
