@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Models\Appli;
+use App\Models\Deploiement;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -49,6 +51,81 @@ final class CompteTest extends TestCase
         $this->getJson('/api/me')
             ->assertStatus(401)
             ->assertJsonPath('message', 'Non connecté.');
+    }
+
+    public function test_le_tableau_de_bord_calcule_les_copies_et_revenus_de_ses_applis(): void
+    {
+        $compte = User::factory()->create();
+        $mensuelle = Appli::query()->create([
+            'user_id' => $compte->id,
+            'nom' => 'Boutique',
+            'depot_url' => 'https://github.com/equipe/boutique',
+            'taille' => 'moyenne',
+            'prix' => 15000,
+            'type_prix' => 'mensuel',
+        ]);
+        $unique = Appli::query()->create([
+            'user_id' => $compte->id,
+            'nom' => 'Stock',
+            'depot_url' => 'https://github.com/equipe/stock',
+            'taille' => 'petite',
+            'prix' => 90000,
+            'type_prix' => 'unique',
+        ]);
+
+        foreach ([[$mensuelle, 'en_ligne'], [$mensuelle, 'arrete'], [$unique, 'echec']] as [$appli, $etat]) {
+            Deploiement::query()->create([
+                'user_id' => $compte->id,
+                'appli_id' => $appli->id,
+                'type' => 'client',
+                'taille' => 'moyenne',
+                'etat' => $etat,
+                'variables' => [],
+            ]);
+        }
+
+        $this->actingAs($compte)
+            ->getJson('/api/me/tableau-de-bord')
+            ->assertOk()
+            ->assertJsonPath('totaux.copies_actives', 1)
+            ->assertJsonPath('totaux.revenus_estimes_mensuels', 15000)
+            ->assertJsonPath('totaux.revenus_estimes_uniques', 90000)
+            ->assertJsonPath('applis.0.nom', 'Stock')
+            ->assertJsonPath('applis.0.deploiements_total', 1)
+            ->assertJsonPath('applis.0.revenu_estime', 90000);
+    }
+
+    public function test_le_tableau_de_bord_est_reserve_aux_comptes_connectes(): void
+    {
+        $this->getJson('/api/me/tableau-de-bord')
+            ->assertUnauthorized()
+            ->assertJsonPath('message', 'Non connecté.');
+    }
+
+    public function test_la_recherche_publique_filtre_les_devs_par_competence_pays_et_disponibilite(): void
+    {
+        User::factory()->create([
+            'name' => 'Afi Dossou',
+            'username' => 'afi-dossou',
+            'pays' => 'BJ',
+            'competences' => ['laravel', 'php'],
+            'specialites' => ['backend'],
+            'disponible' => true,
+        ]);
+        User::factory()->create([
+            'name' => 'Mariam Sow',
+            'username' => 'mariam-sow',
+            'pays' => 'SN',
+            'competences' => ['react'],
+            'specialites' => ['frontend'],
+            'disponible' => true,
+        ]);
+
+        $this->getJson('/api/devs?disponible=true&competence=laravel&specialite=backend&pays=BJ')
+            ->assertOk()
+            ->assertJsonPath('total', 1)
+            ->assertJsonPath('data.0.username', 'afi-dossou')
+            ->assertJsonPath('data.0.stats.bugs_resolus', 0);
     }
 
     public function test_le_profil_se_modifie_sans_ecraser_les_champs_absents(): void

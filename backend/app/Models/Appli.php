@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Jobs\MesurerMemoire;
+use App\Enums\Profil;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -135,6 +136,7 @@ class Appli extends Model
     public function versApi(): array
     {
         $this->loadMissing('auteur');
+        $profilAuteur = $this->auteur->profil;
 
         return [
             'id' => $this->id,
@@ -160,11 +162,11 @@ class Appli extends Model
             'auteur' => [
                 'id' => $this->auteur->id,
                 'nom' => $this->auteur->name,
-                'username' => null,
-                'avatar_url' => null,
-                'github_url' => null,
-                'profil' => 'dev',
-                'pays' => null,
+                'username' => $this->auteur->username,
+                'avatar_url' => $this->auteur->avatar_url,
+                'github_url' => $this->auteur->username !== null ? 'https://github.com/'.$this->auteur->username : null,
+                'profil' => $profilAuteur instanceof Profil ? $profilAuteur->value : ($profilAuteur ?: 'dev'),
+                'pays' => $this->auteur->pays,
             ],
             'cree_le' => $this->created_at->toIso8601String(),
         ];

@@ -19,7 +19,7 @@ use Throwable;
 
 final class GithubController extends Controller
 {
-    public function redirect(Request $request): JsonResponse|RedirectResponse
+    public function redirect(Request $request, FrontUrl $front): JsonResponse|RedirectResponse
     {
         $profil = $request->string('profil')->toString();
 
@@ -38,6 +38,10 @@ final class GithubController extends Controller
 
         if (! Auth::check()) {
             $request->session()->put('profil_entree', $profil);
+        }
+
+        if (! config('services.github.client_id') || ! config('services.github.client_secret')) {
+            return redirect()->away($front->erreur('github_non_configure'));
         }
 
         return Socialite::driver('github')

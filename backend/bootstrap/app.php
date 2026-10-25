@@ -10,6 +10,8 @@ use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Http\Request;
 use Illuminate\Session\TokenMismatchException;
+use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -63,5 +65,25 @@ return Application::configure(basePath: dirname(__DIR__))
             if ($request->is('api/*') || $request->expectsJson()) {
                 return $json('Limite de débit atteinte.', 429, $exception->getHeaders());
             }
+        });
+
+        $exceptions->render(function (\Throwable $exception, Request $request) use ($json) {
+            if (! $request->is('api/*') && ! $request->expectsJson()) {
+                return null;
+            }
+
+            if ($exception instanceof ValidationException) {
+                return null;
+            }
+
+            $status = $exception instanceof HttpExceptionInterface
+                ? $exception->getStatusCode()
+                : 500;
+
+            if ($status < 500) {
+                return null;
+            }
+
+            return $json('Le serveur a rencontré un problème. Réessayez dans quelques instants.', $status);
         });
     })->create();

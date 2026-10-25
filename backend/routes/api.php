@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/devs/{username}', [CompteController::class, 'dev'])
     ->where('username', '[A-Za-z0-9][A-Za-z0-9-]{0,38}');
+Route::get('/devs', [CompteController::class, 'index']);
 
 Route::get('/technos', [TechnoController::class, 'index']);
 
@@ -25,6 +26,7 @@ Route::get('/categories', [AppliController::class, 'categories']);
 
 Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('/me', [CompteController::class, 'show']);
+    Route::get('/me/tableau-de-bord', [CompteController::class, 'tableau']);
     Route::patch('/me', [CompteController::class, 'update']);
 
     Route::post('/apps/verification', [AppliController::class, 'verification']);
