@@ -81,6 +81,8 @@ final class LimitesTaille
             $lignes[] = '        limits:';
             $lignes[] = "          cpus: \"{$formule['coeurs']}\"";
             $lignes[] = "          memory: {$formule['memoire']}";
+            // Compose refuse un pids_limit différent de deploy.resources.limits.pids : on écrit les deux.
+            $lignes[] = "          pids: {$pids}";
             $lignes[] = "    pids_limit: {$pids}";
             $lignes[] = '    cap_drop:';
             $lignes[] = '      - ALL';

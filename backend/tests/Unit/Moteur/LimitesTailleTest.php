@@ -26,6 +26,7 @@ services:
         limits:
           cpus: "0.5"
           memory: 512m
+          pids: 256
     pids_limit: 256
     cap_drop:
       - ALL
@@ -50,6 +51,7 @@ services:
         limits:
           cpus: "0.5"
           memory: 512m
+          pids: 256
     pids_limit: 256
     cap_drop:
       - ALL
