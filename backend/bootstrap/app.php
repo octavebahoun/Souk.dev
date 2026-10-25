@@ -67,7 +67,7 @@ return Application::configure(basePath: dirname(__DIR__))
             }
         });
 
-        $exceptions->render(function (\Throwable $exception, Request $request) use ($json) {
+        $exceptions->render(function (Throwable $exception, Request $request) use ($json) {
             if (! $request->is('api/*') && ! $request->expectsJson()) {
                 return null;
             }

@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use App\Jobs\MesurerMemoire;
 use App\Enums\Profil;
+use App\Jobs\MesurerMemoire;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
