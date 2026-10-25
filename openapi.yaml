@@ -122,6 +122,30 @@ paths:
         '410':
           description: Lien expiré ou déjà utilisé
 
+  /auth/demo:
+    servers: [{ url: / }]
+    post:
+      tags: [Comptes]
+      operationId: connexionDemo
+      summary: "Web. Développement et tests de bout en bout seulement (DEMO_CONNEXION=true, jamais en production) : ouvre la session d'un compte du jeu de démo"
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [compte]
+              properties:
+                compte: { type: string, description: "Identifiant d'un compte de démo, ex. soukdemo-awa" }
+      responses:
+        '204':
+          description: Session ouverte
+        '404':
+          description: Connexion de démo désactivée, ou compte inconnu ou hors du jeu de démo
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+        '422': { $ref: '#/components/responses/Invalide' }
+
   /logout:
     post:
       tags: [Comptes]

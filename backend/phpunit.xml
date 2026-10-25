@@ -31,12 +31,14 @@
         <env name="DB_DATABASE" value=":memory:" force="true"/>
         <env name="DB_URL" value="" force="true"/>
         <env name="MAIL_MAILER" value="array" force="true"/>
+        <env name="DEMO_CONNEXION" value="false" force="true"/>
         <env name="QUEUE_CONNECTION" value="sync" force="true"/>
         <env name="SESSION_DRIVER" value="array" force="true"/>
         <env name="REVERB_APP_KEY" value="valeur-de-test" force="true"/>
         <env name="REVERB_APP_SECRET" value="valeur-de-test" force="true"/>
         <env name="REVERB_APP_ID" value="soukdev" force="true"/>
         <server name="BROADCAST_CONNECTION" value="null"/>
+        <server name="DEMO_CONNEXION" value="false"/>
         <server name="CACHE_STORE" value="array"/>
         <server name="DB_CONNECTION" value="sqlite"/>
         <server name="DB_DATABASE" value=":memory:"/>

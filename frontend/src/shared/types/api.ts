@@ -89,6 +89,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/demo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Web. Développement et tests de bout en bout seulement (DEMO_CONNEXION=true, jamais en production) : ouvre la session d'un compte du jeu de démo */
+        post: operations["connexionDemo"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/logout": {
         parameters: {
             query?: never;
@@ -1592,6 +1609,40 @@ export interface operations {
                 };
                 content?: never;
             };
+        };
+    };
+    connexionDemo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description Identifiant d'un compte de démo, ex. soukdemo-awa */
+                    compte: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Session ouverte */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Connexion de démo désactivée, ou compte inconnu ou hors du jeu de démo */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            419: components["responses"]["CsrfInvalide"];
+            422: components["responses"]["Invalide"];
         };
     };
     logout: {

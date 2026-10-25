@@ -133,7 +133,8 @@ final class CompteController extends Controller
             'specialites' => array_values($compte->specialites ?? []),
             'disponible' => $compte->disponible,
             ...$profils->pour($compte),
-            'depots' => $depots->pour($compte->username),
+            // Un compte de démo n'a pas de vrai compte GitHub derrière son identifiant.
+            'depots' => $compte->est_demo ? [] : $depots->pour($compte->username),
             'applis' => $applis,
         ]);
     }

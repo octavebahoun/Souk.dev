@@ -41,6 +41,8 @@ x-php: &php
     REVERB_ALLOWED_ORIGINS: localhost
     LOG_CHANNEL: stderr
     MOTEUR_PROXY_ROUTES: /app/storage/app/private/proxy
+    # Développement seulement : connexion aux comptes du jeu de démo (tests de bout en bout).
+    DEMO_CONNEXION: "true"
   depends_on: &php-depends
     db:
       condition: service_healthy

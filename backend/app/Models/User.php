@@ -31,6 +31,7 @@ class User extends Authenticatable
             'profil' => Profil::class,
             'github_lie' => 'boolean',
             'est_admin' => 'boolean',
+            'est_demo' => 'boolean',
             'disponible' => 'boolean',
             'souk_score' => 'integer',
             'profil_calcule' => 'array',

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\DemoController;
 use App\Http\Controllers\GithubController;
 use App\Http\Controllers\LienMagiqueController;
 use App\Http\Controllers\LogoutController;
@@ -15,3 +16,4 @@ Route::post('/auth/lien-magique', [LienMagiqueController::class, 'demander'])->m
 Route::get('/auth/lien-magique/{token}', [LienMagiqueController::class, 'utiliser'])
     ->where('token', '[A-Za-z0-9]+');
 Route::post('/logout', [LogoutController::class, 'destroy']);
+Route::post('/auth/demo', [DemoController::class, 'connecter'])->middleware('throttle:60,1');

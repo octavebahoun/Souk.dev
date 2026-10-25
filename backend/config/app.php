@@ -56,6 +56,9 @@ return [
 
     'frontend_url' => env('FRONTEND_URL', 'http://localhost:5173'),
 
+    // Connexion aux comptes du jeu de démo (POST /auth/demo) : développement et tests seulement.
+    'demo_connexion' => (bool) env('DEMO_CONNEXION', false) && env('APP_ENV') !== 'production',
+
     /*
     |--------------------------------------------------------------------------
     | Application Timezone
