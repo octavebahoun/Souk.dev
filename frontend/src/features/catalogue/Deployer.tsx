@@ -44,7 +44,7 @@ export function Deployer() {
   }
 
   return (
-    <main className="mx-auto flex max-w-[1320px] flex-col gap-6 px-4 py-6 min-[761px]:px-9">
+    <div className="mx-auto flex max-w-[1320px] flex-col gap-6 px-4 py-6 min-[761px]:px-9">
       <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted">
         <p className="m-0">
           <Link to="/store">Store</Link> / <Link to={`/store/${fiche.id}`}>{fiche.nom}</Link> / <span className="font-semibold text-ink">Déployer</span>
@@ -117,6 +117,6 @@ export function Deployer() {
           <p className="m-0 mt-2 text-xs text-muted">Aucun frais caché. Vous pouvez arrêter la copie depuis Mes copies.</p>
         </aside>
       </div>
-    </main>
+    </div>
   )
 }

@@ -86,7 +86,7 @@ export function Recherche() {
   const [cible, setCible] = useState<DevResume | null>(null)
 
   return (
-    <main className="mx-auto flex max-w-[1440px] flex-col gap-6 px-4 py-8 min-[761px]:px-9">
+    <div className="mx-auto flex max-w-[1440px] flex-col gap-6 px-4 py-8 min-[761px]:px-9">
       <div>
         <h1 className="m-0 text-[30px] font-bold tracking-tight">Trouver un dev</h1>
         <p className="m-0 max-w-[75ch] text-muted">Classés par Souk Score : la qualité et l’activité récente, validées par d’autres. Contacter un dev est gratuit.</p>
@@ -220,7 +220,7 @@ export function Recherche() {
         ))}
       </ul>
       {cible?.username ? <MissionDev dev={cible} onFerme={() => setCible(null)} /> : null}
-    </main>
+    </div>
   )
 }
 

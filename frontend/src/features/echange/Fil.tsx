@@ -108,7 +108,7 @@ export function Fil() {
   const etiquettesAffichees = etiquettes.data ?? []
 
   return (
-    <main className="echange-page mx-auto flex max-w-[1440px] flex-col gap-6 overflow-x-clip px-4 py-7 min-[761px]:px-9">
+    <div className="echange-page mx-auto flex max-w-[1440px] flex-col gap-6 overflow-x-clip px-4 py-7 min-[761px]:px-9">
       <div className="flex flex-col gap-4 min-[761px]:flex-row min-[761px]:items-end min-[761px]:justify-between">
         <div className="min-w-0">
           <h1 className="m-0 text-[30px] leading-[1.2] font-bold tracking-tight text-ink">Échange</h1>
@@ -320,7 +320,7 @@ export function Fil() {
           ) : null}
         </div>
       ) : null}
-    </main>
+    </div>
   )
 }
 

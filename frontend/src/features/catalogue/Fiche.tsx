@@ -47,7 +47,7 @@ export function Fiche() {
 
   return (
     <div>
-      <main className="mx-auto flex max-w-[1440px] flex-col gap-7 px-4 py-7 min-[761px]:px-9">
+      <div className="mx-auto flex max-w-[1440px] flex-col gap-7 px-4 py-7 min-[761px]:px-9">
         <nav aria-label="Fil d'Ariane" className="text-sm text-muted">
           <Link to="/store" className="text-muted">Store</Link> <span aria-hidden="true">/</span> <span className="font-semibold text-ink">{fiche.nom}</span>
         </nav>
@@ -167,7 +167,7 @@ export function Fiche() {
             <a href={fiche.depot_url} target="_blank" rel="noreferrer" className="text-sm">Dépôt GitHub ↗</a>
           </aside>
         </div>
-      </main>
+      </div>
       {mission ? <FormMission id={fiche.id} onFerme={() => setMission(false)} /> : null}
     </div>
   )

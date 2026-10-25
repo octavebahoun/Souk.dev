@@ -16,7 +16,7 @@ export function Missions() {
   const mission = liste.find((item) => item.id === (choisie ?? liste[0]?.id)) ?? null
 
   return (
-    <main className="missions-page min-h-[calc(100svh-80px)] bg-[#F1F3F8]">
+    <div className="missions-page min-h-[calc(100svh-80px)] bg-[#F1F3F8]">
       <div className="mx-auto flex max-w-[1440px] flex-col gap-7 px-4 py-8 min-[761px]:px-6 min-[761px]:pt-10">
         <section className="missions-hero relative grid overflow-hidden rounded-[30px] border border-[#E8E4DD] bg-canvas px-6 py-10 shadow-[0_18px_50px_rgba(15,23,42,0.05)] min-[901px]:min-h-[680px] min-[901px]:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)] min-[901px]:items-center min-[901px]:px-[7%] min-[901px]:py-12">
           <div className="relative z-10 flex flex-col items-start gap-5">
@@ -83,7 +83,7 @@ export function Missions() {
         </Modal>
       ) : null}
       </div>
-    </main>
+    </div>
   )
 }
 

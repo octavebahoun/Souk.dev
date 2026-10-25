@@ -27,16 +27,16 @@ Versions exactes déjà installées. Les autres lignes attendent leur installati
 | @tanstack/react-query | 5.104.3 | MIT |
 | @tanstack/query-core (tiré par react-query) | 5.104.3 | MIT |
 | motion | 14.3.0 | MIT |
+| lucide-react (icônes) | 1.61.0 | ISC |
 | framer-motion (tiré par motion) | 14.3.0 | MIT |
 | motion-dom (tiré par motion) | 14.3.0 | MIT |
 | motion-utils (tiré par motion) | 14.1.1 | MIT |
 | laravel-echo | 2.6.1 | MIT |
 | pusher-js | 8.6.0 | MIT |
 | tweetnacl (tiré par pusher-js) | 1.0.3 | Unlicense |
-| @fontsource/plus-jakarta-sans | 5.3.0 | OFL-1.1 |
+| @fontsource-variable/outfit (police de l'interface) | 5.3.0 | OFL-1.1 |
 | @fontsource/ibm-plex-mono | 5.3.0 | OFL-1.1 |
 | openapi-typescript | 7.13.0 | MIT |
-| @stoplight/prism-cli | 5.15.11 | Apache 2.0 |
 | PHPUnit | 12.5.38 | BSD-3-Clause |
 | Laravel Pint | 1.32.1 | MIT |
 | opis/json-schema | 2.6.0 | Apache-2.0 |
@@ -59,6 +59,6 @@ Versions exactes déjà installées. Les autres lignes attendent leur installati
 
 `nette/utils` et `nette/schema` (tirés par Laravel) sont en triple licence BSD-3-Clause, GPL-2.0 ou GPL-3.0. On retient BSD-3-Clause. Le front ne contient aucune licence GPL, AGPL ou LGPL.
 
-Les deux polices sont en SIL Open Font License 1.1. Ce n'est ni GPL, ni AGPL, ni LGPL : on peut les embarquer dans le site, on ne peut pas les vendre seules. Elles sont demandées par les maquettes (`design/ecrans/LISEZ-MOI.md`). `npm run check-licenses` ne bloque que GPL, AGPL et LGPL.
+Les deux polices (Outfit pour l'interface, IBM Plex Mono pour le code) sont en SIL Open Font License 1.1. Ce n'est ni GPL, ni AGPL, ni LGPL : on peut les embarquer dans le site, on ne peut pas les vendre seules. Outfit remplace Plus Jakarta Sans depuis la refonte : c'est la police de secours que déclare le design system de Systalink (`BRIEF.md`, section 8). `npm run check-licenses` ne bloque que GPL, AGPL et LGPL.
 
 `tweetnacl` est en Unlicense (domaine public), tiré par `pusher-js`, lui-même exigé par Laravel Echo pour parler à Reverb. Ce n'est pas une GPL. On ne peut pas l'éviter sans retirer le temps réel.

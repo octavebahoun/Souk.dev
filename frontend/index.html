@@ -2,9 +2,25 @@
 <html lang="fr">
   <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Souk.dev — le marché des applis des devs africains</title>
+    <meta name="description" content="Publiez vos applis, déployez-les en un clic pour vos clients et faites-vous aider par la communauté des devs d'Afrique." />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Souk.dev</title>
+    <meta name="theme-color" content="#F7FAFF" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0B0D1E" media="(prefers-color-scheme: dark)" />
+    <script>
+      // Thème posé avant l'affichage (clair, sombre ou celui du système), sans flash.
+      (function () {
+        var racine = document.documentElement
+        try {
+          var choix = localStorage.getItem('souk-theme') || 'systeme'
+          var sombre = choix === 'sombre' || (choix === 'systeme' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+          racine.dataset.theme = sombre ? 'dark' : 'light'
+        } catch (erreur) {
+          racine.dataset.theme = 'light'
+        }
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

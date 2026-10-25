@@ -59,7 +59,7 @@ export function Store() {
 
   return (
     <div>
-      <main className={page}>
+      <div className={page}>
         <div className="flex flex-col gap-4 min-[761px]:flex-row min-[761px]:items-end min-[761px]:justify-between">
           <div>
             <h1 className="m-0 text-[30px] font-bold tracking-tight">Store</h1>
@@ -189,7 +189,7 @@ export function Store() {
             <Link to="/devs" className="inline-flex min-h-cible items-center rounded-controle border border-line px-4 font-semibold no-underline">Demander une mission</Link>
           </div>
         </section>
-      </main>
+      </div>
     </div>
   )
 }

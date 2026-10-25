@@ -1,0 +1,403 @@
+{
+  "styles": {
+    "illustration": "Style: flat vector illustration, modern and polished, premium SaaS product look, subtle soft gradients, limited palette: royal blue #1265DD, bright blue #0C60F7, deep night blue #160C51, very light blue tints #ECF3FF and #F7FAFF, a small touch of mint green #0CCF87. Generous negative space, centered composition, plain solid #F7FAFF background filling the whole image edge to edge. Absolutely no text, no letters, no numbers, no logos, no watermark.",
+    "etape": "Style: flat vector illustration, modern and polished, premium SaaS product look, subtle soft gradients, limited palette: royal blue #1265DD, bright blue #0C60F7, deep night blue #160C51, very light blue tints #ECF3FF and #F7FAFF, a small touch of mint green #0CCF87. Plain solid #ECF3FF background filling the whole image edge to edge. Absolutely no text, no letters, no numbers, no logos, no watermark.",
+    "avatar": "Style: flat illustrated portrait, friendly and professional, head and shoulders, centered and looking at the viewer, simple geometric shapes, soft shading, clothing colors harmonized with royal blue #1265DD, night blue #160C51 and a touch of mint #0CCF87, plain solid #ECF3FF background filling the whole image edge to edge. No text, no watermark.",
+    "capture": "It is a flat, straight-on screenshot of a desktop web application at 1440x900, light theme, crisp modern UI with a left sidebar, realistic data, every label written in French, amounts in FCFA. No device frame, no browser window chrome, no perspective, no watermark, no logo of a real brand.",
+    "illustration-sombre": "Style: flat vector illustration for a dark theme, modern and polished, premium SaaS product look, subtle soft gradients and soft glows, limited palette: royal blue #1265DD, bright blue #4A8CF0, light blue #8DB8FF, soft white #F4F6FB highlights, a small touch of mint green #0CCF87. Generous negative space, centered composition, plain solid deep navy #1B2550 background filling the whole image edge to edge. Absolutely no text, no letters, no numbers, no logos, no watermark."
+  },
+  "images": [
+    {
+      "nom": "vide-discussions",
+      "style": "illustration",
+      "format": "1:1",
+      "taille": "1K",
+      "largeur": 400,
+      "cible": "frontend/src/assets/illustrations/vide-discussions.webp",
+      "prompt": "Empty state illustration for a developer community forum: two overlapping speech bubbles, one containing angle brackets of code, the other a small lightbulb, with a few floating dots, conveying helping each other.",
+      "recadrage": 0.74
+    },
+    {
+      "nom": "vide-store",
+      "style": "illustration",
+      "format": "1:1",
+      "taille": "1K",
+      "largeur": 400,
+      "cible": "frontend/src/assets/illustrations/vide-store.webp",
+      "prompt": "Empty state illustration for an app marketplace: a minimal storefront awning above three empty app window cards on a shelf, and a small shopping bag with a cloud symbol.",
+      "recadrage": 0.74
+    },
+    {
+      "nom": "vide-copies",
+      "style": "illustration",
+      "format": "1:1",
+      "taille": "1K",
+      "largeur": 400,
+      "cible": "frontend/src/assets/illustrations/vide-copies.webp",
+      "prompt": "Empty state illustration for cloud deployments: a small rocket resting on a launch pad made of a server block, a soft cloud behind it, ready to launch.",
+      "recadrage": 0.74
+    },
+    {
+      "nom": "vide-paiements",
+      "style": "illustration",
+      "format": "1:1",
+      "taille": "1K",
+      "largeur": 400,
+      "cible": "frontend/src/assets/illustrations/vide-paiements.webp",
+      "prompt": "Empty state illustration for invoices and payments: a clean paper receipt next to a smartphone whose screen shows a big mint green check mark, mobile money payment concept.",
+      "recadrage": 0.74
+    },
+    {
+      "nom": "vide-revenus",
+      "style": "illustration",
+      "format": "1:1",
+      "taille": "1K",
+      "largeur": 400,
+      "cible": "frontend/src/assets/illustrations/vide-revenus.webp",
+      "prompt": "Empty state illustration for a developer's earnings: a rising bar chart with an upward arrow, a few coins and a smartphone wallet.",
+      "recadrage": 0.74
+    },
+    {
+      "nom": "vide-notifications",
+      "style": "illustration",
+      "format": "1:1",
+      "taille": "1K",
+      "largeur": 400,
+      "cible": "frontend/src/assets/illustrations/vide-notifications.webp",
+      "prompt": "Empty state illustration meaning 'you are all caught up': a calm notification bell with a small mint check badge and a few soft sparkles around it.",
+      "recadrage": 0.74
+    },
+    {
+      "nom": "vide-missions",
+      "style": "illustration",
+      "format": "1:1",
+      "taille": "1K",
+      "largeur": 400,
+      "cible": "frontend/src/assets/illustrations/vide-missions.webp",
+      "prompt": "Empty state illustration for freelance missions: two hands in a friendly handshake above an open laptop, with a small briefcase icon.",
+      "recadrage": 0.74
+    },
+    {
+      "nom": "vide-evenements",
+      "style": "illustration",
+      "format": "1:1",
+      "taille": "1K",
+      "largeur": 400,
+      "cible": "frontend/src/assets/illustrations/vide-evenements.webp",
+      "prompt": "Empty state illustration for tech meetups: a calendar page with a location pin and a small microphone on a stand.",
+      "recadrage": 0.74
+    },
+    {
+      "nom": "vide-recherche",
+      "style": "illustration",
+      "format": "1:1",
+      "taille": "1K",
+      "largeur": 400,
+      "cible": "frontend/src/assets/illustrations/vide-recherche.webp",
+      "prompt": "Empty state illustration for a search with no results: a large magnifying glass hovering over three blank cards.",
+      "recadrage": 0.74
+    },
+    {
+      "nom": "erreur-404",
+      "style": "illustration",
+      "format": "1:1",
+      "taille": "1K",
+      "largeur": 400,
+      "cible": "frontend/src/assets/illustrations/erreur-404.webp",
+      "prompt": "Illustration for a page not found: an open folded map with a dotted path ending in a question-mark-free empty circle, and a compass lying next to it.",
+      "recadrage": 0.74
+    },
+    {
+      "nom": "hors-ligne",
+      "style": "illustration",
+      "format": "1:1",
+      "taille": "1K",
+      "largeur": 400,
+      "cible": "frontend/src/assets/illustrations/hors-ligne.webp",
+      "prompt": "Illustration for being offline: a soft cloud with an unplugged cable dangling below it and faded wifi arcs.",
+      "recadrage": 0.74
+    },
+    {
+      "nom": "acces-refuse",
+      "style": "illustration",
+      "format": "1:1",
+      "taille": "1K",
+      "largeur": 400,
+      "cible": "frontend/src/assets/illustrations/acces-refuse.webp",
+      "prompt": "Illustration for access denied: a friendly closed padlock in front of a shield.",
+      "recadrage": 0.74
+    },
+    {
+      "nom": "hero",
+      "format": "16:9",
+      "taille": "2K",
+      "largeur": 1920,
+      "cible": "frontend/src/assets/accueil/hero.webp",
+      "prompt": "Wide hero background image for a premium developer marketplace website. Deep night blue gradient from #160C51 on the left to royal blue #1265DD on the right. On the right half, floating glass-like translucent UI cards arranged in depth: an app card with a small window thumbnail, a deployment progress card with three steps and a mint green check, a mobile money payment card with a smartphone, and a short code editor card with colored lines of abstract code. The left half stays calm and dark for headline text overlay. A very faint West African geometric pattern texture in the background. Soft glows, high-end, modern, clean. No readable text, no letters, no logos, no people, no watermark."
+    },
+    {
+      "nom": "etape-publier",
+      "style": "etape",
+      "format": "4:3",
+      "taille": "1K",
+      "largeur": 800,
+      "cible": "frontend/src/assets/accueil/etape-publier.webp",
+      "prompt": "Illustration of a developer publishing an app: a laptop showing a code repository tree on the left, an arrow flowing to an app card with a small upload badge on the right."
+    },
+    {
+      "nom": "etape-deployer",
+      "style": "etape",
+      "format": "4:3",
+      "taille": "1K",
+      "largeur": 800,
+      "cible": "frontend/src/assets/accueil/etape-deployer.webp",
+      "prompt": "Illustration of one-click deployment: a single big button being pressed, launching several identical isolated app windows, each in its own small cloud bubble."
+    },
+    {
+      "nom": "etape-encaisser",
+      "style": "etape",
+      "format": "4:3",
+      "taille": "1K",
+      "largeur": 800,
+      "cible": "frontend/src/assets/accueil/etape-encaisser.webp",
+      "prompt": "Illustration of a developer getting paid: a smartphone with a mobile money wallet receiving coins flowing from a small shop building, with a mint green check."
+    },
+    {
+      "nom": "avatar-awa",
+      "style": "avatar",
+      "format": "1:1",
+      "taille": "1K",
+      "largeur": 256,
+      "cible": "backend/database/seeders/demo/avatars/awa.webp",
+      "prompt": "Portrait of a young West African woman software developer from Benin, warm smile, wearing a patterned head wrap and a simple blue top."
+    },
+    {
+      "nom": "avatar-kofi",
+      "style": "avatar",
+      "format": "1:1",
+      "taille": "1K",
+      "largeur": 256,
+      "cible": "backend/database/seeders/demo/avatars/kofi.webp",
+      "prompt": "Portrait of a young West African man frontend developer from Togo, short hair, round glasses, wearing a navy hoodie."
+    },
+    {
+      "nom": "avatar-mariam",
+      "style": "avatar",
+      "format": "1:1",
+      "taille": "1K",
+      "largeur": 256,
+      "cible": "backend/database/seeders/demo/avatars/mariam.webp",
+      "prompt": "Portrait of a West African woman data engineer from Senegal in her thirties, braided hair tied back, confident expression, wearing a white shirt."
+    },
+    {
+      "nom": "avatar-yao",
+      "style": "avatar",
+      "format": "1:1",
+      "taille": "1K",
+      "largeur": 256,
+      "cible": "backend/database/seeders/demo/avatars/yao.webp",
+      "prompt": "Portrait of a young Ivorian man mobile developer, short beard, friendly grin, wearing a mint green t-shirt under an open blue shirt."
+    },
+    {
+      "nom": "avatar-chinedu",
+      "style": "avatar",
+      "format": "1:1",
+      "taille": "1K",
+      "largeur": 256,
+      "cible": "backend/database/seeders/demo/avatars/chinedu.webp",
+      "prompt": "Portrait of a Nigerian man DevOps engineer in his thirties, shaved head, calm expression, wearing a dark polo shirt."
+    },
+    {
+      "nom": "avatar-fatou",
+      "style": "avatar",
+      "format": "1:1",
+      "taille": "1K",
+      "largeur": 256,
+      "cible": "backend/database/seeders/demo/avatars/fatou.webp",
+      "prompt": "Portrait of a young Senegalese woman security engineer, short natural hair, small earrings, wearing a blue blazer."
+    },
+    {
+      "nom": "capture-pharmastock",
+      "style": "capture",
+      "format": "16:9",
+      "taille": "2K",
+      "largeur": 1600,
+      "cible": "backend/database/seeders/demo/captures/pharmastock.webp",
+      "prompt": "Screenshot of a pharmacy stock management dashboard named PharmaStock: sidebar with Tableau de bord, Stock, Ordonnances, Ventes, Fournisseurs; top cards 'Ventes du jour 184 500 FCFA', 'Produits en rupture 6', 'Ordonnances à préparer 12'; a table of medicines with columns Produit, Lot, Péremption, Quantité; a small sales line chart."
+    },
+    {
+      "nom": "capture-caisse-resto",
+      "style": "capture",
+      "format": "16:9",
+      "taille": "2K",
+      "largeur": 1600,
+      "cible": "backend/database/seeders/demo/captures/caisse-resto.webp",
+      "prompt": "Screenshot of a restaurant point of sale app named Caisse Resto: a grid of dish buttons (Thiéboudienne, Alloco, Yassa poulet, Attiéké poisson, Bissap) with prices in FCFA on the left, a current order ticket on the right with total and a big 'Encaisser' button, table numbers at the top."
+    },
+    {
+      "nom": "capture-cotis-asso",
+      "style": "capture",
+      "format": "16:9",
+      "taille": "2K",
+      "largeur": 1600,
+      "cible": "backend/database/seeders/demo/captures/cotis-asso.webp",
+      "prompt": "Screenshot of an association membership fees app named Cotis'Asso: list of members with name, status 'À jour' or 'En retard' badges, monthly fee in FCFA, a progress card 'Cotisations d'octobre 78 %', a button 'Relancer par SMS'."
+    },
+    {
+      "nom": "capture-ecole-notes",
+      "style": "capture",
+      "format": "16:9",
+      "taille": "2K",
+      "largeur": 1600,
+      "cible": "backend/database/seeders/demo/captures/ecole-notes.webp",
+      "prompt": "Screenshot of a school grades management app named École+ Notes: class selector '3e B', a grade table with students and subjects (Maths, Français, SVT, Histoire-Géo), averages, a 'Bulletins du trimestre' card with a download button."
+    },
+    {
+      "nom": "capture-momo-pay-kit",
+      "style": "capture",
+      "format": "16:9",
+      "taille": "2K",
+      "largeur": 1600,
+      "cible": "backend/database/seeders/demo/captures/momo-pay-kit.webp",
+      "prompt": "Screenshot of a developer payments console named MoMo Pay Kit: a transactions table with columns Référence, Réseau (MTN, Moov, Wave shown as small colored pills), Montant FCFA, Statut (Réussi, En attente, Échoué badges), a webhook settings card and API key masked field."
+    },
+    {
+      "nom": "capture-stock-boutique",
+      "style": "capture",
+      "format": "16:9",
+      "taille": "2K",
+      "largeur": 1600,
+      "cible": "backend/database/seeders/demo/captures/stock-boutique.webp",
+      "prompt": "Screenshot of a small shop inventory app named Stock Boutique: product cards with photos of rice bags, cooking oil, soap, quantity counters, an alert 'Stock bas : 4 produits', a bar chart of weekly sales in FCFA."
+    },
+    {
+      "nom": "capture-clinique-rdv",
+      "style": "capture",
+      "format": "16:9",
+      "taille": "2K",
+      "largeur": 1600,
+      "cible": "backend/database/seeders/demo/captures/clinique-rdv.webp",
+      "prompt": "Screenshot of a clinic appointment booking app named Clinique RDV: a weekly calendar with colored appointment blocks for doctors (Dr Diallo, Dr Mensah), a sidebar with Rendez-vous, Patients, Médecins, SMS de rappel, and a 'Nouveau rendez-vous' button."
+    },
+    {
+      "nom": "vide-discussions-sombre",
+      "style": "illustration-sombre",
+      "format": "1:1",
+      "taille": "1K",
+      "largeur": 400,
+      "cible": "frontend/src/assets/illustrations/sombre/vide-discussions.webp",
+      "prompt": "Empty state illustration for a developer community forum: two overlapping speech bubbles, one containing angle brackets of code, the other a small lightbulb, with a few floating dots, conveying helping each other.",
+      "recadrage": 0.74
+    },
+    {
+      "nom": "vide-store-sombre",
+      "style": "illustration-sombre",
+      "format": "1:1",
+      "taille": "1K",
+      "largeur": 400,
+      "cible": "frontend/src/assets/illustrations/sombre/vide-store.webp",
+      "prompt": "Empty state illustration for an app marketplace: a minimal storefront awning above three empty app window cards on a shelf, and a small shopping bag with a cloud symbol.",
+      "recadrage": 0.74
+    },
+    {
+      "nom": "vide-copies-sombre",
+      "style": "illustration-sombre",
+      "format": "1:1",
+      "taille": "1K",
+      "largeur": 400,
+      "cible": "frontend/src/assets/illustrations/sombre/vide-copies.webp",
+      "prompt": "Empty state illustration for cloud deployments: a small rocket resting on a launch pad made of a server block, a soft cloud behind it, ready to launch.",
+      "recadrage": 0.74
+    },
+    {
+      "nom": "vide-paiements-sombre",
+      "style": "illustration-sombre",
+      "format": "1:1",
+      "taille": "1K",
+      "largeur": 400,
+      "cible": "frontend/src/assets/illustrations/sombre/vide-paiements.webp",
+      "prompt": "Empty state illustration for invoices and payments: a clean paper receipt next to a smartphone whose screen shows a big mint green check mark, mobile money payment concept.",
+      "recadrage": 0.74
+    },
+    {
+      "nom": "vide-revenus-sombre",
+      "style": "illustration-sombre",
+      "format": "1:1",
+      "taille": "1K",
+      "largeur": 400,
+      "cible": "frontend/src/assets/illustrations/sombre/vide-revenus.webp",
+      "prompt": "Empty state illustration for a developer's earnings: a rising bar chart with an upward arrow, a few coins and a smartphone wallet.",
+      "recadrage": 0.74
+    },
+    {
+      "nom": "vide-notifications-sombre",
+      "style": "illustration-sombre",
+      "format": "1:1",
+      "taille": "1K",
+      "largeur": 400,
+      "cible": "frontend/src/assets/illustrations/sombre/vide-notifications.webp",
+      "prompt": "Empty state illustration meaning 'you are all caught up': a calm notification bell with a small mint check badge and a few soft sparkles around it.",
+      "recadrage": 0.74
+    },
+    {
+      "nom": "vide-missions-sombre",
+      "style": "illustration-sombre",
+      "format": "1:1",
+      "taille": "1K",
+      "largeur": 400,
+      "cible": "frontend/src/assets/illustrations/sombre/vide-missions.webp",
+      "prompt": "Empty state illustration for freelance missions: two hands in a friendly handshake above an open laptop, with a small briefcase icon.",
+      "recadrage": 0.74
+    },
+    {
+      "nom": "vide-evenements-sombre",
+      "style": "illustration-sombre",
+      "format": "1:1",
+      "taille": "1K",
+      "largeur": 400,
+      "cible": "frontend/src/assets/illustrations/sombre/vide-evenements.webp",
+      "prompt": "Empty state illustration for tech meetups: a calendar page with a location pin and a small microphone on a stand.",
+      "recadrage": 0.74
+    },
+    {
+      "nom": "vide-recherche-sombre",
+      "style": "illustration-sombre",
+      "format": "1:1",
+      "taille": "1K",
+      "largeur": 400,
+      "cible": "frontend/src/assets/illustrations/sombre/vide-recherche.webp",
+      "prompt": "Empty state illustration for a search with no results: a large magnifying glass hovering over three blank cards.",
+      "recadrage": 0.74
+    },
+    {
+      "nom": "erreur-404-sombre",
+      "style": "illustration-sombre",
+      "format": "1:1",
+      "taille": "1K",
+      "largeur": 400,
+      "cible": "frontend/src/assets/illustrations/sombre/erreur-404.webp",
+      "prompt": "Illustration for a page not found: an open folded map with a dotted path ending in a question-mark-free empty circle, and a compass lying next to it.",
+      "recadrage": 0.74
+    },
+    {
+      "nom": "hors-ligne-sombre",
+      "style": "illustration-sombre",
+      "format": "1:1",
+      "taille": "1K",
+      "largeur": 400,
+      "cible": "frontend/src/assets/illustrations/sombre/hors-ligne.webp",
+      "prompt": "Illustration for being offline: a soft cloud with an unplugged cable dangling below it and faded wifi arcs.",
+      "recadrage": 0.74
+    },
+    {
+      "nom": "acces-refuse-sombre",
+      "style": "illustration-sombre",
+      "format": "1:1",
+      "taille": "1K",
+      "largeur": 400,
+      "cible": "frontend/src/assets/illustrations/sombre/acces-refuse.webp",
+      "prompt": "Illustration for access denied: a friendly closed padlock in front of a shield.",
+      "recadrage": 0.74
+    }
+  ]
+}

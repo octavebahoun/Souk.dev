@@ -47,3 +47,6 @@ Mis à jour au fil du projet.
 | 2026-10-18 | Cursor (Grok 4.7) | Front : fin de la page discussion (puces 36/44, menu du compte, déploiement d’un correctif, bandeau sans Reverb) |
 | 2026-10-18 | Cursor (Grok 4.7) | Front : comptes (connexion GitHub, lien magique, profil, tableau de bord) |
 | 2026-10-19 | Cursor (Grok 4.7) | Front : accueil, store, fiche, déployer, publier, copies, événements, missions, recherche, fils de page |
+| 2026-10-25 | Claude Code (Claude Opus 5.5) | Brief « SaaS complet », phase 1 : plateforme Docker (image FrankenPHP, docker-compose.yml), sécurité des dépôts clonés, Policies et tests anti-IDOR, réputation et Souk Score réels, temps réel des missions |
+| 2026-10-25 | Claude Code (Claude Opus 5.5) | Système de design (docs/design.md, tokens clair et sombre, bibliothèque frontend/src/ui), logo Souk.dev en SVG, coquille de l'application (en-tête, onglets mobiles, espace connecté) |
+| 2026-10-25 | Nano Banana Pro (gemini-3-pro-image, Vertex AI) | Illustrations des états vides (clair et sombre), visuel et étapes de l'accueil, avatars et captures d'écran des applis du jeu de démo. Prompts dans scripts/visuels/visuels.json, dépenses dans scripts/visuels/depenses.json |

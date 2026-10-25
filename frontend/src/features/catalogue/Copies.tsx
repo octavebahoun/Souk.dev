@@ -48,7 +48,7 @@ export function Copies() {
   }
 
   return (
-    <main className="copies-traits mx-auto flex max-w-[1440px] flex-col gap-5 px-4 pb-8 pt-0 min-[761px]:px-9">
+    <div className="copies-traits mx-auto flex max-w-[1440px] flex-col gap-5 px-4 pb-8 pt-0 min-[761px]:px-9">
       <div className="copies-nuit relative left-1/2 -mt-0 flex min-h-[205px] w-screen -translate-x-1/2 flex-col justify-center gap-4 overflow-hidden px-5 py-7 text-canvas min-[761px]:flex-row min-[761px]:items-center min-[761px]:justify-between min-[761px]:px-9">
         <div>
           <h1 className="m-0 text-[34px] font-extrabold">Mes copies</h1>
@@ -117,6 +117,6 @@ export function Copies() {
           </div>
         </div>
       ) : null}
-    </main>
+    </div>
   )
 }

@@ -37,7 +37,7 @@ export function Evenements() {
   }
 
   return (
-    <main className="mx-auto flex max-w-[1500px] flex-col px-4 pb-10">
+    <div className="mx-auto flex max-w-[1500px] flex-col px-4 pb-10">
       <section className="nuit-hero relative left-1/2 mb-0 w-screen -translate-x-1/2 overflow-hidden px-6 pt-10 pb-32 text-canvas min-[761px]:min-h-[645px] min-[761px]:pt-[112px]">
         <div aria-hidden="true" className="event-montagne event-montagne-loin" />
         <div aria-hidden="true" className="event-montagne event-montagne-proche" />
@@ -91,7 +91,7 @@ export function Evenements() {
       ) : null}
       {ouvert ? <Formulaire onFerme={() => setOuvert(false)} /> : null}
       </div>
-    </main>
+    </div>
   )
 }
 
