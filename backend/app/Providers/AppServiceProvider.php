@@ -50,6 +50,7 @@ use Illuminate\Queue\Events\Looping;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -102,6 +103,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Les liens absolus (simulateur de paiement, lien de paiement signé, confirmation d'un numéro)
+        // visent toujours l'API (APP_URL), même quand la requête arrive par le proxy du front.
+        if (is_string(config('app.url')) && config('app.url') !== '') {
+            URL::forceRootUrl((string) config('app.url'));
+        }
+
         JsonResource::withoutWrapping();
 
         RateLimiter::for('discussions', function (Request $request) {
