@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PharmaStock — votre stock du jour</title>
+  <style>
+    :root { --vert: #067647; --vert-doux: #ECFDF3; --texte: #364153; --titre: #1F1F1F; --bordure: #E3E9F3; --fond: #F7FAFF; --alerte: #B54708; --alerte-doux: #FFFAEB; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--texte); background: var(--fond); }
+    header { background: #fff; border-bottom: 1px solid var(--bordure); }
+    .barre { max-width: 1040px; margin: 0 auto; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .marque { font-weight: 700; color: var(--titre); font-size: 18px; }
+    .marque span { color: var(--vert); }
+    .demo { font-size: 13px; padding: 4px 10px; border-radius: 999px; background: var(--alerte-doux); color: var(--alerte); font-weight: 600; }
+    main { max-width: 1040px; margin: 0 auto; padding: 28px 20px 48px; }
+    h1 { margin: 0 0 4px; color: var(--titre); font-size: 26px; }
+    .doux { margin: 0 0 24px; }
+    .chiffres { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 24px; }
+    .chiffre { background: #fff; border: 1px solid var(--bordure); border-radius: 10px; padding: 16px; }
+    .chiffre p { margin: 0; font-size: 13px; }
+    .chiffre strong { display: block; margin-top: 6px; font-size: 24px; color: var(--titre); }
+    table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--bordure); border-radius: 10px; overflow: hidden; }
+    th, td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--bordure); font-size: 14px; }
+    th { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: #5F6B7E; background: var(--fond); }
+    td.nombre { text-align: right; font-variant-numeric: tabular-nums; }
+    .etiquette { font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 999px; }
+    .ok { background: var(--vert-doux); color: var(--vert); }
+    .bas { background: var(--alerte-doux); color: var(--alerte); }
+    footer { text-align: center; font-size: 13px; padding: 0 20px 32px; }
+    @media (max-width: 640px) { .masquable { display: none; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="barre">
+      <div class="marque">Pharma<span>Stock</span></div>
+      <span class="demo">Copie de démonstration</span>
+    </div>
+  </header>
+  <main>
+    <h1>Stock du jour</h1>
+    <p class="doux">Lots, dates de péremption et ruptures à venir, en un coup d’œil.</p>
+    <section class="chiffres" aria-label="Résumé">
+      <div class="chiffre"><p>Produits suivis</p><strong>248</strong></div>
+      <div class="chiffre"><p>Ruptures dans 7 jours</p><strong>3</strong></div>
+      <div class="chiffre"><p>Ventes du jour</p><strong>186 500 F</strong></div>
+    </section>
+    <table>
+      <caption class="doux" style="text-align:left;caption-side:top;padding-bottom:8px">Produits à surveiller</caption>
+      <thead><tr><th scope="col">Produit</th><th scope="col" class="masquable">Lot</th><th scope="col">Péremption</th><th scope="col" class="nombre">Quantité</th><th scope="col">État</th></tr></thead>
+      <tbody>
+        <tr><td>Paracétamol 500 mg</td><td class="masquable">PC-2611</td><td>mars 2027</td><td class="nombre">12</td><td><span class="etiquette bas">Stock bas</span></td></tr>
+        <tr><td>Amoxicilline 1 g</td><td class="masquable">AM-0927</td><td>janvier 2027</td><td class="nombre">64</td><td><span class="etiquette ok">Correct</span></td></tr>
+        <tr><td>Sérum physiologique</td><td class="masquable">SP-1142</td><td>juin 2028</td><td class="nombre">9</td><td><span class="etiquette bas">Stock bas</span></td></tr>
+        <tr><td>Artéméther-luméfantrine</td><td class="masquable">AL-0315</td><td>décembre 2026</td><td class="nombre">40</td><td><span class="etiquette ok">Correct</span></td></tr>
+      </tbody>
+    </table>
+  </main>
+  <footer>Hébergé sur Souk.dev · données fictives</footer>
+</body>
+</html>

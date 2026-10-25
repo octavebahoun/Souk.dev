@@ -3,17 +3,31 @@
 namespace Database\Seeders;
 
 use App\Comptes\ProfilCalcule;
+use App\Models\Abonnement;
 use App\Models\Appli;
+use App\Models\Avoir;
 use App\Models\Canal;
+use App\Models\CoordonneesReversement;
 use App\Models\Correctif;
+use App\Models\Deploiement;
 use App\Models\Discussion;
+use App\Models\Ecriture;
 use App\Models\Evenement;
+use App\Models\Facture;
 use App\Models\Message;
 use App\Models\Mission;
+use App\Models\Paiement;
+use App\Models\Reversement;
 use App\Models\User;
+use App\Paiement\Facturation;
+use App\Paiement\GrandLivre;
+use App\Paiement\NumeroMobileMoney;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 /**
  * Jeu de démonstration, identifié comme tel : comptes marqués est_demo (identifiants
@@ -21,9 +35,12 @@ use Illuminate\Support\Facades\Storage;
  *
  *   php artisan db:seed --class=DemoSeeder
  *
- * Relançable : il supprime d'abord ses propres comptes (et tout ce qu'ils ont créé).
- * Une seule appli est vraiment déployable : octavebahoun/marchilearnia (site statique servi par nginx).
- * Les autres applis montrent le Store ; leurs dépôts n'existent pas.
+ * Relançable : il supprime d'abord ses propres comptes (et tout ce qu'ils ont créé, factures
+ * et écritures du grand livre comprises).
+ * Applis vraiment déployables : octavebahoun/marchilearnia (site statique servi par nginx) et,
+ * en développement, PharmaStock (appli cobaye de database/seeders/demo/depots, clonée depuis un
+ * miroir local : php artisan demo:miroirs). Les autres dépôts n'existent pas.
+ * Facturation de démo : paiements simulés (passerelle « simulee »), jamais d'argent réel.
  * Images : scripts/visuels/ (Nano Banana Pro) et une capture du vrai site de Marchi Learnia.
  */
 class DemoSeeder extends Seeder
@@ -49,7 +66,12 @@ class DemoSeeder extends Seeder
             $this->creerDiscussions();
             $this->creerEvenements();
             $this->creerMissions();
+            $this->creerFacturation();
         });
+
+        if (app()->environment('local')) {
+            Artisan::call('demo:miroirs');
+        }
 
         foreach ($this->comptes as $compte) {
             $profils->rafraichir($compte);
@@ -61,6 +83,8 @@ class DemoSeeder extends Seeder
 
     private function effacer(): void
     {
+        $this->effacerFacturation();
+
         // Les comptes de démo emportent leurs applis, copies, discussions, missions et événements.
         User::query()->where('est_demo', true)->get()->each->delete();
 
@@ -355,6 +379,147 @@ class DemoSeeder extends Seeder
             'note_commentaire' => 'Travail soigné et livré à temps. Merci Fatou !',
             'terminee_le' => now()->subDays(6),
         ]);
+    }
+
+    /**
+     * Facturation et grand livre des comptes de démo. Le grand livre refuse toute suppression,
+     * sauf cette purge (PostgreSQL : SET LOCAL soukdev.purge = 'demo', dans la transaction).
+     */
+    private function effacerFacturation(): void
+    {
+        $comptes = User::query()->where('est_demo', true)->pluck('id');
+
+        if ($comptes->isEmpty()) {
+            return;
+        }
+
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement("SET LOCAL soukdev.purge = 'demo'");
+        }
+
+        $abonnements = Abonnement::query()->whereIn('client_id', $comptes)->orWhereIn('dev_id', $comptes)->pluck('id');
+        $factures = Facture::query()->whereIn('abonnement_id', $abonnements)->pluck('id');
+        $reversements = Reversement::query()->whereIn('dev_id', $comptes)->pluck('id');
+        $ecritures = Ecriture::query()->toBase()->where(fn ($requete) => $requete
+            ->whereIn('facture_id', $factures)
+            ->orWhereIn('reversement_id', $reversements)
+            ->orWhereIn('dev_id', $comptes));
+
+        // Contrepassations d'abord : elles pointent vers les écritures qu'elles annulent.
+        (clone $ecritures)->whereNotNull('contrepasse_id')->delete();
+        $ecritures->delete();
+        Avoir::query()->whereIn('facture_id', $factures)->delete();
+        Paiement::query()->whereIn('facture_id', $factures)->delete();
+        Facture::query()->whereIn('id', $factures)->delete();
+        Abonnement::query()->whereIn('id', $abonnements)->delete();
+        Reversement::query()->whereIn('id', $reversements)->delete();
+    }
+
+    /**
+     * La Pharmacie du Port a eu une copie de PharmaStock (deux mois payés) et en attend une
+     * nouvelle ; l'Association Lumière a hébergé Cotis'Asso. Awa a reçu un reversement et garde
+     * un solde, sur un numéro de démo confirmé.
+     */
+    private function creerFacturation(): void
+    {
+        $facturation = app(Facturation::class);
+        $grandLivre = app(GrandLivre::class);
+        $debut = now()->startOfMonth()->subMonths(2)->addDays(4);
+
+        $ancienne = $this->copieClient('pharmacie', 'pharmastock', 'arrete', $debut);
+        foreach ([0, 1] as $mois) {
+            $this->facturePayee($ancienne, $debut->copy()->addMonthsNoOverflow($mois), $facturation, $grandLivre);
+        }
+        $ancienne->forceFill(['statut' => 'resilie', 'resilie_le' => $debut->copy()->addMonthsNoOverflow(2)])->save();
+
+        $lumiere = $this->copieClient('association', 'cotis-asso', 'arrete', $debut);
+        $this->facturePayee($lumiere, $debut, $facturation, $grandLivre);
+        $lumiere->forceFill(['statut' => 'resilie', 'resilie_le' => $debut->copy()->addMonth()])->save();
+
+        // Nouvelle commande, pas encore payée : la copie attend le paiement.
+        $facturation->commander($this->applis['pharmastock'], $this->comptes['pharmacie'], []);
+
+        $numero = NumeroMobileMoney::normaliser('BJ', '0197000000');
+        CoordonneesReversement::query()->create([
+            'user_id' => $this->comptes['awa']->id,
+            'pays' => 'BJ',
+            'reseau' => 'mtn_bj',
+            'numero' => $numero,
+            'numero_masque' => NumeroMobileMoney::masquer('BJ', $numero),
+        ])->forceFill(['confirme_le' => $debut])->save();
+
+        Carbon::setTestNow($debut->copy()->addMonth()->startOfMonth()->addHours(8));
+        $reversement = Reversement::query()->create([
+            'dev_id' => $this->comptes['awa']->id,
+            'montant' => 15000,
+            'passerelle' => 'simulee',
+            'cle_idempotence' => (string) Str::uuid(),
+            'pays' => 'BJ',
+            'reseau' => 'mtn_bj',
+            'numero_masque' => NumeroMobileMoney::masquer('BJ', $numero),
+            'beneficiaire' => ['numero' => $numero, 'email' => $this->comptes['awa']->email, 'nom' => $this->comptes['awa']->name],
+            'declenchement' => 'mensuel',
+            'statut' => 'reussi',
+        ]);
+        $reversement->forceFill(['frais' => 380, 'verifie_le' => now()])->save();
+        $grandLivre->reserverReversement($reversement);
+        $grandLivre->fraisReversement($reversement, 380);
+        Carbon::setTestNow();
+    }
+
+    private function copieClient(string $client, string $appli, string $etat, Carbon $debut): Abonnement
+    {
+        $copie = Deploiement::query()->create([
+            'user_id' => $this->comptes[$client]->id,
+            'appli_id' => $this->applis[$appli]->id,
+            'type' => 'client',
+            'taille' => $this->applis[$appli]->taille,
+            'etat' => $etat,
+            'variables' => [],
+        ]);
+        $copie->forceFill(['created_at' => $debut, 'updated_at' => $debut])->save();
+
+        return Abonnement::query()->create([
+            'deploiement_id' => $copie->id,
+            'client_id' => $copie->user_id,
+            'dev_id' => $this->applis[$appli]->user_id,
+            'appli_id' => $copie->appli_id,
+            'formule' => $copie->taille,
+            'montant_hebergement' => app(Facturation::class)->prixHebergement($copie->taille),
+            'prix_appli' => (int) $this->applis[$appli]->prix,
+            'type_prix' => $this->applis[$appli]->type_prix,
+            'statut' => 'actif',
+            'periode_debut' => $debut->toDateString(),
+            'prochaine_echeance' => $debut->copy()->addMonthNoOverflow()->toDateString(),
+        ]);
+    }
+
+    /** Facture d'un mois, payée par le simulateur, passée au grand livre à sa date. */
+    private function facturePayee(Abonnement $abonnement, Carbon $debut, Facturation $facturation, GrandLivre $grandLivre): void
+    {
+        Carbon::setTestNow($debut->copy()->subDays(3)->setTime(6, 0));
+        $facture = $facturation->emettre($abonnement, $debut);
+
+        Carbon::setTestNow($debut->copy()->subDays(1)->setTime(10, 12));
+        $paiement = Paiement::query()->create([
+            'facture_id' => $facture->id,
+            'client_id' => $facture->client_id,
+            'passerelle' => 'simulee',
+            'session_id' => (string) Str::uuid(),
+            'montant' => $facture->montant_total,
+            'statut' => 'reussi',
+        ]);
+        $paiement->forceFill([
+            'transaction_id' => (string) Str::uuid(),
+            'reference' => 'DEMO-'.$facture->numero,
+            'frais_client' => (int) round($facture->montant_total * 0.035),
+            'montant_debite' => $facture->montant_total + (int) round($facture->montant_total * 0.035),
+            'reseau' => 'mtn_bj',
+            'verifie_le' => now(),
+        ])->save();
+        $facture->forceFill(['statut' => 'payee', 'payee_le' => now(), 'rappel_envoye_le' => $debut->copy()->subDays(3)])->save();
+        $grandLivre->encaisser($facture, $paiement);
+        Carbon::setTestNow();
     }
 
     private function avatar(string $cle): ?string

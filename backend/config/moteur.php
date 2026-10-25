@@ -30,6 +30,10 @@ return [
     // Sonde du service web : conteneur jetable branché sur le réseau de la copie.
     'image_sonde' => env('MOTEUR_IMAGE_SONDE', 'curlimages/curl:8.11.1'),
 
+    // Développement seulement : dossier de dépôts Git locaux ({owner}/{repo}.git) clonés à la place
+    // de GitHub pour les applis du jeu de démo (php artisan demo:miroirs). Ignoré hors local et tests.
+    'miroirs' => env('MOTEUR_MIROIRS'),
+
     // Page « copie suspendue » (impayé) : l'API vue depuis Traefik. En développement, Traefik est
     // sur le réseau de la machine et joint l'API sur son port publié.
     'page_suspendue' => env('MOTEUR_PAGE_SUSPENDUE', 'http://127.0.0.1:8000'),

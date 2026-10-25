@@ -47,6 +47,8 @@ x-php: &php
     # pour l'API réelle, où les paiements de ce compte échouent volontairement.
     PAIEMENT_PASSERELLE: ${PAIEMENT_PASSERELLE:-simulee}
     SIMULATEUR_WEBHOOK_URL: http://api:8000/api/webhooks/saspay
+    # Développement seulement : dépôts locaux des applis cobayes du jeu de démo (php artisan demo:miroirs).
+    MOTEUR_MIROIRS: /app/storage/app/private/miroirs
   networks: [interne]
   depends_on: &php-depends
     db:

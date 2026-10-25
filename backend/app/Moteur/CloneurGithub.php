@@ -37,7 +37,7 @@ final class CloneurGithub
             $commande[] = '--single-branch';
         }
 
-        $commande[] = $depot->urlClone;
+        $commande[] = $this->miroir($depot) ?? $depot->urlClone;
         $commande[] = $destination;
 
         $resultat = Commande::isolee(self::ENV_GIT)
@@ -51,5 +51,22 @@ final class CloneurGithub
         }
 
         return $destination;
+    }
+
+    /**
+     * Jeu de démo, en développement seulement : un dépôt local remplace le dépôt GitHub du même
+     * nom (owner et repo sont déjà réduits à [A-Za-z0-9._-] par DepotGithub). Jamais en production.
+     */
+    private function miroir(DepotGithub $depot): ?string
+    {
+        $racine = config('moteur.miroirs');
+
+        if (! is_string($racine) || $racine === '' || ! app()->environment('local', 'testing')) {
+            return null;
+        }
+
+        $chemin = rtrim($racine, '/').'/'.$depot->owner.'/'.$depot->repo.'.git';
+
+        return is_dir($chemin) && ! is_link($chemin) ? 'file://'.$chemin : null;
     }
 }

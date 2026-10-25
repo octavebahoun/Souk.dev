@@ -4,7 +4,10 @@ namespace Tests\Feature;
 
 use App\Models\Appli;
 use App\Models\Discussion;
+use App\Models\Ecriture;
+use App\Models\Facture;
 use App\Models\User;
+use App\Paiement\GrandLivre;
 use Database\Seeders\DemoSeeder;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -36,6 +39,10 @@ class DemoTest extends TestCase
         $this->assertTrue(Appli::query()->where('depot_url', 'https://github.com/octavebahoun/marchilearnia')->exists());
         $this->assertTrue(Discussion::query()->where('resolue', true)->exists());
         $this->assertNotNull($vrai->fresh(), 'Un vrai compte ne doit jamais être touché.');
+        // Facturation de démo relancée deux fois : grand livre équilibré, Awa garde 15 000 F.
+        $this->assertSame(0, (int) Ecriture::query()->sum('montant'));
+        $this->assertSame(15000, app(GrandLivre::class)->soldeDev(User::query()->where('username', 'soukdemo-awa')->sole()->id));
+        $this->assertSame(1, Facture::query()->where('statut', 'a_payer')->count());
         Storage::disk('public')->assertExists('captures/'.Appli::query()->first()->id.'/1.webp');
     }
 
