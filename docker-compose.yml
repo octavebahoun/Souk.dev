@@ -1,0 +1,199 @@
+# Plateforme Souk.dev en développement : `docker compose up`, à froid, démarre tout.
+#
+#   Front      http://localhost:5173  (Vite, proxy vers l'API)
+#   API        http://localhost:8000
+#   Reverb     ws://localhost:8080
+#   Copies     http://{copie}.localhost (Traefik, port 80)
+#
+# Les secrets internes (PostgreSQL, Reverb) sont générés au premier démarrage dans le
+# volume « secrets ». Les clés externes (SasPay, DeepSeek, Resend, GitHub) restent dans
+# backend/.env, jamais commité. Seul le service « moteur » reçoit le socket Docker.
+
+name: soukdev
+
+x-php: &php
+  image: soukdev-php:dev
+  build:
+    context: ./backend
+    target: dev
+  init: true
+  restart: unless-stopped
+  working_dir: /app
+  volumes:
+    - ./backend:/app
+    - ./openapi.yaml:/openapi.yaml:ro
+    - secrets:/run/soukdev:ro
+  environment: &php-env
+    APP_URL: http://localhost:8000
+    FRONTEND_URL: http://localhost:5173
+    DB_CONNECTION: pgsql
+    DB_HOST: db
+    DB_PORT: "5432"
+    DB_DATABASE: soukdev
+    DB_USERNAME: soukdev
+    QUEUE_CONNECTION: database
+    CACHE_STORE: database
+    SESSION_DRIVER: database
+    BROADCAST_CONNECTION: reverb
+    REVERB_HOST: reverb
+    REVERB_PORT: "8080"
+    REVERB_SCHEME: http
+    REVERB_ALLOWED_ORIGINS: localhost
+    LOG_CHANNEL: stderr
+    MOTEUR_PROXY_ROUTES: /app/storage/app/private/proxy
+  depends_on: &php-depends
+    db:
+      condition: service_healthy
+    init:
+      condition: service_completed_successfully
+
+services:
+  secrets:
+    image: soukdev-php:dev
+    build:
+      context: ./backend
+      target: dev
+    entrypoint: ["sh", "/app/docker/secrets.sh"]
+    restart: "no"
+    volumes:
+      - ./backend:/app:ro
+      - secrets:/run/soukdev
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    entrypoint: ["sh", "-c", "export POSTGRES_PASSWORD=\"$$(cat /run/soukdev/db_password)\" && exec docker-entrypoint.sh postgres"]
+    environment:
+      POSTGRES_DB: soukdev
+      POSTGRES_USER: soukdev
+    volumes:
+      - db:/var/lib/postgresql/data
+      - secrets:/run/soukdev:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U soukdev -d soukdev"]
+      interval: 3s
+      timeout: 5s
+      retries: 30
+    depends_on:
+      secrets:
+        condition: service_completed_successfully
+
+  init:
+    <<: *php
+    command: ["sh", "/app/docker/init.sh"]
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api:
+    <<: *php
+    command: ["frankenphp", "php-server", "--listen", ":8000", "--root", "public/"]
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/up"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  worker:
+    <<: *php
+    command: ["php", "artisan", "queue:work", "--queue=paiements,default", "--sleep=1", "--tries=3", "--timeout=120"]
+    healthcheck:
+      test: ["CMD", "php", "docker/sante.php", "worker"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Moteur de déploiement : clone, docker compose, sondes, analyses de sécurité.
+  moteur:
+    <<: *php
+    command: ["php", "artisan", "queue:work", "--queue=moteur", "--sleep=2", "--tries=1", "--timeout=1200"]
+    volumes:
+      - ./backend:/app
+      - ./openapi.yaml:/openapi.yaml:ro
+      - secrets:/run/soukdev:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test: ["CMD", "php", "docker/sante.php", "worker"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  reverb:
+    <<: *php
+    command: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=8080"]
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/up"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  scheduler:
+    <<: *php
+    command: ["php", "artisan", "schedule:work"]
+    healthcheck:
+      test: ["CMD", "php", "docker/sante.php", "planificateur"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+
+  # Reverse proxy des copies : réseau de l'hôte pour joindre l'adresse déjà sondée
+  # du service web, sans partager de réseau avec les copies (voir infra/proxy/).
+  traefik:
+    image: traefik:v3.3.4
+    network_mode: host
+    restart: unless-stopped
+    read_only: true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - ./infra/proxy/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./backend/storage/app/private/proxy:/routes:ro
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    depends_on:
+      init:
+        condition: service_completed_successfully
+
+  front:
+    image: node:24-alpine
+    init: true
+    restart: unless-stopped
+    working_dir: /app
+    command: ["sh", "/app/scripts/dev-conteneur.sh"]
+    environment:
+      VITE_PROXY_CIBLE: http://api:8000
+      VITE_REVERB_HOST: localhost
+      VITE_REVERB_PORT: "8080"
+      VITE_REVERB_SCHEME: http
+    volumes:
+      - ./frontend:/app
+      - front_node_modules:/app/node_modules
+      - secrets:/run/soukdev:ro
+    ports:
+      - "5173:5173"
+    healthcheck:
+      test: ["CMD", "wget", "-qO", "/dev/null", "http://127.0.0.1:5173/"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    depends_on:
+      secrets:
+        condition: service_completed_successfully
+
+volumes:
+  db:
+  secrets:
+  front_node_modules:

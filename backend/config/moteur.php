@@ -27,6 +27,9 @@ return [
     // Reverse proxy : Traefik lit ici un fichier de routes par copie en ligne (voir infra/proxy/).
     'proxy_routes' => env('MOTEUR_PROXY_ROUTES', storage_path('app/private/proxy')),
 
+    // Sonde du service web : conteneur jetable branché sur le réseau de la copie.
+    'image_sonde' => env('MOTEUR_IMAGE_SONDE', 'curlimages/curl:8.11.1'),
+
     // Après la publication : durée de lecture du pic, puis écart entre deux docker stats.
     'mesure_duree' => 180,
 

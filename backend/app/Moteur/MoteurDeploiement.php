@@ -96,7 +96,7 @@ class MoteurDeploiement
             $nom = $copie->manifeste['service_web']['nom'];
             $port = (int) $copie->manifeste['service_web']['port'];
             $hote = $this->lanceur->adresseService($copie->repertoire, $copie->id, $nom);
-            $this->sonde->attendre($hote, $port);
+            $this->sonde->attendre($hote, $port, $copie->id.'_'.Durcissement::RESEAU);
 
             // Le sous-domaine ne s'ouvre qu'une fois le service web joignable, et vers lui seul.
             $this->routeur->publier($copie->id, $hote, $port);

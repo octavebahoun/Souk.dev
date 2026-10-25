@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Comptes\EmetteurLienMagique;
 use App\Comptes\FrontUrl;
+use App\Exploitation\Battements;
 use App\Models\Discussion;
 use App\Models\Evenement;
 use App\Models\Message;
@@ -24,6 +25,11 @@ use App\Soukdev\SecretGenerator;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Queue\Events\JobFailed;
+use Illuminate\Queue\Events\JobProcessed;
+use Illuminate\Queue\Events\JobProcessing;
+use Illuminate\Queue\Events\Looping;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
@@ -64,6 +70,8 @@ class AppServiceProvider extends ServiceProvider
             );
         });
 
+        $this->app->singleton(Battements::class, fn () => new Battements(storage_path('framework/sante')));
+
         $this->app->singleton(FrontUrl::class, function () {
             return new FrontUrl((string) config('app.frontend_url'));
         });
@@ -102,8 +110,24 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perHour(3)->by('deploiements:'.($request->user()?->id ?? $request->ip()));
         });
 
+        $this->battreDansLesWorkers();
+
         Gate::policy(Discussion::class, DiscussionPolicy::class);
         Gate::policy(Message::class, MessagePolicy::class);
         Gate::policy(Evenement::class, EvenementPolicy::class);
+    }
+
+    /**
+     * Contrôle de santé des workers : en attente, ils battent à chaque tour de boucle ;
+     * pendant un job, ils restent « au travail » le temps qu'il faut.
+     */
+    private function battreDansLesWorkers(): void
+    {
+        $battre = fn (string $etat) => fn () => $this->app->make(Battements::class)->battre('worker', $etat);
+
+        Event::listen(Looping::class, $battre('attente'));
+        Event::listen(JobProcessing::class, $battre('travail'));
+        Event::listen(JobProcessed::class, $battre('attente'));
+        Event::listen(JobFailed::class, $battre('attente'));
     }
 }

@@ -10,9 +10,16 @@ use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Http\Request;
 use Illuminate\Session\TokenMismatchException;
+use Illuminate\Support\Env;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+
+// Secrets internes générés au premier démarrage de docker compose (service « secrets »).
+// Ils passent avant backend/.env ; une vraie variable d'environnement passe avant eux.
+if (is_readable('/run/soukdev/plateforme.env')) {
+    Dotenv\Dotenv::create(Env::getRepository(), '/run/soukdev', 'plateforme.env')->safeLoad();
+}
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
