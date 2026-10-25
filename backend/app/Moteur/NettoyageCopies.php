@@ -24,6 +24,15 @@ class NettoyageCopies
         $arretees = 0;
         $ratees = 0;
 
+        // Un arrêt resté en cours (job perdu, moteur redémarré) est repris après dix minutes.
+        Deploiement::query()
+            ->where('etat', 'arret_en_cours')
+            ->where('updated_at', '<=', now()->subMinutes(10))
+            ->orderBy('id')
+            ->each(function (Deploiement $deploiement) use (&$arretees, &$ratees): void {
+                $this->nettoyeur->arreter($deploiement) ? $arretees++ : $ratees++;
+            });
+
         // Les copies en échec gardent expire_le : elles sont retentées au passage suivant.
         Deploiement::query()
             ->whereNotNull('expire_le')

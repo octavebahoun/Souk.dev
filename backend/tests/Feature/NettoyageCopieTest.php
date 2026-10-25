@@ -3,12 +3,14 @@
 namespace Tests\Feature;
 
 use App\Events\DeploiementEtat;
+use App\Jobs\ArreterDeploiement;
 use App\Models\Deploiement;
 use App\Models\User;
 use App\Moteur\Exceptions\LancementEchoue;
 use App\Moteur\LanceurCompose;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 class NettoyageCopieTest extends TestCase
@@ -44,6 +46,37 @@ class NettoyageCopieTest extends TestCase
         $this->actingAs($client)->deleteJson('/api/deployments/'.$deploiement->id)
             ->assertAccepted()
             ->assertJsonPath('etat', 'arrete');
+        $this->assertSame('arrete', $deploiement->refresh()->etat);
+    }
+
+    public function test_un_arret_survit_a_une_panne_de_reverb(): void
+    {
+        Queue::fake();
+        Event::listen(DeploiementEtat::class, fn () => throw new \RuntimeException('Reverb injoignable'));
+        $client = User::factory()->create();
+        $deploiement = $this->copie($client, 'en_ligne');
+
+        $this->actingAs($client)->deleteJson('/api/deployments/'.$deploiement->id)->assertAccepted();
+
+        $this->assertSame('arret_en_cours', $deploiement->refresh()->etat);
+        Queue::assertPushed(ArreterDeploiement::class, 1);
+
+        // Redemandé, l'arrêt est relancé au lieu d'être ignoré.
+        $this->actingAs($client)->deleteJson('/api/deployments/'.$deploiement->id)->assertAccepted();
+        Queue::assertPushed(ArreterDeploiement::class, 2);
+    }
+
+    public function test_un_arret_reste_en_cours_est_repris_par_le_nettoyage(): void
+    {
+        Event::fake([DeploiementEtat::class]);
+        $client = User::factory()->create();
+        $deploiement = $this->copie($client, 'arret_en_cours');
+        $deploiement->forceFill(['updated_at' => now()->subMinutes(30)])->saveQuietly();
+
+        $this->mock(LanceurCompose::class, fn ($mock) => $mock->shouldReceive('arreter')->once());
+
+        $this->artisan('moteur:nettoyer', ['--sans-orphelins' => true])->assertSuccessful();
+
         $this->assertSame('arrete', $deploiement->refresh()->etat);
     }
 

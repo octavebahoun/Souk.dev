@@ -12,6 +12,7 @@ use Database\Factories\DeploiementFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Throwable;
 
 class Deploiement extends Model
 {
@@ -106,17 +107,23 @@ class Deploiement extends Model
 
     /**
      * Demande l'arrêt de la copie au moteur, seul à parler à Docker (voir ArreterDeploiement).
+     * Le job part avant toute diffusion : une panne de Reverb ne laisse jamais un arrêt sans job.
+     * Redemandé alors qu'il est en cours, l'arrêt est relancé (le moteur est idempotent).
      */
     public function demanderArret(): void
     {
         $this->refresh();
 
-        if (in_array($this->etat, ['arrete', 'arret_en_cours'], true)) {
+        if ($this->etat === 'arrete') {
             return;
         }
 
-        $this->changerEtat('arret_en_cours');
+        if ($this->etat !== 'arret_en_cours') {
+            $this->forceFill(['etat' => 'arret_en_cours'])->save();
+        }
+
         ArreterDeploiement::dispatch($this->id);
+        $this->diffuser();
     }
 
     public function estEnCoursArret(): bool
@@ -124,23 +131,31 @@ class Deploiement extends Model
         return in_array($this->etat, ['arrete', 'arret_en_cours'], true);
     }
 
+    /**
+     * Pousse l'état par Reverb. Une panne de Reverb ne casse jamais un changement d'état :
+     * l'état est déjà en base, le front le relit à la prochaine requête.
+     */
     public function diffuser(): void
     {
         $this->loadMissing('appli');
 
-        event(new DeploiementEtat($this->id, $this->versApi()));
+        try {
+            event(new DeploiementEtat($this->id, $this->versApi()));
 
-        // La copie de test et la version corrigée se suivent aussi sur la discussion, publique.
-        if ($this->type === 'test' && $this->discussion_id !== null) {
-            event(new CopieTestEtat($this->discussion_id, $this->versApi()));
-        }
-
-        if ($this->type === 'correctif' && $this->correctif_id !== null) {
-            $correctif = $this->correctif()->first();
-
-            if ($correctif !== null) {
-                event(new CorrectifEtat($correctif));
+            // La copie de test et la version corrigée se suivent aussi sur la discussion, publique.
+            if ($this->type === 'test' && $this->discussion_id !== null) {
+                event(new CopieTestEtat($this->discussion_id, $this->versApi()));
             }
+
+            if ($this->type === 'correctif' && $this->correctif_id !== null) {
+                $correctif = $this->correctif()->first();
+
+                if ($correctif !== null) {
+                    event(new CorrectifEtat($correctif));
+                }
+            }
+        } catch (Throwable $exception) {
+            report($exception);
         }
     }
 
