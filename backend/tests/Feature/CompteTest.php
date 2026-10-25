@@ -129,7 +129,7 @@ final class CompteTest extends TestCase
 
         $this->getJson('/api/devs?disponible=true&competence=laravel&specialite=backend&pays=BJ')
             ->assertOk()
-            ->assertJsonPath('total', 1)
+            ->assertJsonPath('meta.total', 1)
             ->assertJsonPath('data.0.username', 'afi-dossou')
             ->assertJsonPath('data.0.stats.bugs_resolus', 0);
     }

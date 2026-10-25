@@ -95,6 +95,24 @@ class ReversementTest extends TestCase
         $this->assertSame(1, Reversement::query()->count());
     }
 
+    public function test_mouvements_et_reversements_suivent_la_pagination_du_contrat(): void
+    {
+        $dev = $this->devConfirme('0197123456');
+        $this->crediter($dev, 15000);
+        $this->actingAs($dev)->postJson('/api/me/revenus/reversements')->assertAccepted();
+
+        $this->actingAs($dev)->getJson('/api/me/revenus/mouvements')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 2)
+            ->assertJsonPath('data.0.type', 'reversement')
+            ->assertJsonPath('data.0.montant', -15000)
+            ->assertJsonPath('data.1.montant', 15000);
+        $this->actingAs($dev)->getJson('/api/me/revenus/reversements')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonStructure(['data', 'links' => ['first', 'last', 'prev', 'next'], 'meta' => ['current_page', 'last_page', 'per_page', 'total']]);
+    }
+
     public function test_un_refus_du_reseau_rend_le_solde_au_dev(): void
     {
         $dev = $this->devConfirme('0197120000');

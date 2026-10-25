@@ -13,6 +13,8 @@ use App\Paiement\GrandLivre;
 use App\Paiement\Reversements;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
  * « Mes revenus » du dev : solde réel (grand livre), mouvements, reversements, demande de
@@ -42,7 +44,7 @@ final class RevenusController extends Controller
         ]);
     }
 
-    public function mouvements(Request $request): JsonResponse
+    public function mouvements(Request $request): AnonymousResourceCollection
     {
         $mouvements = Ecriture::query()
             ->where('compte', Ecriture::COMPTE_DEV)
@@ -63,12 +65,12 @@ final class RevenusController extends Controller
                 'cree_le' => $ecriture->cree_le->toIso8601String(),
             ]);
 
-        return response()->json($mouvements);
+        return JsonResource::collection($mouvements);
     }
 
-    public function reversements(Request $request): JsonResponse
+    public function reversements(Request $request): AnonymousResourceCollection
     {
-        return response()->json(Reversement::query()
+        return JsonResource::collection(Reversement::query()
             ->where('dev_id', $request->user()->id)
             ->latest('id')
             ->paginate(Pagination::parPage($request))

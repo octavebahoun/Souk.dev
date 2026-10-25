@@ -17,6 +17,8 @@ use App\Models\User;
 use App\Paiement\GrandLivre;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Validation\Rule;
 
 final class CompteController extends Controller
@@ -69,7 +71,7 @@ final class CompteController extends Controller
         ]);
     }
 
-    public function index(Request $request, ProfilCalcule $profils): JsonResponse
+    public function index(Request $request, ProfilCalcule $profils): AnonymousResourceCollection
     {
         $request->validate([
             'disponible' => ['sometimes', Rule::in(['true', 'false', '0', '1'])],
@@ -107,7 +109,7 @@ final class CompteController extends Controller
                 ...$profils->range($compte),
             ]);
 
-        return response()->json($devs);
+        return JsonResource::collection($devs);
     }
 
     public function dev(string $username, DepotsGithub $depots, ProfilCalcule $profils): JsonResponse

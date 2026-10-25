@@ -18,6 +18,7 @@ use App\Paiement\GrandLivre;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -116,9 +117,9 @@ final class AdminFinancesController extends Controller
         return response()->json($avoir->versApi(), 201);
     }
 
-    public function reversements(Request $request): JsonResponse
+    public function reversements(Request $request): AnonymousResourceCollection
     {
-        return response()->json(Reversement::query()
+        return JsonResource::collection(Reversement::query()
             ->with('dev')
             ->latest('id')
             ->paginate(Pagination::parPage($request))
@@ -137,9 +138,9 @@ final class AdminFinancesController extends Controller
             ]));
     }
 
-    public function rapprochements(Request $request): JsonResponse
+    public function rapprochements(Request $request): AnonymousResourceCollection
     {
-        return response()->json(Rapprochement::query()
+        return JsonResource::collection(Rapprochement::query()
             ->latest('jour')
             ->paginate(Pagination::parPage($request))
             ->through(fn (Rapprochement $rapprochement) => [
