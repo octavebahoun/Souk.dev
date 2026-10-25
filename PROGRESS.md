@@ -6,8 +6,8 @@ Journal de l'agent, tenu à jour en continu (voir `BRIEF.md`, section 1).
 ## Où on en est
 
 - **Branche** : `saas-complet`, partie de `main` (la PR #28 `fin-mvp` y est fusionnée).
-- **Phase en cours** : 1 — Socle.
-- **Tâche suivante** : système de design (tokens Systalink, Outfit, composants), puis captures « avant ».
+- **Phase en cours** : 2 — Paiement (phase 1 terminée, revue indépendante faite et corrigée).
+- **Tâche suivante** : phase 2 — brancher la facturation (cycle quotidien, suspension, réactivation), tests, écrans de paiement.
 
 ## Étape 0 (25 octobre)
 
@@ -31,8 +31,18 @@ Journal de l'agent, tenu à jour en continu (voir `BRIEF.md`, section 1).
 - [x] Tests anti-IDOR : déploiement, mission, messages et note de mission, canaux privés
 - [x] Temps réel des missions (canal privé `mission.{id}`)
 - [x] Réputation, stats et Souk Score branchés (ils valaient zéro), recherche triée par Souk Score
-- [ ] Système de design : `docs/design.md`, tokens dans `frontend/src/index.css`, police Outfit, bibliothèque de composants
-- [ ] Sortie : `docker compose up` à froid démarre tout, CI verte, aucun test sauté
+- [x] Système de design : `docs/design.md`, tokens clair et sombre, Outfit, bibliothèque `frontend/src/ui`, coquille
+- [x] Jeu de démo (`DemoSeeder`) et connexion de démo pour Playwright ; Playwright, captures et audit axe en place
+- [x] Revue indépendante (sous-agent neuf) : 10 constats, tous corrigés (voir ci-dessous)
+- [x] Sortie : `docker compose up` à froid démarre tout, suite PHP verte dans le conteneur, aucun test sauté
+
+**Revue indépendante de la phase 1** (constats corrigés) :
+1. Critique : un `docker-compose.yml` lisait les secrets de la plateforme par interpolation → environnement minimal pour git et docker.
+2. Élevé : le conteneur `front` (npm, root) voyait DB_PASSWORD et joignait la base → volume public et réseau séparés.
+3. Moyen : un arrêt pouvait rester bloqué si Reverb tombait → job d'abord, diffusion non bloquante, reprise par le nettoyage.
+4. Moyen : XP sans validation d'un tiers (auto-acceptation, événements passés) → exclus.
+5. à 8. Front : thème sombre des anciens écrans, sélecteur de thème dans un menu, contrastes des états, rendu des refus d'autorisation.
+9. et 10. Tri initial du Souk Score, Traefik sur la boucle locale, interrupteur de 44 px, compte admin de démo réservé au poste de dev.
 
 ### Phase 2 — Paiement (SasPay)
 - [ ] Adaptateurs `PasserellePaiement` (SasPay, simulée) et reversements (simulés)
@@ -80,13 +90,18 @@ Journal de l'agent, tenu à jour en continu (voir `BRIEF.md`, section 1).
 | 2026-10-25 | 1 | `docker compose up` à froid (volumes vides) | 8 services sains, migrations PostgreSQL passées |
 | 2026-10-25 | 1 | Copie locale déployée par le moteur conteneurisé | sonde OK, `http://essai-locale.localhost` → 200 via Traefik |
 | 2026-10-25 | 1 | `php artisan test` dans le conteneur PHP | 380/380, aucun test sauté |
+| 2026-10-25 | 1 | Playwright (parcours socle, axe sur la page introuvable en clair et en sombre) | 3/3, zéro violation sérieuse |
+| 2026-10-25 | 1 | `composer audit`, `npm audit` | aucune faille (Prism retiré : 8 failles npm de développement) |
+| 2026-10-25 | 1 | Revue indépendante | 10 constats, tous corrigés ; fuite des secrets vérifiée avant et après dans le conteneur moteur |
 
 ## Problèmes ouverts
+
+- 25 octobre : l'agent a vidé par erreur la base SQLite locale de l'hôte (`backend/database/database.sqlite`, sans sauvegarde) avec `migrate:fresh`. La plateforme Docker (PostgreSQL) n'est pas touchée. Règle ajoutée : ne plus jamais lancer de commande destructrice sur cette base.
 
 - Tunnel public pour le webhook SasPay : refusé par le mode auto de Claude Code, en attente de l'utilisateur.
 - Déploiement réel d'un dépôt GitHub (`octavebahoun/marchilearnia`) : refusé par le mode auto (« code externe »). À autoriser par l'utilisateur ; en attendant, le moteur est vérifié avec une appli locale écrite par l'agent.
 
 ## Dépenses et crédits
 
-- Vertex AI (Nano Banana Pro) : 0 $ / 10 $.
+- Vertex AI (Nano Banana Pro, `gemini-3-pro-image`) : 5,49 $ / 10 $ (41 images, détail dans `scripts/visuels/depenses.json`).
 - Logo.dev : aucun logo récupéré.
