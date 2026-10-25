@@ -48,6 +48,7 @@ Versions exactes déjà installées. Les autres lignes attendent leur installati
 | @testing-library/dom | 10.4.2 | MIT |
 | @testing-library/jest-dom | 6.10.0 | MIT |
 | license-checker | 25.0.1 | BSD-3-Clause |
+| @playwright/test (parcours de bout en bout, captures) | 1.64.1 | Apache 2.0 |
 | osteel/openapi-httpfoundation-testing | pas encore installé | MIT |
 | PostgreSQL (image postgres:16-alpine) | 16 | licence PostgreSQL |
 | PostgREST (image postgrest/postgrest) | v12.2.3 | MIT |
@@ -62,3 +63,9 @@ Versions exactes déjà installées. Les autres lignes attendent leur installati
 Les deux polices (Outfit pour l'interface, IBM Plex Mono pour le code) sont en SIL Open Font License 1.1. Ce n'est ni GPL, ni AGPL, ni LGPL : on peut les embarquer dans le site, on ne peut pas les vendre seules. Outfit remplace Plus Jakarta Sans depuis la refonte : c'est la police de secours que déclare le design system de Systalink (`BRIEF.md`, section 8). `npm run check-licenses` ne bloque que GPL, AGPL et LGPL.
 
 `tweetnacl` est en Unlicense (domaine public), tiré par `pusher-js`, lui-même exigé par Laravel Echo pour parler à Reverb. Ce n'est pas une GPL. On ne peut pas l'éviter sans retirer le temps réel.
+
+**Outils d'audit qui ne sont pas des dépendances du projet** (rien n'est installé ni livré avec Souk.dev) :
+`axe-core` (MPL-2.0), chargé dans la page seulement pendant l'audit d'accessibilité (`frontend/e2e/outils.ts`),
+et Lighthouse (Apache 2.0), lancé avec `npx`. La MPL ne porte que sur les fichiers d'axe-core eux-mêmes,
+que le projet ne modifie ni ne distribue.
+
