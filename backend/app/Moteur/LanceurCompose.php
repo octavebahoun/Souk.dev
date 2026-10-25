@@ -155,9 +155,16 @@ class LanceurCompose
         return (new SondeServiceWeb)->adresseDepuisInspection($inspection->output());
     }
 
+    public function __construct(private ?RouteurCopies $routeur = null) {}
+
     public function arreter(string $repertoire, string $copie): void
     {
         $this->verifierNomCopie($copie);
+
+        // Route retirée avant les conteneurs : l'adresse libérée pourrait servir à une autre copie.
+        if (! str_contains($copie, '_')) {
+            $this->routeur()?->retirer($copie);
+        }
 
         // -v supprime aussi les volumes (dont la base intégrée), --rmi local les images construites.
         // Le dossier a pu disparaître : -p suffit à retrouver les conteneurs du projet.
@@ -355,5 +362,10 @@ class LanceurCompose
         if (preg_match('/^[a-z0-9][a-z0-9_-]{0,62}$/', $copie) !== 1) {
             throw new LancementEchoue('Le nom de la copie est invalide pour Docker Compose.');
         }
+    }
+
+    private function routeur(): ?RouteurCopies
+    {
+        return $this->routeur ?? (function_exists('app') && app()->bound('config') ? RouteurCopies::depuisConfig() : null);
     }
 }

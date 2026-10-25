@@ -1,0 +1,17 @@
+# Configuration statique de Traefik (reverse proxy des copies).
+# Pas de fournisseur Docker : les labels des dépôts et des images ne sont jamais lus.
+entryPoints:
+  web:
+    address: ":80"
+
+providers:
+  file:
+    # Un fichier par copie en ligne, écrit par App\Moteur\RouteurCopies.
+    directory: /routes
+    watch: true
+
+api:
+  dashboard: false
+
+log:
+  level: INFO

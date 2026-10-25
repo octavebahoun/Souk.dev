@@ -1,0 +1,20 @@
+# Reverse proxy des copies : un sous-domaine par copie, vers son seul service_web.
+# Lancement sur le VPS : docker compose -f infra/proxy/docker-compose.yml up -d
+services:
+  traefik:
+    image: traefik:v3.3.4
+    # Réseau de l'hôte : Traefik joint l'adresse du service web déjà sondée par le moteur,
+    # sans partager de réseau avec les copies (elles restent isolées entre elles).
+    network_mode: host
+    restart: unless-stopped
+    read_only: true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - ./traefik.yml:/etc/traefik/traefik.yml:ro
+      # Même dossier que MOTEUR_PROXY_ROUTES côté Laravel.
+      - ${MOTEUR_PROXY_ROUTES:-../../backend/storage/app/private/proxy}:/routes:ro

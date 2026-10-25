@@ -7,6 +7,7 @@ use App\Comptes\FrontUrl;
 use App\Models\Discussion;
 use App\Models\Evenement;
 use App\Models\Message;
+use App\Moteur\RouteurCopies;
 use App\Policies\DiscussionPolicy;
 use App\Policies\EvenementPolicy;
 use App\Policies\MessagePolicy;
@@ -39,6 +40,8 @@ class AppServiceProvider extends ServiceProvider
         });
 
         $this->app->singleton(SecretGenerator::class, RandomSecretGenerator::class);
+
+        $this->app->bind(RouteurCopies::class, fn () => RouteurCopies::depuisConfig());
 
         $this->app->singleton(GitCloner::class, ProcessGitCloner::class);
 

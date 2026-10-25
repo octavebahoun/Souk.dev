@@ -22,7 +22,10 @@ return [
     'compose_timeout' => 600,
 
     // URL publique une fois la copie en ligne. {copie} devient l'identifiant Compose.
-    'url_copie' => 'http://{copie}.localhost',
+    'url_copie' => env('MOTEUR_URL_COPIE', 'http://{copie}.localhost'),
+
+    // Reverse proxy : Traefik lit ici un fichier de routes par copie en ligne (voir infra/proxy/).
+    'proxy_routes' => env('MOTEUR_PROXY_ROUTES', storage_path('app/private/proxy')),
 
     // Après la publication : durée de lecture du pic, puis écart entre deux docker stats.
     'mesure_duree' => 180,
