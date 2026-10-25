@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Comptes\ProfilCalcule;
 use App\Enums\Profil;
 use App\Http\Resources\MissionResource;
 use App\Models\Appli;
@@ -53,7 +54,7 @@ class MissionController extends Controller
     }
 
     // POST /missions/{id}/note : le client termine la mission et note l'auteur, une seule fois
-    public function note(Request $request, Mission $mission)
+    public function note(Request $request, Mission $mission, ProfilCalcule $profils)
     {
         Gate::authorize('noter', $mission);
         abort_if($mission->statut === 'terminee', 409);
@@ -76,7 +77,10 @@ class MissionController extends Controller
 
         abort_if($notee === 0, 409);
 
-        return new MissionResource($mission->refresh()->load(['client', 'auteur']));
+        $mission->refresh()->load(['client', 'auteur']);
+        $profils->rafraichir($mission->auteur);
+
+        return new MissionResource($mission);
     }
 
     private function creer(Request $request, User $auteur, ?int $appId)

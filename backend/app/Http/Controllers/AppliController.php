@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Comptes\ProfilCalcule;
 use App\Models\Appli;
 use App\Moteur\Exceptions\DepotInvalide;
 use App\Moteur\Exceptions\LancementEchoue;
@@ -104,7 +105,7 @@ class AppliController extends Controller
         return response()->json(Appli::CATEGORIES);
     }
 
-    public function store(Request $request, PublicationDepot $depot): JsonResponse
+    public function store(Request $request, PublicationDepot $depot, ProfilCalcule $profils): JsonResponse
     {
         Gate::authorize('lierUnDepot');
 
@@ -131,6 +132,7 @@ class AppliController extends Controller
         ])->save();
 
         $appli->demanderMesure();
+        $profils->rafraichir($request->user());
 
         return response()->json($appli->fresh()->versApi(), 201);
     }
@@ -164,12 +166,13 @@ class AppliController extends Controller
         return response()->json($appli->fresh()->versApi());
     }
 
-    public function destroy(Appli $appli): Response
+    public function destroy(Appli $appli, ProfilCalcule $profils): Response
     {
         Gate::authorize('delete', $appli);
 
         Storage::disk('public')->deleteDirectory('captures/'.$appli->id);
         $appli->delete();
+        $profils->rafraichir($appli->auteur);
 
         return response()->noContent();
     }

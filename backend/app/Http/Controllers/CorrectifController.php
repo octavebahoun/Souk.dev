@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Comptes\ProfilCalcule;
 use App\Echange\Diffuseur;
 use App\Events\CorrectifAccepte;
 use App\Events\CorrectifPropose;
@@ -64,7 +65,7 @@ final class CorrectifController extends Controller
         return (new CorrectifResource($correctif))->response()->setStatusCode(201);
     }
 
-    public function accepter(Correctif $correctif, Diffuseur $diffuseur): CorrectifResource
+    public function accepter(Correctif $correctif, Diffuseur $diffuseur, ProfilCalcule $profils): CorrectifResource
     {
         Gate::authorize('accepter', $correctif);
 
@@ -82,6 +83,7 @@ final class CorrectifController extends Controller
             }
 
             $correctif->accepte = true;
+            $correctif->accepte_le = now();
             $correctif->save();
             $discussion->resolue = true;
             $discussion->save();
@@ -90,6 +92,7 @@ final class CorrectifController extends Controller
         });
 
         $correctif->refresh()->load('auteur');
+        $profils->rafraichir($correctif->auteur);
         $discussion->load(['auteur', 'canal'])->loadCount('messages');
         $diffuseur->envoyer(new CorrectifAccepte($correctif));
         $diffuseur->envoyer(new DiscussionModifiee($discussion));

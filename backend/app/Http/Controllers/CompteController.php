@@ -70,7 +70,7 @@ final class CompteController extends Controller
         ]);
     }
 
-    public function index(Request $request): JsonResponse
+    public function index(Request $request, ProfilCalcule $profils): JsonResponse
     {
         $request->validate([
             'disponible' => ['sometimes', Rule::in(['true', 'false', '0', '1'])],
@@ -95,28 +95,23 @@ final class CompteController extends Controller
                 'pays',
                 $request->string('pays')->toString(),
             ))
-            ->orderByDesc('disponible')
+            // Du meilleur Souk Score au plus faible (copie rangée, rafraîchie à chaque action validée).
+            ->orderByDesc('souk_score')
             ->orderBy('name')
             ->paginate(Pagination::parPage($request))
-            ->through(function (User $compte): array {
-                $calcule = new ProfilCalcule;
-
-                return [
-                    ...DevResource::champs($compte),
-                    'bio' => $compte->bio,
-                    'competences' => array_values($compte->competences ?? []),
-                    'specialites' => array_values($compte->specialites ?? []),
-                    'disponible' => (bool) $compte->disponible,
-                    'stats' => $calcule->stats(),
-                    'reputation' => $calcule->reputation(),
-                    'souk_score' => $calcule->soukScore(),
-                ];
-            });
+            ->through(fn (User $compte): array => [
+                ...DevResource::champs($compte),
+                'bio' => $compte->bio,
+                'competences' => array_values($compte->competences ?? []),
+                'specialites' => array_values($compte->specialites ?? []),
+                'disponible' => (bool) $compte->disponible,
+                ...$profils->range($compte),
+            ]);
 
         return response()->json($devs);
     }
 
-    public function dev(string $username, DepotsGithub $depots): JsonResponse
+    public function dev(string $username, DepotsGithub $depots, ProfilCalcule $profils): JsonResponse
     {
         $compte = User::query()->where('username', $username)->first();
 
@@ -124,7 +119,6 @@ final class CompteController extends Controller
             abort(404);
         }
 
-        $calcule = new ProfilCalcule;
         $applis = Appli::query()
             ->where('user_id', $compte->id)
             ->orderByDesc('id')
@@ -138,9 +132,7 @@ final class CompteController extends Controller
             'competences' => array_values($compte->competences ?? []),
             'specialites' => array_values($compte->specialites ?? []),
             'disponible' => $compte->disponible,
-            'stats' => $calcule->stats(),
-            'reputation' => $calcule->reputation(),
-            'souk_score' => $calcule->soukScore(),
+            ...$profils->pour($compte),
             'depots' => $depots->pour($compte->username),
             'applis' => $applis,
         ]);

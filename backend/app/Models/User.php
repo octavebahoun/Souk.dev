@@ -32,6 +32,9 @@ class User extends Authenticatable
             'github_lie' => 'boolean',
             'est_admin' => 'boolean',
             'disponible' => 'boolean',
+            'souk_score' => 'integer',
+            'profil_calcule' => 'array',
+            'profil_calcule_le' => 'datetime',
             'competences' => 'array',
             'specialites' => 'array',
         ];

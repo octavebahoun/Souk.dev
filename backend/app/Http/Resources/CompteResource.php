@@ -18,7 +18,6 @@ final class CompteResource extends JsonResource
     {
         /** @var User $compte */
         $compte = $this->resource;
-        $calcule = new ProfilCalcule;
 
         return [
             ...DevResource::champs($compte),
@@ -29,9 +28,7 @@ final class CompteResource extends JsonResource
             'competences' => array_values($compte->competences ?? []),
             'specialites' => array_values($compte->specialites ?? []),
             'disponible' => $compte->disponible,
-            'stats' => $calcule->stats(),
-            'reputation' => $calcule->reputation(),
-            'souk_score' => $calcule->soukScore(),
+            ...app(ProfilCalcule::class)->pour($compte),
         ];
     }
 }

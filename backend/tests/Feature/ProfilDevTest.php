@@ -6,6 +6,8 @@ namespace Tests\Feature;
 
 use App\Enums\Techno;
 use App\Models\Appli;
+use App\Models\Correctif;
+use App\Models\Discussion;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -64,9 +66,39 @@ final class ProfilDevTest extends TestCase
             ->assertJsonPath('depots.0.readme', '## MoMo')
             ->assertJsonPath('applis.0.nom', 'Pharmacie')
             ->assertJsonPath('stats.bugs_resolus', 0)
-            ->assertJsonStructure(['reputation', 'souk_score']);
+            ->assertJsonPath('stats.applis_publiees', 1)
+            ->assertJsonPath('reputation.xp', 100)
+            ->assertJsonPath('reputation.badges', ['publie'])
+            // projets 50 + activité 15 (une appli publiée aujourd'hui)
+            ->assertJsonPath('souk_score.total', 65);
 
         $this->getJson('/api/devs/inconnu')->assertNotFound();
+    }
+
+    public function test_un_correctif_accepte_fait_monter_le_dev_dans_la_recherche(): void
+    {
+        $auteur = User::factory()->github()->create(['name' => 'Yann']);
+        $aidant = User::factory()->github()->create(['name' => 'Zoé']);
+        $autre = User::factory()->github()->create(['name' => 'Aïcha']);
+        $discussion = Discussion::factory()->create(['user_id' => $auteur->id]);
+        $correctif = Correctif::query()->create([
+            'discussion_id' => $discussion->id,
+            'user_id' => $aidant->id,
+            'depot_url' => 'https://github.com/acme/momo/tree/correctif',
+            'accepte' => false,
+        ]);
+
+        $this->actingAs($auteur)->postJson('/api/correctifs/'.$correctif->id.'/accepter')->assertOk();
+
+        // entraide 25 + activité 15
+        $this->assertSame(40, $aidant->refresh()->souk_score);
+
+        $this->getJson('/api/devs')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $aidant->id)
+            ->assertJsonPath('data.0.stats.bugs_resolus', 1)
+            ->assertJsonPath('data.0.reputation.badges', ['premier_correctif'])
+            ->assertJsonPath('data.1.id', $autre->id);
     }
 
     public function test_les_technos_sont_la_liste_fixe(): void
