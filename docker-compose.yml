@@ -43,6 +43,7 @@ x-php: &php
     MOTEUR_PROXY_ROUTES: /app/storage/app/private/proxy
     # Développement seulement : connexion aux comptes du jeu de démo (tests de bout en bout).
     DEMO_CONNEXION: "true"
+  networks: [interne]
   depends_on: &php-depends
     db:
       condition: service_healthy
@@ -57,9 +58,11 @@ services:
       target: dev
     entrypoint: ["sh", "/app/docker/secrets.sh"]
     restart: "no"
+    network_mode: none
     volumes:
       - ./backend:/app:ro
       - secrets:/run/soukdev
+      - secrets_publics:/run/soukdev-public
 
   db:
     image: postgres:16-alpine
@@ -71,6 +74,7 @@ services:
     volumes:
       - db:/var/lib/postgresql/data
       - secrets:/run/soukdev:ro
+    networks: [interne]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U soukdev -d soukdev"]
       interval: 3s
@@ -91,6 +95,8 @@ services:
   api:
     <<: *php
     command: ["frankenphp", "php-server", "--listen", ":8000", "--root", "public/"]
+    # Seul service joignable depuis le conteneur front (réseau « web »).
+    networks: [interne, web]
     ports:
       - "127.0.0.1:8000:8000"
     healthcheck:
@@ -158,7 +164,7 @@ services:
     security_opt:
       - no-new-privileges:true
     volumes:
-      - ./infra/proxy/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./infra/proxy/traefik.dev.yml:/etc/traefik/traefik.yml:ro
       - ./backend/storage/app/private/proxy:/routes:ro
     healthcheck:
       test: ["CMD", "traefik", "healthcheck", "--ping"]
@@ -180,10 +186,12 @@ services:
       VITE_REVERB_HOST: localhost
       VITE_REVERB_PORT: "8080"
       VITE_REVERB_SCHEME: http
+    # Paquets npm d'inconnus : pas de secret (seulement la clé publique Reverb), pas d'accès à la base.
     volumes:
       - ./frontend:/app
       - front_node_modules:/app/node_modules
-      - secrets:/run/soukdev:ro
+      - secrets_publics:/run/soukdev-public:ro
+    networks: [web]
     ports:
       - "127.0.0.1:5173:5173"
     healthcheck:
@@ -194,8 +202,15 @@ services:
     depends_on:
       secrets:
         condition: service_completed_successfully
+      api:
+        condition: service_started
+
+networks:
+  interne:
+  web:
 
 volumes:
   db:
   secrets:
+  secrets_publics:
   front_node_modules:

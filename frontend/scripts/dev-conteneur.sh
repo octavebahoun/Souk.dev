@@ -2,11 +2,11 @@
 # Serveur Vite du conteneur « front » (docker-compose.yml à la racine).
 set -eu
 
-if [ -r /run/soukdev/plateforme.env ]; then
+# Seule la clé publique de Reverb (envoyée aux navigateurs de toute façon) arrive ici.
+if [ -r /run/soukdev-public/public.env ]; then
     set -a
-    . /run/soukdev/plateforme.env
+    . /run/soukdev-public/public.env
     set +a
-    export VITE_REVERB_KEY="$REVERB_APP_KEY"
 fi
 
 # node_modules vit dans un volume (binaires pour Alpine) : réinstallé quand le lockfile change.

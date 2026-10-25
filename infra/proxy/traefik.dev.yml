@@ -1,0 +1,24 @@
+# Configuration statique de Traefik en développement (docker-compose.yml) : comme traefik.yml,
+# mais les copies ne sont servies que sur la boucle locale, jamais au réseau local.
+# Pas de fournisseur Docker : les labels des dépôts et des images ne sont jamais lus.
+entryPoints:
+  web:
+    address: "127.0.0.1:80"
+  # Contrôle de santé (traefik healthcheck --ping), seulement sur la boucle locale.
+  ping:
+    address: "127.0.0.1:8082"
+
+ping:
+  entryPoint: ping
+
+providers:
+  file:
+    # Un fichier par copie en ligne, écrit par App\Moteur\RouteurCopies.
+    directory: /routes
+    watch: true
+
+api:
+  dashboard: false
+
+log:
+  level: INFO

@@ -3,16 +3,28 @@
 # « secrets » (jamais dans le dépôt) : mot de passe PostgreSQL et clés Reverb.
 # Les clés des services externes (SasPay, DeepSeek, Resend, GitHub) restent dans backend/.env.
 #
-# plateforme.env est lisible par l'utilisateur de l'appli (Laravel le charge au démarrage,
-# voir bootstrap/app.php) ; db_password reste réservé à root. Le volume n'est monté que
-# dans les conteneurs de la plateforme.
+# - plateforme.env : lisible par root et par le groupe du code (/app), chargé par Laravel ;
+# - db_password : root seulement (lu par l'entrée de PostgreSQL) ;
+# - public.env (volume « secrets_publics ») : la seule clé publique de Reverb, pour le front.
 set -eu
 
 dossier=/run/soukdev
+public=/run/soukdev-public
 fichier=$dossier/plateforme.env
+groupe=$(stat -c %g /app)
+
+proteger() {
+    chown "root:$groupe" "$fichier"
+    chmod 0640 "$fichier"
+    chmod 0600 "$dossier/db_password"
+    mkdir -p "$public"
+    grep '^REVERB_APP_KEY=' "$fichier" | sed 's/^REVERB_APP_KEY=/VITE_REVERB_KEY=/' > "$public/public.env.tmp"
+    chmod 0644 "$public/public.env.tmp"
+    mv "$public/public.env.tmp" "$public/public.env"
+}
 
 if [ -s "$fichier" ] && [ -s "$dossier/db_password" ]; then
-    chmod 0644 "$fichier"
+    proteger
     echo "Secrets déjà présents."
     exit 0
 fi
@@ -32,7 +44,7 @@ mot_de_passe=$(aleatoire 24)
 } > "$fichier.tmp"
 
 printf '%s' "$mot_de_passe" > "$dossier/db_password"
-chmod 0644 "$fichier.tmp"
 mv "$fichier.tmp" "$fichier"
+proteger
 
 echo "Secrets générés dans le volume."
