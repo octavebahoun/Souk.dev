@@ -3,7 +3,6 @@
 namespace App\Moteur;
 
 use App\Moteur\Exceptions\LancementEchoue;
-use Illuminate\Support\Facades\Process;
 use JsonException;
 
 /**
@@ -70,7 +69,7 @@ final class SondeServiceWeb
 
         $tentatives = max(1, $this->tentatives);
 
-        $resultat = Process::timeout($tentatives * 7 + 120)->run([
+        $resultat = Commande::isolee()->timeout($tentatives * 7 + 120)->run([
             'docker', 'run', '--rm',
             '--network', $reseau,
             '--cap-drop', 'ALL',

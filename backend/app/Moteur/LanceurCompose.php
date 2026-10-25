@@ -3,7 +3,6 @@
 namespace App\Moteur;
 
 use App\Moteur\Exceptions\LancementEchoue;
-use Illuminate\Support\Facades\Process;
 
 class LanceurCompose
 {
@@ -115,7 +114,7 @@ class LanceurCompose
 
         $env = $repertoire.DIRECTORY_SEPARATOR.'.env';
 
-        $resultat = Process::path($repertoire)
+        $resultat = Commande::isolee()->path($repertoire)
             ->timeout((int) config('moteur.compose_timeout'))
             ->run([
                 ...$this->argumentsCompose($repertoire, $copie),
@@ -134,7 +133,7 @@ class LanceurCompose
             throw new LancementEchoue('Le nom du service web est invalide.');
         }
 
-        $liste = Process::path($repertoire)
+        $liste = Commande::isolee()->path($repertoire)
             ->timeout(30)
             ->run(['docker', 'compose', '-p', $copie, 'ps', '-q', $service]);
 
@@ -148,7 +147,7 @@ class LanceurCompose
             throw new LancementEchoue("Le service « {$service} » n'a pas de conteneur.");
         }
 
-        $inspection = Process::timeout(30)->run([
+        $inspection = Commande::isolee()->timeout(30)->run([
             'docker', 'inspect', '-f', '{{json .NetworkSettings.Networks}}', $id,
         ]);
 
@@ -172,7 +171,7 @@ class LanceurCompose
 
         // -v supprime aussi les volumes (dont la base intégrée), --rmi local les images construites.
         // Le dossier a pu disparaître : -p suffit à retrouver les conteneurs du projet.
-        $resultat = Process::path(is_dir($repertoire) ? $repertoire : sys_get_temp_dir())
+        $resultat = Commande::isolee()->path(is_dir($repertoire) ? $repertoire : sys_get_temp_dir())
             ->timeout((int) (function_exists('config') ? config('moteur.down_timeout', 120) : 120))
             ->run(['docker', 'compose', '-p', $copie, 'down', '-v', '--remove-orphans', '--rmi', 'local']);
 
@@ -204,7 +203,7 @@ class LanceurCompose
     {
         $env = $repertoire.DIRECTORY_SEPARATOR.'.env';
 
-        $resultat = Process::path($repertoire)
+        $resultat = Commande::isolee()->path($repertoire)
             ->timeout(30)
             ->run([
                 ...$this->argumentsCompose($repertoire, $copie),

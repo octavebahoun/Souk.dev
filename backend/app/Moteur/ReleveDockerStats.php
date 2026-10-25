@@ -3,7 +3,6 @@
 namespace App\Moteur;
 
 use App\Moteur\Exceptions\LancementEchoue;
-use Illuminate\Support\Facades\Process;
 
 /**
  * Pic du conteneur le plus gourmand d'une copie, lu avec docker stats.
@@ -46,7 +45,7 @@ final class ReleveDockerStats
             return null;
         }
 
-        $resultat = Process::timeout(30)->run([
+        $resultat = Commande::isolee()->timeout(30)->run([
             'docker', 'stats', '--no-stream', '--format', '{{.MemUsage}}',
             ...$ids,
         ]);
@@ -105,7 +104,7 @@ final class ReleveDockerStats
     {
         (new LanceurCompose)->verifierNomCopie($copie);
 
-        $resultat = Process::path($repertoire)
+        $resultat = Commande::isolee()->path($repertoire)
             ->timeout(30)
             ->run(['docker', 'compose', '-p', $copie, 'ps', '-q']);
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Soukdev;
 
+use App\Moteur\EnvironnementProcessus;
 use Symfony\Component\Process\Process;
 
 final class ProcessComposeRunner implements ComposeRunner
@@ -52,7 +53,7 @@ final class ProcessComposeRunner implements ComposeRunner
      */
     private function run(array $command, string $directory, int $timeout): void
     {
-        $process = new Process($command, $directory, ['COMPOSE_ANSI' => 'never'], null, $timeout);
+        $process = new Process($command, $directory, EnvironnementProcessus::minimal(), null, $timeout);
         $process->run();
 
         if (! $process->isSuccessful()) {

@@ -4,7 +4,6 @@ namespace App\Moteur;
 
 use App\Moteur\Exceptions\DepotInvalide;
 use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Process;
 
 final class CloneurGithub
 {
@@ -14,8 +13,6 @@ final class CloneurGithub
         'GIT_CONFIG_GLOBAL' => '/dev/null',
         'GIT_CONFIG_NOSYSTEM' => '1',
         'GIT_LFS_SKIP_SMUDGE' => '1',
-        'LC_ALL' => 'C',
-        'LANG' => 'C',
     ];
 
     public function cloner(string $url, string $copie): string
@@ -43,7 +40,7 @@ final class CloneurGithub
         $commande[] = $depot->urlClone;
         $commande[] = $destination;
 
-        $resultat = Process::env(self::ENV_GIT)
+        $resultat = Commande::isolee(self::ENV_GIT)
             ->timeout((int) config('moteur.git_timeout'))
             ->run($commande);
 

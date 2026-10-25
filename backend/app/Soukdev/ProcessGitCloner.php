@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Soukdev;
 
+use App\Moteur\EnvironnementProcessus;
 use Symfony\Component\Process\Process;
 
 final class ProcessGitCloner implements GitCloner
@@ -36,7 +37,7 @@ final class ProcessGitCloner implements GitCloner
         $command[] = $remote;
         $command[] = $destination;
 
-        $process = new Process($command, null, self::GIT_ENV, null, 60);
+        $process = new Process($command, null, EnvironnementProcessus::minimal(self::GIT_ENV), null, 60);
         $process->run();
 
         if ($process->isSuccessful()) {
