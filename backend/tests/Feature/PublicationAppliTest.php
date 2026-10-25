@@ -23,7 +23,7 @@ class PublicationAppliTest extends TestCase
         Queue::fake();
         Storage::fake('public');
         $this->simulerDepot();
-        $utilisateur = User::factory()->create();
+        $utilisateur = User::factory()->github()->create();
 
         $reponse = $this->actingAs($utilisateur)->post('/api/apps', $this->payload(), [
             'Accept' => 'application/json',
@@ -66,7 +66,7 @@ class PublicationAppliTest extends TestCase
         Storage::fake('public');
         $this->simulerDepot(compose: "services:\n  front:\n    image: nginx:alpine\n    privileged: true\n");
 
-        $this->actingAs(User::factory()->create())
+        $this->actingAs(User::factory()->github()->create())
             ->post('/api/apps', $this->payload(), ['Accept' => 'application/json'])
             ->assertStatus(422)
             ->assertJsonValidationErrors('depot_url');
@@ -81,7 +81,7 @@ class PublicationAppliTest extends TestCase
         Storage::fake('public');
         $this->simulerDepot(manifeste: ['version' => 2]);
 
-        $this->actingAs(User::factory()->create())
+        $this->actingAs(User::factory()->github()->create())
             ->post('/api/apps', $this->payload(), ['Accept' => 'application/json'])
             ->assertStatus(422)
             ->assertJsonValidationErrors('depot_url');

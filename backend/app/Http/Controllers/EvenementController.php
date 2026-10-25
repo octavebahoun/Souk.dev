@@ -148,11 +148,7 @@ final class EvenementController extends Controller
 
     public function participants(Request $request, Evenement $evenement): AnonymousResourceCollection
     {
-        $compte = $request->user();
-
-        if (! $compte instanceof User || ! $compte->can('voirParticipants', $evenement)) {
-            abort(403, 'Action non autorisée.');
-        }
+        Gate::authorize('voirParticipants', $evenement);
 
         $parPage = Pagination::parPage($request);
         $comptes = User::query()
@@ -182,11 +178,7 @@ final class EvenementController extends Controller
         /** @var User $compte */
         $compte = $request->user();
 
-        $inscrit = $evenement->inscriptions()->where('user_id', $compte->id)->exists();
-
-        if (! $inscrit || $evenement->date === null || ! $evenement->date->isPast()) {
-            abort(403, 'Action non autorisée.');
-        }
+        Gate::authorize('noter', $evenement);
 
         if ($evenement->avis()->where('user_id', $compte->id)->exists()) {
             throw new ConflictHttpException('Vous avez déjà laissé un avis.');

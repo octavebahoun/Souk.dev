@@ -46,12 +46,10 @@ final class CorrectifController extends Controller
 
     public function store(CreerCorrectifRequest $request, Discussion $discussion, Diffuseur $diffuseur): JsonResponse
     {
+        Gate::authorize('lierUnDepot');
+
         /** @var User $auteur */
         $auteur = $request->user();
-
-        if (! $auteur->github_lie) {
-            abort(403, 'GitHub n\'est pas lié à ce compte.');
-        }
 
         $correctif = $discussion->correctifs()->create([
             'user_id' => $auteur->id,
@@ -68,8 +66,7 @@ final class CorrectifController extends Controller
 
     public function accepter(Correctif $correctif, Diffuseur $diffuseur): CorrectifResource
     {
-        $discussion = $correctif->discussion()->firstOrFail();
-        Gate::authorize('update', $discussion);
+        Gate::authorize('accepter', $correctif);
 
         $discussion = DB::transaction(function () use ($correctif): Discussion {
             $discussion = Discussion::query()->whereKey($correctif->discussion_id)->lockForUpdate()->firstOrFail();
@@ -105,7 +102,7 @@ final class CorrectifController extends Controller
      */
     public function deployer(Request $request, Correctif $correctif): JsonResponse
     {
-        abort_unless($correctif->user_id === $request->user()->id, 403, 'Seul l\'auteur du correctif peut déployer sa version corrigée.');
+        Gate::authorize('deployer', $correctif);
 
         $actif = Deploiement::query()
             ->where('correctif_id', $correctif->id)

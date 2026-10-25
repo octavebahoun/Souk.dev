@@ -5,15 +5,22 @@ namespace App\Providers;
 use App\Comptes\EmetteurLienMagique;
 use App\Comptes\FrontUrl;
 use App\Exploitation\Battements;
+use App\Models\Appli;
+use App\Models\Correctif;
 use App\Models\Deploiement;
 use App\Models\Discussion;
 use App\Models\Evenement;
 use App\Models\Message;
+use App\Models\Mission;
+use App\Models\User;
 use App\Moteur\RouteurCopies;
+use App\Policies\AppliPolicy;
+use App\Policies\CorrectifPolicy;
 use App\Policies\DeploiementPolicy;
 use App\Policies\DiscussionPolicy;
 use App\Policies\EvenementPolicy;
 use App\Policies\MessagePolicy;
+use App\Policies\MissionPolicy;
 use App\Soukdev\ComposeRunner;
 use App\Soukdev\CopyLauncher;
 use App\Soukdev\EnvGenerator;
@@ -24,6 +31,7 @@ use App\Soukdev\RandomSecretGenerator;
 use App\Soukdev\RepositoryReader;
 use App\Soukdev\SchemaValidator;
 use App\Soukdev\SecretGenerator;
+use Illuminate\Auth\Access\Response as GateResponse;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -114,7 +122,15 @@ class AppServiceProvider extends ServiceProvider
 
         $this->battreDansLesWorkers();
 
+        // Publier une appli ou proposer un correctif, c'est lier un dépôt : GitHub obligatoire.
+        Gate::define('lierUnDepot', fn (User $compte) => $compte->github_lie
+            ? GateResponse::allow()
+            : GateResponse::deny('GitHub n\'est pas lié à ce compte.'));
+
+        Gate::policy(Appli::class, AppliPolicy::class);
+        Gate::policy(Correctif::class, CorrectifPolicy::class);
         Gate::policy(Deploiement::class, DeploiementPolicy::class);
+        Gate::policy(Mission::class, MissionPolicy::class);
         Gate::policy(Discussion::class, DiscussionPolicy::class);
         Gate::policy(Message::class, MessagePolicy::class);
         Gate::policy(Evenement::class, EvenementPolicy::class);

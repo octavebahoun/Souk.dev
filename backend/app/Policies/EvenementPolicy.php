@@ -19,6 +19,16 @@ final class EvenementPolicy
         return $compte->est_admin || $evenement->user_id === $compte->id;
     }
 
+    /**
+     * Un avis seulement par un inscrit, et après la date de l'événement.
+     */
+    public function noter(User $compte, Evenement $evenement): bool
+    {
+        return $evenement->date !== null
+            && $evenement->date->isPast()
+            && $evenement->inscriptions()->where('user_id', $compte->id)->exists();
+    }
+
     public function voirParticipants(User $compte, Evenement $evenement): bool
     {
         return $evenement->user_id === $compte->id

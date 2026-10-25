@@ -2,9 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Events\MessageMissionCree;
 use App\Models\Mission;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Event;
 use Tests\TestCase;
 
 class MissionMessagesTest extends TestCase
@@ -37,6 +39,22 @@ class MissionMessagesTest extends TestCase
             ->assertOk()
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.texte', 'Bonjour, voici les maquettes.');
+    }
+
+    public function test_un_message_est_pousse_sur_le_canal_prive_de_la_mission(): void
+    {
+        Event::fake([MessageMissionCree::class]);
+        [$client, $auteur] = User::factory()->count(2)->create();
+        $mission = $this->mission($client, $auteur);
+
+        $this->actingAs($auteur)
+            ->postJson("/api/missions/{$mission->id}/messages", ['texte' => 'Devis envoyé.'])
+            ->assertCreated();
+
+        Event::assertDispatched(MessageMissionCree::class, function (MessageMissionCree $evenement) use ($mission): bool {
+            return $evenement->broadcastOn()[0]->name === 'private-mission.'.$mission->id
+                && $evenement->broadcastWith()['texte'] === 'Devis envoyé.';
+        });
     }
 
     public function test_un_autre_compte_ne_lit_ni_n_ecrit(): void

@@ -8,6 +8,7 @@ use App\Models\Appli;
 use App\Models\Mission;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 
 class MissionController extends Controller
@@ -29,7 +30,7 @@ class MissionController extends Controller
     // GET /missions/{id} : réservée au client et à l'auteur
     public function show(Request $request, Mission $mission)
     {
-        abort_unless($mission->concerne($request->user()), 403);
+        Gate::authorize('view', $mission);
 
         return new MissionResource($mission->load(['client', 'auteur']));
     }
@@ -54,7 +55,7 @@ class MissionController extends Controller
     // POST /missions/{id}/note : le client termine la mission et note l'auteur, une seule fois
     public function note(Request $request, Mission $mission)
     {
-        abort_unless($request->user()->id === $mission->client_id, 403);
+        Gate::authorize('noter', $mission);
         abort_if($mission->statut === 'terminee', 409);
 
         $donnees = $request->validate([

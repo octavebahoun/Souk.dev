@@ -18,7 +18,7 @@ class VerificationDepotTest extends TestCase
     {
         $this->simulerDepot();
 
-        $this->actingAs(User::factory()->create())
+        $this->actingAs(User::factory()->github()->create())
             ->postJson('/api/apps/verification', [
                 'depot_url' => 'https://github.com/acme/cobaye',
             ])
@@ -51,7 +51,7 @@ class VerificationDepotTest extends TestCase
     {
         $this->simulerDepot(compose: "services:\n  front:\n    image: nginx:alpine\n    privileged: true\n");
 
-        $this->actingAs(User::factory()->create())
+        $this->actingAs(User::factory()->github()->create())
             ->postJson('/api/apps/verification', [
                 'depot_url' => 'https://github.com/acme/cobaye',
             ])
@@ -65,7 +65,7 @@ class VerificationDepotTest extends TestCase
     {
         $this->simulerDepot(manifeste: ['version' => 2]);
 
-        $this->actingAs(User::factory()->create())
+        $this->actingAs(User::factory()->github()->create())
             ->postJson('/api/apps/verification', [
                 'depot_url' => 'https://github.com/acme/cobaye',
             ])
@@ -77,7 +77,7 @@ class VerificationDepotTest extends TestCase
 
     public function test_une_url_manquante_est_refusee(): void
     {
-        $this->actingAs(User::factory()->create())
+        $this->actingAs(User::factory()->github()->create())
             ->postJson('/api/apps/verification', [])
             ->assertStatus(422)
             ->assertJsonValidationErrors('depot_url');
@@ -87,7 +87,7 @@ class VerificationDepotTest extends TestCase
     {
         $this->simulerDepot(compose: false);
 
-        $this->actingAs(User::factory()->create())
+        $this->actingAs(User::factory()->github()->create())
             ->postJson('/api/apps/verification', [
                 'depot_url' => 'https://github.com/acme/cobaye',
             ])

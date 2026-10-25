@@ -8,11 +8,16 @@ use App\Events\DeploiementEtat;
 use App\Jobs\ArreterDeploiement;
 use App\Moteur\DepotGithub;
 use App\Moteur\Exceptions\DepotInvalide;
+use Database\Factories\DeploiementFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Deploiement extends Model
 {
+    /** @use HasFactory<DeploiementFactory> */
+    use HasFactory;
+
     protected $table = 'deploiements';
 
     protected $fillable = [

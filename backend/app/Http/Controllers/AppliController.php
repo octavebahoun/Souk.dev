@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Http\Response;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
@@ -105,6 +106,8 @@ class AppliController extends Controller
 
     public function store(Request $request, PublicationDepot $depot): JsonResponse
     {
+        Gate::authorize('lierUnDepot');
+
         $donnees = $this->donnees($request);
         $manifeste = $this->manifeste($donnees['depot_url'], $depot);
 
@@ -134,6 +137,8 @@ class AppliController extends Controller
 
     public function verification(Request $request, PublicationDepot $depot): JsonResponse
     {
+        Gate::authorize('lierUnDepot');
+
         $donnees = $request->validate([
             'depot_url' => ['required', 'string', 'url', 'max:500'],
         ]);
@@ -152,16 +157,16 @@ class AppliController extends Controller
 
     public function update(Request $request, Appli $appli): JsonResponse
     {
-        abort_unless($appli->user_id === $request->user()->id, 403);
+        Gate::authorize('update', $appli);
 
         $appli->fill($this->donneesModification($request))->save();
 
         return response()->json($appli->fresh()->versApi());
     }
 
-    public function destroy(Request $request, Appli $appli): Response
+    public function destroy(Appli $appli): Response
     {
-        abort_unless($appli->user_id === $request->user()->id, 403);
+        Gate::authorize('delete', $appli);
 
         Storage::disk('public')->deleteDirectory('captures/'.$appli->id);
         $appli->delete();
@@ -171,7 +176,7 @@ class AppliController extends Controller
 
     public function captures(Request $request, Appli $appli): JsonResponse
     {
-        abort_unless($appli->user_id === $request->user()->id, 403);
+        Gate::authorize('update', $appli);
 
         $donnees = $request->validate([
             'captures' => ['required', 'array', 'min:1', 'max:5'],

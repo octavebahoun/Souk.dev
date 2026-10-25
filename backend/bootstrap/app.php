@@ -50,9 +50,19 @@ return Application::configure(basePath: dirname(__DIR__))
             }
         });
 
+        // Une Policy peut répondre 404 (denyAsNotFound) pour ne pas révéler qu'une ressource existe,
+        // ou donner la raison du refus (Response::deny) : on garde l'un et l'autre.
         $exceptions->render(function (AuthorizationException $exception, Request $request) use ($json) {
             if ($request->is('api/*') || $request->expectsJson()) {
-                return $json('Action non autorisée.', 403);
+                $status = $exception->status() ?? 403;
+
+                if ($status === 404) {
+                    return $json('Introuvable.', 404);
+                }
+
+                $message = $exception->getMessage();
+
+                return $json($message !== '' && $message !== 'This action is unauthorized.' ? $message : 'Action non autorisée.', $status);
             }
         });
 

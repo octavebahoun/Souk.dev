@@ -2,12 +2,17 @@
 
 namespace App\Models;
 
+use Database\Factories\MissionFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Mission extends Model
 {
+    /** @use HasFactory<MissionFactory> */
+    use HasFactory;
+
     protected $fillable = [
         'client_id', 'auteur_id', 'app_id', 'message',
         'budget', 'delai', 'statut', 'note', 'note_commentaire', 'terminee_le',
