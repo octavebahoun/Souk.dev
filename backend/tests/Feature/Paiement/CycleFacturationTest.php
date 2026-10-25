@@ -183,6 +183,26 @@ class CycleFacturationTest extends TestCase
         Queue::assertPushed(ReactiverCopie::class, 1);
     }
 
+    public function test_la_commande_de_demo_fait_passer_le_temps_jusqu_a_la_suspension(): void
+    {
+        $abonnement = $this->copiePayee();
+
+        $this->artisan('demo:avancer-facturation', ['deploiement' => $abonnement->deploiement_id, '--jours' => 39])->assertSuccessful();
+
+        $this->assertSame('suspendu', $abonnement->refresh()->statut);
+        Queue::assertPushed(SuspendreCopie::class);
+    }
+
+    public function test_la_commande_de_demo_est_refusee_hors_developpement(): void
+    {
+        $abonnement = $this->copiePayee();
+        $this->app->detectEnvironment(fn () => 'production');
+
+        $this->artisan('demo:avancer-facturation', ['deploiement' => $abonnement->deploiement_id])->assertFailed();
+
+        $this->assertSame('actif', $abonnement->refresh()->statut);
+    }
+
     private function passage(string $jour): void
     {
         $this->travelTo(CarbonImmutable::parse($jour.' 06:00:00'));
