@@ -17,7 +17,7 @@ final class CorrectifResource extends JsonResource
     {
         /** @var Correctif $correctif */
         $correctif = $this->resource;
-        $correctif->loadMissing('auteur');
+        $correctif->loadMissing('auteur', 'deploiement');
 
         return [
             'id' => $correctif->id,
@@ -26,7 +26,7 @@ final class CorrectifResource extends JsonResource
             'demo_url' => $correctif->demo_url,
             'description' => $correctif->description,
             'accepte' => $correctif->accepte,
-            'deploiement' => null,
+            'deploiement' => $correctif->deploiement?->versApi(),
             'auteur' => DevResource::champs($correctif->auteur),
             'cree_le' => $correctif->created_at?->toIso8601String(),
         ];

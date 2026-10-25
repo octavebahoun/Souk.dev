@@ -11,13 +11,22 @@ use App\Events\DiscussionModifiee;
 use App\Http\Pagination;
 use App\Http\Requests\CreerCorrectifRequest;
 use App\Http\Resources\CorrectifResource;
+use App\Jobs\LancerDeploiement;
+use App\Models\Appli;
 use App\Models\Correctif;
+use App\Models\Deploiement;
 use App\Models\Discussion;
 use App\Models\User;
+use App\Moteur\DepotGithub;
+use App\Moteur\Exceptions\DepotInvalide;
+use App\Moteur\LimitesTaille;
+use App\Moteur\SourceCopieTest;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
 final class CorrectifController extends Controller
@@ -27,7 +36,7 @@ final class CorrectifController extends Controller
         $parPage = Pagination::parPage(request());
 
         $correctifs = $discussion->correctifs()
-            ->with('auteur')
+            ->with(['auteur', 'deploiement'])
             ->orderBy('id')
             ->paginate($parPage)
             ->withQueryString();
@@ -89,5 +98,49 @@ final class CorrectifController extends Controller
         $diffuseur->envoyer(new DiscussionModifiee($discussion));
 
         return new CorrectifResource($correctif);
+    }
+
+    /**
+     * Optionnel : l'auteur du correctif déploie sa version corrigée pour la montrer tourner.
+     */
+    public function deployer(Request $request, Correctif $correctif): JsonResponse
+    {
+        abort_unless($correctif->user_id === $request->user()->id, 403, 'Seul l\'auteur du correctif peut déployer sa version corrigée.');
+
+        $actif = Deploiement::query()
+            ->where('correctif_id', $correctif->id)
+            ->where('type', 'correctif')
+            ->whereIn('etat', CopieTestController::ETATS_ACTIFS)
+            ->exists();
+
+        abort_if($actif, 409, 'La version corrigée de ce correctif tourne déjà.');
+
+        try {
+            DepotGithub::depuisUrl($correctif->depot_url);
+        } catch (DepotInvalide $exception) {
+            throw ValidationException::withMessages(['depot_url' => $exception->getMessage()]);
+        }
+
+        $discussion = $correctif->discussion()->firstOrFail();
+        $appli = $discussion->app_id !== null ? Appli::query()->find($discussion->app_id) : null;
+        $taille = is_string($appli?->taille) && LimitesTaille::connue($appli->taille) ? $appli->taille : SourceCopieTest::TAILLE_DEPOT;
+
+        // Le fork ou la branche du correctif, jamais le dépôt de l'appli : appli_id reste vide.
+        $deploiement = Deploiement::query()->create([
+            'user_id' => $request->user()->id,
+            'discussion_id' => $discussion->id,
+            'correctif_id' => $correctif->id,
+            'depot_url' => $correctif->depot_url,
+            'type' => 'correctif',
+            'taille' => $taille,
+            'etat' => 'en_file',
+            'variables' => [],
+            'expire_le' => now()->addMinutes(max(1, (int) config('moteur.copie_test_minutes'))),
+        ]);
+
+        $deploiement->diffuser();
+        LancerDeploiement::dispatch($deploiement->id);
+
+        return response()->json($deploiement->versApi(), 202);
     }
 }

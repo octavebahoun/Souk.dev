@@ -81,6 +81,8 @@ Route::post('/discussions/{discussion}/correctifs', [CorrectifController::class,
     ->middleware(['auth:sanctum', 'throttle:correctifs']);
 Route::post('/correctifs/{correctif}/accepter', [CorrectifController::class, 'accepter'])
     ->middleware('auth:sanctum');
+Route::post('/correctifs/{correctif}/deploiement', [CorrectifController::class, 'deployer'])
+    ->middleware(['auth:sanctum', 'throttle:deploiements']);
 
 Route::get('/events', [EvenementController::class, 'index']);
 Route::post('/events', [EvenementController::class, 'store'])->middleware('auth:sanctum');

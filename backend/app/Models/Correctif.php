@@ -6,6 +6,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Correctif extends Model
 {
@@ -47,5 +48,15 @@ class Correctif extends Model
     public function auteur(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    /**
+     * Dernier déploiement de la version corrigée, null si son auteur n'en a jamais lancé.
+     *
+     * @return HasOne<Deploiement, $this>
+     */
+    public function deploiement(): HasOne
+    {
+        return $this->hasOne(Deploiement::class)->where('type', 'correctif')->latestOfMany();
     }
 }
