@@ -108,7 +108,7 @@ final class EvenementController extends Controller
         $id = $evenement->id;
 
         foreach ($inscrits as $inscription) {
-            if ($inscription->compte?->email !== null) {
+            if ($inscription->compte?->joignableParEmail()) {
                 Mail::to($inscription->compte->email)->send(new EvenementAnnuleMail($titre));
             }
         }

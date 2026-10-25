@@ -28,6 +28,11 @@ final class EmetteurLienMagique
 
         $url = rtrim((string) config('app.url'), '/').'/auth/lien-magique/'.$token;
 
+        // Les adresses du jeu de démo n'existent pas : aucun e-mail ne part vers elles.
+        if (str_ends_with($email, '@demo.souk.dev')) {
+            return;
+        }
+
         Mail::to($email)->send(new LienMagiqueMail($url));
     }
 

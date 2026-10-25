@@ -42,6 +42,22 @@ class User extends Authenticatable
     }
 
     /**
+     * Adresse des e-mails de notification. Les comptes du jeu de démo n'en reçoivent jamais :
+     * leurs adresses (@demo.souk.dev) n'existent pas, et des rebonds abîmeraient la réputation
+     * du domaine d'envoi.
+     */
+    public function routeNotificationForMail(): ?string
+    {
+        return $this->est_demo ? null : $this->email;
+    }
+
+    /** Peut recevoir un e-mail (compte réel avec une adresse). */
+    public function joignableParEmail(): bool
+    {
+        return ! $this->est_demo && is_string($this->email) && $this->email !== '';
+    }
+
+    /**
      * @return HasMany<Discussion, $this>
      */
     public function discussions(): HasMany

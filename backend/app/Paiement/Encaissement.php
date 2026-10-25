@@ -216,7 +216,7 @@ final class Encaissement
         $facture = $paiement->facture()->first();
 
         if ($resultat === 'trop_percu') {
-            Notification::route('mail', (string) config('mail.from.address'))->notify(new TropPercu($facture, $paiement->refresh()));
+            Notification::route('mail', (string) config('app.admin_email'))->notify(new TropPercu($facture, $paiement->refresh()));
 
             return;
         }

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Comptes\EmetteurLienMagique;
 use App\Models\Appli;
 use App\Models\Discussion;
 use App\Models\Ecriture;
@@ -11,6 +12,7 @@ use App\Paiement\GrandLivre;
 use Database\Seeders\DemoSeeder;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -44,6 +46,20 @@ class DemoTest extends TestCase
         $this->assertSame(15000, app(GrandLivre::class)->soldeDev(User::query()->where('username', 'soukdemo-awa')->sole()->id));
         $this->assertSame(1, Facture::query()->where('statut', 'a_payer')->count());
         Storage::disk('public')->assertExists('captures/'.Appli::query()->first()->id.'/1.webp');
+    }
+
+    public function test_aucun_e_mail_ne_part_vers_un_compte_de_demo(): void
+    {
+        Mail::fake();
+        $this->seed(DemoSeeder::class);
+        $demo = User::query()->where('username', 'soukdemo-pharmacie')->sole();
+
+        $this->assertNull($demo->routeNotificationFor('mail'));
+        $reel = User::factory()->client()->create();
+        $this->assertSame($reel->email, $reel->routeNotificationFor('mail'));
+        app(EmetteurLienMagique::class)->demander($demo->email);
+
+        Mail::assertNothingSent();
     }
 
     public function test_la_connexion_de_demo_est_introuvable_par_defaut(): void
