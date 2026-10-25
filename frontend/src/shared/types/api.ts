@@ -1198,7 +1198,10 @@ export interface components {
             pays: components["schemas"]["Pays"] | null;
             /** @description Identifiant GitHub ; null si GitHub non lié */
             username: string | null;
-            /** Format: uri */
+            /**
+             * Format: uri-reference
+             * @description Adresse absolue (avatar GitHub) ou chemin servi par l'API (/storage/…)
+             */
             avatar_url: string | null;
             /** Format: uri */
             github_url: string | null;
@@ -1274,9 +1277,9 @@ export interface components {
         /** @description Score sur 1000 qui mesure la qualité et l'activité récente (l'XP, elle, cumule tout depuis l'arrivée). Calculé par la plateforme ; les compétences déclarées ne comptent pas. total = somme des cinq parts. */
         SoukScore: {
             total: number;
-            /** @description 25 par bug résolu (correctif accepté) */
+            /** @description 25 par bug résolu (correctif accepté), plafonné à 250 */
             entraide: number;
-            /** @description 50 par appli publiée */
+            /** @description 50 par appli publiée, plafonné à 200 */
             projets: number;
             /** @description note moyenne / 5 × 150 (0 sans note), plus 25 par mission terminée plafonné à 100 */
             clients: number;
@@ -1335,7 +1338,7 @@ export interface components {
             /** @description README du dépôt en Markdown */
             readme?: string | null;
             categorie: components["schemas"]["Categorie"];
-            /** @description Prix de l'appli en FCFA */
+            /** @description Prix de l'appli en FCFA, par mois ou une seule fois selon type_prix ; 0 = gratuit */
             prix: number;
             type_prix: components["schemas"]["TypePrix"];
             taille: components["schemas"]["Taille"];
@@ -1344,7 +1347,7 @@ export interface components {
             demo_url: string;
             /** Format: uri */
             depot_url: string;
-            /** @description Captures d'écran ; la première sert de couverture sur la carte du store */
+            /** @description Captures d'écran ; la première sert de couverture sur la carte du store (au moins une à la publication, voir CapturesEnvoi) */
             captures: components["schemas"]["Capture"][];
             stack: components["schemas"]["Techno"][];
             /**
@@ -1403,7 +1406,7 @@ export interface components {
         MesureMemoire: {
             /** @enum {string} */
             statut: "en_cours" | "terminee" | "echec";
-            /** @description Pic de mémoire mesuré */
+            /** @description Pic de mémoire mesuré, en Mo ; null tant que la mesure n'est pas finie */
             memoire_max_mo: number | null;
             taille_recommandee: components["schemas"]["Taille"] | null;
             /** Format: date-time */
@@ -1433,7 +1436,7 @@ export interface components {
             version: string;
             /** @enum {string} */
             gravite: "faible" | "moyenne" | "haute" | "critique";
-            /** @description Première version sans la faille */
+            /** @description Première version sans la faille, si elle existe */
             version_corrigee: string | null;
         };
         /** @description Dépôt valide. En cas d'erreur (dépôt privé ou introuvable, docker-compose.yml absent, soukdev.json invalide, secret trouvé dans le dépôt, docker-compose.yml dangereux : privileged, volumes de l'hôte, network_mode host, ports publiés), réponse 422 avec le détail par champ. */
@@ -1712,9 +1715,9 @@ export interface components {
              */
             statut: "en_attente" | "actif" | "en_retard" | "suspendu" | "resilie";
             formule: components["schemas"]["Taille"];
-            /** @description FCFA par mois */
+            /** @description FCFA par mois, figé à la commande */
             montant_hebergement: number;
-            /** @description FCFA */
+            /** @description FCFA, figé à la commande ; 0 pour une appli gratuite */
             prix_appli: number;
             type_prix: components["schemas"]["TypePrix"];
             /** Format: date */
@@ -1728,7 +1731,7 @@ export interface components {
             id: number;
             /** @description ex. SD-2026-000123 */
             numero: string;
-            /** @description FCFA */
+            /** @description FCFA, hors frais de paiement (ajoutés par SasPay) */
             montant_total: number;
             /** Format: date */
             echeance_le: string;
@@ -1774,7 +1777,7 @@ export interface components {
             statut: "en_attente" | "reussi" | "echoue" | "annule";
             /** @description Montant demandé (celui de la facture) */
             montant: number;
-            /** @description Frais de paiement ajoutés par SasPay (ADD_ON) */
+            /** @description Frais de paiement ajoutés par SasPay (ADD_ON), connus après vérification */
             frais_client: number | null;
             /** @description Ce qu'a réellement payé le client */
             montant_debite: number | null;
@@ -1826,7 +1829,7 @@ export interface components {
         };
         Reversement: {
             id: number;
-            /** @description Montant reçu par le dev */
+            /** @description Montant reçu par le dev, entier ; les frais sont à la charge de Souk.dev */
             montant: number;
             /** @enum {string} */
             statut: "en_attente" | "reussi" | "echoue";
@@ -1919,10 +1922,13 @@ export interface components {
             transactions_saspay: number;
             /** @description Paiements réussis enregistrés chez Souk.dev ce jour-là */
             paiements_locaux: number;
+            /** @description corrige : paiement réussi resté en attente ici (webhook perdu), rattrapé par la vérification ; les autres types demandent un humain (e-mail à l'admin) */
             ecarts: {
                 /** @enum {string} */
-                type: "inconnu_chez_souk" | "montant_different" | "reussi_chez_souk_seulement";
+                type: "corrige" | "inconnue_localement" | "montant_different" | "absente_chez_saspay" | "verification_impossible";
+                /** @description Transaction SasPay, ou paiement n° … chez Souk.dev */
                 reference: string;
+                /** @description Ce qui a été constaté, en clair */
                 detail: string;
             }[];
             /** Format: date-time */

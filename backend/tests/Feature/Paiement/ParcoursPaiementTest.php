@@ -56,16 +56,16 @@ class ParcoursPaiementTest extends TestCase
         [$client, $appli] = $this->commande();
         $facture = Facture::query()->sole();
 
-        $this->actingAs($client)->getJson('/api/factures')
-            ->assertOk()
+        $liste = $this->actingAs($client)->getJson('/api/factures');
+        $this->assertConformeAuContrat($liste, 'GET', '/api/factures');
+        $liste->assertOk()
             ->assertJsonPath('data.0.statut', 'a_payer')
             ->assertJsonPath('data.0.montant_total', 18500)
             ->assertJsonPath('data.0.lignes.1.montant', 15000);
 
-        $session = $this->actingAs($client)
-            ->postJson("/api/factures/{$facture->id}/paiement", [], ['Idempotency-Key' => 'commande-'.$facture->id])
-            ->assertCreated()
-            ->json();
+        $ouverture = $this->actingAs($client)->postJson("/api/factures/{$facture->id}/paiement", [], ['Idempotency-Key' => 'commande-'.$facture->id]);
+        $this->assertConformeAuContrat($ouverture, 'POST', "/api/factures/{$facture->id}/paiement");
+        $session = $ouverture->assertCreated()->json();
         $this->assertStringContainsString('/simulateur/saspay/', $session['checkout_url']);
 
         // Double clic : la même session revient, rien n'est recréé.
@@ -95,8 +95,9 @@ class ParcoursPaiementTest extends TestCase
         $this->assertSame(-3500, (int) Ecriture::query()->where('compte', 'revenu_hebergement')->sum('montant'));
         $this->assertSame(-15000, (int) Ecriture::query()->where('compte', 'dev')->where('dev_id', $appli->user_id)->sum('montant'));
 
-        $this->actingAs($client)->getJson("/api/factures/{$facture->id}")
-            ->assertOk()
+        $lue = $this->actingAs($client)->getJson("/api/factures/{$facture->id}");
+        $this->assertConformeAuContrat($lue, 'GET', "/api/factures/{$facture->id}");
+        $lue->assertOk()
             ->assertJsonPath('statut', 'payee')
             ->assertJsonPath('paiements.0.statut', 'reussi');
     }
@@ -173,8 +174,9 @@ class ParcoursPaiementTest extends TestCase
         $client = User::factory()->client()->create();
         $appli = Appli::factory()->create(['prix' => 15000, 'type_prix' => 'mensuel', 'taille' => 'petite']);
 
-        $this->actingAs($client)->postJson("/api/apps/{$appli->id}/deployments", ['variables' => []])
-            ->assertAccepted()
+        $commande = $this->actingAs($client)->postJson("/api/apps/{$appli->id}/deployments", ['variables' => []]);
+        $this->assertConformeAuContrat($commande, 'POST', "/api/apps/{$appli->id}/deployments");
+        $commande->assertAccepted()
             ->assertJsonPath('etat', 'attente_paiement')
             ->assertJsonPath('facture_a_payer.montant_total', 18500);
 

@@ -69,6 +69,9 @@ class RapprochementTest extends TestCase
         $rapprochement = Rapprochement::query()->sole();
         $this->assertSame(2, $rapprochement->transactions_saspay);
         $this->assertSame(['corrige', 'inconnue_localement'], collect($rapprochement->ecarts)->pluck('type')->sort()->values()->all());
+        foreach ($rapprochement->ecarts as $ecart) {
+            $this->assertSame(['type', 'reference', 'detail'], array_keys($ecart), 'Format du contrat (openapi.yaml, Rapprochement).');
+        }
         $this->assertSame('reussi', $rattrape->refresh()->statut);
         Notification::assertSentTo(new AnonymousNotifiable, EcartRapprochement::class, fn ($notification, $canaux, $notifiable) => $notifiable->routes['mail'] === 'admin@exemple.test' && $notification->ecarts === 1);
     }

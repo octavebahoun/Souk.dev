@@ -59,7 +59,7 @@ class RapprochementQuotidien implements ShouldQueue
                 }
 
                 if ($paiement->statut === 'reussi') {
-                    $ecarts[] = ['type' => 'corrige', 'paiement_id' => $paiement->id, 'avant' => $avant, 'apres' => 'reussi'];
+                    $ecarts[] = $this->ecart('corrige', $paiement->transaction_id ?? "paiement n° {$paiement->id}", "Paiement {$avant} ici, réussi chez SasPay : rattrapé par la vérification.");
                 }
             });
 
@@ -73,7 +73,7 @@ class RapprochementQuotidien implements ShouldQueue
                 }
 
                 $distantes++;
-                $ecarts[] = ['type' => 'inconnue_localement', 'transaction_id' => $transaction->id, 'reference' => $transaction->reference, 'montant' => $transaction->montantDemande];
+                $ecarts[] = $this->ecart('inconnue_localement', $transaction->id, "Transaction réussie de {$transaction->montantDemande} F chez SasPay (référence {$transaction->reference}), reliée à aucun paiement ici.");
 
                 continue;
             }
@@ -82,13 +82,13 @@ class RapprochementQuotidien implements ShouldQueue
             $vus[] = $paiement->id;
 
             if ($transaction->montantDemande !== $paiement->montant) {
-                $ecarts[] = ['type' => 'montant_different', 'paiement_id' => $paiement->id, 'montant_local' => $paiement->montant, 'montant_saspay' => $transaction->montantDemande];
+                $ecarts[] = $this->ecart('montant_different', $transaction->id, "Paiement n° {$paiement->id} : {$paiement->montant} F attendus, {$transaction->montantDemande} F chez SasPay.");
             }
 
             if ($paiement->statut !== 'reussi') {
                 $avant = $paiement->statut;
                 $paiement = $encaissement->verifier($paiement);
-                $ecarts[] = ['type' => 'corrige', 'paiement_id' => $paiement->id, 'avant' => $avant, 'apres' => $paiement->statut];
+                $ecarts[] = $this->ecart('corrige', $transaction->id, "Paiement n° {$paiement->id} {$avant} ici, {$paiement->statut} après vérification.");
             }
         }
 
@@ -104,13 +104,13 @@ class RapprochementQuotidien implements ShouldQueue
                 try {
                     $verification = $passerelle->verifierPaiement((string) $paiement->transaction_id);
                 } catch (PasserelleIndisponible|PasserelleRefus $exception) {
-                    $ecarts[] = ['type' => 'verification_impossible', 'paiement_id' => $paiement->id, 'erreur' => $exception->getMessage()];
+                    $ecarts[] = $this->ecart('verification_impossible', (string) $paiement->transaction_id, "Paiement n° {$paiement->id} : SasPay n'a pas répondu ({$exception->getMessage()}).");
 
                     return;
                 }
 
                 if (! $verification->reussi()) {
-                    $ecarts[] = ['type' => 'absente_chez_saspay', 'paiement_id' => $paiement->id, 'statut_saspay' => $verification->statut];
+                    $ecarts[] = $this->ecart('absente_chez_saspay', (string) $paiement->transaction_id, "Paiement n° {$paiement->id} réussi ici, {$verification->statut} chez SasPay.");
                 }
             });
 
@@ -127,5 +127,15 @@ class RapprochementQuotidien implements ShouldQueue
         if ($aTraiter !== []) {
             Notification::route('mail', (string) config('app.admin_email'))->notify(new EcartRapprochement($rapprochement, count($aTraiter)));
         }
+    }
+
+    /**
+     * Un écart au format du contrat (openapi.yaml, Rapprochement).
+     *
+     * @return array{type: string, reference: string, detail: string}
+     */
+    private function ecart(string $type, string $reference, string $detail): array
+    {
+        return ['type' => $type, 'reference' => $reference, 'detail' => $detail];
     }
 }

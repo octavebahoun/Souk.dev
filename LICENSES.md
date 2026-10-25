@@ -40,6 +40,7 @@ Versions exactes déjà installées. Les autres lignes attendent leur installati
 | PHPUnit | 12.5.38 | BSD-3-Clause |
 | Laravel Pint | 1.32.1 | MIT |
 | opis/json-schema | 2.6.0 | Apache-2.0 |
+| symfony/yaml (tests : réponses de l'API validées contre openapi.yaml) | 8.1.9 | MIT |
 | opis/string | 2.1.0 | Apache-2.0 |
 | opis/uri | 1.1.0 | Apache-2.0 |
 | Vitest | 4.1.11 | MIT |
@@ -69,3 +70,21 @@ Les deux polices (Outfit pour l'interface, IBM Plex Mono pour le code) sont en S
 et Lighthouse (Apache 2.0), lancé avec `npx`. La MPL ne porte que sur les fichiers d'axe-core eux-mêmes,
 que le projet ne modifie ni ne distribue.
 
+
+## Logos de marques (réseaux Mobile Money)
+
+Récupérés une seule fois par l'API de Logo.dev (outil MCP `logo-dev`), le 26 octobre 2026, puis
+réduits en WebP 96 px et hébergés dans `frontend/src/assets/reseaux/`. Ce sont des marques de leurs
+propriétaires, pas des composants sous licence libre : elles ne servent qu'à désigner le réseau
+choisi pour un paiement ou un reversement, jamais en décoration ni pour suggérer un partenariat.
+
+| Fichier | Marque | Domaine interrogé |
+|---|---|---|
+| `mtn.webp` | MTN (MTN MoMo) | mtn.com |
+| `moov.webp` | Moov Africa (Moov Money) | moov-africa.bj |
+| `celtiis.webp` | Celtiis (Celtiis Cash) | celtiis.bj |
+| `orange.webp` | Orange (Orange Money) | orange.com |
+| `wave.webp` | Wave | wave.com |
+| `free.webp` | Free Sénégal (Free Money) | free.sn |
+| `togocel.webp` | Togocel (Togocel Money) | togocel.tg |
+| `airtel.webp` | Airtel Africa (Airtel Money) | airtel.africa |

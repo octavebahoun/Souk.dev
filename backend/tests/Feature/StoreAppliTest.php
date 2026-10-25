@@ -6,6 +6,7 @@ use App\Models\Appli;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class StoreAppliTest extends TestCase
@@ -145,7 +146,7 @@ class StoreAppliTest extends TestCase
             'type_prix' => $attributs['type_prix'] ?? 'mensuel',
             'taille' => 'petite',
             'demo_url' => 'https://demo.example.com',
-            'depot_url' => 'https://github.com/acme/'.$nom,
+            'depot_url' => 'https://github.com/acme/'.Str::slug($nom),
             'stack' => $attributs['stack'] ?? ['laravel', 'react'],
             'backend' => 'propre',
             'variables_client' => [],

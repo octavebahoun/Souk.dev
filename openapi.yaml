@@ -1943,7 +1943,7 @@ components:
             - $ref: '#/components/schemas/Pays'
             - type: 'null'
         username: { type: [string, 'null'], description: 'Identifiant GitHub ; null si GitHub non lié' }
-        avatar_url: { type: [string, 'null'], format: uri }
+        avatar_url: { type: [string, 'null'], format: uri-reference, description: "Adresse absolue (avatar GitHub) ou chemin servi par l'API (/storage/…)" }
         github_url: { type: [string, 'null'], format: uri }
         profil:
           type: string
@@ -2054,8 +2054,8 @@ components:
       required: [total, entraide, projets, clients, securite, activite]
       properties:
         total: { type: integer, minimum: 0, maximum: 1000 }
-        entraide: { type: integer, minimum: 0, maximum: 250, description: 25 par bug résolu (correctif accepté), plafonné à 250 }
-        projets: { type: integer, minimum: 0, maximum: 200, description: 50 par appli publiée, plafonné à 200 }
+        entraide: { type: integer, minimum: 0, maximum: 250, description: "25 par bug résolu (correctif accepté), plafonné à 250" }
+        projets: { type: integer, minimum: 0, maximum: 200, description: "50 par appli publiée, plafonné à 200" }
         clients: { type: integer, minimum: 0, maximum: 250, description: "note moyenne / 5 × 150 (0 sans note), plus 25 par mission terminée plafonné à 100" }
         securite: { type: integer, minimum: 0, maximum: 150, description: "part des applis du dev au badge Security Checked × 150 (0 sans appli)" }
         activite: { type: integer, minimum: 0, maximum: 150, description: "15 par action validée sur les 30 derniers jours (correctif accepté, appli publiée, mission terminée, événement organisé passé), plafonné à 150" }
@@ -2134,7 +2134,7 @@ components:
         description: { type: string }
         readme: { type: [string, 'null'], description: README du dépôt en Markdown }
         categorie: { $ref: '#/components/schemas/Categorie' }
-        prix: { type: integer, minimum: 0, description: Prix de l'appli en FCFA, par mois ou une seule fois selon type_prix ; 0 = gratuit }
+        prix: { type: integer, minimum: 0, description: "Prix de l'appli en FCFA, par mois ou une seule fois selon type_prix ; 0 = gratuit" }
         type_prix: { $ref: '#/components/schemas/TypePrix' }
         taille: { $ref: '#/components/schemas/Taille' }
         mesure: { $ref: '#/components/schemas/MesureMemoire' }
@@ -2142,8 +2142,7 @@ components:
         depot_url: { type: string, format: uri }
         captures:
           type: array
-          description: Captures d'écran ; la première sert de couverture sur la carte du store
-          minItems: 1
+          description: "Captures d'écran ; la première sert de couverture sur la carte du store (au moins une à la publication, voir CapturesEnvoi)"
           maxItems: 5
           items: { $ref: '#/components/schemas/Capture' }
         stack:
@@ -2221,7 +2220,7 @@ components:
         statut:
           type: string
           enum: [en_cours, terminee, echec]
-        memoire_max_mo: { type: [integer, 'null'], description: Pic de mémoire mesuré, en Mo ; null tant que la mesure n'est pas finie }
+        memoire_max_mo: { type: [integer, 'null'], description: "Pic de mémoire mesuré, en Mo ; null tant que la mesure n'est pas finie" }
         taille_recommandee:
           oneOf:
             - $ref: '#/components/schemas/Taille'
@@ -2251,7 +2250,7 @@ components:
         paquet: { type: string, description: 'ex. laravel/framework' }
         version: { type: string, description: Version utilisée par le dépôt }
         gravite: { type: string, enum: [faible, moyenne, haute, critique] }
-        version_corrigee: { type: [string, 'null'], description: Première version sans la faille, si elle existe }
+        version_corrigee: { type: [string, 'null'], description: "Première version sans la faille, si elle existe" }
 
     VerificationDepot:
       type: object
@@ -2598,8 +2597,8 @@ components:
           enum: [en_attente, actif, en_retard, suspendu, resilie]
           description: "en_attente : première facture pas encore payée ; en_retard : échéance passée, 7 jours de grâce ; suspendu : copie arrêtée, réactivée au paiement ; resilie : arrêt définitif après 30 jours de suspension"
         formule: { $ref: '#/components/schemas/Taille' }
-        montant_hebergement: { type: integer, description: FCFA par mois, figé à la commande }
-        prix_appli: { type: integer, description: FCFA, figé à la commande ; 0 pour une appli gratuite }
+        montant_hebergement: { type: integer, description: "FCFA par mois, figé à la commande" }
+        prix_appli: { type: integer, description: "FCFA, figé à la commande ; 0 pour une appli gratuite" }
         type_prix: { $ref: '#/components/schemas/TypePrix' }
         prochaine_echeance: { type: [string, 'null'], format: date }
         suspendu_le: { type: [string, 'null'], format: date-time }
@@ -2614,7 +2613,7 @@ components:
       properties:
         id: { type: integer }
         numero: { type: string, description: 'ex. SD-2026-000123' }
-        montant_total: { type: integer, description: FCFA, hors frais de paiement (ajoutés par SasPay) }
+        montant_total: { type: integer, description: "FCFA, hors frais de paiement (ajoutés par SasPay)" }
         echeance_le: { type: string, format: date }
         statut: { $ref: '#/components/schemas/StatutFacture' }
 
@@ -2661,7 +2660,7 @@ components:
           enum: [en_attente, reussi, echoue, annule]
           description: "Reflet du statut SasPay revérifié par l'API (PENDING, SUCCESS, FAILED ; annule pour une session expirée ou annulée)"
         montant: { type: integer, description: Montant demandé (celui de la facture) }
-        frais_client: { type: [integer, 'null'], description: Frais de paiement ajoutés par SasPay (ADD_ON), connus après vérification }
+        frais_client: { type: [integer, 'null'], description: "Frais de paiement ajoutés par SasPay (ADD_ON), connus après vérification" }
         montant_debite: { type: [integer, 'null'], description: Ce qu'a réellement payé le client }
         reference: { type: [string, 'null'], description: Référence SasPay de la transaction }
         cree_le: { type: string, format: date-time }
@@ -2714,7 +2713,7 @@ components:
       required: [id, montant, statut, reseau, numero_masque, declenchement, cree_le, verifie_le, erreur]
       properties:
         id: { type: integer }
-        montant: { type: integer, description: Montant reçu par le dev, entier ; les frais sont à la charge de Souk.dev }
+        montant: { type: integer, description: "Montant reçu par le dev, entier ; les frais sont à la charge de Souk.dev" }
         statut:
           type: string
           enum: [en_attente, reussi, echoue]
@@ -2814,13 +2813,14 @@ components:
         paiements_locaux: { type: integer, description: Paiements réussis enregistrés chez Souk.dev ce jour-là }
         ecarts:
           type: array
+          description: "corrige : paiement réussi resté en attente ici (webhook perdu), rattrapé par la vérification ; les autres types demandent un humain (e-mail à l'admin)"
           items:
             type: object
             required: [type, reference, detail]
             properties:
-              type: { type: string, enum: [inconnu_chez_souk, montant_different, reussi_chez_souk_seulement] }
-              reference: { type: string }
-              detail: { type: string }
+              type: { type: string, enum: [corrige, inconnue_localement, montant_different, absente_chez_saspay, verification_impossible] }
+              reference: { type: string, description: "Transaction SasPay, ou paiement n° … chez Souk.dev" }
+              detail: { type: string, description: "Ce qui a été constaté, en clair" }
         cree_le: { type: string, format: date-time }
 
     # ───────────── Événements ─────────────
