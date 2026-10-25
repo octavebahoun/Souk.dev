@@ -60,7 +60,8 @@ class NettoyageCopies
 
         $actifs = Deploiement::query()
             ->whereIn('id', array_keys($dossiers))
-            ->whereIn('etat', CopieTestController::ETATS_ACTIFS)
+            // Une copie suspendue pour impayé garde ses conteneurs arrêtés et ses volumes.
+            ->whereIn('etat', [...CopieTestController::ETATS_ACTIFS, 'suspendu'])
             ->pluck('id')
             ->all();
 

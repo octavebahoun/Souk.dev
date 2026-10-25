@@ -72,6 +72,9 @@ return [
 
     'timezone' => 'UTC',
 
+    // Alertes d'exploitation et de paiement (paiement en double, écart de rapprochement…).
+    'admin_email' => env('ADMIN_EMAIL', env('MAIL_FROM_ADDRESS')),
+
     /*
     |--------------------------------------------------------------------------
     | Application Locale Configuration

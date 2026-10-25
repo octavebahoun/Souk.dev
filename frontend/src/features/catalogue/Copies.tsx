@@ -6,12 +6,14 @@ import { arreterCopie, listerCopies, type Deploiement } from './api'
 import { messageAction } from '../echange/api'
 
 const etats: Record<Deploiement['etat'], { libelle: string; fond: string; texte: string }> = {
+  attente_paiement: { libelle: 'En attente de paiement', fond: '#FFFAEB', texte: '#B54708' },
   en_file: { libelle: 'En file', fond: '#E9EEF7', texte: '#334155' },
   construction: { libelle: 'Construction', fond: '#E8EEFD', texte: '#1F4FE0' },
   demarrage: { libelle: 'Démarrage', fond: '#FEF3C7', texte: '#92400E' },
   en_ligne: { libelle: 'En ligne', fond: '#DCFCE7', texte: '#166534' },
   echec: { libelle: 'Échec', fond: '#FEE2E2', texte: '#991B1B' },
   arret_en_cours: { libelle: 'Arrêt en cours', fond: '#F1F5F9', texte: '#475569' },
+  suspendu: { libelle: 'Suspendue', fond: '#FEF3F2', texte: '#B42318' },
   arrete: { libelle: 'Arrêtée', fond: '#F1F5F9', texte: '#475569' },
 }
 

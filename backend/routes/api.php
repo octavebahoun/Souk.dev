@@ -1,18 +1,24 @@
 <?php
 
+use App\Http\Controllers\AdminFinancesController;
 use App\Http\Controllers\AppliController;
 use App\Http\Controllers\CanalController;
 use App\Http\Controllers\CompteController;
+use App\Http\Controllers\CoordonneesReversementController;
 use App\Http\Controllers\CopieTestController;
 use App\Http\Controllers\CorrectifController;
 use App\Http\Controllers\DeploiementController;
 use App\Http\Controllers\DiscussionController;
 use App\Http\Controllers\EtiquetteController;
 use App\Http\Controllers\EvenementController;
+use App\Http\Controllers\FactureController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\MissionController;
 use App\Http\Controllers\MissionMessageController;
+use App\Http\Controllers\ReseauMobileMoneyController;
+use App\Http\Controllers\RevenusController;
 use App\Http\Controllers\TechnoController;
+use App\Http\Controllers\WebhookSasPayController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/devs/{username}', [CompteController::class, 'dev'])
@@ -20,6 +26,7 @@ Route::get('/devs/{username}', [CompteController::class, 'dev'])
 Route::get('/devs', [CompteController::class, 'index']);
 
 Route::get('/technos', [TechnoController::class, 'index']);
+Route::get('/reseaux-mobile-money', [ReseauMobileMoneyController::class, 'index']);
 
 Route::get('/apps', [AppliController::class, 'index']);
 Route::get('/apps/{appli}', [AppliController::class, 'show']);
@@ -45,6 +52,33 @@ Route::middleware('auth:sanctum')->group(function (): void {
         ->middleware('throttle:missions');
     Route::post('/apps/{appli}/missions', [MissionController::class, 'pourAppli'])
         ->middleware('throttle:missions');
+
+    // Paiements : factures du client, sessions SasPay, vérification au retour.
+    Route::get('/factures', [FactureController::class, 'index']);
+    Route::get('/factures/{facture}', [FactureController::class, 'show']);
+    Route::post('/factures/{facture}/paiement', [FactureController::class, 'payer'])
+        ->middleware(['throttle:paiements', 'idempotence']);
+    Route::post('/factures/{facture}/verification', [FactureController::class, 'verifier'])
+        ->middleware('throttle:verifications');
+
+    // Revenus du dev : solde réel, mouvements, reversements, coordonnées Mobile Money.
+    Route::get('/me/revenus', [RevenusController::class, 'resume']);
+    Route::get('/me/revenus/mouvements', [RevenusController::class, 'mouvements']);
+    Route::get('/me/revenus/reversements', [RevenusController::class, 'reversements']);
+    Route::post('/me/revenus/reversements', [RevenusController::class, 'demander'])
+        ->middleware(['throttle:reversements', 'idempotence']);
+    Route::get('/me/coordonnees-reversement', [CoordonneesReversementController::class, 'show']);
+    Route::put('/me/coordonnees-reversement', [CoordonneesReversementController::class, 'update'])
+        ->middleware('throttle:coordonnees');
+
+    // Administration : finances (grand livre), avoirs, reversements, rapprochements.
+    Route::prefix('admin')->middleware('can:administrer')->group(function (): void {
+        Route::get('/finances', [AdminFinancesController::class, 'finances']);
+        Route::get('/factures', [AdminFinancesController::class, 'factures']);
+        Route::post('/factures/{facture}/avoir', [AdminFinancesController::class, 'avoir'])->middleware('idempotence');
+        Route::get('/reversements', [AdminFinancesController::class, 'reversements']);
+        Route::get('/rapprochements', [AdminFinancesController::class, 'rapprochements']);
+    });
 
     Route::get('/missions', [MissionController::class, 'index']);
     Route::get('/missions/{mission}', [MissionController::class, 'show']);
@@ -94,3 +128,6 @@ Route::delete('/events/{evenement}/inscription', [EvenementController::class, 'd
 Route::get('/events/{evenement}/participants', [EvenementController::class, 'participants']);
 Route::get('/events/{evenement}/avis', [EvenementController::class, 'avis']);
 Route::post('/events/{evenement}/avis', [EvenementController::class, 'noter'])->middleware('auth:sanctum');
+
+// Webhooks SasPay : pas de session, la signature HMAC fait foi (voir WebhookSasPayController).
+Route::post('/webhooks/saspay', [WebhookSasPayController::class, 'recevoir']);

@@ -29,6 +29,9 @@ tags:
   - name: Correctifs
   - name: Missions
   - name: Événements
+  - name: Paiements
+  - name: Revenus
+  - name: Administration
 
 security:
   - session: []
@@ -221,7 +224,7 @@ paths:
     get:
       tags: [Comptes]
       operationId: getDashboard
-      summary: Mon tableau de bord de dev (vues, copies actives, revenus estimés, par appli et au total)
+      summary: Mon tableau de bord de dev (vues, copies actives, revenus réels encaissés, par appli et au total)
       responses:
         '200':
           description: Le tableau de bord
@@ -548,7 +551,7 @@ paths:
     post:
       tags: [Déploiements]
       operationId: createDeployment
-      summary: "Lancer un déploiement client (répond tout de suite avec l'état en_file). Paiement du serveur : mécanisme en attente (voir DECISIONS.md)."
+      summary: "Commander une copie : crée l'abonnement et sa première facture (hébergement du mois, plus le prix de l'appli). La copie reste en attente_paiement et ne démarre qu'une fois la facture payée (POST /factures/{id}/paiement)."
       requestBody:
         required: true
         content:
@@ -556,7 +559,7 @@ paths:
             schema: { $ref: '#/components/schemas/DeploiementCreation' }
       responses:
         '202':
-          description: Déploiement mis en file ; les changements d'état arrivent par Reverb
+          description: Copie commandée, en attente du paiement de facture_a_payer ; les changements d'état arrivent par Reverb
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Deploiement' }
@@ -1319,6 +1322,491 @@ paths:
         '409': { $ref: '#/components/responses/Conflit' }
         '419': { $ref: '#/components/responses/CsrfInvalide' }
 
+  # ───────────── Paiements ─────────────
+  /factures:
+    get:
+      tags: [Paiements]
+      operationId: listFactures
+      summary: Mes factures (écran « Mes paiements »), les plus récentes d'abord
+      parameters:
+        - name: statut
+          in: query
+          schema: { $ref: '#/components/schemas/StatutFacture' }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/ParPage'
+      responses:
+        '200':
+          description: Liste de mes factures
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Pagination'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Facture' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+
+  /factures/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Paiements]
+      operationId: getFacture
+      summary: Une facture, ses lignes et ses tentatives de paiement (client de la facture uniquement)
+      responses:
+        '200':
+          description: La facture
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Facture' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+
+  /factures/{id}/paiement:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [Paiements]
+      operationId: payerFacture
+      summary: "Ouvrir une session de paiement SasPay pour la facture (Mobile Money ou carte). Le montant vient de la facture, jamais du navigateur ; les frais de paiement s'ajoutent (ADD_ON). Rediriger le client vers checkout_url."
+      parameters:
+        - $ref: '#/components/parameters/CleIdempotence'
+      responses:
+        '201':
+          description: Session ouverte
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SessionPaiement' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '409': { $ref: '#/components/responses/Conflit' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+        '429': { $ref: '#/components/responses/TropDeRequetes' }
+        '503':
+          description: Le prestataire de paiement est indisponible ; réessayer dans quelques minutes
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Erreur' }
+
+  /factures/{id}/verification:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [Paiements]
+      operationId: verifierFacture
+      summary: "Revérifier tout de suite auprès de SasPay le dernier paiement de la facture (page de retour de paiement). Si SasPay confirme SUCCESS, la facture passe payee et la copie démarre (ou reprend)."
+      responses:
+        '200':
+          description: La facture, à jour
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Facture' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+        '429': { $ref: '#/components/responses/TropDeRequetes' }
+
+  /paiement/facture/{id}:
+    servers: [{ url: / }]
+    get:
+      tags: [Paiements]
+      operationId: lienPaiementFacture
+      summary: "Web. Lien de paiement signé, envoyé par e-mail (rappel avant échéance) : ouvre une session SasPay et redirige vers sa page, sans connexion. Facture déjà payée : redirection vers « Mes paiements »."
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - name: signature
+          in: query
+          required: true
+          schema: { type: string }
+        - name: expires
+          in: query
+          required: true
+          schema: { type: integer }
+      responses:
+        '302':
+          description: Redirection vers la page de paiement SasPay, ou vers le front
+        '403':
+          description: Lien invalide ou expiré
+        '404': { $ref: '#/components/responses/Introuvable' }
+
+  /webhooks/saspay:
+    post:
+      tags: [Paiements]
+      operationId: webhookSasPay
+      summary: "Événements SasPay (transaction.success, transaction.failed…). Signature X-Webhook-Signature (HMAC SHA-256 de « {timestamp}.{corps brut} ») vérifiée, horodatage de plus de 300 secondes refusé. Traitement idempotent qui revérifie toujours l'état par l'API SasPay avant de changer quoi que ce soit."
+      security: []
+      parameters:
+        - name: X-Webhook-Signature
+          in: header
+          required: true
+          schema: { type: string }
+        - name: X-Webhook-Timestamp
+          in: header
+          required: true
+          schema: { type: integer }
+        - name: X-Webhook-Event
+          in: header
+          required: false
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [event, data]
+              properties:
+                event: { type: string }
+                data: { type: object, additionalProperties: true }
+      responses:
+        '200':
+          description: Événement reçu (traité en arrière-plan)
+        '400':
+          description: Corps illisible
+        '401':
+          description: Signature invalide ou horodatage hors tolérance
+
+  /simulateur/saspay/{session}:
+    servers: [{ url: / }]
+    parameters:
+      - name: session
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Paiements]
+      operationId: pageSimulateurSasPay
+      summary: "Web. Développement et tests seulement (passerelle simulée, jamais en production) : page de paiement qui imite celle de SasPay."
+      security: []
+      responses:
+        '200':
+          description: Page HTML du simulateur
+        '404':
+          description: Simulateur désactivé ou session inconnue
+    post:
+      tags: [Paiements]
+      operationId: choisirSimulateurSasPay
+      summary: "Web. Développement et tests seulement : issue du paiement simulé (succes, echec ou attente) ; envoie un vrai webhook signé, puis renvoie vers return_url après un succès."
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [issue]
+              properties:
+                issue: { type: string, enum: [succes, echec, attente] }
+                reseau: { type: string, description: 'Code réseau choisi, ex. mtn_bj' }
+      responses:
+        '200':
+          description: Page de résultat (échec ou attente)
+        '302':
+          description: Paiement réussi, retour vers return_url
+        '404':
+          description: Simulateur désactivé ou session inconnue
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+
+  # ───────────── Revenus ─────────────
+  /me/revenus:
+    get:
+      tags: [Revenus]
+      operationId: getRevenus
+      summary: "Mes revenus de dev : solde dû (parts encaissées moins reversements), totaux, reversement en cours, coordonnées Mobile Money"
+      responses:
+        '200':
+          description: Mes revenus
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Revenus' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+
+  /me/revenus/mouvements:
+    get:
+      tags: [Revenus]
+      operationId: listMouvements
+      summary: Mouvements de mon solde (parts encaissées, reversements, corrections), les plus récents d'abord
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/ParPage'
+      responses:
+        '200':
+          description: Mouvements
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Pagination'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Mouvement' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+
+  /me/revenus/reversements:
+    get:
+      tags: [Revenus]
+      operationId: listReversements
+      summary: Mes reversements, les plus récents d'abord
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/ParPage'
+      responses:
+        '200':
+          description: Reversements
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Pagination'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Reversement' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+    post:
+      tags: [Revenus]
+      operationId: demanderReversement
+      summary: "Demander le reversement de tout mon solde sur mon Mobile Money (5 000 F au moins, coordonnées confirmées, un seul reversement en cours). Sans demande, le solde est reversé chaque mois. Les frais sont pris sur la marge de Souk.dev, jamais sur le solde."
+      parameters:
+        - $ref: '#/components/parameters/CleIdempotence'
+      responses:
+        '202':
+          description: Reversement initié ; son état se suit dans la liste
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Reversement' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '409': { $ref: '#/components/responses/Conflit' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+        '422': { $ref: '#/components/responses/Invalide' }
+        '429': { $ref: '#/components/responses/TropDeRequetes' }
+
+  /me/coordonnees-reversement:
+    get:
+      tags: [Revenus]
+      operationId: getCoordonneesReversement
+      summary: Mes coordonnées Mobile Money de reversement (numéro masqué)
+      responses:
+        '200':
+          description: Coordonnées, ou null si aucune n'est saisie
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/CoordonneesReversement'
+                  - type: 'null'
+        '401': { $ref: '#/components/responses/NonConnecte' }
+    put:
+      tags: [Revenus]
+      operationId: enregistrerCoordonneesReversement
+      summary: "Saisir ou changer mes coordonnées Mobile Money (numéro saisi deux fois). Elles ne servent qu'après confirmation par le lien envoyé à mon adresse e-mail."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CoordonneesReversementSaisie' }
+      responses:
+        '200':
+          description: Coordonnées enregistrées, en attente de confirmation
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CoordonneesReversement' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+        '422': { $ref: '#/components/responses/Invalide' }
+        '429': { $ref: '#/components/responses/TropDeRequetes' }
+
+  /reversement/confirmer/{token}:
+    servers: [{ url: / }]
+    parameters:
+      - name: token
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      tags: [Revenus]
+      operationId: afficherConfirmationReversement
+      summary: "Web. Lien reçu par e-mail : page qui montre le numéro masqué et un bouton de confirmation (un analyseur de liens qui ouvre la page ne confirme rien)"
+      security: []
+      responses:
+        '200':
+          description: Page HTML de confirmation
+        '302':
+          description: Lien expiré ou déjà utilisé, redirection vers « Mes revenus »
+    post:
+      tags: [Revenus]
+      operationId: confirmerCoordonneesReversement
+      summary: Web. Bouton de la page de confirmation (jeton CSRF de la session) ; confirme le numéro puis redirige vers « Mes revenus »
+      security: []
+      responses:
+        '302':
+          description: Coordonnées confirmées (ou lien expiré), redirection vers le front
+        '419':
+          description: Jeton CSRF absent ou expiré
+
+  /copie-suspendue:
+    servers: [{ url: / }]
+    get:
+      tags: [Paiements]
+      operationId: pageCopieSuspendue
+      summary: "Web. Page servie par Traefik sur le sous-domaine d'une copie suspendue pour impayé (neutre : rien sur la facture)"
+      security: []
+      responses:
+        '503':
+          description: Page HTML « service momentanément indisponible », avec Retry-After
+
+  /reseaux-mobile-money:
+    get:
+      tags: [Revenus]
+      operationId: listReseauxMobileMoney
+      summary: Réseaux Mobile Money acceptés pour un reversement, par pays
+      security: []
+      responses:
+        '200':
+          description: Les réseaux
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ReseauMobileMoney' }
+
+  # ───────────── Administration (finances) ─────────────
+  /admin/finances:
+    get:
+      tags: [Administration]
+      operationId: getFinancesAdmin
+      summary: Vue financière (admin) sur une période, tirée du grand livre
+      parameters:
+        - name: debut
+          in: query
+          schema: { type: string, format: date }
+        - name: fin
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: Finances
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Finances' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+
+  /admin/factures:
+    get:
+      tags: [Administration]
+      operationId: listFacturesAdmin
+      summary: Toutes les factures (admin), filtrables par statut
+      parameters:
+        - name: statut
+          in: query
+          schema: { $ref: '#/components/schemas/StatutFacture' }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/ParPage'
+      responses:
+        '200':
+          description: Factures
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Pagination'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Facture' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+
+  /admin/factures/{id}/avoir:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [Administration]
+      operationId: creerAvoir
+      summary: "Saisir un avoir (admin) après un remboursement fait depuis le tableau de bord SasPay (SasPay n'a pas d'API de remboursement). Le grand livre reçoit des écritures inverses ; rien n'est modifié."
+      parameters:
+        - $ref: '#/components/parameters/CleIdempotence'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AvoirCreation' }
+      responses:
+        '201':
+          description: Avoir enregistré
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Avoir' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '409': { $ref: '#/components/responses/Conflit' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+        '422': { $ref: '#/components/responses/Invalide' }
+
+  /admin/reversements:
+    get:
+      tags: [Administration]
+      operationId: listReversementsAdmin
+      summary: Tous les reversements (admin)
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/ParPage'
+      responses:
+        '200':
+          description: Reversements
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Pagination'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/ReversementAdmin' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+
+  /admin/rapprochements:
+    get:
+      tags: [Administration]
+      operationId: listRapprochements
+      summary: Rapprochements quotidiens avec les transactions SasPay et leurs écarts (admin)
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/ParPage'
+      responses:
+        '200':
+          description: Rapprochements
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Pagination'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Rapprochement' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+
 components:
   securitySchemes:
     session:
@@ -1339,6 +1827,13 @@ components:
       in: query
       description: Numéro de page (commence à 1)
       schema: { type: integer, minimum: 1, default: 1 }
+
+    CleIdempotence:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: "Identifiant unique de l'intention (un UUID). Rejouée avec la même clé, la requête renvoie la réponse d'origine au lieu de recommencer."
+      schema: { type: string, maxLength: 100 }
 
     ParPage:
       name: per_page
@@ -1524,33 +2019,34 @@ components:
 
     TableauDeBord:
       type: object
-      description: "Les revenus sont ESTIMÉS à partir des copies et des prix, tant que le paiement via Datacloud n'est pas en place. Le profil (stats, réputation, Souk Score) se lit avec GET /me."
+      description: "Revenus réels, tirés du grand livre (parts du dev sur les factures payées). Le profil (stats, réputation, Souk Score) se lit avec GET /me ; le solde et les reversements avec GET /me/revenus."
       required: [totaux, applis]
       properties:
         totaux:
           type: object
-          required: [vues, copies_actives, revenus_estimes_mensuels, revenus_estimes_uniques]
+          required: [vues, copies_actives, revenus_mois, revenus_total]
           properties:
             vues: { type: integer }
             copies_actives: { type: integer }
-            revenus_estimes_mensuels: { type: integer, description: "FCFA par mois : somme, pour les applis mensuelles, de copies actives × prix" }
-            revenus_estimes_uniques: { type: integer, description: "FCFA au total : somme, pour les applis à paiement unique, de déploiements clients × prix" }
+            revenus_mois: { type: integer, description: "FCFA encaissés ce mois-ci pour le dev, toutes applis" }
+            revenus_total: { type: integer, description: "FCFA encaissés pour le dev depuis le début" }
         applis:
           type: array
           items: { $ref: '#/components/schemas/StatsApp' }
 
     StatsApp:
       type: object
-      required: [app_id, nom, type_prix, prix, vues, copies_actives, deploiements_total, revenu_estime]
+      required: [app_id, nom, type_prix, prix, vues, copies_actives, deploiements_total, revenu_mois, revenu_total]
       properties:
         app_id: { type: integer }
         nom: { type: string }
         type_prix: { $ref: '#/components/schemas/TypePrix' }
         prix: { type: integer }
-        vues: { type: integer, description: Visiteurs uniques par jour, cumulés }
+        vues: { type: integer, description: "Visiteurs uniques par jour, cumulés" }
         copies_actives: { type: integer, description: Copies clients en ligne en ce moment }
         deploiements_total: { type: integer, description: Copies clients lancées depuis la publication }
-        revenu_estime: { type: integer, description: "mensuel : copies actives × prix (par mois) ; unique : déploiements total × prix (au total)" }
+        revenu_mois: { type: integer, description: FCFA encaissés ce mois-ci pour cette appli }
+        revenu_total: { type: integer, description: FCFA encaissés pour cette appli depuis la publication }
 
     SoukScore:
       type: object
@@ -1815,7 +2311,7 @@ components:
     # ───────────── Déploiements ─────────────
     Deploiement:
       type: object
-      required: [id, app_id, app_nom, taille, type, etat, url, erreur, cree_le]
+      required: [id, app_id, app_nom, taille, type, etat, url, erreur, cree_le, abonnement, facture_a_payer]
       properties:
         id: { type: integer }
         app_id: { type: [integer, 'null'], description: "null pour une copie de test lancée depuis le depot_url d'une discussion, sans appli publiée" }
@@ -1830,8 +2326,8 @@ components:
           description: Copie d'un client, copie de test d'une discussion, ou version corrigée
         etat:
           type: string
-          enum: [en_file, construction, demarrage, en_ligne, echec, arret_en_cours, arrete]
-          description: "en_file → construction → demarrage → en_ligne ; echec à n'importe quelle étape ; arret_en_cours puis arrete après DELETE /deployments/{id}"
+          enum: [attente_paiement, en_file, construction, demarrage, en_ligne, echec, suspendu, arret_en_cours, arrete]
+          description: "Copie client : attente_paiement jusqu'au paiement de la première facture. Puis en_file → construction → demarrage → en_ligne ; echec à n'importe quelle étape ; suspendu après 7 jours de facture impayée (réactivée au paiement) ; arret_en_cours puis arrete après DELETE /deployments/{id} ou 30 jours de suspension"
         url:
           type: [string, 'null']
           format: uri
@@ -1840,6 +2336,16 @@ components:
           type: [string, 'null']
           description: Message lisible quand l'état est echec
         cree_le: { type: string, format: date-time }
+        abonnement:
+          description: Facturation de la copie client ; null pour une copie de test ou une version corrigée (gratuites)
+          oneOf:
+            - $ref: '#/components/schemas/Abonnement'
+            - type: 'null'
+        facture_a_payer:
+          description: La facture à régler pour démarrer ou garder la copie ; null si tout est payé
+          oneOf:
+            - $ref: '#/components/schemas/FactureResume'
+            - type: 'null'
 
     DeploiementCreation:
       type: object
@@ -2080,6 +2586,242 @@ components:
         message: { type: string, maxLength: 5000 }
         budget: { type: integer, minimum: 0 }
         delai: { type: string, format: date }
+
+    # ───────────── Paiements ─────────────
+    Abonnement:
+      type: object
+      description: "Facturation d'une copie client, à date anniversaire : l'hébergement chaque mois, plus le prix de l'appli chaque mois (mensuel) ou une seule fois (unique)."
+      required: [statut, formule, montant_hebergement, prix_appli, type_prix, prochaine_echeance, suspendu_le]
+      properties:
+        statut:
+          type: string
+          enum: [en_attente, actif, en_retard, suspendu, resilie]
+          description: "en_attente : première facture pas encore payée ; en_retard : échéance passée, 7 jours de grâce ; suspendu : copie arrêtée, réactivée au paiement ; resilie : arrêt définitif après 30 jours de suspension"
+        formule: { $ref: '#/components/schemas/Taille' }
+        montant_hebergement: { type: integer, description: FCFA par mois, figé à la commande }
+        prix_appli: { type: integer, description: FCFA, figé à la commande ; 0 pour une appli gratuite }
+        type_prix: { $ref: '#/components/schemas/TypePrix' }
+        prochaine_echeance: { type: [string, 'null'], format: date }
+        suspendu_le: { type: [string, 'null'], format: date-time }
+
+    StatutFacture:
+      type: string
+      enum: [a_payer, payee, annulee, remboursee]
+
+    FactureResume:
+      type: object
+      required: [id, numero, montant_total, echeance_le, statut]
+      properties:
+        id: { type: integer }
+        numero: { type: string, description: 'ex. SD-2026-000123' }
+        montant_total: { type: integer, description: FCFA, hors frais de paiement (ajoutés par SasPay) }
+        echeance_le: { type: string, format: date }
+        statut: { $ref: '#/components/schemas/StatutFacture' }
+
+    LigneFacture:
+      type: object
+      required: [libelle, montant]
+      properties:
+        libelle: { type: string, description: "ex. « Hébergement, formule moyenne, du 25 octobre au 24 novembre »" }
+        montant: { type: integer }
+
+    Facture:
+      type: object
+      required: [id, numero, deploiement_id, app_nom, periode_debut, periode_fin, emise_le, echeance_le, montant_hebergement, montant_appli, montant_total, montant_rembourse, statut, payee_le, lignes, paiements]
+      properties:
+        id: { type: integer }
+        numero: { type: string }
+        deploiement_id: { type: integer }
+        app_nom: { type: string }
+        periode_debut: { type: string, format: date }
+        periode_fin: { type: string, format: date }
+        emise_le: { type: string, format: date-time }
+        echeance_le: { type: string, format: date }
+        montant_hebergement: { type: integer }
+        montant_appli: { type: integer }
+        montant_total: { type: integer, description: "FCFA, ce que reçoit Souk.dev ; les frais de paiement (ADD_ON) s'ajoutent côté client" }
+        montant_rembourse: { type: integer, description: Somme des avoirs }
+        statut: { $ref: '#/components/schemas/StatutFacture' }
+        payee_le: { type: [string, 'null'], format: date-time }
+        lignes:
+          type: array
+          items: { $ref: '#/components/schemas/LigneFacture' }
+        paiements:
+          type: array
+          description: Tentatives de paiement, la plus récente d'abord
+          items: { $ref: '#/components/schemas/Paiement' }
+
+    Paiement:
+      type: object
+      required: [id, statut, montant, frais_client, montant_debite, reference, cree_le, verifie_le]
+      properties:
+        id: { type: integer }
+        statut:
+          type: string
+          enum: [en_attente, reussi, echoue, annule]
+          description: "Reflet du statut SasPay revérifié par l'API (PENDING, SUCCESS, FAILED ; annule pour une session expirée ou annulée)"
+        montant: { type: integer, description: Montant demandé (celui de la facture) }
+        frais_client: { type: [integer, 'null'], description: Frais de paiement ajoutés par SasPay (ADD_ON), connus après vérification }
+        montant_debite: { type: [integer, 'null'], description: Ce qu'a réellement payé le client }
+        reference: { type: [string, 'null'], description: Référence SasPay de la transaction }
+        cree_le: { type: string, format: date-time }
+        verifie_le: { type: [string, 'null'], format: date-time }
+
+    SessionPaiement:
+      type: object
+      required: [paiement, checkout_url]
+      properties:
+        paiement: { $ref: '#/components/schemas/Paiement' }
+        checkout_url: { type: string, format: uri, description: Page de paiement hébergée par SasPay }
+
+    # ───────────── Revenus ─────────────
+    Revenus:
+      type: object
+      required: [solde, encaisse_total, encaisse_mois, reverse_total, seuil_demande, peut_demander, raison_blocage, reversement_en_cours, prochain_reversement_le, coordonnees]
+      properties:
+        solde: { type: integer, description: "FCFA dû au dev : ses parts encaissées moins ses reversements (et corrections)" }
+        encaisse_total: { type: integer, description: Parts encaissées depuis le début }
+        encaisse_mois: { type: integer, description: Parts encaissées ce mois-ci }
+        reverse_total: { type: integer }
+        seuil_demande: { type: integer, description: Solde minimal pour un reversement à la demande (5 000 F) }
+        peut_demander: { type: boolean }
+        raison_blocage: { type: [string, 'null'], description: "Pourquoi la demande est impossible (solde trop bas, coordonnées non confirmées, reversement en cours)" }
+        reversement_en_cours:
+          oneOf:
+            - $ref: '#/components/schemas/Reversement'
+            - type: 'null'
+        prochain_reversement_le: { type: string, format: date, description: Reversement mensuel automatique }
+        coordonnees:
+          oneOf:
+            - $ref: '#/components/schemas/CoordonneesReversement'
+            - type: 'null'
+
+    Mouvement:
+      type: object
+      description: "Une écriture du grand livre sur le compte du dev, vue par lui : positive quand il gagne, négative quand il est payé"
+      required: [id, type, montant, libelle, cree_le]
+      properties:
+        id: { type: integer }
+        type:
+          type: string
+          enum: [encaissement, reversement, reversement_annule, avoir]
+        montant: { type: integer }
+        libelle: { type: string }
+        cree_le: { type: string, format: date-time }
+
+    Reversement:
+      type: object
+      required: [id, montant, statut, reseau, numero_masque, declenchement, cree_le, verifie_le, erreur]
+      properties:
+        id: { type: integer }
+        montant: { type: integer, description: Montant reçu par le dev, entier ; les frais sont à la charge de Souk.dev }
+        statut:
+          type: string
+          enum: [en_attente, reussi, echoue]
+        reseau: { type: string, description: 'Code réseau, ex. mtn_bj' }
+        numero_masque: { type: string, description: 'ex. +229 01 •• •• 50 50' }
+        declenchement:
+          type: string
+          enum: [mensuel, demande]
+        cree_le: { type: string, format: date-time }
+        verifie_le: { type: [string, 'null'], format: date-time }
+        erreur: { type: [string, 'null'] }
+
+    ReversementAdmin:
+      allOf:
+        - $ref: '#/components/schemas/Reversement'
+        - type: object
+          required: [dev, frais]
+          properties:
+            dev: { $ref: '#/components/schemas/Dev' }
+            frais: { type: [integer, 'null'], description: Frais de reversement payés par Souk.dev }
+
+    CoordonneesReversement:
+      type: object
+      required: [pays, reseau, numero_masque, confirme, confirme_le]
+      properties:
+        pays: { $ref: '#/components/schemas/Pays' }
+        reseau: { type: string }
+        numero_masque: { type: string }
+        confirme: { type: boolean, description: "Faux tant que le lien envoyé par e-mail n'a pas été ouvert ; aucun reversement avant" }
+        confirme_le: { type: [string, 'null'], format: date-time }
+
+    CoordonneesReversementSaisie:
+      type: object
+      required: [pays, reseau, numero, numero_confirmation]
+      properties:
+        pays: { $ref: '#/components/schemas/Pays' }
+        reseau: { type: string, description: 'Code d''un réseau de GET /reseaux-mobile-money, du même pays' }
+        numero: { type: string, maxLength: 20, description: 'Numéro local ou international, ex. 0197505050 ou +2290197505050' }
+        numero_confirmation: { type: string, maxLength: 20 }
+
+    ReseauMobileMoney:
+      type: object
+      required: [code, nom, pays]
+      properties:
+        code: { type: string, description: 'Code SasPay, ex. mtn_bj' }
+        nom: { type: string, description: 'ex. MTN MoMo' }
+        pays: { $ref: '#/components/schemas/Pays' }
+
+    # ───────────── Administration (finances) ─────────────
+    Finances:
+      type: object
+      description: "Tiré du grand livre (entiers FCFA). marge = revenus_hebergement − frais_reversement − avoirs côté hébergement."
+      required: [debut, fin, encaissements, revenus_hebergement, parts_devs, reversements, frais_reversement, avoirs, marge, solde_devs, solde_saspay_attendu, factures_impayees, copies_suspendues]
+      properties:
+        debut: { type: string, format: date }
+        fin: { type: string, format: date }
+        encaissements: { type: integer, description: Montants encaissés sur la période }
+        revenus_hebergement: { type: integer }
+        parts_devs: { type: integer, description: Parts des devs encaissées sur la période }
+        reversements: { type: integer, description: Versé aux devs sur la période }
+        frais_reversement: { type: integer }
+        avoirs: { type: integer }
+        marge: { type: integer }
+        solde_devs: { type: integer, description: "Dû aux devs aujourd'hui, tous comptes confondus" }
+        solde_saspay_attendu: { type: integer, description: "Ce que le compte SasPay devrait contenir d'après le grand livre" }
+        factures_impayees: { type: integer }
+        copies_suspendues: { type: integer }
+
+    AvoirCreation:
+      type: object
+      required: [montant_hebergement, montant_appli, motif]
+      properties:
+        montant_hebergement: { type: integer, minimum: 0 }
+        montant_appli: { type: integer, minimum: 0 }
+        motif: { type: string, maxLength: 500 }
+
+    Avoir:
+      type: object
+      required: [id, numero, facture_id, montant_hebergement, montant_appli, montant_total, motif, cree_le]
+      properties:
+        id: { type: integer }
+        numero: { type: string, description: 'ex. AV-2026-000004' }
+        facture_id: { type: integer }
+        montant_hebergement: { type: integer }
+        montant_appli: { type: integer }
+        montant_total: { type: integer }
+        motif: { type: string }
+        cree_le: { type: string, format: date-time }
+
+    Rapprochement:
+      type: object
+      required: [id, jour, transactions_saspay, paiements_locaux, ecarts, cree_le]
+      properties:
+        id: { type: integer }
+        jour: { type: string, format: date }
+        transactions_saspay: { type: integer, description: Transactions entrantes réussies chez SasPay ce jour-là }
+        paiements_locaux: { type: integer, description: Paiements réussis enregistrés chez Souk.dev ce jour-là }
+        ecarts:
+          type: array
+          items:
+            type: object
+            required: [type, reference, detail]
+            properties:
+              type: { type: string, enum: [inconnu_chez_souk, montant_different, reussi_chez_souk_seulement] }
+              reference: { type: string }
+              detail: { type: string }
+        cree_le: { type: string, format: date-time }
 
     # ───────────── Événements ─────────────
     Evenement:

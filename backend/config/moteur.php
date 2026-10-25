@@ -30,6 +30,10 @@ return [
     // Sonde du service web : conteneur jetable branché sur le réseau de la copie.
     'image_sonde' => env('MOTEUR_IMAGE_SONDE', 'curlimages/curl:8.11.1'),
 
+    // Page « copie suspendue » (impayé) : l'API vue depuis Traefik. En développement, Traefik est
+    // sur le réseau de la machine et joint l'API sur son port publié.
+    'page_suspendue' => env('MOTEUR_PAGE_SUSPENDUE', 'http://127.0.0.1:8000'),
+
     // Après la publication : durée de lecture du pic, puis écart entre deux docker stats.
     'mesure_duree' => 180,
 

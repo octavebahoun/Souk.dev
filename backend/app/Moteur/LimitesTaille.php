@@ -73,6 +73,8 @@ final class LimitesTaille
             }
 
             $lignes[] = "  {$service}:";
+            // Remplace le restart du dépôt : une copie suspendue (arrêtée) ne repart pas seule.
+            $lignes[] = '    restart: unless-stopped';
             $lignes[] = "    mem_limit: {$formule['memoire']}";
             $lignes[] = "    memswap_limit: {$formule['memoire']}";
             $lignes[] = "    cpus: \"{$formule['coeurs']}\"";

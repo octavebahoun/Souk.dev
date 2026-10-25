@@ -131,8 +131,8 @@ export function Tableau() {
           <section aria-label="Totaux" className="grid gap-3.5 min-[761px]:grid-cols-2 min-[1100px]:grid-cols-4">
             <CarteBleue reveler titre="Vues" valeur={totaux.vues.toLocaleString('fr-FR')} detail="un visiteur compté une fois par jour" />
             <CarteBleue reveler titre="Copies actives" valeur={String(totaux.copies_actives)} detail="en ligne chez des clients" />
-            <CarteBleue reveler titre="Revenu mensuel estimé" valeur={`${fcfa(totaux.revenus_estimes_mensuels)}/mois`} detail="copies actives × prix" />
-            <CarteBleue reveler titre="Ventes uniques estimées" valeur={fcfa(totaux.revenus_estimes_uniques)} detail="déploiements × prix, au total" />
+            <CarteBleue reveler titre="Revenus du mois" valeur={fcfa(totaux.revenus_mois)} detail="factures payées ce mois-ci" />
+            <CarteBleue reveler titre="Revenus depuis le début" valeur={fcfa(totaux.revenus_total)} detail="votre part, sans commission" />
           </section>
         ) : null}
 
@@ -148,7 +148,7 @@ export function Tableau() {
                     <th className="px-4 py-2.5 text-right">Vues</th>
                     <th className="px-4 py-2.5 text-right">Copies actives</th>
                     <th className="px-4 py-2.5 text-right">Déploiements</th>
-                    <th className="px-4 py-2.5 text-right">Revenu estimé</th>
+                    <th className="px-4 py-2.5 text-right">Revenus du mois</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -164,8 +164,8 @@ export function Tableau() {
                       <td className="px-4 py-3.5 text-right tabular-nums">{appli.copies_actives}</td>
                       <td className="px-4 py-3.5 text-right tabular-nums">{appli.deploiements_total}</td>
                       <td className="px-4 py-3.5 text-right font-bold tabular-nums">
-                        {fcfa(appli.revenu_estime)}
-                        {appli.type_prix === 'mensuel' ? '/mois' : ' au total'}
+                        {fcfa(appli.revenu_mois)}
+                        <div className="text-[13px] font-normal text-muted">{fcfa(appli.revenu_total)} au total</div>
                       </td>
                     </tr>
                   ))}

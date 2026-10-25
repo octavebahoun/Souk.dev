@@ -164,7 +164,7 @@ class MissionCreationTest extends TestCase
             ->assertTooManyRequests();
     }
 
-    public function test_une_appli_supprimee_garde_ses_missions(): void
+    public function test_une_appli_retiree_garde_ses_missions(): void
     {
         $dev = $this->dev();
         $appli = $this->appli($dev);
@@ -175,9 +175,11 @@ class MissionCreationTest extends TestCase
             ->assertCreated()
             ->json('id');
 
+        // Retirer une appli la sort du store (suppression douce) : missions et copies restent.
         $appli->delete();
 
-        $this->assertDatabaseHas('missions', ['id' => $id, 'app_id' => null]);
+        $this->assertSoftDeleted($appli);
+        $this->assertDatabaseHas('missions', ['id' => $id, 'app_id' => $appli->id]);
     }
 
     public function test_sans_connexion_401(): void

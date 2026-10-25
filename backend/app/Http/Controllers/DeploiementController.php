@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Jobs\LancerDeploiement;
 use App\Models\Appli;
 use App\Models\Deploiement;
 use App\Moteur\LimitesTaille;
+use App\Paiement\Facturation;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -14,24 +14,19 @@ use Illuminate\Validation\ValidationException;
 
 class DeploiementController extends Controller
 {
-    public function store(Request $request, Appli $appli): JsonResponse
+    /**
+     * Commande d'une copie : abonnement et première facture. La copie attend le paiement
+     * (attente_paiement) et ne démarre que lorsque SasPay le confirme.
+     */
+    public function store(Request $request, Appli $appli, Facturation $facturation): JsonResponse
     {
-        $variables = $this->variables($request);
-        $taille = $this->taille($appli);
+        $variables = $this->variables($request, $appli);
+        $this->taille($appli);
 
-        $deploiement = Deploiement::query()->create([
-            'user_id' => $request->user()->id,
-            'appli_id' => $appli->id,
-            'type' => 'client',
-            'taille' => $taille,
-            'etat' => 'en_file',
-            'variables' => $variables,
-        ]);
-
+        $deploiement = $facturation->commander($appli, $request->user(), $variables);
         $deploiement->diffuser();
-        LancerDeploiement::dispatch($deploiement->id);
 
-        return response()->json($deploiement->versApi(), 202);
+        return response()->json($deploiement->refresh()->versApi(), 202);
     }
 
     public function index(Request $request): JsonResource
@@ -43,7 +38,7 @@ class DeploiementController extends Controller
 
         $deploiements = Deploiement::query()
             ->where('user_id', $request->user()->id)
-            ->with('appli')
+            ->with(['appli', 'abonnement.facturesAPayer'])
             ->when($request->filled('type'), fn ($requete) => $requete->where('type', $request->string('type')))
             ->latest()
             ->paginate($request->integer('per_page', 20))
@@ -61,10 +56,15 @@ class DeploiementController extends Controller
 
     /**
      * L'arrêt tourne sur le moteur : arret_en_cours tout de suite, arrete par Reverb ensuite.
+     * Une copie client arrêtée par son client n'est plus facturée.
      */
-    public function destroy(Deploiement $deploiement): JsonResponse
+    public function destroy(Deploiement $deploiement, Facturation $facturation): JsonResponse
     {
         Gate::authorize('delete', $deploiement);
+
+        if ($deploiement->abonnement !== null) {
+            $facturation->resilier($deploiement->abonnement);
+        }
 
         $deploiement->demanderArret();
 
@@ -72,13 +72,16 @@ class DeploiementController extends Controller
     }
 
     /**
+     * Les variables du client, vérifiées avant de payer : une variable obligatoire manquante
+     * ferait échouer le déploiement après le paiement.
+     *
      * @return array<string, string>
      */
-    private function variables(Request $request): array
+    private function variables(Request $request, Appli $appli): array
     {
         $donnees = $request->validate([
             'variables' => ['present', 'array'],
-            'variables.*' => ['string', 'max:500'],
+            'variables.*' => ['nullable', 'string', 'max:500'],
         ]);
 
         $variables = $donnees['variables'];
@@ -89,7 +92,26 @@ class DeploiementController extends Controller
             ]);
         }
 
-        return $variables;
+        $attendues = collect($appli->variables_client ?? [])->keyBy('nom');
+        $erreurs = [];
+
+        foreach (array_keys($variables) as $nom) {
+            if (! $attendues->has($nom)) {
+                $erreurs["variables.{$nom}"] = "La variable {$nom} n'est pas demandée par cette appli.";
+            }
+        }
+
+        foreach ($attendues as $nom => $variable) {
+            if (($variable['requis'] ?? false) && trim((string) ($variables[$nom] ?? '')) === '') {
+                $erreurs["variables.{$nom}"] = "Renseignez « {$variable['libelle']} ».";
+            }
+        }
+
+        if ($erreurs !== []) {
+            throw ValidationException::withMessages($erreurs);
+        }
+
+        return array_map(fn ($valeur) => trim((string) $valeur), $variables);
     }
 
     private function taille(Appli $appli): string

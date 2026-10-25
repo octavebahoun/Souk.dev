@@ -10,15 +10,23 @@ use App\Models\Correctif;
 use App\Models\Deploiement;
 use App\Models\Discussion;
 use App\Models\Evenement;
+use App\Models\Facture;
 use App\Models\Message;
 use App\Models\Mission;
 use App\Models\User;
 use App\Moteur\RouteurCopies;
+use App\Paiement\Passerelles\ClientSasPay;
+use App\Paiement\Passerelles\PasserellePaiement;
+use App\Paiement\Passerelles\PasserelleReversement;
+use App\Paiement\Passerelles\SasPayPaiement;
+use App\Paiement\Passerelles\SasPayReversement;
+use App\Paiement\Passerelles\SimulateurSasPay;
 use App\Policies\AppliPolicy;
 use App\Policies\CorrectifPolicy;
 use App\Policies\DeploiementPolicy;
 use App\Policies\DiscussionPolicy;
 use App\Policies\EvenementPolicy;
+use App\Policies\FacturePolicy;
 use App\Policies\MessagePolicy;
 use App\Policies\MissionPolicy;
 use App\Soukdev\ComposeRunner;
@@ -82,6 +90,8 @@ class AppServiceProvider extends ServiceProvider
 
         $this->app->singleton(Battements::class, fn () => new Battements(storage_path('framework/sante')));
 
+        $this->enregistrerPasserelles();
+
         $this->app->singleton(FrontUrl::class, function () {
             return new FrontUrl((string) config('app.frontend_url'));
         });
@@ -120,6 +130,12 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perHour(3)->by('deploiements:'.($request->user()?->id ?? $request->ip()));
         });
 
+        // Argent : ouvrir une session de paiement, revérifier au retour, demander un reversement.
+        RateLimiter::for('paiements', fn (Request $request) => Limit::perMinute(10)->by('paiements:'.($request->user()?->id ?? $request->ip())));
+        RateLimiter::for('verifications', fn (Request $request) => Limit::perMinute(30)->by('verifications:'.($request->user()?->id ?? $request->ip())));
+        RateLimiter::for('reversements', fn (Request $request) => Limit::perHour(5)->by('reversements:'.($request->user()?->id ?? $request->ip())));
+        RateLimiter::for('coordonnees', fn (Request $request) => Limit::perHour(5)->by('coordonnees:'.($request->user()?->id ?? $request->ip())));
+
         $this->battreDansLesWorkers();
 
         // Publier une appli ou proposer un correctif, c'est lier un dépôt : GitHub obligatoire.
@@ -131,6 +147,10 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Correctif::class, CorrectifPolicy::class);
         Gate::policy(Deploiement::class, DeploiementPolicy::class);
         Gate::policy(Mission::class, MissionPolicy::class);
+        Gate::policy(Facture::class, FacturePolicy::class);
+
+        // Administration : finances, modération, serveurs.
+        Gate::define('administrer', fn (User $compte) => $compte->est_admin === true);
         Gate::policy(Discussion::class, DiscussionPolicy::class);
         Gate::policy(Message::class, MessagePolicy::class);
         Gate::policy(Evenement::class, EvenementPolicy::class);
@@ -148,5 +168,39 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(JobProcessing::class, $battre('travail'));
         Event::listen(JobProcessed::class, $battre('attente'));
         Event::listen(JobFailed::class, $battre('attente'));
+    }
+
+    /**
+     * Paiement : SasPay si la clé est là, sinon le simulateur — jamais le simulateur en
+     * production, où l'encaissement doit être réel. Reversements : toujours simulés, sauf
+     * REVERSEMENTS_REELS=true avec SasPay (un payout fait sortir de l'argent du compte).
+     */
+    private function enregistrerPasserelles(): void
+    {
+        $this->app->singleton(ClientSasPay::class, fn () => new ClientSasPay(
+            (string) config('services.saspay.cle'),
+            (string) config('services.saspay.url'),
+            (int) config('services.saspay.delai', 20),
+        ));
+
+        $this->app->singleton(SimulateurSasPay::class);
+
+        $this->app->bind(PasserellePaiement::class, function ($app) {
+            if (config('facturation.passerelle') === 'saspay') {
+                return $app->make(SasPayPaiement::class);
+            }
+
+            if ($app->isProduction()) {
+                throw new \RuntimeException('Paiement non configuré : SASPAY_SECRET_KEY est obligatoire en production.');
+            }
+
+            return $app->make(SimulateurSasPay::class);
+        });
+
+        $this->app->bind(PasserelleReversement::class, function ($app) {
+            return config('facturation.reversements_reels') && config('facturation.passerelle') === 'saspay'
+                ? $app->make(SasPayReversement::class)
+                : $app->make(SimulateurSasPay::class);
+        });
     }
 }

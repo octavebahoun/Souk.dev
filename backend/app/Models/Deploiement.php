@@ -12,6 +12,7 @@ use Database\Factories\DeploiementFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Throwable;
 
 class Deploiement extends Model
@@ -50,9 +51,15 @@ class Deploiement extends Model
         ];
     }
 
+    /** L'appli, même retirée du store : ses clients gardent leur copie. */
     public function appli(): BelongsTo
     {
-        return $this->belongsTo(Appli::class);
+        return $this->belongsTo(Appli::class)->withTrashed();
+    }
+
+    public function abonnement(): HasOne
+    {
+        return $this->hasOne(Abonnement::class);
     }
 
     public function discussion(): BelongsTo
@@ -170,7 +177,7 @@ class Deploiement extends Model
     }
 
     /**
-     * @return array{id: int, app_id: int|null, app_nom: string, taille: string, type: string, etat: string, url: string|null, erreur: string|null, cree_le: string}
+     * @return array<string, mixed>
      */
     public function versApi(): array
     {
@@ -186,6 +193,29 @@ class Deploiement extends Model
             'url' => $this->url,
             'erreur' => $this->erreur,
             'cree_le' => $this->created_at->toIso8601String(),
+            'abonnement' => $this->type === 'client' ? $this->abonnement?->versApi() : null,
+            'facture_a_payer' => $this->factureAPayer(),
+        ];
+    }
+
+    /**
+     * @return array{id: int, numero: string, montant_total: int, echeance_le: string, statut: string}|null
+     */
+    private function factureAPayer(): ?array
+    {
+        if ($this->type !== 'client') {
+            return null;
+        }
+
+        $this->loadMissing('abonnement.facturesAPayer');
+        $facture = $this->abonnement?->facturesAPayer->first();
+
+        return $facture === null ? null : [
+            'id' => $facture->id,
+            'numero' => (string) $facture->numero,
+            'montant_total' => $facture->montant_total,
+            'echeance_le' => $facture->echeance_le->toDateString(),
+            'statut' => $facture->statut,
         ];
     }
 

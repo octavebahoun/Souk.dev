@@ -165,7 +165,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Mon tableau de bord de dev (vues, copies actives, revenus estimés, par appli et au total) */
+        /** Mon tableau de bord de dev (vues, copies actives, revenus réels encaissés, par appli et au total) */
         get: operations["getDashboard"];
         put?: never;
         post?: never;
@@ -365,7 +365,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Lancer un déploiement client (répond tout de suite avec l'état en_file). Paiement du serveur : mécanisme en attente (voir DECISIONS.md). */
+        /** Commander une copie : crée l'abonnement et sa première facture (hébergement du mois, plus le prix de l'appli). La copie reste en attente_paiement et ne démarre qu'une fois la facture payée (POST /factures/{id}/paiement). */
         post: operations["createDeployment"];
         delete?: never;
         options?: never;
@@ -818,6 +818,345 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/factures": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Mes factures (écran « Mes paiements »), les plus récentes d'abord */
+        get: operations["listFactures"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/factures/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        /** Une facture, ses lignes et ses tentatives de paiement (client de la facture uniquement) */
+        get: operations["getFacture"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/factures/{id}/paiement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ouvrir une session de paiement SasPay pour la facture (Mobile Money ou carte). Le montant vient de la facture, jamais du navigateur ; les frais de paiement s'ajoutent (ADD_ON). Rediriger le client vers checkout_url. */
+        post: operations["payerFacture"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/factures/{id}/verification": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Revérifier tout de suite auprès de SasPay le dernier paiement de la facture (page de retour de paiement). Si SasPay confirme SUCCESS, la facture passe payee et la copie démarre (ou reprend). */
+        post: operations["verifierFacture"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/paiement/facture/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Web. Lien de paiement signé, envoyé par e-mail (rappel avant échéance) : ouvre une session SasPay et redirige vers sa page, sans connexion. Facture déjà payée : redirection vers « Mes paiements ». */
+        get: operations["lienPaiementFacture"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/webhooks/saspay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Événements SasPay (transaction.success, transaction.failed…). Signature X-Webhook-Signature (HMAC SHA-256 de « {timestamp}.{corps brut} ») vérifiée, horodatage de plus de 300 secondes refusé. Traitement idempotent qui revérifie toujours l'état par l'API SasPay avant de changer quoi que ce soit. */
+        post: operations["webhookSasPay"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/simulateur/saspay/{session}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session: string;
+            };
+            cookie?: never;
+        };
+        /** Web. Développement et tests seulement (passerelle simulée, jamais en production) : page de paiement qui imite celle de SasPay. */
+        get: operations["pageSimulateurSasPay"];
+        put?: never;
+        /** Web. Développement et tests seulement : issue du paiement simulé (succes, echec ou attente) ; envoie un vrai webhook signé, puis renvoie vers return_url après un succès. */
+        post: operations["choisirSimulateurSasPay"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/revenus": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Mes revenus de dev : solde dû (parts encaissées moins reversements), totaux, reversement en cours, coordonnées Mobile Money */
+        get: operations["getRevenus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/revenus/mouvements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Mouvements de mon solde (parts encaissées, reversements, corrections), les plus récents d'abord */
+        get: operations["listMouvements"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/revenus/reversements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Mes reversements, les plus récents d'abord */
+        get: operations["listReversements"];
+        put?: never;
+        /** Demander le reversement de tout mon solde sur mon Mobile Money (5 000 F au moins, coordonnées confirmées, un seul reversement en cours). Sans demande, le solde est reversé chaque mois. Les frais sont pris sur la marge de Souk.dev, jamais sur le solde. */
+        post: operations["demanderReversement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/coordonnees-reversement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Mes coordonnées Mobile Money de reversement (numéro masqué) */
+        get: operations["getCoordonneesReversement"];
+        /** Saisir ou changer mes coordonnées Mobile Money (numéro saisi deux fois). Elles ne servent qu'après confirmation par le lien envoyé à mon adresse e-mail. */
+        put: operations["enregistrerCoordonneesReversement"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reversement/confirmer/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        /** Web. Lien reçu par e-mail : page qui montre le numéro masqué et un bouton de confirmation (un analyseur de liens qui ouvre la page ne confirme rien) */
+        get: operations["afficherConfirmationReversement"];
+        put?: never;
+        /** Web. Bouton de la page de confirmation (jeton CSRF de la session) ; confirme le numéro puis redirige vers « Mes revenus » */
+        post: operations["confirmerCoordonneesReversement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/copie-suspendue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Web. Page servie par Traefik sur le sous-domaine d'une copie suspendue pour impayé (neutre : rien sur la facture) */
+        get: operations["pageCopieSuspendue"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reseaux-mobile-money": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Réseaux Mobile Money acceptés pour un reversement, par pays */
+        get: operations["listReseauxMobileMoney"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/finances": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Vue financière (admin) sur une période, tirée du grand livre */
+        get: operations["getFinancesAdmin"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/factures": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Toutes les factures (admin), filtrables par statut */
+        get: operations["listFacturesAdmin"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/factures/{id}/avoir": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Saisir un avoir (admin) après un remboursement fait depuis le tableau de bord SasPay (SasPay n'a pas d'API de remboursement). Le grand livre reçoit des écritures inverses ; rien n'est modifié. */
+        post: operations["creerAvoir"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/reversements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Tous les reversements (admin) */
+        get: operations["listReversementsAdmin"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/rapprochements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Rapprochements quotidiens avec les transactions SasPay et leurs écarts (admin) */
+        get: operations["listRapprochements"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -904,15 +1243,15 @@ export interface components {
         };
         /** @enum {string} */
         Specialite: "frontend" | "backend" | "mobile" | "devops" | "securite" | "data";
-        /** @description Les revenus sont ESTIMÉS à partir des copies et des prix, tant que le paiement via Datacloud n'est pas en place. Le profil (stats, réputation, Souk Score) se lit avec GET /me. */
+        /** @description Revenus réels, tirés du grand livre (parts du dev sur les factures payées). Le profil (stats, réputation, Souk Score) se lit avec GET /me ; le solde et les reversements avec GET /me/revenus. */
         TableauDeBord: {
             totaux: {
                 vues: number;
                 copies_actives: number;
-                /** @description FCFA par mois : somme, pour les applis mensuelles, de copies actives × prix */
-                revenus_estimes_mensuels: number;
-                /** @description FCFA au total : somme, pour les applis à paiement unique, de déploiements clients × prix */
-                revenus_estimes_uniques: number;
+                /** @description FCFA encaissés ce mois-ci pour le dev, toutes applis */
+                revenus_mois: number;
+                /** @description FCFA encaissés pour le dev depuis le début */
+                revenus_total: number;
             };
             applis: components["schemas"]["StatsApp"][];
         };
@@ -921,14 +1260,16 @@ export interface components {
             nom: string;
             type_prix: components["schemas"]["TypePrix"];
             prix: number;
-            /** @description Visiteurs uniques par jour */
+            /** @description Visiteurs uniques par jour, cumulés */
             vues: number;
             /** @description Copies clients en ligne en ce moment */
             copies_actives: number;
             /** @description Copies clients lancées depuis la publication */
             deploiements_total: number;
-            /** @description mensuel : copies actives × prix (par mois) ; unique : déploiements total × prix (au total) */
-            revenu_estime: number;
+            /** @description FCFA encaissés ce mois-ci pour cette appli */
+            revenu_mois: number;
+            /** @description FCFA encaissés pour cette appli depuis la publication */
+            revenu_total: number;
         };
         /** @description Score sur 1000 qui mesure la qualité et l'activité récente (l'XP, elle, cumule tout depuis l'arrivée). Calculé par la plateforme ; les compétences déclarées ne comptent pas. total = somme des cinq parts. */
         SoukScore: {
@@ -1143,10 +1484,10 @@ export interface components {
              */
             type: "client" | "test" | "correctif";
             /**
-             * @description en_file → construction → demarrage → en_ligne ; echec à n'importe quelle étape ; arret_en_cours puis arrete après DELETE /deployments/{id}
+             * @description Copie client : attente_paiement jusqu'au paiement de la première facture. Puis en_file → construction → demarrage → en_ligne ; echec à n'importe quelle étape ; suspendu après 7 jours de facture impayée (réactivée au paiement) ; arret_en_cours puis arrete après DELETE /deployments/{id} ou 30 jours de suspension
              * @enum {string}
              */
-            etat: "en_file" | "construction" | "demarrage" | "en_ligne" | "echec" | "arret_en_cours" | "arrete";
+            etat: "attente_paiement" | "en_file" | "construction" | "demarrage" | "en_ligne" | "echec" | "suspendu" | "arret_en_cours" | "arrete";
             /**
              * Format: uri
              * @description Renseignée quand l'état est en_ligne
@@ -1156,6 +1497,10 @@ export interface components {
             erreur: string | null;
             /** Format: date-time */
             cree_le: string;
+            /** @description Facturation de la copie client ; null pour une copie de test ou une version corrigée (gratuites) */
+            abonnement: components["schemas"]["Abonnement"] | null;
+            /** @description La facture à régler pour démarrer ou garder la copie ; null si tout est payé */
+            facture_a_payer: components["schemas"]["FactureResume"] | null;
         };
         DeploiementCreation: {
             /** @description Valeurs des variables_client de l'appli, ex. {"PHARMACIE_NOM": "Pharmacie du Port"} */
@@ -1359,6 +1704,230 @@ export interface components {
             /** Format: date */
             delai?: string;
         };
+        /** @description Facturation d'une copie client, à date anniversaire : l'hébergement chaque mois, plus le prix de l'appli chaque mois (mensuel) ou une seule fois (unique). */
+        Abonnement: {
+            /**
+             * @description en_attente : première facture pas encore payée ; en_retard : échéance passée, 7 jours de grâce ; suspendu : copie arrêtée, réactivée au paiement ; resilie : arrêt définitif après 30 jours de suspension
+             * @enum {string}
+             */
+            statut: "en_attente" | "actif" | "en_retard" | "suspendu" | "resilie";
+            formule: components["schemas"]["Taille"];
+            /** @description FCFA par mois */
+            montant_hebergement: number;
+            /** @description FCFA */
+            prix_appli: number;
+            type_prix: components["schemas"]["TypePrix"];
+            /** Format: date */
+            prochaine_echeance: string | null;
+            /** Format: date-time */
+            suspendu_le: string | null;
+        };
+        /** @enum {string} */
+        StatutFacture: "a_payer" | "payee" | "annulee" | "remboursee";
+        FactureResume: {
+            id: number;
+            /** @description ex. SD-2026-000123 */
+            numero: string;
+            /** @description FCFA */
+            montant_total: number;
+            /** Format: date */
+            echeance_le: string;
+            statut: components["schemas"]["StatutFacture"];
+        };
+        LigneFacture: {
+            /** @description ex. « Hébergement, formule moyenne, du 25 octobre au 24 novembre » */
+            libelle: string;
+            montant: number;
+        };
+        Facture: {
+            id: number;
+            numero: string;
+            deploiement_id: number;
+            app_nom: string;
+            /** Format: date */
+            periode_debut: string;
+            /** Format: date */
+            periode_fin: string;
+            /** Format: date-time */
+            emise_le: string;
+            /** Format: date */
+            echeance_le: string;
+            montant_hebergement: number;
+            montant_appli: number;
+            /** @description FCFA, ce que reçoit Souk.dev ; les frais de paiement (ADD_ON) s'ajoutent côté client */
+            montant_total: number;
+            /** @description Somme des avoirs */
+            montant_rembourse: number;
+            statut: components["schemas"]["StatutFacture"];
+            /** Format: date-time */
+            payee_le: string | null;
+            lignes: components["schemas"]["LigneFacture"][];
+            /** @description Tentatives de paiement, la plus récente d'abord */
+            paiements: components["schemas"]["Paiement"][];
+        };
+        Paiement: {
+            id: number;
+            /**
+             * @description Reflet du statut SasPay revérifié par l'API (PENDING, SUCCESS, FAILED ; annule pour une session expirée ou annulée)
+             * @enum {string}
+             */
+            statut: "en_attente" | "reussi" | "echoue" | "annule";
+            /** @description Montant demandé (celui de la facture) */
+            montant: number;
+            /** @description Frais de paiement ajoutés par SasPay (ADD_ON) */
+            frais_client: number | null;
+            /** @description Ce qu'a réellement payé le client */
+            montant_debite: number | null;
+            /** @description Référence SasPay de la transaction */
+            reference: string | null;
+            /** Format: date-time */
+            cree_le: string;
+            /** Format: date-time */
+            verifie_le: string | null;
+        };
+        SessionPaiement: {
+            paiement: components["schemas"]["Paiement"];
+            /**
+             * Format: uri
+             * @description Page de paiement hébergée par SasPay
+             */
+            checkout_url: string;
+        };
+        Revenus: {
+            /** @description FCFA dû au dev : ses parts encaissées moins ses reversements (et corrections) */
+            solde: number;
+            /** @description Parts encaissées depuis le début */
+            encaisse_total: number;
+            /** @description Parts encaissées ce mois-ci */
+            encaisse_mois: number;
+            reverse_total: number;
+            /** @description Solde minimal pour un reversement à la demande (5 000 F) */
+            seuil_demande: number;
+            peut_demander: boolean;
+            /** @description Pourquoi la demande est impossible (solde trop bas, coordonnées non confirmées, reversement en cours) */
+            raison_blocage: string | null;
+            reversement_en_cours: components["schemas"]["Reversement"] | null;
+            /**
+             * Format: date
+             * @description Reversement mensuel automatique
+             */
+            prochain_reversement_le: string;
+            coordonnees: components["schemas"]["CoordonneesReversement"] | null;
+        };
+        /** @description Une écriture du grand livre sur le compte du dev, vue par lui : positive quand il gagne, négative quand il est payé */
+        Mouvement: {
+            id: number;
+            /** @enum {string} */
+            type: "encaissement" | "reversement" | "reversement_annule" | "avoir";
+            montant: number;
+            libelle: string;
+            /** Format: date-time */
+            cree_le: string;
+        };
+        Reversement: {
+            id: number;
+            /** @description Montant reçu par le dev */
+            montant: number;
+            /** @enum {string} */
+            statut: "en_attente" | "reussi" | "echoue";
+            /** @description Code réseau, ex. mtn_bj */
+            reseau: string;
+            /** @description ex. +229 01 •• •• 50 50 */
+            numero_masque: string;
+            /** @enum {string} */
+            declenchement: "mensuel" | "demande";
+            /** Format: date-time */
+            cree_le: string;
+            /** Format: date-time */
+            verifie_le: string | null;
+            erreur: string | null;
+        };
+        ReversementAdmin: components["schemas"]["Reversement"] & {
+            dev: components["schemas"]["Dev"];
+            /** @description Frais de reversement payés par Souk.dev */
+            frais: number | null;
+        };
+        CoordonneesReversement: {
+            pays: components["schemas"]["Pays"];
+            reseau: string;
+            numero_masque: string;
+            /** @description Faux tant que le lien envoyé par e-mail n'a pas été ouvert ; aucun reversement avant */
+            confirme: boolean;
+            /** Format: date-time */
+            confirme_le: string | null;
+        };
+        CoordonneesReversementSaisie: {
+            pays: components["schemas"]["Pays"];
+            /** @description Code d'un réseau de GET /reseaux-mobile-money, du même pays */
+            reseau: string;
+            /** @description Numéro local ou international, ex. 0197505050 ou +2290197505050 */
+            numero: string;
+            numero_confirmation: string;
+        };
+        ReseauMobileMoney: {
+            /** @description Code SasPay, ex. mtn_bj */
+            code: string;
+            /** @description ex. MTN MoMo */
+            nom: string;
+            pays: components["schemas"]["Pays"];
+        };
+        /** @description Tiré du grand livre (entiers FCFA). marge = revenus_hebergement − frais_reversement − avoirs côté hébergement. */
+        Finances: {
+            /** Format: date */
+            debut: string;
+            /** Format: date */
+            fin: string;
+            /** @description Montants encaissés sur la période */
+            encaissements: number;
+            revenus_hebergement: number;
+            /** @description Parts des devs encaissées sur la période */
+            parts_devs: number;
+            /** @description Versé aux devs sur la période */
+            reversements: number;
+            frais_reversement: number;
+            avoirs: number;
+            marge: number;
+            /** @description Dû aux devs aujourd'hui, tous comptes confondus */
+            solde_devs: number;
+            /** @description Ce que le compte SasPay devrait contenir d'après le grand livre */
+            solde_saspay_attendu: number;
+            factures_impayees: number;
+            copies_suspendues: number;
+        };
+        AvoirCreation: {
+            montant_hebergement: number;
+            montant_appli: number;
+            motif: string;
+        };
+        Avoir: {
+            id: number;
+            /** @description ex. AV-2026-000004 */
+            numero: string;
+            facture_id: number;
+            montant_hebergement: number;
+            montant_appli: number;
+            montant_total: number;
+            motif: string;
+            /** Format: date-time */
+            cree_le: string;
+        };
+        Rapprochement: {
+            id: number;
+            /** Format: date */
+            jour: string;
+            /** @description Transactions entrantes réussies chez SasPay ce jour-là */
+            transactions_saspay: number;
+            /** @description Paiements réussis enregistrés chez Souk.dev ce jour-là */
+            paiements_locaux: number;
+            ecarts: {
+                /** @enum {string} */
+                type: "inconnu_chez_souk" | "montant_different" | "reussi_chez_souk_seulement";
+                reference: string;
+                detail: string;
+            }[];
+            /** Format: date-time */
+            cree_le: string;
+        };
         Evenement: {
             id: number;
             titre: string;
@@ -1490,6 +2059,8 @@ export interface components {
         Id: number;
         /** @description Numéro de page (commence à 1) */
         Page: number;
+        /** @description Identifiant unique de l'intention (un UUID). Rejouée avec la même clé, la requête renvoie la réponse d'origine au lieu de recommencer. */
+        CleIdempotence: string;
         /** @description Éléments par page (50 maximum) */
         ParPage: number;
     };
@@ -2158,7 +2729,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Déploiement mis en file ; les changements d'état arrivent par Reverb */
+            /** @description Copie commandée, en attente du paiement de facture_a_payer ; les changements d'état arrivent par Reverb */
             202: {
                 headers: {
                     [name: string]: unknown;
@@ -3197,6 +3768,665 @@ export interface operations {
             409: components["responses"]["Conflit"];
             419: components["responses"]["CsrfInvalide"];
             422: components["responses"]["Invalide"];
+        };
+    };
+    listFactures: {
+        parameters: {
+            query?: {
+                statut?: components["schemas"]["StatutFacture"];
+                /** @description Numéro de page (commence à 1) */
+                page?: components["parameters"]["Page"];
+                /** @description Éléments par page (50 maximum) */
+                per_page?: components["parameters"]["ParPage"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Liste de mes factures */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pagination"] & {
+                        data: components["schemas"]["Facture"][];
+                    };
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+        };
+    };
+    getFacture: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description La facture */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Facture"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            404: components["responses"]["Introuvable"];
+        };
+    };
+    payerFacture: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Identifiant unique de l'intention (un UUID). Rejouée avec la même clé, la requête renvoie la réponse d'origine au lieu de recommencer. */
+                "Idempotency-Key"?: components["parameters"]["CleIdempotence"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Session ouverte */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionPaiement"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            404: components["responses"]["Introuvable"];
+            409: components["responses"]["Conflit"];
+            419: components["responses"]["CsrfInvalide"];
+            429: components["responses"]["TropDeRequetes"];
+            /** @description Le prestataire de paiement est indisponible ; réessayer dans quelques minutes */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+        };
+    };
+    verifierFacture: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description La facture, à jour */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Facture"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            404: components["responses"]["Introuvable"];
+            419: components["responses"]["CsrfInvalide"];
+            429: components["responses"]["TropDeRequetes"];
+        };
+    };
+    lienPaiementFacture: {
+        parameters: {
+            query: {
+                signature: string;
+                expires: number;
+            };
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Redirection vers la page de paiement SasPay, ou vers le front */
+            302: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Lien invalide ou expiré */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: components["responses"]["Introuvable"];
+        };
+    };
+    webhookSasPay: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Webhook-Signature": string;
+                "X-Webhook-Timestamp": number;
+                "X-Webhook-Event"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    event: string;
+                    data: {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+        responses: {
+            /** @description Événement reçu (traité en arrière-plan) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Corps illisible */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Signature invalide ou horodatage hors tolérance */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    pageSimulateurSasPay: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Page HTML du simulateur */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Simulateur désactivé ou session inconnue */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    choisirSimulateurSasPay: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/x-www-form-urlencoded": {
+                    /** @enum {string} */
+                    issue: "succes" | "echec" | "attente";
+                    /** @description Code réseau choisi, ex. mtn_bj */
+                    reseau?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Page de résultat (échec ou attente) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Paiement réussi, retour vers return_url */
+            302: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Simulateur désactivé ou session inconnue */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            419: components["responses"]["CsrfInvalide"];
+        };
+    };
+    getRevenus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Mes revenus */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Revenus"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+        };
+    };
+    listMouvements: {
+        parameters: {
+            query?: {
+                /** @description Numéro de page (commence à 1) */
+                page?: components["parameters"]["Page"];
+                /** @description Éléments par page (50 maximum) */
+                per_page?: components["parameters"]["ParPage"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Mouvements */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pagination"] & {
+                        data: components["schemas"]["Mouvement"][];
+                    };
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+        };
+    };
+    listReversements: {
+        parameters: {
+            query?: {
+                /** @description Numéro de page (commence à 1) */
+                page?: components["parameters"]["Page"];
+                /** @description Éléments par page (50 maximum) */
+                per_page?: components["parameters"]["ParPage"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Reversements */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pagination"] & {
+                        data: components["schemas"]["Reversement"][];
+                    };
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+        };
+    };
+    demanderReversement: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Identifiant unique de l'intention (un UUID). Rejouée avec la même clé, la requête renvoie la réponse d'origine au lieu de recommencer. */
+                "Idempotency-Key"?: components["parameters"]["CleIdempotence"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Reversement initié ; son état se suit dans la liste */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Reversement"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            409: components["responses"]["Conflit"];
+            419: components["responses"]["CsrfInvalide"];
+            422: components["responses"]["Invalide"];
+            429: components["responses"]["TropDeRequetes"];
+        };
+    };
+    getCoordonneesReversement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Coordonnées, ou null si aucune n'est saisie */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CoordonneesReversement"] | null;
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+        };
+    };
+    enregistrerCoordonneesReversement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CoordonneesReversementSaisie"];
+            };
+        };
+        responses: {
+            /** @description Coordonnées enregistrées, en attente de confirmation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CoordonneesReversement"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            419: components["responses"]["CsrfInvalide"];
+            422: components["responses"]["Invalide"];
+            429: components["responses"]["TropDeRequetes"];
+        };
+    };
+    afficherConfirmationReversement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Page HTML de confirmation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Lien expiré ou déjà utilisé, redirection vers « Mes revenus » */
+            302: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    confirmerCoordonneesReversement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Coordonnées confirmées (ou lien expiré), redirection vers le front */
+            302: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Jeton CSRF absent ou expiré */
+            419: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    pageCopieSuspendue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Page HTML « service momentanément indisponible », avec Retry-After */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listReseauxMobileMoney: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Les réseaux */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReseauMobileMoney"][];
+                };
+            };
+        };
+    };
+    getFinancesAdmin: {
+        parameters: {
+            query?: {
+                debut?: string;
+                fin?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Finances */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Finances"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+        };
+    };
+    listFacturesAdmin: {
+        parameters: {
+            query?: {
+                statut?: components["schemas"]["StatutFacture"];
+                /** @description Numéro de page (commence à 1) */
+                page?: components["parameters"]["Page"];
+                /** @description Éléments par page (50 maximum) */
+                per_page?: components["parameters"]["ParPage"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Factures */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pagination"] & {
+                        data: components["schemas"]["Facture"][];
+                    };
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+        };
+    };
+    creerAvoir: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Identifiant unique de l'intention (un UUID). Rejouée avec la même clé, la requête renvoie la réponse d'origine au lieu de recommencer. */
+                "Idempotency-Key"?: components["parameters"]["CleIdempotence"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AvoirCreation"];
+            };
+        };
+        responses: {
+            /** @description Avoir enregistré */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Avoir"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+            404: components["responses"]["Introuvable"];
+            409: components["responses"]["Conflit"];
+            419: components["responses"]["CsrfInvalide"];
+            422: components["responses"]["Invalide"];
+        };
+    };
+    listReversementsAdmin: {
+        parameters: {
+            query?: {
+                /** @description Numéro de page (commence à 1) */
+                page?: components["parameters"]["Page"];
+                /** @description Éléments par page (50 maximum) */
+                per_page?: components["parameters"]["ParPage"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Reversements */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pagination"] & {
+                        data: components["schemas"]["ReversementAdmin"][];
+                    };
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+        };
+    };
+    listRapprochements: {
+        parameters: {
+            query?: {
+                /** @description Numéro de page (commence à 1) */
+                page?: components["parameters"]["Page"];
+                /** @description Éléments par page (50 maximum) */
+                per_page?: components["parameters"]["ParPage"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Rapprochements */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pagination"] & {
+                        data: components["schemas"]["Rapprochement"][];
+                    };
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
         };
     };
 }

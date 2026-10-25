@@ -28,6 +28,15 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    // Encaissement (et reversements) : clé secrète côté serveur seulement, jamais journalisée.
+    'saspay' => [
+        'cle' => env('SASPAY_SECRET_KEY'),
+        'secret_webhook' => env('SASPAY_WEBHOOK_SECRET'),
+        'url' => env('SASPAY_BASE_URL', 'https://api.saspay.me/api/v1'),
+        'delai' => 20,
+        'tolerance_webhook' => 300,
+    ],
+
     'github' => [
         'client_id' => env('GITHUB_CLIENT_ID'),
         'client_secret' => env('GITHUB_CLIENT_SECRET'),

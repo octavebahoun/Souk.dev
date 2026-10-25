@@ -202,7 +202,7 @@ YAML);
 
         $limites = file_get_contents($repertoire.DIRECTORY_SEPARATOR.'docker-compose.soukdev.yml');
         $this->assertIsString($limites);
-        $this->assertStringContainsString("  front:\n    mem_limit: 2g", $limites);
+        $this->assertStringContainsString("  front:\n    restart: unless-stopped\n    mem_limit: 2g", $limites);
         $this->assertStringContainsString('cpus: "2"', $limites);
     }
 

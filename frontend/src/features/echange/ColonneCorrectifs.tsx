@@ -247,12 +247,14 @@ export function ColonneCorrectifs({ discussion, auteur, page, onPage }: ColonneC
 }
 
 const etatCopie = {
+  attente_paiement: 'En attente de paiement',
   en_file: 'En file',
   construction: 'Construction',
   demarrage: 'Démarrage',
   en_ligne: 'En ligne',
   echec: 'Échec',
   arret_en_cours: 'Arrêt en cours',
+  suspendu: 'Suspendue',
   arrete: 'Arrêtée',
 } as const
 

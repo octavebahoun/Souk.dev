@@ -18,6 +18,7 @@ class LimitesTailleTest extends TestCase
             $this->assertSame(<<<'YAML'
 services:
   front:
+    restart: unless-stopped
     mem_limit: 512m
     memswap_limit: 512m
     cpus: "0.5"
@@ -43,6 +44,7 @@ services:
     networks:
       soukdev-copie: {}
   db:
+    restart: unless-stopped
     mem_limit: 512m
     memswap_limit: 512m
     cpus: "0.5"

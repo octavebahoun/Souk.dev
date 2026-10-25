@@ -178,6 +178,30 @@ class LanceurCompose
         $this->echouerSiComposeRate($resultat, 'L\'arrêt Docker Compose a échoué.');
     }
 
+    /** Suspension pour impayé : conteneurs arrêtés, volumes et images gardés pour la reprise. */
+    public function suspendre(string $repertoire, string $copie): void
+    {
+        $this->verifierNomCopie($copie);
+
+        $resultat = Commande::isolee()->path(is_dir($repertoire) ? $repertoire : sys_get_temp_dir())
+            ->timeout((int) config('moteur.down_timeout', 120))
+            ->run(['docker', 'compose', '-p', $copie, 'stop']);
+
+        $this->echouerSiComposeRate($resultat, 'La suspension Docker Compose a échoué.');
+    }
+
+    /** Reprise après paiement : les mêmes conteneurs repartent, avec leurs données. */
+    public function reprendre(string $repertoire, string $copie): void
+    {
+        $this->verifierNomCopie($copie);
+
+        $resultat = Commande::isolee()->path(is_dir($repertoire) ? $repertoire : sys_get_temp_dir())
+            ->timeout((int) config('moteur.compose_timeout', 600))
+            ->run(['docker', 'compose', '-p', $copie, 'start']);
+
+        $this->echouerSiComposeRate($resultat, 'La reprise Docker Compose a échoué.');
+    }
+
     /**
      * @return list<string>
      */

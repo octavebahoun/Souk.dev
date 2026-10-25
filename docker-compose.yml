@@ -43,6 +43,10 @@ x-php: &php
     MOTEUR_PROXY_ROUTES: /app/storage/app/private/proxy
     # Développement seulement : connexion aux comptes du jeu de démo (tests de bout en bout).
     DEMO_CONNEXION: "true"
+    # Paiement simulé par défaut (parcours réussis) ; PAIEMENT_PASSERELLE=saspay docker compose up -d
+    # pour l'API réelle, où les paiements de ce compte échouent volontairement.
+    PAIEMENT_PASSERELLE: ${PAIEMENT_PASSERELLE:-simulee}
+    SIMULATEUR_WEBHOOK_URL: http://api:8000/api/webhooks/saspay
   networks: [interne]
   depends_on: &php-depends
     db:

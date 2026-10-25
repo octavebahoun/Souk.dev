@@ -124,6 +124,29 @@ class MoteurDeploiement
         $this->lanceur->arreter($copie->repertoire, $copie->id);
     }
 
+    /** Impayé : la page « copie suspendue » d'abord (le sous-domaine ne tombe jamais en erreur), puis l'arrêt. */
+    public function suspendre(string $repertoire, string $copie): void
+    {
+        $this->routeur->publierPageSuspendue($copie);
+        $this->lanceur->suspendre($repertoire, $copie);
+    }
+
+    /**
+     * Paiement reçu : les mêmes conteneurs repartent avec leurs données ; le sous-domaine revient
+     * vers le service web une fois celui-ci sondé (son adresse a pu changer au redémarrage).
+     */
+    public function reprendre(string $repertoire, string $copie): void
+    {
+        $manifeste = $this->validateur->validerFichier($repertoire.DIRECTORY_SEPARATOR.'soukdev.json');
+        $this->lanceur->reprendre($repertoire, $copie);
+
+        $nom = $manifeste['service_web']['nom'];
+        $port = (int) $manifeste['service_web']['port'];
+        $hote = $this->lanceur->adresseService($repertoire, $copie, $nom);
+        $this->sonde->attendre($hote, $port, $copie.'_'.Durcissement::RESEAU);
+        $this->routeur->publier($copie, $hote, $port);
+    }
+
     public function nouveauId(string $base): string
     {
         $slug = Str::slug($base);

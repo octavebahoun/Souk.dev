@@ -14,6 +14,7 @@ use App\Http\Resources\CompteResource;
 use App\Http\Resources\DevResource;
 use App\Models\Appli;
 use App\Models\User;
+use App\Paiement\GrandLivre;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -25,8 +26,16 @@ final class CompteController extends Controller
         return new CompteResource($request->user());
     }
 
-    public function tableau(Request $request): JsonResponse
+    /**
+     * Tableau de bord du dev : revenus réels tirés du grand livre (ses parts sur les factures
+     * payées), plus les vues et les copies de chaque appli.
+     */
+    public function tableau(Request $request, GrandLivre $grandLivre): JsonResponse
     {
+        $dev = $request->user();
+        $duMois = $grandLivre->encaisseDevParAppli($dev->id, now()->startOfMonth());
+        $total = $grandLivre->encaisseDevParAppli($dev->id);
+
         $applis = Appli::query()
             ->where('user_id', $request->user()->id)
             ->withCount([
@@ -37,34 +46,24 @@ final class CompteController extends Controller
             ])
             ->orderByDesc('id')
             ->get()
-            ->map(function (Appli $appli): array {
-                $prix = (int) $appli->prix;
-                $revenu = $appli->type_prix === 'mensuel'
-                    ? (int) $appli->copies_actives * $prix
-                    : (int) $appli->deploiements_total * $prix;
-
-                return [
-                    'app_id' => $appli->id,
-                    'nom' => (string) $appli->nom,
-                    'type_prix' => (string) $appli->type_prix,
-                    'prix' => $prix,
-                    'vues' => (int) $appli->vues,
-                    'copies_actives' => (int) $appli->copies_actives,
-                    'deploiements_total' => (int) $appli->deploiements_total,
-                    'revenu_estime' => $revenu,
-                ];
-            });
+            ->map(fn (Appli $appli): array => [
+                'app_id' => $appli->id,
+                'nom' => (string) $appli->nom,
+                'type_prix' => (string) $appli->type_prix,
+                'prix' => (int) $appli->prix,
+                'vues' => (int) $appli->vues,
+                'copies_actives' => (int) $appli->copies_actives,
+                'deploiements_total' => (int) $appli->deploiements_total,
+                'revenu_mois' => $duMois[$appli->id] ?? 0,
+                'revenu_total' => $total[$appli->id] ?? 0,
+            ]);
 
         return response()->json([
             'totaux' => [
                 'vues' => (int) $applis->sum('vues'),
                 'copies_actives' => (int) $applis->sum('copies_actives'),
-                'revenus_estimes_mensuels' => (int) $applis
-                    ->where('type_prix', 'mensuel')
-                    ->sum('revenu_estime'),
-                'revenus_estimes_uniques' => (int) $applis
-                    ->where('type_prix', 'unique')
-                    ->sum('revenu_estime'),
+                'revenus_mois' => $grandLivre->encaisseDev($dev->id, now()->startOfMonth()),
+                'revenus_total' => $grandLivre->encaisseDev($dev->id),
             ],
             'applis' => $applis->values(),
         ]);

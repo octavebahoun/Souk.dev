@@ -37,6 +37,21 @@
         <env name="REVERB_APP_KEY" value="valeur-de-test" force="true"/>
         <env name="REVERB_APP_SECRET" value="valeur-de-test" force="true"/>
         <env name="REVERB_APP_ID" value="soukdev" force="true"/>
+        <!-- Jamais la vraie API SasPay dans les tests (la clé de backend/.env est une clé de production). -->
+        <env name="PAIEMENT_PASSERELLE" value="simulee" force="true"/>
+        <env name="SASPAY_SECRET_KEY" value="" force="true"/>
+        <env name="SASPAY_WEBHOOK_SECRET" value="secret-webhook-de-test" force="true"/>
+        <env name="SASPAY_BASE_URL" value="https://saspay.test/api/v1" force="true"/>
+        <env name="REVERSEMENTS_REELS" value="false" force="true"/>
+        <env name="SIMULATEUR_WEBHOOK_URL" value="http://localhost:8000/api/webhooks/saspay" force="true"/>
+        <env name="ADMIN_EMAIL" value="admin@exemple.test" force="true"/>
+        <server name="PAIEMENT_PASSERELLE" value="simulee"/>
+        <server name="SASPAY_SECRET_KEY" value=""/>
+        <server name="SASPAY_WEBHOOK_SECRET" value="secret-webhook-de-test"/>
+        <server name="SASPAY_BASE_URL" value="https://saspay.test/api/v1"/>
+        <server name="REVERSEMENTS_REELS" value="false"/>
+        <server name="SIMULATEUR_WEBHOOK_URL" value="http://localhost:8000/api/webhooks/saspay"/>
+        <server name="ADMIN_EMAIL" value="admin@exemple.test"/>
         <server name="BROADCAST_CONNECTION" value="null"/>
         <server name="DEMO_CONNEXION" value="false"/>
         <server name="CACHE_STORE" value="array"/>

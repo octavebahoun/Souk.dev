@@ -51,6 +51,41 @@ class RouteurCopiesTest extends TestCase
         $this->assertFileDoesNotExist($chemin.'.tmp');
     }
 
+    public function test_une_copie_suspendue_affiche_la_page_de_la_plateforme(): void
+    {
+        $routeur = new RouteurCopies($this->dossier, 'https://{copie}.soukdev.com', 'http://api:8000');
+        $routeur->publier('d42', '172.18.0.3', 8080);
+
+        $chemin = $routeur->publierPageSuspendue('d42');
+
+        $this->assertSame(<<<'YAML'
+            http:
+              routers:
+                d42:
+                  rule: "Host(`d42.soukdev.com`)"
+                  service: d42
+                  middlewares:
+                    - d42-suspendue
+              middlewares:
+                d42-suspendue:
+                  replacePath:
+                    path: "/copie-suspendue"
+              services:
+                d42:
+                  loadBalancer:
+                    servers:
+                      - url: "http://api:8000"
+
+            YAML, file_get_contents($chemin));
+    }
+
+    public function test_une_adresse_de_page_suspendue_douteuse_est_refusee(): void
+    {
+        $this->expectException(LancementEchoue::class);
+
+        (new RouteurCopies($this->dossier, 'https://{copie}.soukdev.com', "http://api:8000\"\n  evil: x"))->publierPageSuspendue('d42');
+    }
+
     public function test_une_adresse_ipv6_est_entre_crochets(): void
     {
         $chemin = $this->routeur()->publier('d42', 'fd00::3', 80);

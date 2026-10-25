@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Middleware\Idempotence;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -32,6 +33,9 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->statefulApi();
         $middleware->api(append: [
             'throttle:60,1',
+        ]);
+        $middleware->alias([
+            'idempotence' => Idempotence::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

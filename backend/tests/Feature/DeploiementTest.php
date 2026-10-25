@@ -32,30 +32,55 @@ class DeploiementTest extends TestCase
         Cache::flush();
     }
 
-    public function test_le_post_repond_en_file_et_met_le_travail_en_attente(): void
+    public function test_la_commande_attend_le_paiement_sans_rien_lancer(): void
     {
         Queue::fake();
         Event::fake([DeploiementEtat::class]);
-        $utilisateur = User::factory()->create();
-        $appli = $this->appli($utilisateur, 'moyenne');
+        $client = User::factory()->client()->create();
+        $appli = $this->appli(User::factory()->github()->create(), 'moyenne');
+        $appli->forceFill([
+            'prix' => 15000,
+            'type_prix' => 'mensuel',
+            'variables_client' => [['nom' => 'APP_NOM', 'libelle' => 'Nom de la pharmacie', 'requis' => true]],
+        ])->save();
 
-        $reponse = $this->actingAs($utilisateur)->postJson('/api/apps/'.$appli->id.'/deployments', [
+        $reponse = $this->actingAs($client)->postJson('/api/apps/'.$appli->id.'/deployments', [
             'variables' => ['APP_NOM' => 'Pharmacie du Port'],
         ]);
 
+        // Hébergement moyen (7 000 F) et prix mensuel de l'appli (15 000 F) sur la première facture.
         $reponse->assertStatus(202)
-            ->assertJsonPath('etat', 'en_file')
+            ->assertJsonPath('etat', 'attente_paiement')
             ->assertJsonPath('app_id', $appli->id)
             ->assertJsonPath('app_nom', 'Cobaye')
             ->assertJsonPath('taille', 'moyenne')
-            ->assertJsonPath('url', null);
+            ->assertJsonPath('url', null)
+            ->assertJsonPath('abonnement.statut', 'en_attente')
+            ->assertJsonPath('facture_a_payer.montant_total', 22000);
 
-        Queue::assertPushed(LancerDeploiement::class);
+        Queue::assertNotPushed(LancerDeploiement::class);
         Event::assertDispatched(DeploiementEtat::class, function (DeploiementEtat $event) {
-            return $event->payload['etat'] === 'en_file'
+            return $event->payload['etat'] === 'attente_paiement'
                 && $event->broadcastAs() === 'deploiement.etat'
                 && $event->broadcastOn()[0]->name === 'private-deploiement.'.$event->deploiementId;
         });
+    }
+
+    public function test_une_variable_obligatoire_manquante_est_refusee_avant_de_payer(): void
+    {
+        $client = User::factory()->client()->create();
+        $appli = $this->appli(User::factory()->github()->create());
+        $appli->forceFill(['variables_client' => [['nom' => 'APP_NOM', 'libelle' => 'Nom de la pharmacie', 'requis' => true]]])->save();
+
+        $this->actingAs($client)
+            ->postJson('/api/apps/'.$appli->id.'/deployments', ['variables' => ['AUTRE' => 'x']])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors([
+                'variables.APP_NOM' => 'Renseignez « Nom de la pharmacie ».',
+                'variables.AUTRE' => "La variable AUTRE n'est pas demandée par cette appli.",
+            ]);
+
+        $this->assertDatabaseCount('factures', 0);
     }
 
     public function test_un_invite_recoit_401(): void
