@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { createMemoryRouter, RouterProvider } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { routes } from '../../app/router'
+import { creerRoutes } from '../../app/router'
 import { cheminLaravel, client } from '../../shared/client'
 import type { Discussion, Message } from './api'
 
@@ -94,7 +94,7 @@ function reponses(options: { discussion?: Discussion | Error; messages?: Message
 }
 
 function rendu() {
-  const router = createMemoryRouter(routes, { initialEntries: ['/echange/12'] })
+  const router = createMemoryRouter(creerRoutes(), { initialEntries: ['/echange/12'] })
   render(<RouterProvider router={router} />)
 }
 

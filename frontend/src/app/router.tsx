@@ -1,47 +1,47 @@
 import { createBrowserRouter } from 'react-router'
-import { Accueil } from '../features/accueil/Accueil'
-import { Copies } from '../features/catalogue/Copies'
-import { Deployer } from '../features/catalogue/Deployer'
-import { Evenements } from '../features/catalogue/Evenements'
-import { Fiche } from '../features/catalogue/Fiche'
-import { Missions } from '../features/catalogue/Missions'
-import { Publier } from '../features/catalogue/Publier'
-import { Recherche } from '../features/catalogue/Recherche'
-import { Store } from '../features/catalogue/Store'
-import { Fil } from '../features/echange/Fil'
-import { PageDiscussion } from '../features/echange/PageDiscussion'
+import type { RouteObject } from 'react-router'
 import { Fournisseurs } from './Fournisseurs'
 import { Layout } from './Layout'
 import { PageEnAttente } from './PageEnAttente'
+import { brancherComptes } from '../features/comptes/brancher'
 
-export const routes = [
+export function creerRoutes(): RouteObject[] {
+  const routes: RouteObject[] = [
   {
     element: <Fournisseurs />,
+    hydrateFallbackElement: (
+      <main role="status" aria-label="Chargement de Souk.dev" className="grid min-h-svh place-items-center bg-canvas">
+        <span aria-hidden="true" className="squelette h-2 w-32 rounded-full" />
+      </main>
+    ),
     children: [
-      { path: '/', element: <Accueil /> },
+      { index: true, lazy: async () => ({ Component: (await import('../features/accueil/Accueil')).Accueil }) },
       { path: '/connexion', element: <PageEnAttente titre="Connexion" /> },
       {
         element: <Layout />,
         children: [
-          { path: '/echange', element: <Fil /> },
-          { path: '/echange/:id', element: <PageDiscussion /> },
-          { path: '/store', element: <Store /> },
-          { path: '/store/:id', element: <Fiche /> },
-          { path: '/store/:id/deployer', element: <Deployer /> },
-          { path: '/devs', element: <Recherche /> },
-          { path: '/evenements', element: <Evenements /> },
-          { path: '/missions', element: <Missions /> },
+          { path: '/echange', lazy: async () => ({ Component: (await import('../features/echange/Fil')).Fil }) },
+          { path: '/echange/:id', lazy: async () => ({ Component: (await import('../features/echange/PageDiscussion')).PageDiscussion }) },
+          { path: '/store', lazy: async () => ({ Component: (await import('../features/catalogue/Store')).Store }) },
+          { path: '/store/:id', lazy: async () => ({ Component: (await import('../features/catalogue/Fiche')).Fiche }) },
+          { path: '/store/:id/deployer', lazy: async () => ({ Component: (await import('../features/catalogue/Deployer')).Deployer }) },
+          { path: '/devs', lazy: async () => ({ Component: (await import('../features/catalogue/Recherche')).Recherche }) },
+          { path: '/evenements', lazy: async () => ({ Component: (await import('../features/catalogue/Evenements')).Evenements }) },
+          { path: '/missions', lazy: async () => ({ Component: (await import('../features/catalogue/Missions')).Missions }) },
           { path: '/devs/:username', element: <PageEnAttente titre="Profil" /> },
           { path: '/tableau', element: <PageEnAttente titre="Tableau de bord" /> },
-          { path: '/copies', element: <Copies /> },
-          { path: '/publier', element: <Publier /> },
+          { path: '/copies', lazy: async () => ({ Component: (await import('../features/catalogue/Copies')).Copies }) },
+          { path: '/publier', lazy: async () => ({ Component: (await import('../features/catalogue/Publier')).Publier }) },
         ],
       },
       { path: '*', element: <PageEnAttente titre="Page introuvable" /> },
     ],
   },
-]
+  ]
+  brancherComptes(routes)
+  return routes
+}
 
 export function creerRouter() {
-  return createBrowserRouter(routes)
+  return createBrowserRouter(creerRoutes())
 }

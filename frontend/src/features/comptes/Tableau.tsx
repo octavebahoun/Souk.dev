@@ -1,7 +1,7 @@
 import { Link } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import { isAxiosError } from 'axios'
-import { lireMoi } from '../echange/api'
+import { lireMoi, messageAction } from '../echange/api'
 import { lireTableau, type Compte } from './api'
 
 const niveaux: Record<Compte['reputation']['niveau'], string> = {
@@ -23,23 +23,34 @@ function lettres(nom: string | null, username: string | null): string {
 }
 
 export function Tableau() {
-  const prism = Boolean(import.meta.env.VITE_API_URL)
   const moi = useQuery({ queryKey: ['moi'], queryFn: lireMoi })
   const tableau = useQuery({
     queryKey: ['tableau'],
     queryFn: lireTableau,
-    enabled: Boolean(moi.data) && prism,
+    enabled: Boolean(moi.data),
   })
   const compte = moi.data
 
-  if (moi.isPending || (compte && prism && tableau.isPending)) {
-    return <div role="status" aria-label="Chargement du tableau" className="squelette mx-auto mt-8 h-64 max-w-[1200px] rounded-[18px]" />
+  if (moi.isPending || (compte && tableau.isPending)) {
+    return <div role="status" aria-label="Chargement du tableau" className="squelette mx-auto mt-8 h-64 max-w-[1440px] rounded-[18px]" />
+  }
+
+  if (moi.isError) {
+    return (
+      <div className="reseau bg-page px-4 py-10">
+        <div className="mx-auto max-w-[1440px] px-4 min-[761px]:px-9">
+          <h1 className="m-0 text-[30px] font-extrabold tracking-tight">Tableau de bord</h1>
+          <p role="alert" className="m-0 text-muted">{messageAction(moi.error, 'Impossible de vérifier la connexion au compte.')}</p>
+          <button type="button" onClick={() => void moi.refetch()} className="mt-3 inline-flex min-h-cible items-center rounded-controle border border-line bg-canvas px-4 font-semibold">Réessayer</button>
+        </div>
+      </div>
+    )
   }
 
   if (!compte) {
     return (
       <div className="reseau bg-page px-4 py-10">
-        <div className="mx-auto max-w-[1200px]">
+        <div className="mx-auto max-w-[1440px] px-4 min-[761px]:px-9">
           <h1 className="m-0 text-[30px] font-extrabold tracking-tight">Tableau de bord</h1>
           <p className="m-0 text-muted">Connectez-vous pour voir vos applis.</p>
           <Link to="/connexion" className="inline-flex min-h-cible items-center font-semibold">Connexion</Link>
@@ -53,7 +64,7 @@ export function Tableau() {
   return (
     <div className="reseau relative overflow-hidden bg-page">
       <Reseau />
-      <div className="relative mx-auto flex max-w-[1200px] flex-col gap-6 px-4 py-7 min-[761px]:px-6">
+      <div className="relative mx-auto flex max-w-[1440px] flex-col gap-6 px-4 py-7 min-[761px]:px-9">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h1 className="m-0 text-[30px] leading-tight font-extrabold tracking-[-0.015em]">Tableau de bord</h1>
@@ -104,19 +115,12 @@ export function Tableau() {
           </span>
         </div>
 
-        {!prism ? (
-          <p role="status" className="m-0 rounded-[14px] border border-line bg-canvas p-4 text-sm">
-            Les totaux ne sont pas encore sur Laravel. Lance Prism et remplis VITE_API_URL pour les voir.
-          </p>
-        ) : null}
-
         {tableau.isError ? (
           <div className="flex flex-col gap-2">
             <p role="alert" className="m-0">
-              {isAxiosError(tableau.error) && tableau.error.response?.status === 401
-                ? 'Connectez-vous pour voir votre tableau de bord.'
-                : 'Le tableau n’a pas pu être chargé.'}
+              {messageAction(tableau.error, 'Le tableau n’a pas pu être chargé.')}
             </p>
+            {isAxiosError(tableau.error) && tableau.error.response?.status === 401 ? <Link to="/connexion" className="inline-flex min-h-cible items-center font-semibold">Se connecter</Link> : null}
             <button type="button" onClick={() => tableau.refetch()} className="min-h-cible w-fit rounded-controle bg-accent px-4 font-semibold text-canvas">
               Réessayer
             </button>
@@ -125,10 +129,10 @@ export function Tableau() {
 
         {totaux ? (
           <section aria-label="Totaux" className="grid gap-3.5 min-[761px]:grid-cols-2 min-[1100px]:grid-cols-4">
-            <CarteBleue titre="Vues" valeur={totaux.vues.toLocaleString('fr-FR')} detail="un visiteur compté une fois par jour" />
-            <CarteBleue titre="Copies actives" valeur={String(totaux.copies_actives)} detail="en ligne chez des clients" />
-            <CarteBleue titre="Revenu mensuel estimé" valeur={`${fcfa(totaux.revenus_estimes_mensuels)}/mois`} detail="copies actives × prix" />
-            <CarteBleue titre="Ventes uniques estimées" valeur={fcfa(totaux.revenus_estimes_uniques)} detail="déploiements × prix, au total" />
+            <CarteBleue reveler titre="Vues" valeur={totaux.vues.toLocaleString('fr-FR')} detail="un visiteur compté une fois par jour" />
+            <CarteBleue reveler titre="Copies actives" valeur={String(totaux.copies_actives)} detail="en ligne chez des clients" />
+            <CarteBleue reveler titre="Revenu mensuel estimé" valeur={`${fcfa(totaux.revenus_estimes_mensuels)}/mois`} detail="copies actives × prix" />
+            <CarteBleue reveler titre="Ventes uniques estimées" valeur={fcfa(totaux.revenus_estimes_uniques)} detail="déploiements × prix, au total" />
           </section>
         ) : null}
 
@@ -175,9 +179,9 @@ export function Tableau() {
   )
 }
 
-function CarteBleue({ titre, valeur, detail }: { titre: string; valeur: string; detail: string }) {
+function CarteBleue({ titre, valeur, detail, reveler = false }: { titre: string; valeur: string; detail: string; reveler?: boolean }) {
   return (
-    <article className="carte-bleue flex min-h-[148px] flex-col justify-end gap-1 rounded-[18px] px-5 py-5 text-canvas shadow-[0_12px_28px_rgba(31,79,224,0.18)]">
+    <article data-reveal-item={reveler ? '' : undefined} className="carte-bleue flex min-h-[148px] flex-col justify-end gap-1 rounded-[18px] px-5 py-5 text-canvas shadow-[0_12px_28px_rgba(31,79,224,0.18)]">
       <span className="text-[13.5px] text-white/80">{titre}</span>
       <strong className="text-[30px] leading-none tracking-tight">{valeur}</strong>
       <span className="text-[12.5px] text-white/75">{detail}</span>

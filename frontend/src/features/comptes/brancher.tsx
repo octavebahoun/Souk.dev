@@ -1,21 +1,17 @@
 import type { RouteObject } from 'react-router'
-import { Connexion } from './Connexion'
-import { Profil } from './Profil'
-import { Tableau } from './Tableau'
 
-let fait = false
-
-function remplacer(routes: RouteObject[], chemin: string, element: RouteObject['element']) {
+function remplacer(routes: RouteObject[], chemin: string, charger: NonNullable<RouteObject['lazy']>) {
   for (const route of routes) {
-    if (route.path === chemin) route.element = element
-    if (route.children) remplacer(route.children, chemin, element)
+    if (route.path === chemin) {
+      delete route.element
+      route.lazy = charger
+    }
+    if (route.children) remplacer(route.children, chemin, charger)
   }
 }
 
 export function brancherComptes(routes: RouteObject[]) {
-  if (fait) return
-  fait = true
-  remplacer(routes, '/connexion', <Connexion />)
-  remplacer(routes, '/devs/:username', <Profil />)
-  remplacer(routes, '/tableau', <Tableau />)
+  remplacer(routes, '/connexion', async () => ({ Component: (await import('./Connexion')).Connexion }))
+  remplacer(routes, '/devs/:username', async () => ({ Component: (await import('./Profil')).Profil }))
+  remplacer(routes, '/tableau', async () => ({ Component: (await import('./Tableau')).Tableau }))
 }

@@ -1,12 +1,17 @@
 import type { ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router'
-import { useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery } from '@tanstack/react-query'
 import { categories, fcfa, libelleCategorie, listerApplis, type Appli } from './api'
-import { Fenetre } from './Fenetre'
 import { teintes } from './teintes'
 import { nomPays } from '../echange/texte'
+import { messageAction } from '../echange/api'
 
-const page = 'mx-auto flex max-w-[1200px] flex-col gap-6 px-4 py-8 min-[761px]:px-6'
+const page = 'mx-auto flex max-w-[1440px] flex-col gap-6 px-4 py-8 min-[761px]:px-9'
+
+type PageStore = {
+  data: Appli[]
+  meta: { current_page: number; last_page: number; per_page: number; total: number }
+}
 
 export function Store() {
   const [params, setParams] = useSearchParams()
@@ -20,10 +25,11 @@ export function Store() {
     gratuit: params.get('gratuit') === '1',
     securite: params.get('securite') === '1',
   }
-  const applis = useQuery({
+  const applis = useInfiniteQuery<PageStore>({
     queryKey: ['applis', filtres],
-    queryFn: () =>
-      listerApplis({
+    queryFn: async ({ pageParam }) => {
+      const numeroPage = Number(pageParam)
+      const filtresApi = {
         q: filtres.q || undefined,
         categorie: filtres.categorie || undefined,
         pays: filtres.pays || undefined,
@@ -32,7 +38,13 @@ export function Store() {
         tri: filtres.tri,
         gratuit: filtres.gratuit || undefined,
         securite: filtres.securite || undefined,
-      }),
+        page: numeroPage > 1 ? numeroPage : undefined,
+      }
+      return listerApplis(filtresApi)
+    },
+    initialPageParam: 1,
+    getNextPageParam: (derniere) =>
+      derniere.meta.current_page < derniere.meta.last_page ? derniere.meta.current_page + 1 : undefined,
   })
 
   function changer(cle: string, valeur: string) {
@@ -42,8 +54,8 @@ export function Store() {
     setParams(suivant)
   }
 
-  const liste = applis.data?.data ?? []
-  const total = applis.data ? Math.max(applis.data.meta.total, liste.length) : 0
+  const liste = applis.data?.pages.flatMap((lot) => lot.data) ?? []
+  const total = applis.data?.pages[0] ? Math.max(applis.data.pages[0].meta.total, liste.length) : 0
 
   return (
     <div>
@@ -52,7 +64,7 @@ export function Store() {
           <div>
             <h1 className="m-0 text-[30px] font-bold tracking-tight">Store</h1>
             <p className="m-0 max-w-[62ch] text-muted">
-              Des applis complètes, faites par des devs africains. Testez la démo, puis déployez votre propre copie en un clic.
+              Des applis publiées par des devs africains. Consultez leur fiche et ouvrez leur application en ligne si l’auteur a fourni une URL.
             </p>
           </div>
           <Link to="/publier" className="inline-flex min-h-cible w-full items-center justify-center rounded-controle bg-accent px-5 font-semibold text-canvas no-underline min-[761px]:w-auto">
@@ -61,14 +73,17 @@ export function Store() {
         </div>
 
         <form className="verre flex flex-col gap-3.5 rounded-[14px] p-[18px]" onSubmit={(evenement) => evenement.preventDefault()}>
-          <input
-            type="search"
-            value={filtres.q}
-            aria-label="Rechercher une appli"
-            placeholder="Rechercher : stock, paiement, réservation…"
-            onChange={(evenement) => changer('q', evenement.target.value)}
-            className="min-h-cible rounded-controle border border-line bg-canvas px-3.5"
-          />
+          <div className="relative">
+            <span aria-hidden="true" className="pointer-events-none absolute top-3.5 left-3.5 text-muted">⌕</span>
+            <input
+              type="search"
+              value={filtres.q}
+              aria-label="Rechercher une appli"
+              placeholder="Rechercher : stock, paiement, réservation…"
+              onChange={(evenement) => changer('q', evenement.target.value)}
+              className="min-h-cible w-full rounded-controle border border-line bg-canvas pr-3.5 pl-10"
+            />
+          </div>
           <div className="grid gap-3 min-[761px]:grid-cols-5">
             <Champ label="Catégorie">
               <select className="champ-select" value={filtres.categorie} onChange={(e) => changer('categorie', e.target.value)}>
@@ -92,6 +107,7 @@ export function Store() {
                 <option value="10000">10 000 F</option>
                 <option value="20000">20 000 F</option>
                 <option value="100000">100 000 F</option>
+                <option value="200000">200 000 F</option>
               </select>
             </Champ>
             <Champ label="Type de prix">
@@ -110,26 +126,39 @@ export function Store() {
             </Champ>
           </div>
           <div className="flex flex-wrap items-center gap-4">
-            <button type="button" className="min-h-cible font-semibold" aria-pressed={filtres.gratuit} onClick={() => changer('gratuit', filtres.gratuit ? '' : '1')}>
-              {filtres.gratuit ? '●' : '○'} Gratuites uniquement
+            <button type="button" role="switch" className="inline-flex min-h-cible items-center gap-2.5 font-semibold" aria-checked={filtres.gratuit} onClick={() => changer('gratuit', filtres.gratuit ? '' : '1')}>
+              <span aria-hidden="true" className={`relative inline-block h-[22px] w-10 rounded-full ${filtres.gratuit ? 'bg-accent' : 'bg-[#CBD5E1]'}`}>
+                <span className={`absolute top-[3px] size-4 rounded-full bg-canvas ${filtres.gratuit ? 'left-[21px]' : 'left-[3px]'}`} />
+              </span>
+              Gratuites uniquement
             </button>
             <label className="inline-flex min-h-cible items-center gap-2 font-semibold">
               <input type="checkbox" checked={filtres.securite} onChange={() => changer('securite', filtres.securite ? '' : '1')} />
               Security Checked seulement
             </label>
             <span role="status" className="ml-auto text-sm text-muted">{applis.isSuccess ? `${total} appli${total > 1 ? 's' : ''}` : ''}</span>
+            {filtres.q || filtres.categorie || filtres.pays || filtres.prix_max || filtres.type_prix || filtres.gratuit || filtres.securite ? (
+              <button type="button" onClick={() => setParams({})} className="min-h-cible rounded-controle border border-line bg-canvas px-3.5 text-sm font-semibold text-accent">Réinitialiser</button>
+            ) : null}
           </div>
         </form>
 
         {applis.isPending ? <div role="status" aria-label="Chargement du store" className="squelette h-64 rounded-[18px]" /> : null}
         {applis.isError ? (
-          <button type="button" onClick={() => applis.refetch()} className="min-h-cible w-fit rounded-controle bg-accent px-4 font-semibold text-canvas">Réessayer</button>
+          <div className="verre flex flex-wrap items-center justify-between gap-3 rounded-[14px] p-5">
+            <p role="alert" className="m-0 text-subtle">{messageAction(applis.error, 'Le Store n’a pas pu charger les applis.')}</p>
+            <button type="button" onClick={() => applis.refetch()} className="min-h-cible rounded-controle bg-accent px-4 font-semibold text-canvas">Réessayer</button>
+          </div>
         ) : null}
         {applis.isSuccess && liste.length === 0 ? (
           <div className="verre rounded-[14px] border-dashed px-5 py-10 text-center">
-            <strong>Aucune appli ne correspond à ces filtres</strong>
-            <p className="m-0 text-subtle">Essayez un autre mot, ou élargissez les filtres.</p>
-            <button type="button" onClick={() => setParams({})} className="mt-3 min-h-cible rounded-controle bg-accent px-5 font-semibold text-canvas">Réinitialiser les filtres</button>
+            <strong>{filtres.q || filtres.categorie || filtres.pays || filtres.prix_max || filtres.type_prix || filtres.gratuit || filtres.securite ? 'Aucune appli ne correspond à ces filtres' : 'Aucune appli publiée pour le moment'}</strong>
+            <p className="m-0 text-subtle">{filtres.q || filtres.categorie || filtres.pays || filtres.prix_max || filtres.type_prix || filtres.gratuit || filtres.securite ? 'Essayez un autre mot ou élargissez les filtres.' : 'Les applications apparaîtront ici après leur publication depuis un dépôt GitHub public.'}</p>
+            {filtres.q || filtres.categorie || filtres.pays || filtres.prix_max || filtres.type_prix || filtres.gratuit || filtres.securite ? (
+              <button type="button" onClick={() => setParams({})} className="mt-3 min-h-cible rounded-controle bg-accent px-5 font-semibold text-canvas">Réinitialiser les filtres</button>
+            ) : (
+              <Link to="/publier" className="mt-3 inline-flex min-h-cible items-center rounded-controle bg-accent px-5 font-semibold text-canvas no-underline">Publier une appli</Link>
+            )}
           </div>
         ) : null}
         <ul className="m-0 grid list-none gap-[18px] p-0 min-[761px]:grid-cols-2 min-[1100px]:grid-cols-4">
@@ -137,6 +166,11 @@ export function Store() {
             <Carte key={appli.id} appli={appli} />
           ))}
         </ul>
+        {applis.hasNextPage ? (
+          <button type="button" disabled={applis.isFetchingNextPage} onClick={() => void applis.fetchNextPage()} className="mx-auto min-h-cible rounded-controle border border-line bg-canvas px-5 font-semibold">
+            Afficher plus
+          </button>
+        ) : null}
 
         <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[#C9D7FB] bg-nav p-6">
           <div>
@@ -148,7 +182,7 @@ export function Store() {
         <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-line bg-canvas p-6">
           <div className="max-w-[62ch]">
             <h2 className="m-0 text-[19px]">Agences et entreprises : déployez l’appli pour vous</h2>
-            <p className="m-0 text-muted">Testez la démo, puis lancez votre copie isolée. Besoin d’une version adaptée ? Trouvez le dev et proposez-lui une mission.</p>
+            <p className="m-0 text-muted">Consultez une application publiée, puis lancez votre copie isolée. Besoin d’une version adaptée ? Trouvez le dev et proposez-lui une mission.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Link to="/store" className="inline-flex min-h-cible items-center rounded-controle bg-ink px-4 font-semibold text-canvas no-underline">Voir les applis</Link>
@@ -173,10 +207,16 @@ function Carte({ appli }: { appli: Appli }) {
   const teinte = teintes[appli.categorie]
   const prix = appli.prix === 0 ? 'Gratuit' : `${fcfa(appli.prix)}${appli.type_prix === 'mensuel' ? '/mois' : ''}`
   return (
-    <li className="appli-carte flex overflow-hidden rounded-[18px] border border-white/60 bg-[rgba(246,243,237,0.72)]">
+    <li data-reveal-item className="appli-carte flex overflow-hidden rounded-[18px] border border-white/60 bg-[rgba(246,243,237,0.72)]">
       <article className="flex flex-1 flex-col">
         <Link to={`/store/${appli.id}`} aria-label={`Voir la fiche de ${appli.nom}`} className="no-underline">
-          <Fenetre nom={appli.nom} categorie={appli.categorie} />
+          {appli.captures[0] ? (
+            <img src={appli.captures[0].url} alt={`Capture de ${appli.nom}`} className="aspect-video w-full bg-white object-cover" />
+          ) : (
+            <div className="grid aspect-video place-items-center p-5 text-center" style={{ background: teinte.fond, color: teinte.texte }}>
+              <span><strong className="block text-3xl">{appli.nom.slice(0, 2).toUpperCase()}</strong><span className="mt-1 block text-sm font-semibold">Aucune capture publiée</span></span>
+            </div>
+          )}
         </Link>
         <div className="flex flex-1 flex-col gap-3 p-[18px]">
           <div className="flex flex-wrap gap-1.5">

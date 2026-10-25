@@ -9,30 +9,12 @@ const liens = [
   { vers: '/missions', libelle: 'Missions' },
 ]
 
-function Fils() {
-  return (
-    <div className="fils-motif" aria-hidden="true">
-      <svg viewBox="0 0 240 900" fill="none">
-        <path d="M200 -20C40 80 210 160 50 280S190 430 40 560 200 720 60 900" stroke="#9AA3B2" strokeWidth="1.6" />
-        <path d="M230 40C80 150 220 250 90 370S210 530 70 680 220 820 90 980" stroke="#B0B8C6" strokeWidth="1.3" />
-        <path d="M160 -10C30 140 180 240 20 400S170 600 30 780" stroke="#8E97A8" strokeWidth="1.1" />
-      </svg>
-      <svg viewBox="0 0 240 900" fill="none">
-        <path d="M200 -20C40 80 210 160 50 280S190 430 40 560 200 720 60 900" stroke="#9AA3B2" strokeWidth="1.6" />
-        <path d="M230 40C80 150 220 250 90 370S210 530 70 680 220 820 90 980" stroke="#B0B8C6" strokeWidth="1.3" />
-        <path d="M160 -10C30 140 180 240 20 400S170 600 30 780" stroke="#8E97A8" strokeWidth="1.1" />
-      </svg>
-    </div>
-  )
-}
-
 export function Layout() {
   return (
     <div className="relative min-h-svh overflow-x-clip">
-      <Fils />
       <header className="relative z-30 border-b border-line bg-canvas">
-        <div className="mx-auto flex max-w-[1200px] flex-wrap items-center gap-x-4 px-4 py-2 min-[761px]:flex-nowrap min-[761px]:gap-x-7 min-[761px]:px-6">
-          <Link to="/" className="order-1 inline-flex min-h-cible items-center text-[21px] font-bold tracking-tight text-ink no-underline">
+        <div className="mx-auto flex w-full flex-wrap items-center gap-x-4 px-4 py-2 min-[761px]:flex-nowrap min-[761px]:gap-x-9 min-[761px]:px-10 min-[761px]:py-3.5">
+          <Link to="/" className="order-1 inline-flex min-h-cible items-center text-[21px] font-bold tracking-tight text-ink no-underline min-[761px]:min-h-[52px] min-[1100px]:text-[23px]">
             Souk<span className="text-accent">.dev</span>
           </Link>
           <div className="order-2 ml-auto min-[761px]:order-3 min-[761px]:ml-0">
@@ -46,8 +28,8 @@ export function Layout() {
                 end={lien.vers !== '/echange'}
                 className={({ isActive }) =>
                   isActive
-                    ? 'inline-flex min-h-cible shrink-0 items-center rounded-lg bg-nav px-3.5 font-semibold whitespace-nowrap text-accent no-underline'
-                    : 'inline-flex min-h-cible shrink-0 items-center rounded-lg px-3.5 font-medium whitespace-nowrap text-nav-texte no-underline hover:bg-page hover:text-ink'
+                    ? 'inline-flex min-h-cible shrink-0 items-center rounded-lg bg-nav px-3.5 font-semibold text-[15px] whitespace-nowrap text-accent no-underline min-[761px]:min-h-[52px] min-[1100px]:text-[17px]'
+                    : 'inline-flex min-h-cible shrink-0 items-center rounded-lg px-3.5 font-medium text-[15px] whitespace-nowrap text-nav-texte no-underline hover:bg-page hover:text-ink min-[761px]:min-h-[52px] min-[1100px]:text-[17px]'
                 }
               >
                 {lien.libelle}

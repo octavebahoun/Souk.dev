@@ -9,9 +9,14 @@ export type DevResume = components['schemas']['DevResume']
 export type Evenement = components['schemas']['Evenement']
 export type EvenementCreation = components['schemas']['EvenementCreation']
 export type Mission = components['schemas']['Mission']
+export type MissionCreation = components['schemas']['MissionCreation']
 export type Deploiement = components['schemas']['Deploiement']
 export type Categorie = components['schemas']['Categorie']
+export type Techno = components['schemas']['Techno']
+export type Specialite = components['schemas']['Specialite']
 export type VerificationDepot = components['schemas']['VerificationDepot']
+export type Discussion = components['schemas']['Discussion']
+export type Message = components['schemas']['Message']
 
 export const categories: { valeur: Categorie; libelle: string }[] = [
   { valeur: 'commerce', libelle: 'Commerce' },
@@ -93,11 +98,72 @@ export async function verifierDepot(depotUrl: string): Promise<VerificationDepot
   return data
 }
 
-export async function publierAppli(corps: Record<string, unknown>): Promise<Appli> {
+export async function publierAppli(corps: {
+  nom: string
+  description: string
+  depot_url: string
+  demo_url: string
+  categorie: Categorie
+  prix: number
+  type_prix: 'mensuel' | 'unique'
+  taille: 'petite' | 'moyenne' | 'grande'
+  stack: Techno[]
+  captures: File[]
+}): Promise<Appli> {
   await preparerCsrf()
-  const { data } = await clientLocal.post<Appli>(cheminLaravel('/apps'), corps)
+  const formulaire = new FormData()
+  formulaire.append('nom', corps.nom)
+  formulaire.append('description', corps.description)
+  formulaire.append('depot_url', corps.depot_url)
+  formulaire.append('demo_url', corps.demo_url)
+  formulaire.append('categorie', corps.categorie)
+  formulaire.append('prix', String(corps.prix))
+  formulaire.append('type_prix', corps.type_prix)
+  formulaire.append('taille', corps.taille)
+  for (const techno of corps.stack) formulaire.append('stack[]', techno)
+  for (const image of corps.captures) formulaire.append('captures[]', image)
+  const { data } = await clientLocal.post<Appli>(cheminLaravel('/apps'), formulaire)
   if (!data || typeof data.id !== 'number') throw new Error('Réponse vide')
   return data
+}
+
+export function listerDiscussionsAppli(appId: number) {
+  return page<Discussion>(clientLocal.get(cheminLaravel('/discussions'), { params: { app: appId } }))
+}
+
+export async function proposerMissionAppli(id: number, corps: MissionCreation): Promise<Mission> {
+  await preparerCsrf()
+  const { data } = await clientLocal.post<Mission>(cheminLaravel(`/apps/${id}/missions`), corps)
+  if (!data || typeof data.id !== 'number') throw new Error('Réponse vide')
+  return data
+}
+
+export async function proposerMissionDev(username: string, corps: MissionCreation): Promise<Mission> {
+  await preparerCsrf()
+  const { data } = await clientLocal.post<Mission>(cheminLaravel(`/devs/${username}/missions`), corps)
+  if (!data || typeof data.id !== 'number') throw new Error('Réponse vide')
+  return data
+}
+
+export function listerMessagesMission(id: number) {
+  return page<Message>(clientLocal.get(cheminLaravel(`/missions/${id}/messages`)))
+}
+
+export async function ecrireMessageMission(id: number, texte: string): Promise<Message> {
+  await preparerCsrf()
+  const { data } = await clientLocal.post<Message>(cheminLaravel(`/missions/${id}/messages`), { texte })
+  if (!data || typeof data.id !== 'number') throw new Error('Réponse vide')
+  return data
+}
+
+export async function noterMission(id: number, note: number, commentaire: string): Promise<void> {
+  await preparerCsrf()
+  await clientLocal.post(cheminLaravel(`/missions/${id}/note`), { note, commentaire: commentaire || undefined })
+}
+
+export async function posterAvis(id: number, note: number, commentaire: string): Promise<void> {
+  await preparerCsrf()
+  await clientLocal.post(cheminLaravel(`/events/${id}/avis`), { note, commentaire: commentaire || undefined })
 }
 
 export async function deployerAppli(id: number, variables: Record<string, string>): Promise<Deploiement> {

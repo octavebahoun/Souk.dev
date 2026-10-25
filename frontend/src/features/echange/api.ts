@@ -76,6 +76,10 @@ export function messageAction(erreur: unknown, trop: string): string {
   if (lu.statut === 429) return trop
   if (lu.statut === 401) return 'Connectez-vous pour continuer.'
   if (lu.statut === 419) return 'La session a expiré. Rechargez la page.'
+  if (lu.statut !== null && lu.statut >= 500) return 'Le serveur a rencontré un problème. Réessayez dans quelques instants.'
+  if (axios.isAxiosError(erreur) && erreur.request && !erreur.response) {
+    return 'Le serveur local ne répond pas. Démarrez Laravel sur le port 8000, puis réessayez.'
+  }
   return lu.message
 }
 
@@ -152,8 +156,9 @@ export async function lireMoi(): Promise<Compte | null> {
     const { data } = await clientLocal.get<Compte>(cheminLaravel('/me'))
     if (!data || typeof data.id !== 'number') return null
     return data
-  } catch {
-    return null
+  } catch (erreur) {
+    if (axios.isAxiosError(erreur) && erreur.response?.status === 401) return null
+    throw erreur
   }
 }
 
@@ -163,13 +168,20 @@ export function lireErreurHttp(erreur: unknown, secours = 'La publication a éch
   }
 
   const statut = erreur.response?.status ?? null
-  const corps = erreur.response?.data as Erreur | ErreurValidation | undefined
-  const message = corps && typeof corps.message === 'string' && corps.message ? corps.message : secours
+  const donnees: unknown = erreur.response?.data
+  const corps = typeof donnees === 'object' && donnees !== null && !Array.isArray(donnees)
+    ? donnees as Erreur | ErreurValidation
+    : undefined
+  const message = statut !== null && statut >= 500
+    ? 'Le serveur a rencontré un problème. Réessayez dans quelques instants.'
+    : corps && typeof corps.message === 'string' && corps.message
+      ? corps.message
+      : secours
   const champs: Record<string, string> = {}
 
-  if (corps && 'errors' in corps && corps.errors) {
+  if (corps && 'errors' in corps && typeof corps.errors === 'object' && corps.errors !== null) {
     for (const [cle, liste] of Object.entries(corps.errors)) {
-      const premier = liste[0]
+      const premier = Array.isArray(liste) ? liste.find((item): item is string => typeof item === 'string') : undefined
       if (premier) champs[cle] = premier
     }
   }

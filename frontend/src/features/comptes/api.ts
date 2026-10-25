@@ -1,5 +1,5 @@
 import type { components } from '../../shared/types/api'
-import { cheminApi, cheminLaravel, client, clientLocal } from '../../shared/client'
+import { cheminLaravel, clientLocal } from '../../shared/client'
 import { preparerCsrf } from '../../app/preparerCsrf'
 
 export type ProfilDev = components['schemas']['ProfilDev']
@@ -24,7 +24,7 @@ export async function proposerMission(username: string, corps: MissionCreation):
 }
 
 export async function lireTableau(): Promise<TableauDeBord> {
-  const { data } = await client.get<TableauDeBord>(cheminApi('/me/tableau-de-bord'))
+  const { data } = await clientLocal.get<TableauDeBord>(cheminLaravel('/me/tableau-de-bord'))
   if (!data || !data.totaux || !Array.isArray(data.applis)) throw new Error('Réponse vide')
   return data
 }

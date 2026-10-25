@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react'
 import { RouterProvider } from 'react-router'
 import { preparerCsrf } from './app/preparerCsrf'
-import { creerRouter, routes } from './app/router'
-import { brancherComptes } from './features/comptes/brancher'
-
-brancherComptes(routes)
+import { Apparitions } from './app/Apparitions'
+import { creerRouter } from './app/router'
 
 export default function App() {
   const [router] = useState(creerRouter)
@@ -13,5 +11,10 @@ export default function App() {
     void preparerCsrf()
   }, [])
 
-  return <RouterProvider router={router} />
+  return (
+    <>
+      <Apparitions />
+      <RouterProvider router={router} />
+    </>
+  )
 }

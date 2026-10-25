@@ -42,6 +42,7 @@ export function CarteDiscussion({ discussion, nouvelle = false, onPartager }: Ca
 
   return (
     <li
+      data-reveal-item
       data-nouvelle={nouvelle ? 'true' : 'false'}
       className={`carte-disc flex flex-col gap-2 rounded-carte border px-[18px] py-3.5 ${
         nouvelle ? 'border-banner-line bg-nav/40' : 'border-white/60 bg-[rgba(246,243,237,0.78)]'

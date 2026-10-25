@@ -54,7 +54,7 @@ export function PageDiscussion() {
 
   if (!valide) {
     return (
-      <main className="mx-auto max-w-[1200px] px-4 py-7">
+      <main className="mx-auto max-w-[1440px] px-4 py-7 min-[761px]:px-9">
         <p>Cette discussion n’existe pas.</p>
         <Link to="/echange" className={boutonSecond}>
           Retour à l’échange
@@ -65,7 +65,7 @@ export function PageDiscussion() {
 
   if (supprimee) {
     return (
-      <main className="mx-auto max-w-[1200px] px-4 py-7">
+      <main className="mx-auto max-w-[1440px] px-4 py-7 min-[761px]:px-9">
         <p role="status">Cette discussion a été supprimée.</p>
         <Link to="/echange">Retour à l’échange</Link>
       </main>
@@ -73,7 +73,7 @@ export function PageDiscussion() {
   }
 
   return (
-    <main className="mx-auto flex max-w-[1200px] flex-col gap-6 overflow-x-clip px-4 py-7 min-[761px]:px-6">
+    <main className="mx-auto flex max-w-[1440px] flex-col gap-6 overflow-x-clip px-4 py-7 min-[761px]:px-9">
       {discussion.isPending ? (
         <div role="status" aria-label="Chargement de la discussion" className="flex flex-col gap-4">
           <div className="squelette h-10 w-2/3 max-w-xl rounded-controle" />

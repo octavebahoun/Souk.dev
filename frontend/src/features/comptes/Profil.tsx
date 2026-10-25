@@ -68,12 +68,12 @@ export function Profil() {
   const moi = useQuery({ queryKey: ['moi'], queryFn: lireMoi })
 
   if (profil.isPending) {
-    return <div role="status" aria-label="Chargement du profil" className="squelette mx-auto mt-8 h-80 max-w-[1200px] rounded-[18px]" />
+    return <div role="status" aria-label="Chargement du profil" className="squelette mx-auto mt-8 h-80 max-w-[1440px] rounded-[18px]" />
   }
 
   if (profil.isError || !profil.data) {
     return (
-      <div className="mx-auto flex max-w-[1200px] flex-col gap-3 px-4 py-10">
+      <div className="mx-auto flex max-w-[1440px] flex-col gap-3 px-4 py-10 min-[761px]:px-9">
         <p role="alert" className="m-0">Ce profil est introuvable, ou le chargement a échoué.</p>
         <button type="button" onClick={() => profil.refetch()} className="min-h-cible w-fit rounded-controle bg-accent px-4 font-semibold text-canvas">
           Réessayer
@@ -89,7 +89,7 @@ export function Profil() {
 
   return (
     <div className="reseau bg-page">
-      <div className="mx-auto flex max-w-[1200px] flex-col gap-6 px-4 py-7 min-[761px]:px-6">
+      <div className="mx-auto flex max-w-[1440px] flex-col gap-6 px-4 py-7 min-[761px]:px-9">
         <section className="relative overflow-hidden rounded-[18px] border border-white/80 bg-[linear-gradient(135deg,#ffffff_42%,#f3efe4_100%)] p-6 shadow-[0_10px_30px_rgba(15,23,42,0.04)] min-[861px]:p-8">
           <div className="grid items-center gap-8 min-[861px]:grid-cols-[minmax(0,1fr)_340px]">
             <div className="flex flex-col gap-3">
@@ -220,7 +220,11 @@ export function Profil() {
           <ul className="m-0 grid list-none gap-3 p-0">
             {dev.applis.map((appli) => (
               <li key={appli.id} className="flex flex-wrap items-center gap-4 rounded-[18px] border border-line bg-canvas p-4">
-                <Fenetre />
+                {appli.captures[0] ? (
+                  <img src={appli.captures[0].url} alt={`Capture de ${appli.nom}`} className="h-[92px] w-[150px] rounded-xl bg-page object-cover" />
+                ) : (
+                  <span className="grid h-[92px] w-[150px] place-items-center rounded-xl bg-page px-3 text-center text-xs text-muted">Aucune capture publiée</span>
+                )}
                 <div className="min-w-0 flex-1">
                   <p className="m-0 text-xs font-semibold text-[#16A34A]">Publiée sur le Store</p>
                   <h3 className="m-0 text-lg font-bold">{appli.nom}</h3>
@@ -354,19 +358,6 @@ function Chiffre({ valeur, legende }: { valeur: string; legende: string }) {
       <p className="m-0 text-[26px] font-extrabold tracking-tight">{valeur}</p>
       <p className="m-0 text-[13.5px] text-muted">{legende}</p>
     </article>
-  )
-}
-
-function Fenetre() {
-  return (
-    <span aria-hidden="true" className="flex h-[92px] w-[150px] flex-col overflow-hidden rounded-xl border border-[#E7D7B8] bg-[#FEF3C7] p-2">
-      <span className="h-3 rounded-t bg-[#92400E]" />
-      <span className="mt-1.5 grid flex-1 grid-cols-3 gap-1">
-        <span className="rounded bg-[#FDE68A]" />
-        <span className="rounded bg-[#FDE68A]" />
-        <span className="rounded bg-[#FDE68A]" />
-      </span>
-    </span>
   )
 }
 

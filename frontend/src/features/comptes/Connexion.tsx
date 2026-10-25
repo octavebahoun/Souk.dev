@@ -1,8 +1,8 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
-import { Link } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 import { isAxiosError } from 'axios'
 import { demanderLien } from './api'
-import { lireErreurHttp } from '../echange/api'
+import { lireErreurHttp, messageAction } from '../echange/api'
 
 type ProfilChoix = 'dev' | 'client'
 
@@ -19,12 +19,18 @@ function Icone({ children, className }: { children: ReactNode; className: string
 }
 
 export function Connexion() {
+  const [params] = useSearchParams()
   const [profil, setProfil] = useState<ProfilChoix>('dev')
   const [email, setEmail] = useState('')
   const [envoye, setEnvoye] = useState(false)
   const [erreur, setErreur] = useState<string | null>(null)
   const [envoi, setEnvoi] = useState(false)
   const dev = profil === 'dev'
+  const erreurOAuth = params.get('erreur') === 'github_non_configure'
+    ? 'GitHub OAuth n’est pas configuré. Ajoutez le Client ID et le Client secret dans backend/.env, puis relancez Laravel.'
+    : params.has('erreur')
+      ? 'La connexion GitHub n’a pas abouti. Vérifiez l’application OAuth et son URL de rappel, puis réessayez.'
+      : null
 
   async function envoyer(evenement: FormEvent) {
     evenement.preventDefault()
@@ -41,6 +47,8 @@ export function Connexion() {
       const lu = lireErreurHttp(erreurHttp, 'L’envoi a échoué.')
       if (isAxiosError(erreurHttp) && erreurHttp.response?.status === 429) {
         setErreur('Trop de liens demandés. Réessayez plus tard.')
+      } else if (isAxiosError(erreurHttp) && erreurHttp.request && !erreurHttp.response) {
+        setErreur(messageAction(erreurHttp, 'L’envoi du lien a échoué.'))
       } else {
         setErreur(lu.champs.email ?? lu.message)
       }
@@ -149,6 +157,7 @@ export function Connexion() {
 
           {dev ? (
             <div className="flex flex-col gap-3">
+              {erreurOAuth ? <p role="alert" className="m-0 rounded-xl border border-[#FECACA] bg-[#FEF2F2] p-3 text-sm text-danger">{erreurOAuth}</p> : null}
               <a href="/auth/github?profil=dev" className="inline-flex min-h-[52px] items-center justify-center gap-2.5 rounded-xl bg-ink font-bold text-canvas no-underline">
                 <Branches />
                 Continuer avec GitHub
