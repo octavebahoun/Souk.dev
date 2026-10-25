@@ -2182,7 +2182,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Déploiement arrêté */
+            /** @description Déploiement arrêté (conteneurs, volumes et dossier supprimés) ; aussi si déjà arrêté */
             204: {
                 headers: {
                     [name: string]: unknown;
@@ -2192,6 +2192,15 @@ export interface operations {
             403: components["responses"]["Interdit"];
             404: components["responses"]["Introuvable"];
             419: components["responses"]["CsrfInvalide"];
+            /** @description Arrêt Docker impossible après deux essais ; le déploiement passe en echec et sera retenté */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
         };
     };
     listDiscussions: {

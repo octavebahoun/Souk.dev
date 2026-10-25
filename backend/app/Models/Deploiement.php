@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Events\CopieTestEtat;
+use App\Events\CorrectifEtat;
 use App\Events\DeploiementEtat;
 use App\Moteur\DepotGithub;
 use App\Moteur\Exceptions\DepotInvalide;
@@ -15,6 +17,8 @@ class Deploiement extends Model
     protected $fillable = [
         'user_id',
         'appli_id',
+        'discussion_id',
+        'correctif_id',
         'depot_url',
         'type',
         'taille',
@@ -24,6 +28,7 @@ class Deploiement extends Model
         'copie',
         'repertoire',
         'variables',
+        'expire_le',
     ];
 
     protected function casts(): array
@@ -31,13 +36,26 @@ class Deploiement extends Model
         return [
             'user_id' => 'integer',
             'appli_id' => 'integer',
+            'discussion_id' => 'integer',
+            'correctif_id' => 'integer',
             'variables' => 'array',
+            'expire_le' => 'datetime',
         ];
     }
 
     public function appli(): BelongsTo
     {
         return $this->belongsTo(Appli::class);
+    }
+
+    public function discussion(): BelongsTo
+    {
+        return $this->belongsTo(Discussion::class);
+    }
+
+    public function correctif(): BelongsTo
+    {
+        return $this->belongsTo(Correctif::class);
     }
 
     public function utilisateur(): BelongsTo
@@ -80,6 +98,19 @@ class Deploiement extends Model
         $this->loadMissing('appli');
 
         event(new DeploiementEtat($this->id, $this->versApi()));
+
+        // La copie de test et la version corrigée se suivent aussi sur la discussion, publique.
+        if ($this->type === 'test' && $this->discussion_id !== null) {
+            event(new CopieTestEtat($this->discussion_id, $this->versApi()));
+        }
+
+        if ($this->type === 'correctif' && $this->correctif_id !== null) {
+            $correctif = $this->correctif()->first();
+
+            if ($correctif !== null) {
+                event(new CorrectifEtat($correctif));
+            }
+        }
     }
 
     /**

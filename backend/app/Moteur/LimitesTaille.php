@@ -9,6 +9,12 @@ use App\Moteur\Exceptions\LancementEchoue;
  * le projet entier : web, base et les autres services reçoivent la même
  * formule. Le fichier ajouté au lancement remplace un mem_limit ou un
  * cpus écrit dans le dépôt.
+ *
+ * Le même fichier impose le durcissement (voir Durcissement) : pids_limit,
+ * cap_drop ALL, no-new-privileges et le réseau propre à la copie. Compose
+ * remplace les valeurs simples (pids_limit) et fusionne les listes
+ * (cap_drop, security_opt) : le dépôt ne peut donc pas les assouplir, et
+ * VerificateurCompose refuse ses cap_add et security_opt hors liste.
  */
 final class LimitesTaille
 {
@@ -57,6 +63,8 @@ final class LimitesTaille
         }
 
         $formule = self::FORMULES[$taille];
+        $pids = Durcissement::pids($taille);
+        $capacites = Durcissement::capacites();
         $lignes = ['services:'];
 
         foreach ($services as $service) {
@@ -73,7 +81,29 @@ final class LimitesTaille
             $lignes[] = '        limits:';
             $lignes[] = "          cpus: \"{$formule['coeurs']}\"";
             $lignes[] = "          memory: {$formule['memoire']}";
+            // Compose refuse un pids_limit différent de deploy.resources.limits.pids : on écrit les deux.
+            $lignes[] = "          pids: {$pids}";
+            $lignes[] = "    pids_limit: {$pids}";
+            $lignes[] = '    cap_drop:';
+            $lignes[] = '      - ALL';
+
+            if ($capacites !== []) {
+                $lignes[] = '    cap_add:';
+
+                foreach ($capacites as $capacite) {
+                    $lignes[] = "      - {$capacite}";
+                }
+            }
+
+            $lignes[] = '    security_opt:';
+            $lignes[] = '      - "'.Durcissement::SECURITE.'"';
+            $lignes[] = '    networks:';
+            $lignes[] = '      '.Durcissement::RESEAU.': {}';
         }
+
+        $lignes[] = 'networks:';
+        $lignes[] = '  '.Durcissement::RESEAU.':';
+        $lignes[] = '    driver: bridge';
 
         $chemin = $repertoire.DIRECTORY_SEPARATOR.'docker-compose.soukdev.yml';
         $yaml = implode("\n", $lignes)."\n";

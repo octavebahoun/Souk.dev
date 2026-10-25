@@ -9,6 +9,8 @@ use Tests\TestCase;
 
 class MoteurLancerCommandTest extends TestCase
 {
+    use ConfigDurcie;
+
     public function test_dry_run_ecrit_le_env_depuis_un_chemin_local(): void
     {
         $repertoire = $this->depotCobaye();
@@ -322,12 +324,12 @@ YAML);
             }
 
             if (in_array('config', $commande, true)) {
-                return Process::result(output: json_encode([
+                return Process::result(output: json_encode(self::configDurcie([
                     'name' => 'cobaye-test',
                     'services' => [
                         'front' => ['image' => 'nginx:alpine'],
                     ],
-                ], JSON_THROW_ON_ERROR));
+                ]), JSON_THROW_ON_ERROR));
             }
 
             if (in_array('down', $commande, true)) {

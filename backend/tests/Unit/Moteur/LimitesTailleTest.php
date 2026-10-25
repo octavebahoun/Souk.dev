@@ -26,6 +26,22 @@ services:
         limits:
           cpus: "0.5"
           memory: 512m
+          pids: 256
+    pids_limit: 256
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - KILL
+      - NET_BIND_SERVICE
+      - SETGID
+      - SETUID
+    security_opt:
+      - "no-new-privileges:true"
+    networks:
+      soukdev-copie: {}
   db:
     mem_limit: 512m
     memswap_limit: 512m
@@ -35,8 +51,44 @@ services:
         limits:
           cpus: "0.5"
           memory: 512m
+          pids: 256
+    pids_limit: 256
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - KILL
+      - NET_BIND_SERVICE
+      - SETGID
+      - SETUID
+    security_opt:
+      - "no-new-privileges:true"
+    networks:
+      soukdev-copie: {}
+networks:
+  soukdev-copie:
+    driver: bridge
 
 YAML, file_get_contents($repertoire.DIRECTORY_SEPARATOR.'docker-compose.soukdev.yml'));
+        } finally {
+            $this->nettoyer($repertoire);
+        }
+    }
+
+    public function test_le_plafond_de_processus_suit_la_formule(): void
+    {
+        $repertoire = $this->repertoire();
+
+        try {
+            $limites = new LimitesTaille;
+
+            $limites->ecrire($repertoire, ['front'], 'moyenne');
+            $this->assertStringContainsString('pids_limit: 512', file_get_contents($repertoire.DIRECTORY_SEPARATOR.'docker-compose.soukdev.yml'));
+
+            $limites->ecrire($repertoire, ['front'], 'grande');
+            $this->assertStringContainsString('pids_limit: 1024', file_get_contents($repertoire.DIRECTORY_SEPARATOR.'docker-compose.soukdev.yml'));
         } finally {
             $this->nettoyer($repertoire);
         }

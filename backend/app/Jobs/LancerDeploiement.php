@@ -9,6 +9,7 @@ use App\Moteur\Exceptions\LancementEchoue;
 use App\Moteur\Exceptions\ManifestInvalide;
 use App\Moteur\Exceptions\VariablesManquantes;
 use App\Moteur\MoteurDeploiement;
+use App\Moteur\NettoyeurCopie;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Throwable;
@@ -82,6 +83,9 @@ class LancerDeploiement implements ShouldQueue
             }
 
             $deploiement->changerEtat('echec', erreur: $this->messageLisible($exception));
+
+            // Conteneurs, volumes et dossier cloné (avec son .env) ne restent pas après un échec.
+            app(NettoyeurCopie::class)->liberer($copie?->id ?? $deploiement->copie, $copie?->repertoire ?? $deploiement->repertoire, $deploiement->id);
         }
     }
 

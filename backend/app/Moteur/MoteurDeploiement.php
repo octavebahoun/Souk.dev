@@ -13,6 +13,7 @@ class MoteurDeploiement
         private LanceurCompose $lanceur,
         private SondeServiceWeb $sonde,
         private BackendIntegre $backend,
+        private RouteurCopies $routeur,
     ) {}
 
     /**
@@ -96,8 +97,15 @@ class MoteurDeploiement
             $port = (int) $copie->manifeste['service_web']['port'];
             $hote = $this->lanceur->adresseService($copie->repertoire, $copie->id, $nom);
             $this->sonde->attendre($hote, $port);
+
+            // Le sous-domaine ne s'ouvre qu'une fois le service web joignable, et vers lui seul.
+            $this->routeur->publier($copie->id, $hote, $port);
         } catch (Exceptions\LancementEchoue $exception) {
-            $this->lanceur->arreter($copie->repertoire, $copie->id);
+            try {
+                $this->lanceur->arreter($copie->repertoire, $copie->id);
+            } catch (Exceptions\LancementEchoue) {
+                // L'erreur de lancement reste celle à montrer ; le job libère la copie ensuite.
+            }
 
             throw $exception;
         }

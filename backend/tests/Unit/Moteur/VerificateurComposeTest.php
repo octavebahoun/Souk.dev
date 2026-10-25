@@ -25,7 +25,14 @@ services:
   front:
     image: nginx:alpine
     privileged: false
-    network_mode: bridge
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+      - cap_chown
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 100
     expose:
       - "3000"
     ports: []
@@ -191,6 +198,18 @@ YAML);
             'volume externe' => ["services:\n  web:\n    image: nginx\nvolumes:\n  data:\n    external: true\n", 'externe'],
             'volume nommé' => ["services:\n  web:\n    image: nginx\nvolumes:\n  data:\n    name: soukdev_db\n", 'name'],
             'réseau externe' => ["services:\n  web:\n    image: nginx\nnetworks:\n  plateforme:\n    external: true\n", 'externe'],
+            'cap_add NET_RAW' => ["services:\n  web:\n    image: nginx\n    cap_add:\n      - NET_RAW\n", 'NET_RAW'],
+            'cap_add ALL' => ["services:\n  web:\n    image: nginx\n    cap_add: [ALL]\n", 'cap_add'],
+            'cap_add avec préfixe' => ["services:\n  web:\n    image: nginx\n    cap_add:\n      - CAP_SYS_PTRACE\n", 'CAP_SYS_PTRACE'],
+            'seccomp désactivé' => ["services:\n  web:\n    image: nginx\n    security_opt:\n      - seccomp:unconfined\n", 'security_opt'],
+            'apparmor désactivé' => ["services:\n  web:\n    image: nginx\n    security_opt:\n      - apparmor=unconfined\n", 'security_opt'],
+            'no-new-privileges faux' => ["services:\n  web:\n    image: nginx\n    security_opt:\n      - no-new-privileges:false\n", 'security_opt'],
+            'pids_limit illimité' => ["services:\n  web:\n    image: nginx\n    pids_limit: -1\n", 'pids_limit'],
+            'pids_limit zéro' => ["services:\n  web:\n    image: nginx\n    pids_limit: 0\n", 'pids_limit'],
+            'pids_limit énorme' => ["services:\n  web:\n    image: nginx\n    pids_limit: 100000\n", 'pids_limit'],
+            'network_mode bridge partagé' => ["services:\n  web:\n    image: nginx\n    network_mode: bridge\n", 'network_mode'],
+            'réseau réservé à la racine' => ["services:\n  web:\n    image: nginx\nnetworks:\n  soukdev-copie:\n    driver: bridge\n", 'réservé'],
+            'réseau réservé dans un service' => ["services:\n  web:\n    image: nginx\n    networks:\n      - soukdev-copie\n", 'réservé'],
         ];
     }
 
@@ -239,5 +258,62 @@ YAML);
                 ],
             ],
         ]);
+    }
+
+    public function test_la_config_finale_doit_porter_le_durcissement(): void
+    {
+        $document = [
+            'services' => [
+                'web' => ['image' => 'nginx:alpine', 'pids_limit' => 256],
+            ],
+        ];
+
+        try {
+            $this->verificateur->verifierDocument($document, 'petite');
+            $this->fail('Une config finale sans durcissement aurait dû être refusée.');
+        } catch (LancementEchoue $exception) {
+            $this->assertStringContainsString('cap_drop: ALL', $exception->getMessage());
+            $this->assertStringContainsString('no-new-privileges', $exception->getMessage());
+            $this->assertStringContainsString('réseau de la copie', $exception->getMessage());
+        }
+    }
+
+    public function test_la_config_finale_durcie_passe(): void
+    {
+        $this->verificateur->verifierDocument([
+            'name' => 'copie',
+            'services' => [
+                'web' => [
+                    'image' => 'nginx:alpine',
+                    'pids_limit' => 256,
+                    'cap_drop' => ['ALL'],
+                    'cap_add' => ['CHOWN', 'SETUID'],
+                    'security_opt' => ['no-new-privileges:true'],
+                    'networks' => ['soukdev-copie' => null],
+                ],
+            ],
+            'networks' => ['soukdev-copie' => ['driver' => 'bridge']],
+        ], 'petite');
+
+        $this->expectNotToPerformAssertions();
+    }
+
+    public function test_la_config_finale_refuse_un_plafond_de_processus_trop_haut(): void
+    {
+        $this->expectException(LancementEchoue::class);
+        $this->expectExceptionMessage('pids_limit');
+
+        $this->verificateur->verifierDocument([
+            'services' => [
+                'web' => [
+                    'image' => 'nginx:alpine',
+                    'pids_limit' => 1024,
+                    'cap_drop' => ['ALL'],
+                    'security_opt' => ['no-new-privileges:true'],
+                    'networks' => ['soukdev-copie'],
+                ],
+            ],
+            'networks' => ['soukdev-copie' => null],
+        ], 'petite');
     }
 }

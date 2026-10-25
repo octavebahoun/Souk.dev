@@ -107,7 +107,7 @@ class LanceurCompose
 
         (new LimitesTaille)->ecrire($repertoire, $services, $taille);
 
-        $this->verifierConfigFinale($repertoire, $copie);
+        $this->verifierConfigFinale($repertoire, $copie, $taille);
 
         $env = $repertoire.DIRECTORY_SEPARATOR.'.env';
 
@@ -155,13 +155,24 @@ class LanceurCompose
         return (new SondeServiceWeb)->adresseDepuisInspection($inspection->output());
     }
 
+    public function __construct(private ?RouteurCopies $routeur = null) {}
+
     public function arreter(string $repertoire, string $copie): void
     {
         $this->verifierNomCopie($copie);
 
-        Process::path($repertoire)
-            ->timeout(120)
-            ->run(['docker', 'compose', '-p', $copie, 'down', '--remove-orphans']);
+        // Route retirée avant les conteneurs : l'adresse libérée pourrait servir à une autre copie.
+        if (! str_contains($copie, '_')) {
+            $this->routeur()?->retirer($copie);
+        }
+
+        // -v supprime aussi les volumes (dont la base intégrée), --rmi local les images construites.
+        // Le dossier a pu disparaître : -p suffit à retrouver les conteneurs du projet.
+        $resultat = Process::path(is_dir($repertoire) ? $repertoire : sys_get_temp_dir())
+            ->timeout((int) (function_exists('config') ? config('moteur.down_timeout', 120) : 120))
+            ->run(['docker', 'compose', '-p', $copie, 'down', '-v', '--remove-orphans', '--rmi', 'local']);
+
+        $this->echouerSiComposeRate($resultat, 'L\'arrêt Docker Compose a échoué.');
     }
 
     /**
@@ -185,7 +196,7 @@ class LanceurCompose
         return $arguments;
     }
 
-    private function verifierConfigFinale(string $repertoire, string $copie): void
+    private function verifierConfigFinale(string $repertoire, string $copie, string $taille): void
     {
         $env = $repertoire.DIRECTORY_SEPARATOR.'.env';
 
@@ -209,6 +220,7 @@ class LanceurCompose
 
         (new VerificateurCompose)->verifierDocument(
             $this->preparerDocumentConfig($document, $repertoire, $copie),
+            $taille,
         );
     }
 
@@ -350,5 +362,10 @@ class LanceurCompose
         if (preg_match('/^[a-z0-9][a-z0-9_-]{0,62}$/', $copie) !== 1) {
             throw new LancementEchoue('Le nom de la copie est invalide pour Docker Compose.');
         }
+    }
+
+    private function routeur(): ?RouteurCopies
+    {
+        return $this->routeur ?? (function_exists('app') && app()->bound('config') ? RouteurCopies::depuisConfig() : null);
     }
 }

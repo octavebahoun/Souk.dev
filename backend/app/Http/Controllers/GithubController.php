@@ -53,9 +53,14 @@ final class GithubController extends Controller
     {
         try {
             $github = Socialite::driver('github')->user();
-        } catch (InvalidStateException) {
+        } catch (InvalidStateException $exception) {
+            // Session perdue entre l'aller et le retour (souvent localhost d'un côté, 127.0.0.1 de l'autre).
+            report($exception);
+
             return redirect()->away($front->erreur('github'));
-        } catch (Throwable) {
+        } catch (Throwable $exception) {
+            report($exception);
+
             return redirect()->away($front->erreur('github'));
         }
 

@@ -15,8 +15,9 @@ final class VerificateurCompose
 
     /**
      * Clés d'un service acceptées (plus les extensions x-*). Tout le reste est refusé :
-     * cap_add, devices, pid, ipc, userns_mode, security_opt, sysctls, volumes_from,
-     * container_name, secrets, configs, runtime…
+     * devices, pid, ipc, userns_mode, sysctls, volumes_from, container_name, secrets,
+     * configs, runtime… cap_add, security_opt et pids_limit sont acceptés seulement
+     * dans les limites du Durcissement.
      */
     private const CLES_SERVICE = [
         'image', 'build', 'command', 'entrypoint', 'environment', 'env_file',
@@ -26,7 +27,7 @@ final class VerificateurCompose
         'stop_grace_period', 'read_only', 'deploy', 'mem_limit', 'mem_reservation',
         'memswap_limit', 'cpus', 'cpu_shares', 'cap_drop', 'links', 'platform',
         'pull_policy', 'profiles', 'extra_hosts', 'dns', 'dns_search', 'annotations',
-        'attach', 'shm_size',
+        'attach', 'shm_size', 'cap_add', 'security_opt', 'pids_limit',
     ];
 
     /** Clés acceptées dans la forme longue de build. */
@@ -38,9 +39,12 @@ final class VerificateurCompose
     }
 
     /**
+     * Sans taille, le document vient du dépôt. Avec une taille, c'est la configuration
+     * finale (docker compose config) : le durcissement de la plateforme doit y être.
+     *
      * @param  array<string, mixed>  $document
      */
-    public function verifierDocument(array $document): void
+    public function verifierDocument(array $document, ?string $taille = null): void
     {
         if (array_key_exists('include', $document)) {
             throw new LancementEchoue('docker-compose.yml utilise include et ne peut pas être vérifié.');
@@ -83,10 +87,23 @@ final class VerificateurCompose
             $this->verifierVolumesService($nom, $service, $erreurs);
             $this->verifierBuild($nom, $service, $erreurs);
             $this->verifierEnvFile($nom, $service, $erreurs);
+            $this->verifierCapacites($nom, $service, $erreurs);
+            $this->verifierSecurite($nom, $service, $erreurs);
+            $this->verifierPids($nom, $service, $erreurs);
+
+            if ($taille === null) {
+                $this->verifierReseauReserveService($nom, $service, $erreurs);
+            } else {
+                $this->verifierDurcissement($nom, $service, $taille, $erreurs);
+            }
         }
 
         $this->verifierVolumesRacine($document['volumes'] ?? null, $erreurs);
-        $this->verifierReseauxRacine($document['networks'] ?? null, $erreurs);
+        $this->verifierReseauxRacine($document['networks'] ?? null, $erreurs, $taille === null);
+
+        if ($taille !== null && ! $this->contientCle($document['networks'] ?? null, Durcissement::RESEAU)) {
+            $erreurs[] = 'Le réseau de la copie « '.Durcissement::RESEAU.' » est absent de la configuration finale.';
+        }
 
         if ($erreurs !== []) {
             throw new LancementEchoue("docker-compose.yml est dangereux :\n".implode("\n", $erreurs));
@@ -136,10 +153,10 @@ final class VerificateurCompose
             return;
         }
 
-        // container:… et service:… feraient entrer la copie dans le réseau d'un autre conteneur.
-        if (! in_array($mode, ['bridge', 'none'], true)) {
-            $erreurs[] = "Le service « {$nom} » utilise network_mode « {$service['network_mode']} », qui n'est pas autorisé.";
-        }
+        // container:… et service:… feraient entrer la copie dans le réseau d'un autre conteneur,
+        // bridge la mettrait sur le réseau partagé par tous les conteneurs du serveur, et none
+        // empêcherait la plateforme de la rattacher à son réseau.
+        $erreurs[] = "Le service « {$nom} » utilise network_mode « {$service['network_mode']} », qui n'est pas autorisé.";
     }
 
     /**
@@ -270,7 +287,7 @@ final class VerificateurCompose
     /**
      * @param  list<string>  $erreurs
      */
-    private function verifierReseauxRacine(mixed $reseaux, array &$erreurs): void
+    private function verifierReseauxRacine(mixed $reseaux, array &$erreurs, bool $depot = true): void
     {
         if ($reseaux === null) {
             return;
@@ -287,6 +304,10 @@ final class VerificateurCompose
 
             if (! is_array($definition) || array_is_list($definition)) {
                 throw new LancementEchoue('docker-compose.yml ne peut pas être vérifié.');
+            }
+
+            if ($depot && (string) $nom === Durcissement::RESEAU) {
+                $erreurs[] = 'Le réseau « '.Durcissement::RESEAU.' » est réservé à la plateforme.';
             }
 
             // Un réseau externe ou nommé ferait sortir la copie de son propre projet.
@@ -308,6 +329,147 @@ final class VerificateurCompose
                 $erreurs[] = "Le réseau « {$nom} » utilise des options qui ne sont pas autorisées.";
             }
         }
+    }
+
+    /**
+     * Seules les capacités rendues par la plateforme peuvent être demandées.
+     *
+     * @param  array<string, mixed>  $service
+     * @param  list<string>  $erreurs
+     */
+    private function verifierCapacites(string $nom, array $service, array &$erreurs): void
+    {
+        if (! array_key_exists('cap_add', $service) || $service['cap_add'] === null) {
+            return;
+        }
+
+        $capacites = $service['cap_add'];
+
+        if (is_string($capacites)) {
+            $capacites = [$capacites];
+        }
+
+        if (! is_array($capacites) || ! array_is_list($capacites)) {
+            throw new LancementEchoue('docker-compose.yml ne peut pas être vérifié.');
+        }
+
+        $autorisees = Durcissement::capacites();
+
+        foreach ($capacites as $capacite) {
+            if (! is_string($capacite) || ! in_array(Durcissement::normaliserCapacite($capacite), $autorisees, true)) {
+                $valeur = is_scalar($capacite) ? (string) $capacite : '?';
+                $erreurs[] = "Le service « {$nom} » ajoute la capacité « {$valeur} » (cap_add), qui n'est pas autorisée.";
+            }
+        }
+    }
+
+    /**
+     * seccomp:unconfined, apparmor:unconfined ou label:disable retireraient les protections du noyau.
+     *
+     * @param  array<string, mixed>  $service
+     * @param  list<string>  $erreurs
+     */
+    private function verifierSecurite(string $nom, array $service, array &$erreurs): void
+    {
+        if (! array_key_exists('security_opt', $service) || $service['security_opt'] === null) {
+            return;
+        }
+
+        $options = $service['security_opt'];
+
+        if (is_string($options)) {
+            $options = [$options];
+        }
+
+        if (! is_array($options) || ! array_is_list($options)) {
+            throw new LancementEchoue('docker-compose.yml ne peut pas être vérifié.');
+        }
+
+        foreach ($options as $option) {
+            if (! Durcissement::estSecuriteAutorisee($option)) {
+                $valeur = is_scalar($option) ? (string) $option : '?';
+                $erreurs[] = "Le service « {$nom} » utilise security_opt « {$valeur} », qui n'est pas autorisé.";
+            }
+        }
+    }
+
+    /**
+     * -1 ou 0 lèveraient le plafond de processus ; la plateforme impose de toute façon le sien.
+     *
+     * @param  array<string, mixed>  $service
+     * @param  list<string>  $erreurs
+     */
+    private function verifierPids(string $nom, array $service, array &$erreurs): void
+    {
+        if (! array_key_exists('pids_limit', $service) || $service['pids_limit'] === null) {
+            return;
+        }
+
+        $pids = $service['pids_limit'];
+
+        if (is_string($pids) && preg_match('/^\d+$/', $pids) === 1) {
+            $pids = (int) $pids;
+        }
+
+        if (! is_int($pids) || $pids < 1 || $pids > Durcissement::pidsMaximum()) {
+            $valeur = is_scalar($pids) ? (string) $pids : '?';
+            $erreurs[] = "Le service « {$nom} » fixe pids_limit à « {$valeur} », qui n'est pas autorisé.";
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $service
+     * @param  list<string>  $erreurs
+     */
+    private function verifierReseauReserveService(string $nom, array $service, array &$erreurs): void
+    {
+        if ($this->contientCle($service['networks'] ?? null, Durcissement::RESEAU)) {
+            $erreurs[] = "Le service « {$nom} » utilise le réseau « ".Durcissement::RESEAU.' », réservé à la plateforme.';
+        }
+    }
+
+    /**
+     * Après fusion, chaque service doit porter le durcissement écrit par LimitesTaille.
+     *
+     * @param  array<string, mixed>  $service
+     * @param  list<string>  $erreurs
+     */
+    private function verifierDurcissement(string $nom, array $service, string $taille, array &$erreurs): void
+    {
+        $pids = $service['pids_limit'] ?? null;
+
+        if (! is_int($pids) || $pids < 1 || $pids > Durcissement::pids($taille)) {
+            $erreurs[] = "Le service « {$nom} » n'a pas le plafond de processus (pids_limit) de la copie.";
+        }
+
+        $retirees = is_array($service['cap_drop'] ?? null) ? array_map(
+            fn (mixed $capacite) => is_string($capacite) ? Durcissement::normaliserCapacite($capacite) : '',
+            $service['cap_drop'],
+        ) : [];
+
+        if (! in_array('ALL', $retirees, true)) {
+            $erreurs[] = "Le service « {$nom} » ne retire pas toutes les capacités (cap_drop: ALL).";
+        }
+
+        $options = is_array($service['security_opt'] ?? null) ? $service['security_opt'] : [];
+
+        if (array_filter($options, fn (mixed $option) => Durcissement::estSecuriteAutorisee($option)) === []) {
+            $erreurs[] = "Le service « {$nom} » n'a pas no-new-privileges.";
+        }
+
+        if (! $this->contientCle($service['networks'] ?? null, Durcissement::RESEAU)) {
+            $erreurs[] = "Le service « {$nom} » n'est pas sur le réseau de la copie.";
+        }
+    }
+
+    /** networks accepte une liste de noms ou une table nom => réglages. */
+    private function contientCle(mixed $valeur, string $cle): bool
+    {
+        if (! is_array($valeur)) {
+            return false;
+        }
+
+        return array_is_list($valeur) ? in_array($cle, $valeur, true) : array_key_exists($cle, $valeur);
     }
 
     /**

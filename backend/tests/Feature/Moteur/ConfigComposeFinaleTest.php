@@ -10,6 +10,8 @@ use Tests\TestCase;
 
 class ConfigComposeFinaleTest extends TestCase
 {
+    use ConfigDurcie;
+
     public function test_compose_config_passe_avant_up_et_accepte_un_json_resolu(): void
     {
         $repertoire = $this->depot();
@@ -19,7 +21,7 @@ class ConfigComposeFinaleTest extends TestCase
             $commandes[] = $process->command;
 
             if (in_array('config', $process->command, true)) {
-                return Process::result(output: json_encode([
+                return Process::result(output: json_encode(self::configDurcie([
                     'name' => 'copie-test',
                     'services' => [
                         'front' => [
@@ -36,7 +38,7 @@ class ConfigComposeFinaleTest extends TestCase
                             'ipam' => [],
                         ],
                     ],
-                ], JSON_THROW_ON_ERROR));
+                ]), JSON_THROW_ON_ERROR));
             }
 
             if (in_array('up', $process->command, true)) {
