@@ -18,6 +18,6 @@ export type NomIllustration =
 
 export function urlIllustration(nom: NomIllustration, theme: 'clair' | 'sombre' = 'clair'): string | undefined {
   return theme === 'sombre'
-    ? sombres[`../assets/illustrations/sombre/${nom}-sombre.webp`]
+    ? sombres[`../assets/illustrations/sombre/${nom}.webp`]
     : claires[`../assets/illustrations/${nom}.webp`]
 }
