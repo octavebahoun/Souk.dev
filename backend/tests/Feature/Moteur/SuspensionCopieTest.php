@@ -110,7 +110,7 @@ class SuspensionCopieTest extends TestCase
 
         $deploiement->refresh();
         $this->assertSame('echec', $deploiement->etat);
-        $this->assertStringContainsString('support est prévenu', (string) $deploiement->erreur);
+        $this->assertStringContainsString('équipe est prévenue', (string) $deploiement->erreur);
     }
 
     public function test_le_nettoyage_ne_prend_pas_une_copie_suspendue_pour_une_orpheline(): void
