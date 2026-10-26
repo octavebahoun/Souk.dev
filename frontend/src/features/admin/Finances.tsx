@@ -77,7 +77,7 @@ export function Finances() {
     <div className="flex flex-col gap-8">
       <EnTetePage
         titre="Finances"
-        description="Tiré du grand livre : chaque franc encaissé, dû ou versé, en entiers FCFA."
+        description="Tiré du grand livre : chaque franc encaissé, dû ou versé, en entiers FCFA."
         actions={
           <div role="group" aria-label="Période" className="inline-flex rounded-moyen border border-bordure bg-surface p-1 shadow-1">
             {(
@@ -114,7 +114,7 @@ export function Finances() {
         <EtatErreur onReessayer={() => void finances.refetch()} />
       ) : (
         <section aria-label={`Indicateurs ${formaterPeriode(finances.data.debut, finances.data.fin)}`} className={cx('flex flex-col gap-4', finances.isPlaceholderData && 'opacity-60')}>
-          <p className="m-0 text-petit text-texte-doux">Période : {formaterPeriode(finances.data.debut, finances.data.fin)}</p>
+          <p className="m-0 text-petit text-texte-doux">Période : {formaterPeriode(finances.data.debut, finances.data.fin)}</p>
           <dl className="m-0 grid gap-4 tablette:grid-cols-2 bureau:grid-cols-4">
             <Indicateur titre="Marge de Souk.dev" valeur={finances.data.marge} detail="Hébergement, moins frais de reversement et avoirs" mis />
             <Indicateur titre="Encaissements" valeur={finances.data.encaissements} detail="Factures payées (montant plein)" />
@@ -126,9 +126,9 @@ export function Finances() {
             <Indicateur titre="Dû aux devs aujourd’hui" valeur={finances.data.solde_devs} />
           </dl>
           <div className="flex flex-wrap gap-3">
-            <Badge ton="info">Solde SasPay attendu : {formaterFcfa(finances.data.solde_saspay_attendu)}</Badge>
-            <Badge ton={finances.data.factures_impayees > 0 ? 'alerte' : 'neutre'}>Factures échues impayées : {finances.data.factures_impayees}</Badge>
-            <Badge ton={finances.data.copies_suspendues > 0 ? 'danger' : 'neutre'}>Copies suspendues : {finances.data.copies_suspendues}</Badge>
+            <Badge ton="info">Solde SasPay attendu : {formaterFcfa(finances.data.solde_saspay_attendu)}</Badge>
+            <Badge ton={finances.data.factures_impayees > 0 ? 'alerte' : 'neutre'}>Factures échues impayées : {finances.data.factures_impayees}</Badge>
+            <Badge ton={finances.data.copies_suspendues > 0 ? 'danger' : 'neutre'}>Copies suspendues : {finances.data.copies_suspendues}</Badge>
           </div>
         </section>
       )}

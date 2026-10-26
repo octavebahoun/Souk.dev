@@ -61,7 +61,7 @@ export function Commande() {
     return (
       <Conteneur>
         <AccesRefuse
-          description="Connectez-vous pour commander votre copie : elle sera à votre nom, et vous retrouverez vos factures dans « Mes paiements »."
+          description="Connectez-vous pour commander votre copie : elle sera à votre nom, et vous retrouverez vos factures dans « Mes paiements »."
           action={<LienBouton to="/connexion">Se connecter</LienBouton>}
         />
       </Conteneur>
@@ -123,7 +123,7 @@ export function Commande() {
 
       {enAttente ? (
         <Alerte ton="info" titre="Une commande attend déjà votre paiement" className="mt-6">
-          Payez-la ci-dessous : aucune seconde copie ne sera créée. Sans paiement, elle s’annule d’elle-même au bout de 7 jours.
+          Payez-la ci-dessous : aucune seconde copie ne sera créée. Sans paiement, elle s’annule d’elle-même au bout de 7 jours.
         </Alerte>
       ) : null}
 
@@ -169,7 +169,7 @@ export function Commande() {
               className="mt-4"
               libelle="Étapes de la commande"
               etapes={[
-                { id: 'paiement', etat: 'a_venir', libelle: 'Vous payez chez SasPay', description: 'Mobile Money ou carte ; les frais du moyen de paiement s’ajoutent au montant.' },
+                { id: 'paiement', etat: 'a_venir', libelle: 'Vous payez chez SasPay', description: 'Mobile Money ou carte ; les frais du moyen de paiement s’ajoutent au montant.' },
                 { id: 'construction', etat: 'a_venir', libelle: 'Nous construisons votre copie', description: 'Quelques minutes, à partir du code publié par l’auteur.' },
                 { id: 'en_ligne', etat: 'a_venir', libelle: 'Votre copie est en ligne', description: 'Son adresse apparaît dans « Mes copies ». La facture suivante arrive un mois plus tard, avec un rappel 3 jours avant.' },
               ]}
@@ -240,7 +240,7 @@ export function Commande() {
 
             <MoyensDePaiement />
             <p className="m-0 border-t border-bordure pt-4 text-petit text-texte-doux">
-              Le prix de l’appli va entièrement à son auteur : Souk.dev ne prend aucune commission et ne gagne que sur l’hébergement.
+              Le prix de l’appli va entièrement à son auteur : Souk.dev ne prend aucune commission et ne gagne que sur l’hébergement.
             </p>
           </Carte>
         </aside>

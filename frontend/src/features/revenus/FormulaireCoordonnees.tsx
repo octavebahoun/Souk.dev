@@ -51,8 +51,8 @@ export function FormulaireCoordonnees({ reseaux, paysParDefaut, email, onEnregis
 
   if (envoye) {
     return (
-      <Alerte ton="succes" titre="Plus qu’une étape : confirmez ce numéro">
-        Un e-mail vient de partir{email ? ` à ${email}` : ''}. Ouvrez le lien et cliquez sur « Confirmer ce numéro » : vos revenus pourront alors partir dessus.
+      <Alerte ton="succes" titre="Plus qu’une étape : confirmez ce numéro">
+        Un e-mail vient de partir{email ? ` à ${email}` : ''}. Ouvrez le lien et cliquez sur « Confirmer ce numéro » : vos revenus pourront alors partir dessus.
       </Alerte>
     )
   }

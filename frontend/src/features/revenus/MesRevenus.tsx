@@ -77,7 +77,7 @@ export function MesRevenus() {
   const retourConfirmation = parametres.get('confirmation')
   useEffect(() => {
     if (retourConfirmation === 'ok') {
-      toast.succes('Numéro confirmé : vos revenus partiront sur ce numéro.')
+      toast.succes('Numéro confirmé : vos revenus partiront sur ce numéro.')
       setParametres((courants) => {
         courants.delete('confirmation')
         return courants
@@ -92,9 +92,9 @@ export function MesRevenus() {
       const reversement = await demanderReversement(cle.current)
       cle.current = nouvelleCle()
       setConfirmation(false)
-      if (reversement.statut === 'reussi') toast.succes(`Reversement effectué : ${formaterFcfa(reversement.montant)} envoyés sur votre Mobile Money.`)
-      else if (reversement.statut === 'echoue') toast.erreur('Le réseau a refusé le reversement. Votre solde vous est rendu ; vérifiez votre numéro.')
-      else toast.info('Reversement en cours : l’argent arrive sur votre Mobile Money dans quelques minutes.')
+      if (reversement.statut === 'reussi') toast.succes(`Reversement effectué : ${formaterFcfa(reversement.montant)} envoyés sur votre Mobile Money.`)
+      else if (reversement.statut === 'echoue') toast.erreur('Le réseau a refusé le reversement. Votre solde vous est rendu ; vérifiez votre numéro.')
+      else toast.info('Reversement en cours : l’argent arrive sur votre Mobile Money dans quelques minutes.')
       await cache.invalidateQueries({ queryKey: ['revenus'] })
     } catch (probleme) {
       setErreur(messageErreur(probleme, 'Le reversement n’a pas pu partir. Réessayez dans un instant.'))
@@ -189,7 +189,7 @@ export function MesRevenus() {
 
   return (
     <div className="flex flex-col gap-8">
-      <EnTetePage titre="Mes revenus" description="Le prix de vos applis vous revient en entier : Souk.dev ne prend aucune commission et paie les frais des reversements." />
+      <EnTetePage titre="Mes revenus" description="Le prix de vos applis vous revient en entier : Souk.dev ne prend aucune commission et paie les frais des reversements." />
 
       {retourConfirmation === 'expiree' ? (
         <Alerte ton="alerte" titre="Ce lien de confirmation n’est plus valable">
@@ -226,7 +226,7 @@ export function MesRevenus() {
 
       {enCours ? (
         <Alerte ton="info" titre={`Reversement de ${formaterFcfa(enCours.montant)} en cours`}>
-          Vers {enCours.numero_masque}. L’argent arrive en général en quelques minutes ; cette page se met à jour toute seule.
+          Vers {enCours.numero_masque}. L’argent arrive en général en quelques minutes ; cette page se met à jour toute seule.
         </Alerte>
       ) : null}
 
@@ -247,7 +247,7 @@ export function MesRevenus() {
         <Carte marge="large" className="flex flex-col gap-4">
           <EnTeteCarte
             titre="Où recevoir vos revenus"
-            description="Un numéro Mobile Money à votre nom. Chaque changement se confirme par e-mail : une session volée ne peut pas détourner votre argent."
+            description="Un numéro Mobile Money à votre nom. Chaque changement se confirme par e-mail : une session volée ne peut pas détourner votre argent."
           />
           {coordonnees && !afficherFormulaire ? (
             <div className="flex flex-wrap items-center gap-3 rounded-moyen border border-bordure p-4">
@@ -329,8 +329,8 @@ export function MesRevenus() {
       <Modale
         ouverte={confirmation}
         onFermer={() => setConfirmation(false)}
-        titre={`Recevoir ${formaterFcfa(donnees.solde)} maintenant ?`}
-        description="Les frais du réseau sont pris en charge par Souk.dev : vous recevez le montant entier."
+        titre={`Recevoir ${formaterFcfa(donnees.solde)} maintenant ?`}
+        description="Les frais du réseau sont pris en charge par Souk.dev : vous recevez le montant entier."
         taille="petite"
         pied={
           <>

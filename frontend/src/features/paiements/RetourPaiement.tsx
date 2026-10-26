@@ -119,7 +119,7 @@ export function RetourPaiement() {
       <Conteneur>
         <EtatErreur
           titre="Impossible de vérifier ce paiement"
-          description={messageErreur(verification.error, 'SasPay ne répond pas pour le moment. Votre paiement n’est pas perdu : réessayez dans un instant.')}
+          description={messageErreur(verification.error, 'SasPay ne répond pas pour le moment. Votre paiement n’est pas perdu : réessayez dans un instant.')}
           onReessayer={() => void verification.refetch()}
         />
       </Conteneur>
@@ -227,11 +227,11 @@ const titres: Record<Issue, string> = {
 }
 
 function description(issue: Issue, facture: Facture, longue: boolean): string {
-  if (issue === 'confirme') return `Merci ! SasPay a confirmé votre paiement. Le reçu est dans « Mes paiements ».`
-  if (issue === 'refuse') return 'Aucun montant n’a été débité. Le réseau a refusé l’opération : vérifiez votre solde ou le code saisi, puis réessayez.'
-  if (issue === 'annulee') return `La facture ${facture.numero} a été annulée : rien ne vous sera demandé.`
+  if (issue === 'confirme') return `Merci ! SasPay a confirmé votre paiement. Le reçu est dans « Mes paiements ».`
+  if (issue === 'refuse') return 'Aucun montant n’a été débité. Le réseau a refusé l’opération : vérifiez votre solde ou le code saisi, puis réessayez.'
+  if (issue === 'annulee') return `La facture ${facture.numero} a été annulée : rien ne vous sera demandé.`
   return longue
-    ? 'SasPay n’a pas encore la réponse de votre réseau. Vous recevrez un e-mail dès que le paiement sera confirmé ; vous pouvez fermer cette page.'
+    ? 'SasPay n’a pas encore la réponse de votre réseau. Vous recevrez un e-mail dès que le paiement sera confirmé ; vous pouvez fermer cette page.'
     : 'Validez l’opération sur votre téléphone si ce n’est pas déjà fait. Cette page se met à jour toute seule.'
 }
 
@@ -262,7 +262,7 @@ function SuiviCopie({ copie }: { copie: Deploiement | undefined }) {
     {
       id: 'construction',
       libelle: etat === 'suspendu' ? 'Réactivation de votre copie' : etat === 'en_ligne' ? 'Copie construite' : 'Construction de votre copie',
-      description: enCours ? 'Quelques minutes. Vous pouvez quitter cette page : la copie continue de démarrer.' : undefined,
+      description: enCours ? 'Quelques minutes. Vous pouvez quitter cette page : la copie continue de démarrer.' : undefined,
       etat: etat === 'echec' ? 'echec' : etat === 'en_ligne' ? 'terminee' : enCours ? 'en_cours' : 'a_venir',
     },
     {

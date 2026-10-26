@@ -106,7 +106,7 @@ export function MesPaiements() {
 
       {parametres.get('indisponible') ? (
         <Alerte ton="alerte" titre="Le paiement est momentanément indisponible">
-          SasPay ne répond pas pour le moment. Votre facture reste à payer ; réessayez dans quelques minutes.
+          SasPay ne répond pas pour le moment. Votre facture reste à payer ; réessayez dans quelques minutes.
         </Alerte>
       ) : null}
 
@@ -134,7 +134,7 @@ export function MesPaiements() {
           <div className="flex flex-col gap-0.5">
             <p className="m-0 font-medium text-titre">Vous êtes à jour</p>
             <p className="m-0 text-petit text-texte">
-              Prochaine facture : {prochaine.app_nom}, le {formaterDate(prochaine.abonnement.prochaine_echeance)} (
+              Prochaine facture : {prochaine.app_nom}, le {formaterDate(prochaine.abonnement.prochaine_echeance)} (
               {formaterFcfa(prochaine.abonnement.montant_hebergement + (prochaine.abonnement.type_prix === 'mensuel' ? prochaine.abonnement.prix_appli : 0))}). Elle arrive 3 jours
               avant, avec un lien de paiement.
             </p>

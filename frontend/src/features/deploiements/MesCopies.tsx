@@ -96,7 +96,7 @@ export function MesCopies() {
         <EtatVide
           illustration="vide-copies"
           titre="Vous n’avez pas encore de copie"
-          description="Commandez la copie d’une appli du Store : elle tourne pour vous, à votre nom, sur sa propre adresse."
+          description="Commandez la copie d’une appli du Store : elle tourne pour vous, à votre nom, sur sa propre adresse."
           action={<LienBouton to="/store">Parcourir le Store</LienBouton>}
         />
       ) : (
@@ -221,7 +221,7 @@ function CarteCopie({ copie, onArreter, onChange, onRelire }: { copie: Deploieme
 
       {copie.etat === 'suspendu' ? (
         <Alerte ton="danger" titre="Copie suspendue pour impayé">
-          Ses données sont gardées. Elle repart dès le paiement ; sans paiement, elle sera arrêtée définitivement 30 jours après la suspension.
+          Ses données sont gardées. Elle repart dès le paiement ; sans paiement, elle sera arrêtée définitivement 30 jours après la suspension.
         </Alerte>
       ) : facture && copie.etat !== 'attente_paiement' ? (
         <Alerte ton="alerte" titre={`Facture ${facture.numero} à payer`}>
@@ -266,7 +266,7 @@ function phraseCopie(copie: Deploiement): string {
     case 'en_file':
     case 'construction':
     case 'demarrage':
-      return 'Démarrage en cours : quelques minutes.'
+      return 'Démarrage en cours : quelques minutes.'
     case 'en_ligne':
       return 'En ligne · commandée le ' + formaterDate(copie.cree_le) + '.'
     case 'suspendu':
@@ -306,7 +306,7 @@ function ConfirmerArret({ copie, onFermer }: { copie: Deploiement; onFermer: () 
       onFermer={onFermer}
       taille="petite"
       titre={`Arrêter la copie de ${copie.app_nom} ?`}
-      description="Elle sera arrêtée et ses données supprimées : cette action est définitive. L’abonnement s’arrête avec elle, plus aucune facture ne sera émise."
+      description="Elle sera arrêtée et ses données supprimées : cette action est définitive. L’abonnement s’arrête avec elle, plus aucune facture ne sera émise."
       pied={
         <>
           <Bouton variante="contour" onClick={onFermer}>

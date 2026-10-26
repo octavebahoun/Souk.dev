@@ -18,5 +18,9 @@ export default defineConfig([
     languageOptions: {
       globals: globals.browser,
     },
+    rules: {
+      // Typographie française : espace insécable avant « : ; ! ? » dans les textes, jamais dans le code.
+      'no-irregular-whitespace': ['error', { skipStrings: true, skipTemplates: true, skipJSXText: true, skipComments: false, skipRegExps: false }],
+    },
   },
 ])

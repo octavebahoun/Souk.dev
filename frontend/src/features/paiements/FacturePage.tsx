@@ -172,7 +172,7 @@ export function FacturePage() {
         ) : null}
 
         <p className="m-0 border-t border-bordure pt-4 text-petit text-texte-doux">
-          Le prix de l’appli est reversé en entier à son auteur ; Souk.dev facture l’hébergement de la copie. Montants en francs CFA (XOF).
+          Le prix de l’appli est reversé en entier à son auteur ; Souk.dev facture l’hébergement de la copie. Montants en francs CFA (XOF).
         </p>
       </Carte>
 
