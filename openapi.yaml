@@ -31,6 +31,7 @@ tags:
   - name: Événements
   - name: Paiements
   - name: Revenus
+  - name: Notifications
   - name: Administration
 
 security:
@@ -1662,6 +1663,94 @@ paths:
         '422': { $ref: '#/components/responses/Invalide' }
         '429': { $ref: '#/components/responses/TropDeRequetes' }
 
+  /me/notifications:
+    get:
+      tags: [Notifications]
+      operationId: listNotifications
+      summary: Centre de notifications du compte, les plus récentes d'abord, avec le nombre de non lues
+      parameters:
+        - name: filtre
+          in: query
+          schema: { type: string, enum: [toutes, non_lues], default: toutes }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/ParPage'
+      responses:
+        '200':
+          description: Notifications
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Pagination'
+                  - type: object
+                    required: [data, non_lues]
+                    properties:
+                      data: { type: array, items: { $ref: '#/components/schemas/Notification' } }
+                      non_lues: { type: integer, description: Nombre total de notifications non lues }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '422': { $ref: '#/components/responses/Invalide' }
+
+  /me/notifications/lecture:
+    post:
+      tags: [Notifications]
+      operationId: lireToutesNotifications
+      summary: Tout marquer comme lu
+      responses:
+        '204': { description: Toutes les notifications sont lues }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+
+  /me/notifications/{notification}/lecture:
+    parameters:
+      - name: notification
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Notifications]
+      operationId: lireNotification
+      summary: Marquer une notification comme lue (celle d'un autre compte répond 404)
+      responses:
+        '200':
+          description: Notification lue
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Notification' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+
+  /me/preferences-notifications:
+    get:
+      tags: [Notifications]
+      operationId: lirePreferencesNotifications
+      summary: Réglages par type, dans Souk.dev et par e-mail
+      responses:
+        '200':
+          description: Réglages
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PreferencesNotifications' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+    put:
+      tags: [Notifications]
+      operationId: modifierPreferencesNotifications
+      summary: "Changer les réglages ; un type absent garde les siens, un e-mail obligatoire reste envoyé"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PreferencesNotificationsSaisie' }
+      responses:
+        '200':
+          description: Réglages enregistrés
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PreferencesNotifications' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+        '422': { $ref: '#/components/responses/Invalide' }
+
   /me/coordonnees-reversement:
     get:
       tags: [Revenus]
@@ -2909,6 +2998,54 @@ components:
         reference: { type: [string, 'null'], description: Référence SasPay du paiement en double }
         recu_le: { type: string, format: date-time }
         rembourse: { type: boolean }
+
+    TypeNotification:
+      type: string
+      enum: [correctif_propose, correctif_accepte, message_mission, echeance, suspension, reversement]
+
+    Notification:
+      type: object
+      description: "Diffusée aussi en direct : événement notification.creee sur le canal privé utilisateur.{id}"
+      required: [id, type, titre, texte, lien, lue, cree_le]
+      properties:
+        id: { type: string, format: uuid }
+        type: { $ref: '#/components/schemas/TypeNotification' }
+        titre: { type: string }
+        texte: { type: string }
+        lien: { type: [string, 'null'], description: "Chemin du front vers l'écran concerné (/paiements/12…)" }
+        lue: { type: boolean }
+        cree_le: { type: string, format: date-time }
+
+    PreferencesNotifications:
+      type: object
+      required: [types]
+      properties:
+        types:
+          type: array
+          items:
+            type: object
+            required: [type, libelle, description, application, email, email_obligatoire]
+            properties:
+              type: { $ref: '#/components/schemas/TypeNotification' }
+              libelle: { type: string }
+              description: { type: string }
+              application: { type: boolean, description: Dans le centre de notifications de Souk.dev }
+              email: { type: boolean }
+              email_obligatoire: { type: boolean, description: "L'e-mail part quoi qu'il arrive (suspension : prévient avant la suppression des données)" }
+
+    PreferencesNotificationsSaisie:
+      type: object
+      required: [preferences]
+      properties:
+        preferences:
+          type: array
+          items:
+            type: object
+            required: [type, application, email]
+            properties:
+              type: { $ref: '#/components/schemas/TypeNotification' }
+              application: { type: boolean }
+              email: { type: boolean }
 
     AvisAppli:
       type: object

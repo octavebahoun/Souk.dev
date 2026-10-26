@@ -32,12 +32,12 @@ export const liensEspace: LienNavigation[] = [
   { vers: '/paiements', libelle: t.navigation.paiements, icone: CreditCard, visible: connecte },
   { vers: '/revenus', libelle: t.navigation.revenus, icone: Wallet, visible: connecte },
   { vers: '/missions', libelle: t.navigation.missions, icone: Briefcase, visible: connecte },
+  { vers: '/notifications', libelle: t.navigation.notifications, icone: Bell, visible: connecte },
   { vers: '/admin/finances', libelle: t.navigation.finances, icone: Shield, visible: admin },
 ]
 
 /** Écrans à venir dans l'espace, gardés ici pour l'ordre de la navigation. */
 export const liensEspaceAVenir = {
-  notifications: { vers: '/notifications', libelle: t.navigation.notifications, icone: Bell },
   parametres: { vers: '/parametres', libelle: t.navigation.parametres, icone: Settings },
   administration: { vers: '/admin', libelle: t.navigation.administration, icone: Shield },
 }

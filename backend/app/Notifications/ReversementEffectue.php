@@ -3,21 +3,33 @@
 namespace App\Notifications;
 
 use App\Models\Reversement;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Notifications\Notification;
 
-class ReversementEffectue extends Notification implements ShouldQueue
+class ReversementEffectue extends NotificationSouk
 {
-    use Queueable;
-
     public function __construct(public Reversement $reversement) {}
 
-    /** @return list<string> */
-    public function via(object $notifiable): array
+    public function type(): string
     {
-        return ['mail'];
+        return 'reversement';
+    }
+
+    /** @return array{titre: string, texte: string, lien: string|null} */
+    public function contenu(): array
+    {
+        $montant = Courriel::fcfa($this->reversement->montant);
+
+        return $this->reversement->statut === 'reussi'
+            ? [
+                'titre' => 'Reversement reçu',
+                'texte' => "{$montant} envoyés sur votre Mobile Money ({$this->reversement->numero_masque}).",
+                'lien' => '/revenus',
+            ]
+            : [
+                'titre' => 'Reversement refusé',
+                'texte' => "Le réseau a refusé {$montant} vers {$this->reversement->numero_masque} : votre solde vous est rendu.",
+                'lien' => '/revenus',
+            ];
     }
 
     public function toMail(object $notifiable): MailMessage

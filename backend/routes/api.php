@@ -16,6 +16,7 @@ use App\Http\Controllers\FactureController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\MissionController;
 use App\Http\Controllers\MissionMessageController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ReseauMobileMoneyController;
 use App\Http\Controllers\RevenusController;
 use App\Http\Controllers\TechnoController;
@@ -75,6 +76,13 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('/me/revenus/reversements', [RevenusController::class, 'reversements']);
     Route::post('/me/revenus/reversements', [RevenusController::class, 'demander'])
         ->middleware(['throttle:reversements', 'idempotence:obligatoire']);
+    // Centre de notifications et préférences par type.
+    Route::get('/me/notifications', [NotificationController::class, 'index']);
+    Route::post('/me/notifications/lecture', [NotificationController::class, 'toutLire']);
+    Route::post('/me/notifications/{notification}/lecture', [NotificationController::class, 'lire'])->whereUuid('notification');
+    Route::get('/me/preferences-notifications', [NotificationController::class, 'preferences']);
+    Route::put('/me/preferences-notifications', [NotificationController::class, 'modifierPreferences']);
+
     Route::get('/me/coordonnees-reversement', [CoordonneesReversementController::class, 'show']);
     Route::put('/me/coordonnees-reversement', [CoordonneesReversementController::class, 'update'])
         ->middleware('throttle:coordonnees');

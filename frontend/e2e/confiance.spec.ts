@@ -108,3 +108,55 @@ test.describe.serial('confiance', () => {
     expect(premieres.sort()).toEqual(['Cotis’Asso', 'PharmaStock'])
   })
 })
+
+test.describe.serial('notifications', () => {
+  test('la cloche reçoit en direct, mène à l’écran concerné et les réglages tiennent', async ({ page, browser }) => {
+    await connexionDemo(page, 'soukdemo-awa')
+    await page.goto('/notifications')
+    const cloche = page.getByRole('button', { name: /^Notifications/ })
+    await expect(cloche).toHaveAccessibleName(/Notifications, \d+ non lues?/)
+    const avant = Number((await cloche.getAttribute('aria-label'))?.match(/\d+/)?.[0] ?? 0)
+
+    // La pharmacie écrit dans le fil de la mission : la cloche d'Awa s'allume sans recharger.
+    const pharmacie = await browser.newPage()
+    await connexionDemo(pharmacie, 'soukdemo-pharmacie')
+    const missions = (await (await api(pharmacie, 'GET', '/missions')).json()) as { data: { id: number; client: { username: string } }[] }
+    const mission = missions.data.find((item) => item.client.username === 'soukdemo-pharmacie')
+    expect(mission, 'mission de démo absente').toBeTruthy()
+    const texte = `Nous avons ajouté deux écrans à la liste (essai ${Date.now()}).`
+    expect((await api(pharmacie, 'POST', `/missions/${mission!.id}/messages`, { data: { texte } })).status()).toBe(201)
+    await pharmacie.close()
+    await expect(cloche).toHaveAccessibleName(`Notifications, ${avant + 1} non lues`, { timeout: 30_000 })
+
+    await cloche.click()
+    const panneau = page.getByRole('dialog', { name: 'Notifications' })
+    await expect(panneau.getByText(texte)).toBeVisible()
+    expect(resumer(await auditAxe(page, '[role="dialog"]'))).toBe('')
+    await panneau.getByRole('link', { name: new RegExp(texte.replace(/[().]/g, '\\$&')) }).click()
+    await expect(page).toHaveURL(new RegExp(`/missions\\?mission=${mission!.id}$`))
+    await expect(page.getByText(texte).first()).toBeVisible()
+    await expect(cloche).toHaveAccessibleName(`Notifications, ${avant} non ${avant > 1 ? 'lues' : 'lue'}`)
+
+    // Couper l'e-mail des messages de mission : le réglage survit au rechargement.
+    await page.goto('/notifications/reglages')
+    const missionsReglage = page.getByRole('group', { name: 'Messages de mission' })
+    const email = missionsReglage.getByRole('switch', { name: 'Par e-mail' })
+    await expect(email).toBeChecked()
+    const enregistre = page.waitForResponse((reponse) => reponse.url().endsWith('/api/me/preferences-notifications') && reponse.request().method() === 'PUT')
+    await email.click()
+    await expect(email).not.toBeChecked()
+    expect((await enregistre).status()).toBe(200)
+    await page.reload()
+    await expect(page.getByRole('group', { name: 'Messages de mission' }).getByRole('switch', { name: 'Par e-mail' })).not.toBeChecked()
+    await expect(page.getByRole('group', { name: 'Suspension d’une copie' }).getByText('Toujours envoyé')).toBeVisible()
+    expect(resumer(await auditAxe(page))).toBe('')
+    const retabli = page.waitForResponse((reponse) => reponse.url().endsWith('/api/me/preferences-notifications') && reponse.request().method() === 'PUT')
+    await page.getByRole('group', { name: 'Messages de mission' }).getByRole('switch', { name: 'Par e-mail' }).click()
+    expect((await retabli).status()).toBe(200)
+    await expect(page.getByRole('group', { name: 'Messages de mission' }).getByRole('switch', { name: 'Par e-mail' })).toBeChecked()
+
+    await page.goto('/notifications')
+    await page.getByRole('tab', { name: /Non lues/ }).click()
+    expect(resumer(await auditAxe(page))).toBe('')
+  })
+})

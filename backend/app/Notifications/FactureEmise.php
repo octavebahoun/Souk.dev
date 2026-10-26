@@ -3,23 +3,29 @@
 namespace App\Notifications;
 
 use App\Models\Facture;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\URL;
 
 /** Facture de la période suivante, trois jours avant l'échéance, avec un lien de paiement signé. */
-class FactureEmise extends Notification implements ShouldQueue
+class FactureEmise extends NotificationSouk
 {
-    use Queueable;
-
     public function __construct(public Facture $facture) {}
 
-    /** @return list<string> */
-    public function via(object $notifiable): array
+    public function type(): string
     {
-        return ['mail'];
+        return 'echeance';
+    }
+
+    /** @return array{titre: string, texte: string, lien: string|null} */
+    public function contenu(): array
+    {
+        $facture = $this->facture->loadMissing('abonnement.appli');
+
+        return [
+            'titre' => "Facture {$facture->numero} à régler",
+            'texte' => Courriel::fcfa($facture->montant_total)." pour votre copie de {$facture->abonnement->appli?->nom}, avant le ".$facture->echeance_le->locale('fr')->isoFormat('D MMMM').'.',
+            'lien' => '/paiements/'.$facture->id,
+        ];
     }
 
     public function toMail(object $notifiable): MailMessage

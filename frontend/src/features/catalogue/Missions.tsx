@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Link } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 import { isAxiosError } from 'axios'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ecrireMessageMission, fcfa, listerMessagesMission, listerMissions, noterMission, type Mission } from './api'
@@ -9,7 +9,9 @@ import { Modal } from '../../shared/ui/Modal'
 export function Missions() {
   const missions = useQuery({ queryKey: ['missions'], queryFn: listerMissions })
   const moi = useQuery({ queryKey: ['moi'], queryFn: lireMoi })
-  const [choisie, setChoisie] = useState<number | null>(null)
+  const [parametres] = useSearchParams()
+  // Lien d'une notification (« Message de… ») : la mission concernée s'ouvre directement.
+  const [choisie, setChoisie] = useState<number | null>(() => Number(parametres.get('mission')) || null)
   const [nouvelle, setNouvelle] = useState(false)
   const [maintenant] = useState(() => Date.now())
   const liste = missions.data?.data ?? []

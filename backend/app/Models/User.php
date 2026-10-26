@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\Profil;
+use App\Notifications\TypesNotification;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -38,7 +39,27 @@ class User extends Authenticatable
             'profil_calcule_le' => 'datetime',
             'competences' => 'array',
             'specialites' => 'array',
+            'preferences_notifications' => 'array',
         ];
+    }
+
+    /**
+     * Reçoit ce type de notification sur ce canal (application ou email) ; tout est reçu tant que
+     * le compte n'a rien coupé, et un e-mail obligatoire part toujours.
+     */
+    public function recoitNotification(string $type, string $canal): bool
+    {
+        if ($canal === 'email' && (TypesNotification::TYPES[$type]['email_obligatoire'] ?? false)) {
+            return true;
+        }
+
+        return (bool) ($this->preferences_notifications[$type][$canal] ?? true);
+    }
+
+    /** Canal privé où le centre de notifications reçoit les nouvelles en direct. */
+    public function receivesBroadcastNotificationsOn(): string
+    {
+        return 'utilisateur.'.$this->id;
     }
 
     /**

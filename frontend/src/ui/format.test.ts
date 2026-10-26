@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { formaterDate, formaterFcfa, formaterNote, formaterPeriode } from './format'
+import { formaterDate, formaterFcfa, formaterIlYa, formaterNote, formaterPeriode } from './format'
 
 describe('formats', () => {
+  it('dit depuis quand, puis la date au-delà d’une semaine', () => {
+    const maintenant = new Date('2026-10-26T12:00:00Z').getTime()
+    expect(formaterIlYa('2026-10-26T11:59:30Z', maintenant)).toBe('à l’instant')
+    expect(formaterIlYa('2026-10-26T11:55:00Z', maintenant)).toBe('il y a 5 minutes')
+    expect(formaterIlYa('2026-10-25T11:00:00Z', maintenant)).toBe('hier')
+    expect(formaterIlYa('2026-10-10T11:00:00Z', maintenant)).toBe(formaterDate('2026-10-10T11:00:00Z', 'court'))
+  })
+
   it('écrit une note sur 5 avec une décimale au plus', () => {
     expect(formaterNote(4.5)).toBe('4,5')
     expect(formaterNote(5)).toBe('5')

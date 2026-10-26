@@ -20,13 +20,22 @@ use App\Models\Mission;
 use App\Models\Paiement;
 use App\Models\Reversement;
 use App\Models\User;
+use App\Notifications\CorrectifRecu;
+use App\Notifications\CorrectifRetenu;
+use App\Notifications\FactureEmise;
+use App\Notifications\NotificationSouk;
+use App\Notifications\NouveauMessageMission;
+use App\Notifications\PaiementRecu;
+use App\Notifications\ReversementEffectue;
 use App\Paiement\Facturation;
 use App\Paiement\GrandLivre;
 use App\Paiement\NumeroMobileMoney;
 use Illuminate\Database\Seeder;
+use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -75,6 +84,7 @@ class DemoSeeder extends Seeder
             $this->creerEvenements();
             $this->creerMissions();
             $this->creerFacturation();
+            $this->creerNotifications();
         });
 
         if (app()->environment('local')) {
@@ -101,6 +111,10 @@ class DemoSeeder extends Seeder
             ->pluck('appli_id');
         User::query()->where('est_demo', true)->get()->each->delete();
         Appli::query()->whereIn('id', $applisNotees)->get()->each->recalculerAvis();
+        DatabaseNotification::query()
+            ->where('notifiable_type', (new User)->getMorphClass())
+            ->whereNotIn('notifiable_id', User::query()->select('id'))
+            ->delete();
 
         Canal::query()
             ->whereIn('slug', ['laravel', 'mobile-money', 'react', 'devops', 'laravel-benin', 'dakar-tech', 'entraide-generale'])
@@ -494,6 +508,49 @@ class DemoSeeder extends Seeder
             'commentaire' => 'Plus aucune rupture de stock depuis le premier mois, et Awa a répondu vite à nos questions.',
         ])->forceFill(['created_at' => $note, 'updated_at' => $note])->save();
         $this->applis['pharmastock']->recalculerAvis();
+    }
+
+    /**
+     * Le centre de notifications des comptes de démo : correctifs, messages de mission, factures
+     * et reversement, lus ou non (jamais d'e-mail : les adresses de démo n'existent pas).
+     */
+    private function creerNotifications(): void
+    {
+        $correctifs = Correctif::query()->with('discussion')->whereIn('user_id', collect($this->comptes)->pluck('id'))->orderBy('id')->get();
+        foreach ($correctifs as $rang => $correctif) {
+            $this->notifier($correctif->discussion->auteur, new CorrectifRecu($correctif), now()->subHours(30 - $rang * 4), lue: $correctif->accepte);
+            if ($correctif->accepte) {
+                $this->notifier($correctif->auteur, new CorrectifRetenu($correctif), now()->subDay());
+            }
+        }
+
+        $mission = Mission::query()->where('client_id', $this->comptes['pharmacie']->id)->with('messages')->firstOrFail();
+        foreach ($mission->messages as $rang => $message) {
+            $destinataire = $message->auteur_id === $mission->client_id ? $this->comptes['awa'] : $this->comptes['pharmacie'];
+            $this->notifier($destinataire, new NouveauMessageMission($message), now()->subMinutes(90 - $rang * 40), lue: $rang < 2);
+        }
+
+        foreach (Facture::query()->whereIn('client_id', [$this->comptes['pharmacie']->id, $this->comptes['association']->id])->orderBy('id')->get() as $facture) {
+            $facture->statut === 'payee'
+                ? $this->notifier($facture->client, new PaiementRecu($facture), $facture->payee_le, lue: true)
+                : $this->notifier($facture->client, new FactureEmise($facture), now()->subHours(2));
+        }
+
+        $reversement = Reversement::query()->where('dev_id', $this->comptes['awa']->id)->firstOrFail();
+        $this->notifier($this->comptes['awa'], new ReversementEffectue($reversement), $reversement->verifie_le, lue: true);
+    }
+
+    /** Une notification du centre, à sa date, sans e-mail ni diffusion. */
+    private function notifier(User $compte, NotificationSouk $notification, Carbon $quand, bool $lue = false): void
+    {
+        // L'envoi travaille sur une copie : l'identifiant fixé ici est celui de la ligne créée.
+        $notification->id = (string) Str::uuid();
+        Notification::sendNow($compte, $notification, ['database']);
+        $compte->notifications()->whereKey($notification->id)->update([
+            'created_at' => $quand,
+            'updated_at' => $quand,
+            'read_at' => $lue ? $quand : null,
+        ]);
     }
 
     private function copieClient(string $client, string $appli, string $etat, Carbon $debut): Abonnement

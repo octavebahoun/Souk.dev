@@ -22,6 +22,8 @@ use App\Moteur\DepotGithub;
 use App\Moteur\Exceptions\DepotInvalide;
 use App\Moteur\LimitesTaille;
 use App\Moteur\SourceCopieTest;
+use App\Notifications\CorrectifRecu;
+use App\Notifications\CorrectifRetenu;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -61,6 +63,9 @@ final class CorrectifController extends Controller
         ]);
         $correctif->setRelation('auteur', $auteur);
         $diffuseur->envoyer(new CorrectifPropose($correctif));
+        if ($discussion->user_id !== $auteur->id) {
+            $discussion->auteur?->notify(new CorrectifRecu($correctif));
+        }
 
         return (new CorrectifResource($correctif))->response()->setStatusCode(201);
     }
@@ -96,6 +101,9 @@ final class CorrectifController extends Controller
         $discussion->load(['auteur', 'canal'])->loadCount('messages');
         $diffuseur->envoyer(new CorrectifAccepte($correctif));
         $diffuseur->envoyer(new DiscussionModifiee($discussion));
+        if ($correctif->user_id !== $discussion->user_id) {
+            $correctif->auteur->notify(new CorrectifRetenu($correctif));
+        }
 
         return new CorrectifResource($correctif);
     }

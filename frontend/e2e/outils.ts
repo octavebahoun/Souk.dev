@@ -18,15 +18,18 @@ const AXE = 'https://cdnjs.cloudflare.com/ajax/libs/axe-core/4.10.2/axe.min.js'
 
 type Violation = { id: string; impact: string | null; help: string; nodes: Array<{ target: string[] }> }
 
-/** Audit axe (WCAG 2.2 A et AA) : renvoie les violations sérieuses ou critiques. */
-export async function auditAxe(page: Page): Promise<Violation[]> {
+/**
+ * Audit axe (WCAG 2.2 A et AA) : renvoie les violations sérieuses ou critiques. Avec un sélecteur,
+ * seulement cette partie (un panneau ouvert par-dessus la page, qu'on ne peut pas utiliser dessous).
+ */
+export async function auditAxe(page: Page, selecteur?: string): Promise<Violation[]> {
   await page.addScriptTag({ url: AXE })
-  const violations = await page.evaluate(async () => {
-    const resultat = await (window as unknown as { axe: { run: (contexte: Document, options: object) => Promise<{ violations: Violation[] }> } }).axe.run(document, {
+  const violations = await page.evaluate(async (cible) => {
+    const resultat = await (window as unknown as { axe: { run: (contexte: Document | string, options: object) => Promise<{ violations: Violation[] }> } }).axe.run(cible ?? document, {
       runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'] },
     })
     return resultat.violations
-  })
+  }, selecteur)
   return violations.filter((violation) => violation.impact === 'serious' || violation.impact === 'critical')
 }
 

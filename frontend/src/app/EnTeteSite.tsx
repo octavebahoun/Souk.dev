@@ -4,6 +4,7 @@ import { ChevronDown, Gauge, LogOut, Package, Search, Server, UserRound } from '
 import { t } from '../i18n'
 import { Avatar, BoutonTheme, cx, LienBouton, Logo, MenuDeroulant, Squelette, type ElementMenu } from '../ui'
 import { nomPays } from '../features/echange/texte'
+import { Cloche } from '../features/notifications/Cloche'
 import { useCompte, useDeconnexion } from './compte'
 import { liensPrincipaux } from './navigation'
 
@@ -144,6 +145,7 @@ export function EnTeteSite({ surFondSombre = false }: EnTeteSiteProps) {
                   {t.navigation.publier}
                 </LienBouton>
               ) : null}
+              <Cloche surFondSombre={surFondSombre} />
               <MenuDuCompte />
             </>
           ) : (

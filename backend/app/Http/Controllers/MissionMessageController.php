@@ -6,6 +6,7 @@ use App\Echange\Diffuseur;
 use App\Events\MessageMissionCree;
 use App\Http\Resources\MessageResource;
 use App\Models\Mission;
+use App\Notifications\NouveauMessageMission;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
@@ -39,6 +40,8 @@ class MissionMessageController extends Controller
             'texte' => $donnees['texte'],
         ]);
         $diffuseur->envoyer(new MessageMissionCree($message->load('auteur')));
+        $destinataire = $request->user()->id === $mission->client_id ? $mission->auteur : $mission->client;
+        $destinataire?->notify(new NouveauMessageMission($message));
 
         return (new MessageResource($message->load('auteur')))
             ->response()

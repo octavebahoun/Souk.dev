@@ -3,22 +3,28 @@
 namespace App\Notifications;
 
 use App\Models\Abonnement;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Notifications\Notification;
 
 /** Copie payée qui n'a pas pu démarrer : le client sait que l'équipe s'en occupe et ne paie plus rien. */
-class CopieEnIncident extends Notification implements ShouldQueue
+class CopieEnIncident extends NotificationSouk
 {
-    use Queueable;
-
     public function __construct(public Abonnement $abonnement) {}
 
-    /** @return list<string> */
-    public function via(object $notifiable): array
+    public function type(): string
     {
-        return ['mail'];
+        return 'suspension';
+    }
+
+    /** @return array{titre: string, texte: string, lien: string|null} */
+    public function contenu(): array
+    {
+        $nom = $this->abonnement->loadMissing('appli')->appli?->nom;
+
+        return [
+            'titre' => "Copie de {$nom} non démarrée",
+            'texte' => 'Votre paiement est enregistré, mais la copie n’a pas pu démarrer. Notre équipe est prévenue.',
+            'lien' => '/copies',
+        ];
     }
 
     public function toMail(object $notifiable): MailMessage

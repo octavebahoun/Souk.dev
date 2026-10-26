@@ -3,22 +3,29 @@
 namespace App\Notifications;
 
 use App\Models\Facture;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\URL;
 
-class CopieSuspendue extends Notification implements ShouldQueue
+class CopieSuspendue extends NotificationSouk
 {
-    use Queueable;
-
     public function __construct(public Facture $facture) {}
 
-    /** @return list<string> */
-    public function via(object $notifiable): array
+    public function type(): string
     {
-        return ['mail'];
+        return 'suspension';
+    }
+
+    /** @return array{titre: string, texte: string, lien: string|null} */
+    public function contenu(): array
+    {
+        $facture = $this->facture->loadMissing('abonnement.appli');
+        $arret = now()->addDays((int) config('facturation.jours_avant_arret'));
+
+        return [
+            'titre' => "Copie de {$facture->abonnement->appli?->nom} suspendue",
+            'texte' => "La facture {$facture->numero} n’est pas réglée. Les données sont gardées jusqu’au ".$arret->locale('fr')->isoFormat('D MMMM').', la copie repart dès le paiement.',
+            'lien' => '/paiements/'.$facture->id,
+        ];
     }
 
     public function toMail(object $notifiable): MailMessage

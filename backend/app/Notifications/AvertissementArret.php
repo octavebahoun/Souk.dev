@@ -3,22 +3,30 @@
 namespace App\Notifications;
 
 use App\Models\Abonnement;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\URL;
 
-class AvertissementArret extends Notification implements ShouldQueue
+class AvertissementArret extends NotificationSouk
 {
-    use Queueable;
-
     public function __construct(public Abonnement $abonnement) {}
 
-    /** @return list<string> */
-    public function via(object $notifiable): array
+    public function type(): string
     {
-        return ['mail'];
+        return 'suspension';
+    }
+
+    /** @return array{titre: string, texte: string, lien: string|null} */
+    public function contenu(): array
+    {
+        $abonnement = $this->abonnement->loadMissing('appli');
+        $facture = $abonnement->factures()->where('statut', 'a_payer')->oldest('echeance_le')->first();
+        $arret = $abonnement->suspendu_le?->copy()->addDays((int) config('facturation.jours_avant_arret'));
+
+        return [
+            'titre' => 'Dernier rappel avant suppression',
+            'texte' => "Sans paiement, votre copie de {$abonnement->appli?->nom} et ses données seront supprimées le ".$arret?->locale('fr')->isoFormat('D MMMM').'.',
+            'lien' => $facture !== null ? '/paiements/'.$facture->id : '/copies',
+        ];
     }
 
     public function toMail(object $notifiable): MailMessage

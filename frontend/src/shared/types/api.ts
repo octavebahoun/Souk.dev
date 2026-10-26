@@ -1019,6 +1019,77 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Centre de notifications du compte, les plus récentes d'abord, avec le nombre de non lues */
+        get: operations["listNotifications"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/notifications/lecture": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Tout marquer comme lu */
+        post: operations["lireToutesNotifications"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/notifications/{notification}/lecture": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                notification: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Marquer une notification comme lue (celle d'un autre compte répond 404) */
+        post: operations["lireNotification"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/preferences-notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Réglages par type, dans Souk.dev et par e-mail */
+        get: operations["lirePreferencesNotifications"];
+        /** Changer les réglages ; un type absent garde les siens, un e-mail obligatoire reste envoyé */
+        put: operations["modifierPreferencesNotifications"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me/coordonnees-reversement": {
         parameters: {
             query?: never;
@@ -1955,6 +2026,40 @@ export interface components {
             /** Format: date-time */
             recu_le: string;
             rembourse: boolean;
+        };
+        /** @enum {string} */
+        TypeNotification: "correctif_propose" | "correctif_accepte" | "message_mission" | "echeance" | "suspension" | "reversement";
+        /** @description Diffusée aussi en direct : événement notification.creee sur le canal privé utilisateur.{id} */
+        Notification: {
+            /** Format: uuid */
+            id: string;
+            type: components["schemas"]["TypeNotification"];
+            titre: string;
+            texte: string;
+            /** @description Chemin du front vers l'écran concerné (/paiements/12…) */
+            lien: string | null;
+            lue: boolean;
+            /** Format: date-time */
+            cree_le: string;
+        };
+        PreferencesNotifications: {
+            types: {
+                type: components["schemas"]["TypeNotification"];
+                libelle: string;
+                description: string;
+                /** @description Dans le centre de notifications de Souk.dev */
+                application: boolean;
+                email: boolean;
+                /** @description L'e-mail part quoi qu'il arrive (suspension : prévient avant la suppression des données) */
+                email_obligatoire: boolean;
+            }[];
+        };
+        PreferencesNotificationsSaisie: {
+            preferences: {
+                type: components["schemas"]["TypeNotification"];
+                application: boolean;
+                email: boolean;
+            }[];
         };
         /** @description Avis d'un client sur une appli dont il a eu une copie payée */
         AvisAppli: {
@@ -4326,6 +4431,131 @@ export interface operations {
             422: components["responses"]["Invalide"];
             428: components["responses"]["CleIdempotenceManquante"];
             429: components["responses"]["TropDeRequetes"];
+        };
+    };
+    listNotifications: {
+        parameters: {
+            query?: {
+                filtre?: "toutes" | "non_lues";
+                /** @description Numéro de page (commence à 1) */
+                page?: components["parameters"]["Page"];
+                /** @description Éléments par page (50 maximum) */
+                per_page?: components["parameters"]["ParPage"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Notifications */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pagination"] & {
+                        data: components["schemas"]["Notification"][];
+                        /** @description Nombre total de notifications non lues */
+                        non_lues: number;
+                    };
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            422: components["responses"]["Invalide"];
+        };
+    };
+    lireToutesNotifications: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Toutes les notifications sont lues */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["NonConnecte"];
+            419: components["responses"]["CsrfInvalide"];
+        };
+    };
+    lireNotification: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                notification: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Notification lue */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Notification"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            404: components["responses"]["Introuvable"];
+            419: components["responses"]["CsrfInvalide"];
+        };
+    };
+    lirePreferencesNotifications: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Réglages */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreferencesNotifications"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+        };
+    };
+    modifierPreferencesNotifications: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PreferencesNotificationsSaisie"];
+            };
+        };
+        responses: {
+            /** @description Réglages enregistrés */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreferencesNotifications"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            419: components["responses"]["CsrfInvalide"];
+            422: components["responses"]["Invalide"];
         };
     };
     getCoordonneesReversement: {

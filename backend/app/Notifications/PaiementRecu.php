@@ -3,22 +3,28 @@
 namespace App\Notifications;
 
 use App\Models\Facture;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Notifications\Notification;
 
 /** Reçu : la facture est payée (vérifié auprès de SasPay). */
-class PaiementRecu extends Notification implements ShouldQueue
+class PaiementRecu extends NotificationSouk
 {
-    use Queueable;
-
     public function __construct(public Facture $facture) {}
 
-    /** @return list<string> */
-    public function via(object $notifiable): array
+    public function type(): string
     {
-        return ['mail'];
+        return 'echeance';
+    }
+
+    /** @return array{titre: string, texte: string, lien: string|null} */
+    public function contenu(): array
+    {
+        $facture = $this->facture->loadMissing('abonnement.appli');
+
+        return [
+            'titre' => 'Paiement reçu',
+            'texte' => Courriel::fcfa($facture->montant_total)." pour la facture {$facture->numero} ({$facture->abonnement->appli?->nom}).",
+            'lien' => '/paiements/'.$facture->id,
+        ];
     }
 
     public function toMail(object $notifiable): MailMessage

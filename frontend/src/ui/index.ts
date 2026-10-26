@@ -1,6 +1,6 @@
 /** Bibliothèque de composants de Souk.dev (docs/design.md, § 6). */
 export { Avatar } from './Avatar'
-export { formaterDate, formaterFcfa, formaterNote, formaterPeriode, initiales, joursAvant } from './format'
+export { formaterDate, formaterFcfa, formaterIlYa, formaterNote, formaterPeriode, initiales, joursAvant } from './format'
 export { Badge, PastilleEtat, type TonBadge } from './Badge'
 export { Bouton, BoutonIcone, LienBouton } from './Bouton'
 export { classeControle, classesBouton, type TailleBouton, type VarianteBouton } from './classes'

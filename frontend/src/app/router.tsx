@@ -67,6 +67,8 @@ export function creerRoutes(): RouteObject[] {
               { path: '/paiements', lazy: async () => ({ Component: (await import('../features/paiements/MesPaiements')).MesPaiements }) },
               { path: '/paiements/:id', lazy: async () => ({ Component: (await import('../features/paiements/FacturePage')).FacturePage }) },
               { path: '/revenus', lazy: async () => ({ Component: (await import('../features/revenus/MesRevenus')).MesRevenus }) },
+              { path: '/notifications', lazy: async () => ({ Component: (await import('../features/notifications/PageNotifications')).PageNotifications }) },
+              { path: '/notifications/reglages', lazy: async () => ({ Component: (await import('../features/notifications/ReglagesNotifications')).ReglagesNotifications }) },
               { path: '/admin/finances', lazy: async () => ({ Component: (await import('../features/admin/Finances')).Finances }) },
             ],
           },

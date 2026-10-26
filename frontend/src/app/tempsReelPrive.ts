@@ -5,6 +5,8 @@ import { clientLocal } from '../shared/client'
 import { preparerCsrf } from './preparerCsrf'
 
 let connexion: Echo<'reverb'> | null | undefined
+/** Écrans abonnés à chaque canal : on ne quitte un canal que lorsque le dernier s'en va. */
+const abonnes = new Map<string, number>()
 
 /**
  * Connexion Reverb pour les canaux privés (factures, déploiements) : une seule par onglet,
@@ -69,12 +71,22 @@ export function useCanalPrive<T>(nom: string | null, evenement: string, recevoir
   useEffect(() => {
     const echo = nom ? echoPrive() : null
     if (!echo || !nom) return
-    echo
-      .private(nom)
-      .listen(`.${evenement}`, (donnees: T) => rappel.current(donnees))
-      .subscribed(() => abonne.current?.())
+    const canal = echo.private(nom)
+    const ecouteur = (donnees: T) => rappel.current(donnees)
+    abonnes.set(nom, (abonnes.get(nom) ?? 0) + 1)
+    canal.listen(`.${evenement}`, ecouteur)
+    // Canal déjà ouvert par un autre écran (la cloche de l'en-tête) : l'abonnement est acquis.
+    if ((canal as unknown as { subscription?: { subscribed?: boolean } }).subscription?.subscribed) abonne.current?.()
+    else canal.subscribed(() => abonne.current?.())
     return () => {
-      echo.leave(nom)
+      canal.stopListening(`.${evenement}`, ecouteur)
+      const restants = (abonnes.get(nom) ?? 1) - 1
+      if (restants > 0) {
+        abonnes.set(nom, restants)
+      } else {
+        abonnes.delete(nom)
+        echo.leave(nom)
+      }
     }
   }, [nom, evenement])
 }

@@ -58,3 +58,16 @@ export function joursAvant(valeur: string): number {
 export function formaterNote(note: number): string {
   return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 }).format(note)
 }
+
+const relatif = new Intl.RelativeTimeFormat('fr', { numeric: 'auto' })
+
+/** « à l’instant », « il y a 5 minutes », « hier », puis la date courte au-delà d'une semaine. */
+export function formaterIlYa(valeur: string, maintenant: number = Date.now()): string {
+  const secondes = Math.max(0, Math.round((maintenant - new Date(valeur).getTime()) / 1000))
+  if (Number.isNaN(secondes)) return valeur
+  if (secondes < 60) return 'à l’instant'
+  if (secondes < 3600) return relatif.format(-Math.floor(secondes / 60), 'minute')
+  if (secondes < 86400) return relatif.format(-Math.floor(secondes / 3600), 'hour')
+  if (secondes < 7 * 86400) return relatif.format(-Math.floor(secondes / 86400), 'day')
+  return formaterDate(valeur, 'court')
+}
