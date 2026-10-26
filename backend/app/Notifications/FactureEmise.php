@@ -29,7 +29,7 @@ class FactureEmise extends Notification implements ShouldQueue
 
         return Courriel::nouveau("Votre facture {$facture->numero} — échéance le ".$facture->echeance_le->locale('fr')->isoFormat('D MMMM'))
             ->line("La copie de {$facture->abonnement->appli?->nom} se renouvelle le ".$facture->echeance_le->locale('fr')->isoFormat('dddd D MMMM').'.')
-            ->line('Montant : '.Courriel::fcfa($facture->montant_total).' (les frais Mobile Money ou carte s’ajoutent au moment du paiement).')
+            ->line('Montant : '.Courriel::fcfa($facture->montant_total).' (les frais Mobile Money ou carte s’ajoutent au moment du paiement).')
             ->action('Payer maintenant', $lien)
             ->line('Sans paiement, la copie reste en ligne 7 jours après l’échéance, puis elle est suspendue jusqu’au paiement.');
     }

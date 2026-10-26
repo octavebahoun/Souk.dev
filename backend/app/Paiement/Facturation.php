@@ -102,7 +102,7 @@ final class Facturation
         $prix = config('facturation.hebergement.'.$formule);
 
         if (! is_int($prix) || $prix <= 0) {
-            throw new InvalidArgumentException("Formule d'hébergement inconnue : {$formule}.");
+            throw new InvalidArgumentException("Formule d'hébergement inconnue : {$formule}.");
         }
 
         return $prix;

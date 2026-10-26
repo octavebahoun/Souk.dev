@@ -173,7 +173,7 @@ final class GrandLivre
         }
 
         if (array_sum(array_column($lignes, 'montant')) !== 0) {
-            throw new LogicException("Opération déséquilibrée ({$type}) : le grand livre refuse.");
+            throw new LogicException("Opération déséquilibrée ({$type}) : le grand livre refuse.");
         }
 
         $operation = (string) Str::uuid();

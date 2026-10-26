@@ -33,7 +33,7 @@ final class CoordonneesReversementController extends Controller
     public function update(Request $request, Reversements $reversements): JsonResponse
     {
         if ($reversements->enCours($request->user()) !== null) {
-            throw new ConflictHttpException('Un reversement est en cours : changez de numéro une fois qu’il est terminé.');
+            throw new ConflictHttpException('Un reversement est en cours : changez de numéro une fois qu’il est terminé.');
         }
 
         $reseaux = collect(config('facturation.reseaux'));

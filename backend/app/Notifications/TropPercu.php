@@ -26,8 +26,8 @@ class TropPercu extends Notification implements ShouldQueue
     {
         return Courriel::nouveau("[Admin] Paiement en double — facture {$this->facture->numero}")
             ->line('Un second paiement réussi a été reçu pour une facture déjà réglée ou annulée.')
-            ->line('Montant : '.Courriel::fcfa($this->paiement->montant).', référence SasPay : '.($this->paiement->reference ?? 'inconnue').'.')
-            ->line('À faire : rembourser le client depuis le tableau de bord SasPay, puis saisir un avoir dans Souk.dev.')
+            ->line('Montant : '.Courriel::fcfa($this->paiement->montant).', référence SasPay : '.($this->paiement->reference ?? 'inconnue').'.')
+            ->line('À faire : rembourser le client depuis le tableau de bord SasPay, puis saisir un avoir dans Souk.dev.')
             ->action('Vue financière', Courriel::front('/admin/finances'));
     }
 }

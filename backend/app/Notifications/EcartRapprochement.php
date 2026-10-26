@@ -26,7 +26,7 @@ class EcartRapprochement extends Notification implements ShouldQueue
 
         return Courriel::nouveau("[Admin] Rapprochement SasPay du {$jour} : {$this->ecarts} écart(s)")
             ->line("Le rapprochement du {$jour} a trouvé {$this->ecarts} écart(s) qui demandent une vérification.")
-            ->line("Transactions SasPay : {$this->rapprochement->transactions_saspay}, paiements enregistrés : {$this->rapprochement->paiements_locaux}.")
+            ->line("Transactions SasPay : {$this->rapprochement->transactions_saspay}, paiements enregistrés : {$this->rapprochement->paiements_locaux}.")
             ->action('Voir les rapprochements', Courriel::front('/admin/finances'));
     }
 }

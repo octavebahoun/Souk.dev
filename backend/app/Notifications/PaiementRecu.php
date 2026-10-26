@@ -29,7 +29,7 @@ class PaiementRecu extends Notification implements ShouldQueue
         return Courriel::nouveau("Paiement reçu — facture {$facture->numero}")
             ->line('Nous avons bien reçu le paiement de '.Courriel::fcfa($facture->montant_total)." pour la facture {$facture->numero}.")
             ->line($premiere
-                ? "Votre copie de {$facture->abonnement->appli?->nom} démarre : vous la verrez en ligne dans « Mes copies » d'ici quelques minutes."
+                ? "Votre copie de {$facture->abonnement->appli?->nom} démarre : vous la verrez en ligne dans « Mes copies » d'ici quelques minutes."
                 : "Votre copie de {$facture->abonnement->appli?->nom} reste en ligne jusqu'au ".$facture->periode_fin->locale('fr')->isoFormat('D MMMM YYYY').'.')
             ->action('Voir le reçu', Courriel::front('/paiements/'.$facture->id));
     }

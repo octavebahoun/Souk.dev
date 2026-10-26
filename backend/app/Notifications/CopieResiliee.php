@@ -26,7 +26,7 @@ class CopieResiliee extends Notification implements ShouldQueue
 
         return $this->jamaisPayee
             ? Courriel::nouveau("Commande de {$nom} annulée")
-                ->line("La première facture de votre copie de {$nom} n’a pas été payée : la commande est annulée. Rien ne vous sera demandé.")
+                ->line("La première facture de votre copie de {$nom} n’a pas été payée : la commande est annulée. Rien ne vous sera demandé.")
                 ->action('Revoir l’appli', Courriel::front('/store/'.$this->abonnement->appli_id))
             : Courriel::nouveau("Votre copie de {$nom} est arrêtée")
                 ->line('Après 30 jours de suspension sans paiement, la copie est arrêtée définitivement et ses données supprimées.')
