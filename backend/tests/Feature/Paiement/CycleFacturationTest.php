@@ -183,6 +183,62 @@ class CycleFacturationTest extends TestCase
         Queue::assertPushed(ReactiverCopie::class, 1);
     }
 
+    public function test_une_copie_reactivee_apres_sa_date_anniversaire_n_est_pas_resuspendue(): void
+    {
+        $abonnement = $this->copiePayee();
+        $this->passage('2026-11-02');
+        $impayee = Facture::query()->latest('id')->firstOrFail();
+        $this->passage('2026-11-12');
+        $this->assertSame('suspendu', $abonnement->refresh()->statut);
+
+        // Le client paie après la date anniversaire suivante (5 décembre) : nouveau mois depuis le paiement.
+        $this->travelTo(CarbonImmutable::parse('2026-12-08 10:00:00'));
+        $this->payer($impayee);
+        $this->assertSame('2027-01-08', $abonnement->refresh()->prochaine_echeance->toDateString());
+        $this->assertSame(0, Facture::query()->where('statut', 'a_payer')->count(), 'Aucune facture déjà échue à la réactivation.');
+
+        foreach (['2026-12-09', '2026-12-12', '2026-12-20'] as $jour) {
+            $this->passage($jour);
+        }
+        $this->assertSame('actif', $abonnement->refresh()->statut);
+        Notification::assertNotSentTo($abonnement->client, FactureEnRetard::class, fn ($notification) => $notification->facture->id !== $impayee->id);
+    }
+
+    public function test_le_premier_mois_court_depuis_le_paiement(): void
+    {
+        $client = User::factory()->client()->create();
+        $deploiement = app(Facturation::class)->commander(Appli::factory()->create(), $client, []);
+
+        $this->travelTo(CarbonImmutable::parse('2026-10-11 09:00:00'));
+        $this->payer(Facture::query()->sole());
+
+        $this->assertSame('2026-11-11', $deploiement->abonnement->refresh()->prochaine_echeance->toDateString());
+        $this->assertSame('2026-10-11', Facture::query()->sole()->periode_debut->toDateString());
+    }
+
+    public function test_un_paiement_pendant_le_passage_l_emporte_sur_la_suspension(): void
+    {
+        $abonnement = $this->copiePayee();
+        $this->passage('2026-11-02');
+        $impayee = Facture::query()->latest('id')->firstOrFail();
+        $this->passage('2026-11-06');
+
+        // Le client paie au moment où le passage relit l'abonnement pour le suspendre.
+        $this->travelTo(CarbonImmutable::parse('2026-11-12 06:00:00'));
+        $paye = false;
+        Abonnement::retrieved(function () use (&$paye, $impayee): void {
+            if (! $paye) {
+                $paye = true;
+                $this->payer($impayee);
+            }
+        });
+        app(CycleFacturation::class)->executer();
+
+        $this->assertSame('payee', $impayee->refresh()->statut);
+        $this->assertSame('actif', $abonnement->refresh()->statut);
+        Queue::assertNotPushed(SuspendreCopie::class);
+    }
+
     public function test_la_commande_de_demo_fait_passer_le_temps_jusqu_a_la_suspension(): void
     {
         $abonnement = $this->copiePayee();

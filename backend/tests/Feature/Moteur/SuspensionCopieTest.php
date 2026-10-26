@@ -47,6 +47,22 @@ class SuspensionCopieTest extends TestCase
         $this->assertSame([['docker', 'compose', '-p', 'd7', 'stop'], ['docker', 'compose', '-p', 'd7', 'start']], $commandes);
     }
 
+    public function test_si_l_arret_echoue_la_page_suspendue_n_est_pas_publiee(): void
+    {
+        $routes = sys_get_temp_dir().'/soukdev-routes-'.bin2hex(random_bytes(4));
+        config(['moteur.proxy_routes' => $routes]);
+        Process::fake(fn () => Process::result(errorOutput: 'daemon injoignable', exitCode: 1));
+
+        try {
+            app(MoteurDeploiement::class)->suspendre('/tmp/inexistant', 'd7');
+            $this->fail('L\'échec de l\'arrêt aurait dû remonter.');
+        } catch (LancementEchoue) {
+            $this->assertFileDoesNotExist($routes.'/d7.yml');
+        } finally {
+            exec('rm -rf '.escapeshellarg($routes));
+        }
+    }
+
     public function test_le_job_suspend_une_copie_impayee(): void
     {
         $abonnement = Abonnement::factory()->create(['statut' => 'suspendu', 'suspendu_le' => now()]);

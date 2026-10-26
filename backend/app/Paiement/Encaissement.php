@@ -35,7 +35,6 @@ final class Encaissement
     public function __construct(
         private PasserellePaiement $passerelle,
         private GrandLivre $grandLivre,
-        private Facturation $facturation,
     ) {}
 
     /**
@@ -235,10 +234,14 @@ final class Encaissement
         $deploiement = $abonnement->deploiement()->first();
 
         if ($abonnement->statut === 'en_attente') {
+            // Le premier mois court depuis le paiement, pas depuis la commande : la facture et
+            // l'abonnement repartent du jour où la copie démarre.
+            $debut = today();
+            $facture->forceFill(['periode_debut' => $debut, 'periode_fin' => $debut->copy()->addMonthNoOverflow()->subDay()])->save();
             $abonnement->forceFill([
                 'statut' => 'actif',
-                'periode_debut' => $facture->periode_debut,
-                'prochaine_echeance' => $facture->periode_fin->copy()->addDay(),
+                'periode_debut' => $debut,
+                'prochaine_echeance' => $debut->copy()->addMonthNoOverflow(),
             ])->save();
 
             if ($deploiement?->etat === 'attente_paiement') {
@@ -264,10 +267,10 @@ final class Encaissement
             ReactiverCopie::dispatch($deploiement->id)->afterCommit();
         }
 
-        // Réactivée après la date anniversaire : la période en cours est facturée tout de suite.
+        // Réactivée après la date anniversaire : rien n'a été servi pendant la suspension, le
+        // paiement ouvre une période d'un mois à partir d'aujourd'hui (pas de facture déjà échue).
         if ($abonnement->prochaine_echeance !== null && $abonnement->prochaine_echeance->lte(today())) {
-            $this->facturation->emettre($abonnement, $abonnement->prochaine_echeance);
-            $abonnement->forceFill(['prochaine_echeance' => $abonnement->prochaine_echeance->copy()->addMonthNoOverflow()])->save();
+            $abonnement->forceFill(['prochaine_echeance' => today()->addMonthNoOverflow()])->save();
         }
     }
 

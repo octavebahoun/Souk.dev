@@ -79,14 +79,17 @@ final class Facturation
 
     /**
      * Fin de l'abonnement : plus aucune facture, les impayés sont annulés (rien n'est réclamé
-     * après l'arrêt). La copie est arrêtée par l'appelant.
+     * après l'arrêt). La copie est arrêtée par l'appelant. $seulementSi : les statuts dans
+     * lesquels la résiliation a encore lieu (un paiement arrivé entre-temps l'emporte).
+     *
+     * @param  list<string>|null  $seulementSi
      */
-    public function resilier(Abonnement $abonnement): void
+    public function resilier(Abonnement $abonnement, ?array $seulementSi = null): void
     {
-        DB::transaction(function () use ($abonnement): void {
+        DB::transaction(function () use ($abonnement, $seulementSi): void {
             $verrouille = Abonnement::query()->lockForUpdate()->findOrFail($abonnement->id);
 
-            if ($verrouille->statut === 'resilie') {
+            if ($verrouille->statut === 'resilie' || ($seulementSi !== null && ! in_array($verrouille->statut, $seulementSi, true))) {
                 return;
             }
 

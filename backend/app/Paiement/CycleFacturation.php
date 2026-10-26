@@ -11,6 +11,8 @@ use App\Notifications\CopieSuspendue;
 use App\Notifications\FactureEmise;
 use App\Notifications\FactureEnRetard;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -20,6 +22,10 @@ use Illuminate\Support\Facades\DB;
  * arrêt définitif après 30 jours de suspension. Une commande jamais payée est annulée après
  * 7 jours. Les délais se comptent en jours de calendrier ; chaque étape est idempotente :
  * relancer le passage le même jour ne fait rien de plus.
+ *
+ * Chaque étape verrouille l'abonnement et revérifie ses impayés avant d'écrire : un client qui
+ * paie pendant le passage (Encaissement verrouille la même ligne) n'est jamais suspendu ni
+ * arrêté à tort. Les e-mails et les jobs du moteur partent après la transaction.
  */
 final class CycleFacturation
 {
@@ -30,8 +36,7 @@ final class CycleFacturation
      */
     public function executer(?CarbonImmutable $maintenant = null): array
     {
-        $maintenant ??= CarbonImmutable::now();
-        $aujourdhui = $maintenant->startOfDay();
+        $aujourdhui = ($maintenant ?? CarbonImmutable::now())->startOfDay();
 
         return [
             'emises' => $this->emettre($aujourdhui),
@@ -49,30 +54,34 @@ final class CycleFacturation
         $limite = $aujourdhui->addDays((int) config('facturation.jours_rappel'));
         $emises = 0;
 
-        Abonnement::query()
+        $this->candidats(fn ($requete) => $requete
             ->whereIn('statut', Abonnement::STATUTS_ACTIFS)
             ->whereNotNull('prochaine_echeance')
-            ->whereDate('prochaine_echeance', '<=', $limite->toDateString())
-            ->orderBy('id')
-            ->each(function (Abonnement $abonnement) use ($limite, &$emises): void {
-                $facture = DB::transaction(function () use ($abonnement, $limite): ?Facture {
-                    $verrouille = Abonnement::query()->lockForUpdate()->find($abonnement->id);
+            ->whereDate('prochaine_echeance', '<=', $limite->toDateString()))
+            ->each(function (int $id) use ($limite, &$emises): void {
+                $facture = DB::transaction(function () use ($id, $limite): ?Facture {
+                    $abonnement = Abonnement::query()->lockForUpdate()->find($id);
 
-                    if ($verrouille === null || ! in_array($verrouille->statut, Abonnement::STATUTS_ACTIFS, true)
-                        || $verrouille->prochaine_echeance === null || $verrouille->prochaine_echeance->gt($limite)) {
+                    if ($abonnement === null || ! in_array($abonnement->statut, Abonnement::STATUTS_ACTIFS, true)
+                        || $abonnement->prochaine_echeance === null || $abonnement->prochaine_echeance->gt($limite)) {
                         return null;
                     }
 
-                    $debut = $verrouille->prochaine_echeance->copy();
-                    $facture = $verrouille->factures()->whereDate('periode_debut', $debut->toDateString())->first()
-                        ?? $this->facturation->emettre($verrouille, $debut);
-                    $verrouille->forceFill(['prochaine_echeance' => $debut->copy()->addMonthNoOverflow()])->save();
+                    $debut = $abonnement->prochaine_echeance->copy();
+                    $abonnement->forceFill(['prochaine_echeance' => $debut->copy()->addMonthNoOverflow()])->save();
+
+                    // Déjà émise (passage interrompu) : on ne la touche pas, un paiement peut la tenir verrouillée.
+                    if ($abonnement->factures()->whereDate('periode_debut', $debut->toDateString())->exists()) {
+                        return null;
+                    }
+
+                    $facture = $this->facturation->emettre($abonnement, $debut);
+                    $facture->forceFill(['rappel_envoye_le' => now()])->save();
 
                     return $facture;
                 });
 
-                if ($facture !== null && $facture->rappel_envoye_le === null && $facture->statut === 'a_payer') {
-                    $facture->forceFill(['rappel_envoye_le' => now()])->save();
+                if ($facture !== null) {
                     $facture->client?->notify(new FactureEmise($facture));
                     $emises++;
                 }
@@ -91,13 +100,29 @@ final class CycleFacturation
             ->whereNull('retard_signale_le')
             ->whereDate('echeance_le', '<', $aujourdhui->toDateString())
             ->whereHas('abonnement', fn ($abonnement) => $abonnement->whereIn('statut', Abonnement::STATUTS_ACTIFS))
-            ->with('abonnement', 'client')
             ->orderBy('id')
-            ->each(function (Facture $facture) use (&$relancees): void {
-                $facture->forceFill(['retard_signale_le' => now()])->save();
-                $facture->abonnement->forceFill(['statut' => 'en_retard'])->save();
-                $facture->client?->notify(new FactureEnRetard($facture));
-                $relancees++;
+            ->pluck('id')
+            ->each(function (int $id) use ($aujourdhui, &$relancees): void {
+                $facture = DB::transaction(function () use ($id, $aujourdhui): ?Facture {
+                    // Même ordre de verrous que le paiement (facture, puis abonnement) : pas d'interblocage.
+                    $facture = Facture::query()->lockForUpdate()->find($id);
+                    $abonnement = $facture ? Abonnement::query()->lockForUpdate()->find($facture->abonnement_id) : null;
+
+                    if ($facture === null || $abonnement === null || $facture->statut !== 'a_payer' || $facture->retard_signale_le !== null
+                        || ! $facture->echeance_le->lt($aujourdhui) || ! in_array($abonnement->statut, Abonnement::STATUTS_ACTIFS, true)) {
+                        return null;
+                    }
+
+                    $facture->forceFill(['retard_signale_le' => now()])->save();
+                    $abonnement->forceFill(['statut' => 'en_retard'])->save();
+
+                    return $facture;
+                });
+
+                if ($facture !== null) {
+                    $facture->client?->notify(new FactureEnRetard($facture));
+                    $relancees++;
+                }
             });
 
         return $relancees;
@@ -109,16 +134,29 @@ final class CycleFacturation
         $limite = $aujourdhui->subDays((int) config('facturation.jours_grace'));
         $suspendues = 0;
 
-        Abonnement::query()
+        $this->candidats(fn ($requete) => $requete
             ->whereIn('statut', Abonnement::STATUTS_ACTIFS)
-            ->whereHas('factures', fn ($facture) => $facture->where('statut', 'a_payer')->whereDate('echeance_le', '<=', $limite->toDateString()))
-            ->with('deploiement', 'client')
-            ->orderBy('id')
-            ->each(function (Abonnement $abonnement) use (&$suspendues): void {
-                $abonnement->forceFill(['statut' => 'suspendu', 'suspendu_le' => now(), 'avertissement_arret_le' => null])->save();
+            ->whereHas('factures', fn ($facture) => $this->echue($facture, $limite)))
+            ->each(function (int $id) use ($limite, &$suspendues): void {
+                $abonnement = DB::transaction(function () use ($id, $limite): ?Abonnement {
+                    $abonnement = Abonnement::query()->lockForUpdate()->find($id);
 
-                if ($abonnement->deploiement !== null) {
-                    SuspendreCopie::dispatch($abonnement->deploiement->id);
+                    if ($abonnement === null || ! in_array($abonnement->statut, Abonnement::STATUTS_ACTIFS, true)
+                        || ! $abonnement->factures()->where(fn ($facture) => $this->echue($facture, $limite))->exists()) {
+                        return null;
+                    }
+
+                    $abonnement->forceFill(['statut' => 'suspendu', 'suspendu_le' => now(), 'avertissement_arret_le' => null])->save();
+
+                    return $abonnement;
+                });
+
+                if ($abonnement === null) {
+                    return;
+                }
+
+                if ($abonnement->deploiement_id !== null) {
+                    SuspendreCopie::dispatch($abonnement->deploiement_id);
                 }
 
                 $facture = $abonnement->facturesAPayer()->first();
@@ -136,19 +174,31 @@ final class CycleFacturation
     /** 7 jours avant l'arrêt définitif : dernier avertissement par e-mail. */
     private function avertir(CarbonImmutable $aujourdhui): int
     {
-        $jours = (int) config('facturation.jours_avant_arret') - (int) config('facturation.jours_avertissement_arret');
+        $limite = $aujourdhui->subDays((int) config('facturation.jours_avant_arret') - (int) config('facturation.jours_avertissement_arret'));
         $averties = 0;
 
-        Abonnement::query()
+        $this->candidats(fn ($requete) => $requete
             ->where('statut', 'suspendu')
             ->whereNull('avertissement_arret_le')
-            ->whereDate('suspendu_le', '<=', $aujourdhui->subDays($jours)->toDateString())
-            ->with('client')
-            ->orderBy('id')
-            ->each(function (Abonnement $abonnement) use (&$averties): void {
-                $abonnement->forceFill(['avertissement_arret_le' => now()])->save();
-                $abonnement->client?->notify(new AvertissementArret($abonnement));
-                $averties++;
+            ->whereDate('suspendu_le', '<=', $limite->toDateString()))
+            ->each(function (int $id) use ($limite, &$averties): void {
+                $abonnement = DB::transaction(function () use ($id, $limite): ?Abonnement {
+                    $abonnement = Abonnement::query()->lockForUpdate()->find($id);
+
+                    if ($abonnement === null || $abonnement->statut !== 'suspendu' || $abonnement->avertissement_arret_le !== null
+                        || $abonnement->suspendu_le === null || $abonnement->suspendu_le->startOfDay()->gt($limite)) {
+                        return null;
+                    }
+
+                    $abonnement->forceFill(['avertissement_arret_le' => now()])->save();
+
+                    return $abonnement;
+                });
+
+                if ($abonnement !== null) {
+                    $abonnement->client?->notify(new AvertissementArret($abonnement));
+                    $averties++;
+                }
             });
 
         return $averties;
@@ -157,15 +207,31 @@ final class CycleFacturation
     /** 30 jours de suspension : arrêt définitif, volumes supprimés, impayés annulés. */
     private function resilierLesSuspendues(CarbonImmutable $aujourdhui): int
     {
+        $limite = $aujourdhui->subDays((int) config('facturation.jours_avant_arret'));
         $resiliees = 0;
 
-        Abonnement::query()
+        $this->candidats(fn ($requete) => $requete
             ->where('statut', 'suspendu')
-            ->whereDate('suspendu_le', '<=', $aujourdhui->subDays((int) config('facturation.jours_avant_arret'))->toDateString())
-            ->with('deploiement', 'client')
-            ->orderBy('id')
-            ->each(function (Abonnement $abonnement) use (&$resiliees): void {
-                $this->facturation->resilier($abonnement);
+            ->whereDate('suspendu_le', '<=', $limite->toDateString()))
+            ->each(function (int $id) use ($limite, &$resiliees): void {
+                $abonnement = DB::transaction(function () use ($id, $limite): ?Abonnement {
+                    $abonnement = Abonnement::query()->lockForUpdate()->find($id);
+
+                    // Toujours suspendu, et toujours un impayé : un paiement arrivé entre-temps l'emporte.
+                    if ($abonnement === null || $abonnement->statut !== 'suspendu' || $abonnement->suspendu_le === null
+                        || $abonnement->suspendu_le->startOfDay()->gt($limite) || ! $abonnement->factures()->where('statut', 'a_payer')->exists()) {
+                        return null;
+                    }
+
+                    $this->facturation->resilier($abonnement, ['suspendu']);
+
+                    return $abonnement;
+                });
+
+                if ($abonnement === null) {
+                    return;
+                }
+
                 $abonnement->deploiement?->demanderArret();
                 $abonnement->client?->notify(new CopieResiliee($abonnement));
                 $resiliees++;
@@ -177,15 +243,28 @@ final class CycleFacturation
     /** Première facture impayée après 7 jours : la commande est annulée, rien n'avait démarré. */
     private function annulerLesCommandesImpayees(CarbonImmutable $aujourdhui): int
     {
+        $limite = $aujourdhui->subDays((int) config('facturation.jours_grace'));
         $annulees = 0;
 
-        Abonnement::query()
+        $this->candidats(fn ($requete) => $requete
             ->where('statut', 'en_attente')
-            ->whereDate('created_at', '<=', $aujourdhui->subDays((int) config('facturation.jours_grace'))->toDateString())
-            ->with('deploiement', 'client')
-            ->orderBy('id')
-            ->each(function (Abonnement $abonnement) use (&$annulees): void {
-                $this->facturation->resilier($abonnement);
+            ->whereDate('created_at', '<=', $limite->toDateString()))
+            ->each(function (int $id) use (&$annulees): void {
+                $abonnement = DB::transaction(function () use ($id): ?Abonnement {
+                    $abonnement = Abonnement::query()->lockForUpdate()->find($id);
+
+                    if ($abonnement === null || $abonnement->statut !== 'en_attente') {
+                        return null;
+                    }
+
+                    $this->facturation->resilier($abonnement, ['en_attente']);
+
+                    return $abonnement;
+                });
+
+                if ($abonnement === null) {
+                    return;
+                }
 
                 if ($abonnement->deploiement?->etat === 'attente_paiement') {
                     $abonnement->deploiement->changerEtat('arrete');
@@ -196,5 +275,25 @@ final class CycleFacturation
             });
 
         return $annulees;
+    }
+
+    /**
+     * Identifiants des abonnements à examiner (relus sous verrou à l'étape suivante).
+     *
+     * @param  callable(Builder<Abonnement>): mixed  $filtre
+     * @return Collection<int, int>
+     */
+    private function candidats(callable $filtre): Collection
+    {
+        $requete = Abonnement::query()->orderBy('id');
+        $filtre($requete);
+
+        return $requete->pluck('id');
+    }
+
+    /** Facture à payer dont l'échéance est passée depuis la grâce. */
+    private function echue($facture, CarbonImmutable $limite)
+    {
+        return $facture->where('statut', 'a_payer')->whereDate('echeance_le', '<=', $limite->toDateString());
     }
 }

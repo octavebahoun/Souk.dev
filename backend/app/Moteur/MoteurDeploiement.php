@@ -125,11 +125,15 @@ class MoteurDeploiement
         $this->lanceur->arreter($copie->repertoire, $copie->id);
     }
 
-    /** Impayé : la page « copie suspendue » d'abord (le sous-domaine ne tombe jamais en erreur), puis l'arrêt. */
+    /**
+     * Impayé : les conteneurs s'arrêtent, puis le sous-domaine affiche la page « copie suspendue ».
+     * Dans cet ordre : si l'arrêt échoue, la copie reste en ligne avec sa route normale (le job
+     * réessaie), au lieu d'une page « indisponible » devant une copie qui tourne.
+     */
     public function suspendre(string $repertoire, string $copie): void
     {
-        $this->routeur->publierPageSuspendue($copie);
         $this->lanceur->suspendre($repertoire, $copie);
+        $this->routeur->publierPageSuspendue($copie);
     }
 
     /**
