@@ -22,14 +22,20 @@ async function idDe(page: Page, chemin: string, choisir: (donnees: Array<Record<
 }
 
 const lots: Lot[] = [
-  { compte: null, pages: async () => ['/', '/store', '/store/1', '/echange', '/devs', '/evenements', '/connexion', '/page-inconnue'] },
-  { compte: 'soukdemo-awa', pages: async () => ['/tableau', '/copies', '/publier', '/missions', '/revenus'] },
+  {
+    compte: null,
+    pages: async (page) => {
+      const appli = await idDe(page, '/apps?q=PharmaStock', (applis) => applis[0]?.id)
+      return ['/', '/store', '/store?tri=note', `/store/${appli}`, '/echange', '/devs', '/evenements', '/connexion', '/page-inconnue']
+    },
+  },
+  { compte: 'soukdemo-awa', pages: async () => ['/tableau', '/copies', '/publier', '/missions', '/revenus', '/notifications', '/notifications/reglages'] },
   {
     compte: 'soukdemo-pharmacie',
     pages: async (page) => {
       const appli = await idDe(page, '/apps?q=PharmaStock', (applis) => applis[0]?.id)
       const payee = await idDe(page, '/factures?statut=payee', (factures) => factures[0]?.id)
-      return ['/copies', '/paiements', `/paiements/${payee}`, `/store/${appli}/deployer`, `/paiement/retour?facture=${payee}`]
+      return ['/copies', '/paiements', `/paiements/${payee}`, `/store/${appli}`, `/store/${appli}/deployer`, `/paiement/retour?facture=${payee}`]
     },
   },
   { compte: 'soukdemo-admin', pages: async () => ['/admin/finances'] },

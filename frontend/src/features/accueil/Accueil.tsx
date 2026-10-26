@@ -99,7 +99,7 @@ export function Accueil() {
 
       <main>
         <section id="histoire" aria-labelledby="t-histoire" className={`${bloc} relative flex flex-col gap-7 overflow-hidden px-6 py-14 min-[901px]:px-12`}>
-          <p className="m-0 text-sm font-bold tracking-widest text-accent uppercase">Comment ça marche</p>
+          <p className="m-0 text-sm font-bold tracking-widest text-primaire-actif uppercase">Comment ça marche</p>
           <h2 id="t-histoire" className="m-0 max-w-[18ch] text-4xl leading-tight tracking-tight">D’un bug à un client, en quatre étapes</h2>
           <div className="accueil-parcours">
             <Rail />
@@ -137,7 +137,7 @@ export function Accueil() {
         <section aria-labelledby="t-store" className={`${bloc} flex flex-col gap-7 px-6 py-14 min-[901px]:px-12`}>
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <p className="m-0 text-sm font-bold tracking-widest text-accent uppercase">Dans le store</p>
+              <p className="m-0 text-sm font-bold tracking-widest text-primaire-actif uppercase">Dans le store</p>
               <h2 id="t-store" className="m-0 text-4xl tracking-tight">Des applis faites ici, prêtes à servir</h2>
             </div>
             <Link to="/store" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-ink px-4 text-sm font-semibold text-canvas no-underline">Tout le store <Fleche /></Link>
@@ -158,7 +158,7 @@ export function Accueil() {
                     )}
                     <span className="flex flex-1 flex-col gap-1 p-4">
                       <span className="text-[17px] font-bold">{appli.nom}</span>
-                      <span className="line-clamp-2 text-sm text-subtle">{appli.description}</span>
+                      <span className="line-clamp-2 text-sm text-texte">{appli.description}</span>
                       <span className="mt-1.5 flex items-center justify-between">
                         <span className="font-bold">{prix}</span>
                         <span className="text-[13px] font-semibold text-accent">Voir l’appli →</span>
@@ -181,7 +181,7 @@ export function Accueil() {
 
         <section aria-labelledby="t-prix" className={bloc}>
           <div className="mx-auto flex max-w-[1200px] flex-col gap-7 px-6 py-14 min-[901px]:px-12">
-            <p className="m-0 text-sm font-bold tracking-widest text-accent uppercase">Transparent</p>
+            <p className="m-0 text-sm font-bold tracking-widest text-primaire-actif uppercase">Transparent</p>
             <h2 id="t-prix" className="m-0 text-4xl tracking-tight">Qui paie quoi ?</h2>
             <div className="grid gap-[18px] min-[761px]:grid-cols-3">
               <Regle fond="#DCFCE7" titre="Gratuit" texte="Poster un problème, aider, corriger, publier son appli. Rien de tout ça ne lance de serveur."><Coche /></Regle>
@@ -194,7 +194,7 @@ export function Accueil() {
         <section aria-labelledby="t-final" className="mx-auto max-w-[1200px] px-4 py-16">
           <div className="flex flex-wrap items-center gap-8 overflow-hidden rounded-[28px] bg-[#0B1A3D] p-8 text-canvas min-[761px]:p-10">
             <div className="min-w-0 flex-1 basis-[320px]">
-              <h2 id="t-final" className="m-0 text-[38px] leading-tight">Venez au souk.</h2>
+              <h2 id="t-final" className="m-0 text-[38px] leading-tight text-canvas">Venez au souk.</h2>
               <p className="max-w-[46ch] text-lg text-[#C9D3EA]">Posez votre premier problème, ou trouvez l’appli qui fera tourner votre activité dès demain.</p>
               <div className="mt-4 flex flex-wrap gap-3">
                 <Link to="/connexion" className="inline-flex min-h-[50px] items-center rounded-xl bg-gold px-6 font-bold text-ink no-underline">Je suis dev</Link>
@@ -207,7 +207,7 @@ export function Accueil() {
       </main>
 
       <footer className="border-t border-[#EEF2F9]">
-        <div className="mx-auto flex max-w-[1200px] flex-wrap justify-between gap-3 px-6 py-7 text-sm text-muted">
+        <div className="mx-auto flex max-w-[1200px] flex-wrap justify-between gap-3 px-6 py-7 text-sm text-texte">
           <span><strong className="text-ink">Souk.dev</strong> · Excellence Team · CADEV 2026</span>
           <span>Hébergé sur Datacloud</span>
         </div>

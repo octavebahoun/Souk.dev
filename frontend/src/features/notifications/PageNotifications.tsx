@@ -52,7 +52,7 @@ export function PageNotifications() {
           {nonLues > 0 ? (
             <div className="flex flex-wrap items-center justify-between gap-2 px-3 pt-1">
               <p className="m-0 text-petit text-texte-doux">{nonLues > 1 ? `${nonLues} notifications non lues` : '1 notification non lue'}</p>
-              <Bouton variante="fantome" taille="sm" onClick={() => void toutMarquer()}>
+              <Bouton variante="fantome" taille="sm" className="ml-auto" onClick={() => void toutMarquer()}>
                 Tout marquer comme lu
               </Bouton>
             </div>

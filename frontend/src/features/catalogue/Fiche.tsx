@@ -31,7 +31,14 @@ export function Fiche() {
   const [ecran, setEcran] = useState(0)
   const [mission, setMission] = useState(false)
 
-  if (appli.isPending) return <div role="status" aria-label="Chargement de la fiche" className="squelette mx-auto mt-8 h-80 max-w-[1440px] rounded-[18px]" />
+  // Le squelette tient toute la hauteur de l'écran : le pied de page ne remonte pas puis ne saute pas.
+  if (appli.isPending) {
+    return (
+      <div role="status" aria-label="Chargement de la fiche" className="mx-auto min-h-dvh max-w-[1440px] px-4 py-7 min-[761px]:px-9">
+        <div className="squelette h-80 rounded-[18px]" />
+      </div>
+    )
+  }
   if (appli.isError || !appli.data) {
     return (
       <div className="mx-auto max-w-[1440px] px-4 py-10 min-[761px]:px-9">
@@ -92,7 +99,7 @@ export function Fiche() {
                       <i className="size-2.5 rounded-full bg-[#F87171]" /><i className="size-2.5 rounded-full bg-[#FBBF24]" /><i className="size-2.5 rounded-full bg-[#34D399]" />
                       <span className="mx-auto rounded-full bg-canvas px-3.5 py-0.5 font-mono text-[11.5px] text-muted">capture {index + 1}</span>
                     </div>
-                    <img src={captures[index].url} alt={`Capture ${index + 1} de ${fiche.nom}`} className="max-h-[420px] w-full object-contain" />
+                    <img src={captures[index].url} alt={`Capture ${index + 1} de ${fiche.nom}`} width={1280} height={720} className="aspect-video max-h-[420px] w-full object-contain" />
                   </div>
                 </div>
               ) : (
