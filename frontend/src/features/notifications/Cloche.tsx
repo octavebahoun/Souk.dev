@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Bell } from 'lucide-react'
@@ -44,25 +44,21 @@ export function Cloche({ surFondSombre = false }: { surFondSombre?: boolean }) {
     function dehors(evenement: MouseEvent) {
       if (!bloc.current?.contains(evenement.target as Node)) setOuvert(false)
     }
+    function echap(evenement: globalThis.KeyboardEvent) {
+      if (evenement.key !== 'Escape') return
+      evenement.preventDefault()
+      setOuvert(false)
+      bouton.current?.focus()
+    }
     document.addEventListener('mousedown', dehors)
+    document.addEventListener('keydown', echap)
     const minuteur = window.setTimeout(() => panneau.current?.querySelector<HTMLElement>('a, button')?.focus(), 0)
     return () => {
       document.removeEventListener('mousedown', dehors)
+      document.removeEventListener('keydown', echap)
       window.clearTimeout(minuteur)
     }
   }, [ouvert])
-
-  function fermer() {
-    setOuvert(false)
-    bouton.current?.focus()
-  }
-
-  function clavier(evenement: KeyboardEvent<HTMLDivElement>) {
-    if (evenement.key === 'Escape') {
-      evenement.preventDefault()
-      fermer()
-    }
-  }
 
   async function toutMarquer() {
     await toutLire().catch(() => undefined)
@@ -74,7 +70,14 @@ export function Cloche({ surFondSombre = false }: { surFondSombre?: boolean }) {
   const liste = apercu.data?.data ?? []
 
   return (
-    <div ref={bloc} className="relative">
+    <div
+      ref={bloc}
+      // Le focus quitte la cloche (Tab au-delà du panneau) : le panneau se ferme, il ne cache rien.
+      onBlur={(evenement) => {
+        if (ouvert && evenement.relatedTarget instanceof Node && !evenement.currentTarget.contains(evenement.relatedTarget)) setOuvert(false)
+      }}
+      className="relative"
+    >
       <button
         ref={bouton}
         type="button"
@@ -103,7 +106,6 @@ export function Cloche({ surFondSombre = false }: { surFondSombre?: boolean }) {
           id={`${id}-panneau`}
           role="dialog"
           aria-labelledby={`${id}-titre`}
-          onKeyDown={clavier}
           className="fixed inset-x-2 top-[68px] z-40 flex max-h-[calc(100dvh-84px)] flex-col overflow-hidden rounded-grand border border-bordure bg-surface text-texte shadow-3 tablette:absolute tablette:inset-x-auto tablette:top-[calc(100%+8px)] tablette:right-0 tablette:w-[400px]"
         >
           <div className="flex min-h-14 items-center justify-between gap-2 border-b border-bordure px-4">

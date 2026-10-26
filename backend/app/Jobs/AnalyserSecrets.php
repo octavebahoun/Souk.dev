@@ -13,8 +13,9 @@ use Illuminate\Support\Facades\File;
 use Throwable;
 
 /**
- * Recherche de secrets avant publication (gitleaks, conteneur jetable), sur la file « analyse »
- * du moteur. Le résultat attend l'API dans le cache (VerificationSecrets) quelques minutes.
+ * Recherche de secrets avant publication (gitleaks, conteneur jetable), sur sa propre file
+ * « secrets ». Le résultat attend l'API dans le cache (VerificationSecrets) ; une demande dont
+ * la requête a déjà abandonné n'est pas analysée.
  */
 class AnalyserSecrets implements ShouldQueue
 {
@@ -22,15 +23,20 @@ class AnalyserSecrets implements ShouldQueue
 
     public int $tries = 1;
 
-    public int $timeout = 600;
+    /** Clonage (120 s), conteneur (60 s), copie (120 s), gitleaks (300 s) et retrait (30 s). */
+    public int $timeout = 700;
 
-    public function __construct(public string $depotUrl, public string $cle)
+    public function __construct(public string $depotUrl, public string $cle, public ?int $expireLe = null)
     {
-        $this->onQueue('analyse');
+        $this->onQueue('secrets');
     }
 
     public function handle(CloneurGithub $cloneur, AnalyseurDepot $analyseur): void
     {
+        if ($this->expireLe !== null && time() > $this->expireLe) {
+            return;
+        }
+
         $repertoire = null;
 
         try {

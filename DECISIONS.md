@@ -354,3 +354,24 @@ Choix faits par l'agent en exécutant `BRIEF.md` (le brief passe avant ce fichie
   - une carte débitée dans une autre devise est créditée et vérifiée par l'équipe ; un montant inattendu en francs CFA n'est jamais appliqué automatiquement ;
   - frais retenus par SasPay malgré `ADD_ON` : charge de Souk.dev (compte `charge_frais_encaissement`), jamais sur la part du dev ;
   - alertes de l'équipe par e-mail (`AlerteAdmin`, `ADMIN_EMAIL`) pour tout cas d'argent qu'aucun automatisme ne doit trancher seul.
+
+### Confiance (phase 3)
+
+- **2026-10-26 — Sécurité avant publication dans des conteneurs jetables** : gitleaks (réseau coupé, rapport masqué) et Trivy (base des failles dans un volume) tournent sur le service `analyse`, jamais dans l'API. Un secret bloque la publication (422 avec le fichier, la ligne et la règle, jamais la valeur) ; une faille de dépendance donne le badge orange et le rapport ; l'auteur relance l'analyse (5 par heure). Le jeu de démo a un dépôt « fuite » dont la clé factice est écrite à l'exécution, pour que le dépôt de Souk.dev lui-même reste sans secret.
+- **2026-10-26 — Qui note une appli** : un client dont au moins une facture de l'appli est payée (une commande jamais payée ne suffit pas), jamais son auteur. Un avis par client et par appli, modifiable ; la suppression et la modération viendront avec l'administration (phase 6).
+- **2026-10-26 — Moyenne rangée sur l'appli** : nombre et somme des notes recalculés depuis la table des avis, sous le verrou de l'appli. Raison : la fiche, le Store et le tri lisent deux colonnes, sans jointure ni course entre deux avis simultanés.
+- **2026-10-26 — Tri « Les mieux notées »** : moyenne bayésienne, comme si chaque appli avait déjà trois avis à 3/5. Raison : un seul 5/5 ne doit pas passer devant vingt avis à 4,7 ; une appli sans avis se range au milieu, devant une appli mal notée.
+- **2026-10-26 — Six types de notification** : correctif proposé, correctif accepté, message de mission, factures et échéances (rappel, retard, paiement reçu), suspension (suspension, dernier avertissement, arrêt, copie qui ne démarre pas), reversement. Chacun se règle dans Souk.dev et par e-mail ; tout est reçu par défaut.
+- **2026-10-26 — E-mail de suspension obligatoire** : il prévient avant la suppression des données d'un client ; l'écran des réglages le dit au lieu d'afficher un interrupteur grisé.
+- **2026-10-26 — Un e-mail par fil de mission toutes les 30 minutes au plus** : chaque message arrive dans le centre, mais une conversation n'inonde pas la boîte.
+- **2026-10-26 — Notifications en direct** : `notification.creee` sur `utilisateur.{id}`, même forme que l'API ; sans Reverb, la cloche relit l'API toutes les deux minutes. Une notification d'un autre compte répond 404.
+- **2026-10-26 — Preuve des e-mails** : un e-mail par notification envoyé par Resend à son adresse de test officielle `delivered@resend.dev`, tous remis (statut lu dans l'API de Resend). Raison : aucune boîte de réception n'est configurée (`ADMIN_EMAIL` absent) et l'adresse personnelle de l'utilisateur ne sert pas sans son accord.
+- **2026-10-26 — Après la revue de la phase 3** :
+  - la recherche de secrets a sa file et son worker (`analyse-secrets`) : une vérification n'attend jamais derrière une analyse Trivy ; une demande abandonnée par la requête n'est pas analysée ; vérifier et publier : 20 par heure et par compte ;
+  - le dépôt analysé ne choisit pas les règles de gitleaks : `.gitleaks.toml`, `.gitleaksignore` et les commentaires `gitleaks:allow` sont retirés de la copie analysée ;
+  - Trivy en `--offline-scan` : il ne contacte pas les dépôts Maven ou npm déclarés par le dépôt (adresse interne, serveur lent) ;
+  - état `echec` (contrat) : une analyse impossible se voit et se relance ; une analyse « en cours » depuis plus de 30 minutes se relance ; chaque semaine toutes les applis sont réanalysées, chaque nuit celles jamais analysées ; les restes d'analyses interrompues sont nettoyés chaque heure ;
+  - un service indisponible (503) garde son message et son `Retry-After` ; la requête qui attend la recherche de secrets a le temps de le faire ;
+  - les textes des membres restent du texte dans les e-mails (Markdown sécurisé : ni lien ni image injectés) ;
+  - une nouvelle demande de mission prévient le dev (type « Missions ») ;
+  - les réglages de notification s'enregistrent sous verrou, l'un après l'autre.

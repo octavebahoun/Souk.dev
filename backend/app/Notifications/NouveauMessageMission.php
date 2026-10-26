@@ -49,6 +49,6 @@ class NouveauMessageMission extends NotificationSouk
         return Courriel::nouveau('Nouveau message de '.Courriel::nom($message->auteur).' sur votre mission')
             ->line(Str::limit($message->texte, 300))
             ->action('Répondre', Courriel::front('/missions?mission='.$message->mission_id))
-            ->line('Les messages suivants de ce fil vous attendent dans Souk.dev ; vous recevrez un autre e-mail dans 30 minutes au plus tôt.');
+            ->line('Pour ne pas encombrer votre boîte, ce fil n’envoie pas plus d’un e-mail par demi-heure : les messages suivants vous attendent dans Souk.dev.');
     }
 }

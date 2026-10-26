@@ -198,6 +198,32 @@ class NotificationsTest extends TestCase
         Notification::assertCount(3);
     }
 
+    public function test_une_nouvelle_mission_previent_le_dev(): void
+    {
+        $client = User::factory()->client()->create();
+        $dev = User::factory()->create(['username' => 'awa-dev']);
+
+        $this->actingAs($client)->postJson('/api/devs/awa-dev/missions', ['message' => 'Personnaliser PharmaStock pour deux pharmacies.', 'budget' => 150000])->assertCreated();
+
+        $this->actingAs($dev)->getJson('/api/me/notifications')
+            ->assertJsonPath('non_lues', 1)
+            ->assertJsonPath('data.0.type', 'message_mission')
+            ->assertJsonPath('data.0.titre', 'Nouvelle mission de '.$client->name);
+        $this->assertSame(1, $this->transport()->messages()->count());
+    }
+
+    public function test_un_lien_ecrit_par_un_membre_reste_du_texte_dans_l_e_mail(): void
+    {
+        $mission = Mission::factory()->create();
+        $message = MissionMessage::query()->create(['mission_id' => $mission->id, 'auteur_id' => $mission->auteur_id, 'texte' => 'Urgent : [confirmez votre numéro](https://piege.example) ![](https://piege.example/pixel.png)']);
+
+        $html = (string) (new NouveauMessageMission($message))->toMail($mission->client)->render();
+
+        $this->assertStringNotContainsString('href="https://piege.example"', $html);
+        $this->assertStringNotContainsString('<img src="https://piege.example/pixel.png"', $html);
+        $this->assertStringContainsString('confirmez votre numéro', $html);
+    }
+
     public function test_la_diffusion_en_direct_reprend_la_forme_de_l_api(): void
     {
         $dev = User::factory()->create();

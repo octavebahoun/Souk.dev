@@ -67,9 +67,21 @@ Journal de l'agent, tenu à jour en continu (voir `BRIEF.md`, section 1).
 8. à 25. Idempotency-Key obligatoire, diffusion en file, frais retenus passés en charge, remboursement des paiements en double, reprises et blocages des reversements, suspension dans le bon ordre, premier mois depuis le paiement, rapprochement robuste, annonces aux lecteurs d'écran, données partielles, prix de l'auteur, clés renouvelées, messages, captures complètes, garde du jeu de démo, jobs uniques, masquage des numéros.
 
 ### Phase 3 — Confiance
-- [ ] Sécurité avant publication : gitleaks et Trivy en conteneurs jetables, statuts, badge, relance
-- [ ] Avis et notes des applis (clients ayant eu une copie)
-- [ ] Notifications : centre dans l'appli, e-mails, préférences par type
+- [x] Sécurité avant publication : gitleaks et Trivy en conteneurs jetables, statuts, badge, relance par l'auteur, rapport sur la fiche
+- [x] Avis et notes des applis : clients ayant payé une copie, 1 à 5, un par client et par appli (modifiable), moyenne sur la fiche et les cartes, tri « Les mieux notées »
+- [x] Notifications : centre dans l'appli (cloche en direct, page, réglages), e-mails, préférences par type (e-mail de suspension obligatoire)
+- [x] Sortie : un dépôt avec un secret est refusé ; badge vert sur un dépôt sain ; un e-mail remis pour chaque notification (12 sur 12, adresse de test de Resend)
+- [x] Revue indépendante de la phase 3 (sous-agent neuf) : 15 constats, tous traités
+
+**Revue indépendante de la phase 3** :
+1. Recherche de secrets coincée derrière les analyses Trivy (un seul worker) → file et worker dédiés, demande abandonnée non analysée, 20 vérifications par heure.
+2. Un dépôt pouvait couper gitleaks avec sa propre configuration → `.gitleaks.toml`, `.gitleaksignore` et `gitleaks:allow` retirés avant l'analyse (test).
+3. Liens et images injectables dans les nouveaux e-mails → Markdown sécurisé (test sur le HTML rendu).
+4. Statut « en cours » éternel, bouton de relance grisé → état `echec`, relance après 30 minutes, réanalyse hebdomadaire et des oubliées, fiche relue pendant l'analyse.
+5. Trivy suivait les dépôts déclarés par le pom.xml (requêtes vers une adresse choisie par le dépôt) → `--offline-scan`.
+6. Une nouvelle demande de mission ne prévenait personne → notification et e-mail au dev.
+7. et 8. Panneau de la cloche resté ouvert hors du focus ; erreurs du formulaire d'avis muettes et focus perdu → corrigés (WCAG 2.4.11, 3.3.1, 2.4.3).
+9. à 15. 503 sans son message ni Retry-After, mission d'une notification ignorée sur la page Missions, rappels d'abonnement orphelins, réglages concurrents, conteneurs et clones laissés par un travail tué, pluriels, tests manquants (503 de bout en bout, configuration hostile, mission notifiée) et parcours E2E rendus rejouables.
 
 ### Phase 4 — Intelligence
 - [ ] Souk AI : DeepSeek, consentement, 3 par jour, résultat par Reverb

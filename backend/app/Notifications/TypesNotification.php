@@ -21,8 +21,8 @@ final class TypesNotification
             'email_obligatoire' => false,
         ],
         'message_mission' => [
-            'libelle' => 'Messages de mission',
-            'description' => 'Un nouveau message dans le fil privé d’une de vos missions (un e-mail par fil toutes les 30 minutes au plus).',
+            'libelle' => 'Missions',
+            'description' => 'Une nouvelle demande de mission, ou un message dans le fil privé d’une de vos missions (un e-mail par fil toutes les 30 minutes au plus).',
             'email_obligatoire' => false,
         ],
         'echeance' => [

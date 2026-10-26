@@ -109,6 +109,11 @@ return Application::configure(basePath: dirname(__DIR__))
                 return null;
             }
 
+            // Un service momentanément indisponible dit pourquoi et quand réessayer ; une erreur interne reste muette.
+            if ($exception instanceof HttpExceptionInterface && $status === 503 && $exception->getMessage() !== '') {
+                return $json($exception->getMessage(), 503, $exception->getHeaders());
+            }
+
             return $json('Le serveur a rencontré un problème. Réessayez dans quelques instants.', $status);
         });
     })->create();

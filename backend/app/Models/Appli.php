@@ -61,6 +61,7 @@ class Appli extends Model
             'variables_client' => 'array',
             'securite_problemes' => 'array',
             'securite_analyse_le' => 'datetime',
+            'securite_demande_le' => 'datetime',
             'memoire_max_mo' => 'integer',
             'mesure_jeton' => 'integer',
             'mesure_le' => 'datetime',
@@ -139,6 +140,7 @@ class Appli extends Model
         $this->forceFill([
             'securite_statut' => 'en_cours',
             'securite_jeton' => (string) Str::uuid(),
+            'securite_demande_le' => now(),
         ])->save();
 
         AnalyserDependances::dispatch($this->id, (string) $this->securite_jeton);

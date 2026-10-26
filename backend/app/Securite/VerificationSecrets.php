@@ -8,7 +8,7 @@ use Illuminate\Support\Str;
 use Symfony\Component\HttpKernel\Exception\ServiceUnavailableHttpException;
 
 /**
- * L'API ne parle pas à Docker : elle confie la recherche de secrets au moteur (file « analyse »)
+ * L'API ne parle pas à Docker : elle confie la recherche de secrets au moteur (file « secrets »)
  * et attend sa réponse quelques secondes. Sans réponse, la publication n'a pas lieu (on ne
  * publie jamais un dépôt qui n'a pas été vérifié).
  */
@@ -20,9 +20,12 @@ class VerificationSecrets
     public function secrets(string $depotUrl): array
     {
         $cle = 'securite:secrets:'.Str::uuid();
-        AnalyserSecrets::dispatch($depotUrl, $cle);
+        $attente = (int) config('moteur.delai_analyse_secrets', 90);
+        AnalyserSecrets::dispatch($depotUrl, $cle, time() + $attente + 5);
 
-        $limite = microtime(true) + (int) config('moteur.delai_analyse_secrets', 90);
+        // La requête attend plus que les 30 secondes par défaut de PHP : sinon elle mourrait avant la réponse.
+        set_time_limit($attente + 30);
+        $limite = microtime(true) + $attente;
 
         do {
             $resultat = Cache::pull($cle);
@@ -49,8 +52,11 @@ class VerificationSecrets
     public static function message(array $secrets): string
     {
         $lieux = array_map(fn (array $secret) => "{$secret['fichier']}, ligne {$secret['ligne']} ({$secret['regle']})", array_slice($secrets, 0, 3));
-        $reste = count($secrets) > 3 ? ' et '.(count($secrets) - 3).' autre(s)' : '';
+        $autres = count($secrets) - 3;
+        $reste = $autres > 0 ? ' et '.$autres.' '.($autres > 1 ? 'autres' : 'autre') : '';
 
-        return 'Un secret a été trouvé dans le dépôt : '.implode(' ; ', $lieux).$reste.'. Retirez-le, changez la clé concernée (elle est publique), puis réessayez.';
+        return count($secrets) > 1
+            ? count($secrets).' secrets ont été trouvés dans le dépôt : '.implode("\u{00A0}; ", $lieux).$reste.'. Retirez-les, changez les clés concernées (elles sont publiques), puis réessayez.'
+            : 'Un secret a été trouvé dans le dépôt : '.implode("\u{00A0}; ", $lieux).'. Retirez-le, changez la clé concernée (elle est publique), puis réessayez.';
     }
 }

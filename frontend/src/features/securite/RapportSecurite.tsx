@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { ShieldAlert, ShieldCheck, ShieldEllipsis } from 'lucide-react'
+import { ShieldAlert, ShieldCheck, ShieldEllipsis, ShieldX } from 'lucide-react'
 import type { components } from '../../shared/types/api'
 import { cheminLaravel, clientLocal } from '../../shared/client'
 import { preparerCsrf } from '../../app/preparerCsrf'
@@ -58,9 +58,14 @@ export function RapportSecurite({ appId, securite, estAuteur }: { appId: number;
     }
   }
 
-  const titre =
-    securite.statut === 'verifie' ? 'Security Checked' : securite.statut === 'problemes' ? 'Problèmes détectés' : 'Analyse en cours'
-  const Icone = securite.statut === 'verifie' ? ShieldCheck : securite.statut === 'problemes' ? ShieldAlert : ShieldEllipsis
+  const presentation = {
+    verifie: { titre: 'Security Checked', Icone: ShieldCheck, classe: 'bg-fond-succes text-succes' },
+    problemes: { titre: 'Problèmes détectés', Icone: ShieldAlert, classe: 'bg-fond-alerte text-alerte' },
+    en_cours: { titre: 'Analyse en cours', Icone: ShieldEllipsis, classe: 'bg-fond-info text-info' },
+    echec: { titre: 'Analyse impossible', Icone: ShieldX, classe: 'bg-fond-danger text-danger' },
+  }[securite.statut]
+  const { titre, Icone } = presentation
+  const nombre = securite.problemes.length
 
   return (
     <Carte as="section" aria-labelledby="titre-securite" className="flex flex-col gap-4">
@@ -68,7 +73,7 @@ export function RapportSecurite({ appId, securite, estAuteur }: { appId: number;
         <div className="flex items-start gap-3">
           <span
             aria-hidden="true"
-            className={`grid size-10 shrink-0 place-items-center rounded-moyen ${securite.statut === 'verifie' ? 'bg-fond-succes text-succes' : securite.statut === 'problemes' ? 'bg-fond-alerte text-alerte' : 'bg-fond-info text-info'}`}
+            className={`grid size-10 shrink-0 place-items-center rounded-moyen ${presentation.classe}`}
           >
             <Icone className="size-5" />
           </span>
@@ -78,13 +83,15 @@ export function RapportSecurite({ appId, securite, estAuteur }: { appId: number;
             </h2>
             <p className="m-0 text-petit text-texte-doux">
               {securite.statut === 'en_cours'
-                ? 'Les dépendances du dépôt sont en cours d’analyse.'
-                : `Analysée le ${formaterDate(securite.analyse_le ?? '', 'avecHeure')}. Aucun secret dans le dépôt (sinon la publication est refusée).`}
+                ? 'Les dépendances du dépôt sont en cours d’analyse. Le résultat s’affiche ici dans quelques minutes.'
+                : securite.statut === 'echec'
+                  ? 'Le dépôt n’a pas pu être analysé (devenu inaccessible, ou outil d’analyse indisponible). Aucun secret n’avait été trouvé à la publication.'
+                  : `Analysée le ${formaterDate(securite.analyse_le ?? '', 'avecHeure')}. Aucun secret dans le dépôt (sinon la publication est refusée).`}
             </p>
           </div>
         </div>
         {estAuteur ? (
-          <Bouton variante="contour" taille="sm" chargement={envoi} disabled={securite.statut === 'en_cours'} onClick={() => void lancer()}>
+          <Bouton variante="contour" taille="sm" chargement={envoi} onClick={() => void lancer()}>
             Relancer l’analyse
           </Bouton>
         ) : null}
@@ -93,8 +100,10 @@ export function RapportSecurite({ appId, securite, estAuteur }: { appId: number;
       {securite.statut === 'problemes' ? (
         <>
           <p className="m-0 text-corps text-texte">
-            {securite.problemes.length} dépendance{securite.problemes.length > 1 ? 's ont' : ' a'} une faille connue.
-            {estAuteur ? ' Mettez-les à jour vers la version corrigée, puis relancez l’analyse.' : ' L’auteur est invité à les mettre à jour.'}
+            {nombre} dépendance{nombre > 1 ? 's ont' : ' a'} une faille connue.
+            {estAuteur
+              ? ` Mettez-${nombre > 1 ? 'les' : 'la'} à jour vers la version corrigée, puis relancez l’analyse.`
+              : ` L’auteur est invité à ${nombre > 1 ? 'les' : 'la'} mettre à jour.`}
           </p>
           <Tableau legende="Dépendances avec une faille connue" colonnes={colonnes} lignes={securite.problemes} cleLigne={(probleme) => `${probleme.identifiant}-${probleme.paquet}`} />
         </>

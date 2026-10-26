@@ -226,6 +226,7 @@ function Carte({ appli }: { appli: Appli }) {
             {appli.securite.statut === 'verifie' ? <span className="rounded-full bg-[#DCFCE7] px-2 py-0.5 text-[12.5px] font-semibold text-[#166534]">Security Checked</span> : null}
             {appli.securite.statut === 'problemes' ? <span className="rounded-full bg-[#FFEDD5] px-2 py-0.5 text-[12.5px] font-semibold text-[#9A3412]">Problèmes détectés</span> : null}
             {appli.securite.statut === 'en_cours' ? <span className="rounded-full bg-page px-2 py-0.5 text-[12.5px] font-semibold text-subtle">Analyse en cours</span> : null}
+            {appli.securite.statut === 'echec' ? <span className="rounded-full bg-page px-2 py-0.5 text-[12.5px] font-semibold text-subtle">Analyse impossible</span> : null}
           </div>
           <div className="flex items-center gap-3">
             <span className="grid size-11 place-items-center rounded-xl text-[15px] font-bold" style={{ background: teinte.fond, color: teinte.texte }}>

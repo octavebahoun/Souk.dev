@@ -25,7 +25,8 @@ class AnalyserDependances implements ShouldQueue
     /** @var list<int> */
     public array $backoff = [300];
 
-    public int $timeout = 1200;
+    /** Clonage (120 s), conteneur (60 s), copie (120 s), Trivy (400 s) et retrait (30 s), avec de la marge. */
+    public int $timeout = 900;
 
     public function __construct(public int $appliId, public string $jeton)
     {
@@ -64,9 +65,17 @@ class AnalyserDependances implements ShouldQueue
         ])->save();
     }
 
-    /** Une analyse qui échoue deux fois laisse l'appli « en cours » : l'auteur peut la relancer. */
+    /**
+     * Deux échecs (dépôt devenu privé ou supprimé, mémoire, base des failles injoignable) :
+     * l'appli passe « échec », visible sur la fiche, et l'auteur relance l'analyse.
+     */
     public function failed(Throwable $exception): void
     {
-        Log::warning('securite: analyse des dépendances impossible', ['appli' => $this->appliId, 'erreur' => $exception->getMessage()]);
+        Log::warning('securite: analyse des dépendances impossible', ['appli' => $this->appliId, 'erreur' => class_basename($exception)]);
+
+        Appli::query()
+            ->whereKey($this->appliId)
+            ->where('securite_jeton', $this->jeton)
+            ->update(['securite_statut' => 'echec', 'securite_problemes' => json_encode([]), 'securite_analyse_le' => now()]);
     }
 }

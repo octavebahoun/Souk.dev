@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
 class AppliController extends Controller
 {
@@ -298,6 +299,11 @@ class AppliController extends Controller
     public function securite(Appli $appli): JsonResponse
     {
         Gate::authorize('update', $appli);
+
+        // Une analyse partie depuis moins de 30 minutes suit son cours ; au-delà, elle est relançable.
+        if ($appli->securite_statut === 'en_cours' && $appli->securite_demande_le?->gt(now()->subMinutes(30))) {
+            throw new ConflictHttpException('Une analyse est déjà en cours : son résultat arrive dans quelques minutes.');
+        }
 
         $appli->demanderAnalyseSecurite();
 

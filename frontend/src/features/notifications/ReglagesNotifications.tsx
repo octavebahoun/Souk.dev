@@ -14,6 +14,7 @@ export function ReglagesNotifications() {
   const reglages = useQuery({ queryKey: ['preferences-notifications'], queryFn: lirePreferences })
 
   const modification = useMutation({
+    scope: { id: 'preferences-notifications' },
     mutationFn: modifierPreference,
     onMutate: async (reglage) => {
       await cache.cancelQueries({ queryKey: ['preferences-notifications'] })

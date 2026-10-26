@@ -44,6 +44,7 @@ use Illuminate\Auth\Access\Response as GateResponse;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Mail\Markdown;
 use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Queue\Events\JobProcessed;
 use Illuminate\Queue\Events\JobProcessing;
@@ -104,6 +105,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Les textes des membres (messages de mission, correctifs, titres, noms) entrent dans des
+        // e-mails : ils restent du texte, jamais des liens ni des images Markdown.
+        Markdown::withSecuredEncoding();
+
         // Les liens absolus (simulateur de paiement, lien de paiement signé, confirmation d'un numéro)
         // visent toujours l'API (APP_URL), même quand la requête arrive par le proxy du front.
         if (is_string(config('app.url')) && config('app.url') !== '') {
@@ -146,6 +151,9 @@ class AppServiceProvider extends ServiceProvider
 
         // Webhooks de SasPay : en rafale après une panne, jamais bridés par la limite des visiteurs.
         RateLimiter::for('webhooks', fn (Request $request) => Limit::perMinute(600)->by('webhooks:'.$request->ip()));
+
+        // Vérifier ou publier un dépôt occupe le worker des secrets : 20 par heure et par compte.
+        RateLimiter::for('depots', fn (Request $request) => Limit::perHour(20)->by('depots:'.($request->user()?->id ?? $request->ip())));
 
         // Un avis par client et par appli : les écritures sont rares.
         RateLimiter::for('avis', fn (Request $request) => Limit::perHour(10)->by('avis:'.($request->user()?->id ?? $request->ip())));

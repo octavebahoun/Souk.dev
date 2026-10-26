@@ -14,13 +14,13 @@ const racine = fileURLToPath(new URL('../../', import.meta.url))
 type OptionsRequete = Pick<NonNullable<Parameters<APIRequestContext['post']>[1]>, 'data' | 'multipart'>
 
 /** Appel de l'API depuis la session de la page (Sanctum lit la session grâce au Referer). */
-async function api(page: Page, methode: 'GET' | 'POST', chemin: string, options: OptionsRequete = {}) {
+async function api(page: Page, methode: 'GET' | 'POST' | 'DELETE', chemin: string, options: OptionsRequete = {}) {
   const cookies = await page.context().cookies()
   const jeton = decodeURIComponent(cookies.find((cookie) => cookie.name === 'XSRF-TOKEN')?.value ?? '')
   const entetes = { Accept: 'application/json', Referer: 'http://localhost:5173/', 'X-XSRF-TOKEN': jeton }
-  return methode === 'GET'
-    ? page.request.get(`/api${chemin}`, { headers: entetes })
-    : page.request.post(`/api${chemin}`, { headers: entetes, ...options })
+  if (methode === 'GET') return page.request.get(`/api${chemin}`, { headers: entetes })
+  if (methode === 'DELETE') return page.request.delete(`/api${chemin}`, { headers: entetes })
+  return page.request.post(`/api${chemin}`, { headers: entetes, ...options })
 }
 
 test.describe.serial('confiance', () => {
@@ -59,6 +59,9 @@ test.describe.serial('confiance', () => {
     await expect(page.getByRole('heading', { name: 'Sécurité : Security Checked' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Relancer l’analyse' })).toBeVisible()
     expect(resumer(await auditAxe(page))).toBe('')
+
+    // L'appli d'essai ne reste pas dans le Store de la plateforme.
+    expect((await api(page, 'DELETE', `/apps/${id}`)).status()).toBe(204)
   })
 
   test('un client qui a eu une copie note l’appli, la moyenne suit sur la fiche et dans le Store', async ({ page }) => {
@@ -114,7 +117,8 @@ test.describe.serial('notifications', () => {
     await connexionDemo(page, 'soukdemo-awa')
     await page.goto('/notifications')
     const cloche = page.getByRole('button', { name: /^Notifications/ })
-    await expect(cloche).toHaveAccessibleName(/Notifications, \d+ non lues?/)
+    await expect(cloche).toBeVisible()
+    const nomCloche = (nombre: number) => (nombre === 0 ? 'Notifications' : `Notifications, ${nombre} non ${nombre > 1 ? 'lues' : 'lue'}`)
     const avant = Number((await cloche.getAttribute('aria-label'))?.match(/\d+/)?.[0] ?? 0)
 
     // La pharmacie écrit dans le fil de la mission : la cloche d'Awa s'allume sans recharger.
@@ -126,7 +130,7 @@ test.describe.serial('notifications', () => {
     const texte = `Nous avons ajouté deux écrans à la liste (essai ${Date.now()}).`
     expect((await api(pharmacie, 'POST', `/missions/${mission!.id}/messages`, { data: { texte } })).status()).toBe(201)
     await pharmacie.close()
-    await expect(cloche).toHaveAccessibleName(`Notifications, ${avant + 1} non lues`, { timeout: 30_000 })
+    await expect(cloche).toHaveAccessibleName(nomCloche(avant + 1), { timeout: 30_000 })
 
     await cloche.click()
     const panneau = page.getByRole('dialog', { name: 'Notifications' })
@@ -135,11 +139,11 @@ test.describe.serial('notifications', () => {
     await panneau.getByRole('link', { name: new RegExp(texte.replace(/[().]/g, '\\$&')) }).click()
     await expect(page).toHaveURL(new RegExp(`/missions\\?mission=${mission!.id}$`))
     await expect(page.getByText(texte).first()).toBeVisible()
-    await expect(cloche).toHaveAccessibleName(`Notifications, ${avant} non ${avant > 1 ? 'lues' : 'lue'}`)
+    await expect(cloche).toHaveAccessibleName(nomCloche(avant))
 
     // Couper l'e-mail des messages de mission : le réglage survit au rechargement.
     await page.goto('/notifications/reglages')
-    const missionsReglage = page.getByRole('group', { name: 'Messages de mission' })
+    const missionsReglage = page.getByRole('group', { name: 'Missions' })
     const email = missionsReglage.getByRole('switch', { name: 'Par e-mail' })
     await expect(email).toBeChecked()
     const enregistre = page.waitForResponse((reponse) => reponse.url().endsWith('/api/me/preferences-notifications') && reponse.request().method() === 'PUT')
@@ -147,13 +151,13 @@ test.describe.serial('notifications', () => {
     await expect(email).not.toBeChecked()
     expect((await enregistre).status()).toBe(200)
     await page.reload()
-    await expect(page.getByRole('group', { name: 'Messages de mission' }).getByRole('switch', { name: 'Par e-mail' })).not.toBeChecked()
+    await expect(page.getByRole('group', { name: 'Missions' }).getByRole('switch', { name: 'Par e-mail' })).not.toBeChecked()
     await expect(page.getByRole('group', { name: 'Suspension d’une copie' }).getByText('Toujours envoyé')).toBeVisible()
     expect(resumer(await auditAxe(page))).toBe('')
     const retabli = page.waitForResponse((reponse) => reponse.url().endsWith('/api/me/preferences-notifications') && reponse.request().method() === 'PUT')
-    await page.getByRole('group', { name: 'Messages de mission' }).getByRole('switch', { name: 'Par e-mail' }).click()
+    await page.getByRole('group', { name: 'Missions' }).getByRole('switch', { name: 'Par e-mail' }).click()
     expect((await retabli).status()).toBe(200)
-    await expect(page.getByRole('group', { name: 'Messages de mission' }).getByRole('switch', { name: 'Par e-mail' })).toBeChecked()
+    await expect(page.getByRole('group', { name: 'Missions' }).getByRole('switch', { name: 'Par e-mail' })).toBeChecked()
 
     await page.goto('/notifications')
     await page.getByRole('tab', { name: /Non lues/ }).click()

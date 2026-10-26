@@ -9,9 +9,10 @@ import { Modal } from '../../shared/ui/Modal'
 export function Missions() {
   const missions = useQuery({ queryKey: ['missions'], queryFn: listerMissions })
   const moi = useQuery({ queryKey: ['moi'], queryFn: lireMoi })
-  const [parametres] = useSearchParams()
-  // Lien d'une notification (« Message de… ») : la mission concernée s'ouvre directement.
-  const [choisie, setChoisie] = useState<number | null>(() => Number(parametres.get('mission')) || null)
+  const [parametres, setParametres] = useSearchParams()
+  // La mission ouverte vit dans l'URL : le lien d'une notification l'ouvre, même déjà sur la page.
+  const choisie = Number(parametres.get('mission')) || null
+  const choisir = (id: number) => setParametres({ mission: String(id) }, { replace: true })
   const [nouvelle, setNouvelle] = useState(false)
   const [maintenant] = useState(() => Date.now())
   const liste = missions.data?.data ?? []
@@ -62,7 +63,7 @@ export function Missions() {
               const actif = item.id === mission?.id
               const autre = moi.data?.id === item.client.id ? item.auteur : item.client
               return (
-                <button key={item.id} data-reveal-item type="button" aria-pressed={actif} onClick={() => setChoisie(item.id)} className={`flex flex-col gap-1 rounded-[10px] px-3.5 py-3 text-left ${actif ? 'bg-nav' : 'bg-transparent'}`}>
+                <button key={item.id} data-reveal-item type="button" aria-pressed={actif} onClick={() => choisir(item.id)} className={`flex flex-col gap-1 rounded-[10px] px-3.5 py-3 text-left ${actif ? 'bg-nav' : 'bg-transparent'}`}>
                   <span className="flex w-full justify-between gap-2">
                     <strong className="text-[15px]">{titreMission(item)}</strong>
                     <span className="text-[12.5px] text-muted">{depuis(item.cree_le, maintenant)}</span>

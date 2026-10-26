@@ -11,6 +11,7 @@ use App\Notifications\TypesNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 /**
@@ -73,16 +74,20 @@ final class NotificationController extends Controller
             'preferences.*.type.distinct' => 'Chaque type ne se règle qu’une fois.',
         ]);
 
-        /** @var User $compte */
-        $compte = $request->user();
-        $preferences = $compte->preferences_notifications ?? [];
-        foreach ($donnees['preferences'] as $preference) {
-            $preferences[$preference['type']] = [
-                'application' => (bool) $preference['application'],
-                'email' => (bool) $preference['email'],
-            ];
-        }
-        $compte->forceFill(['preferences_notifications' => $preferences])->save();
+        // Lu et réécrit sous verrou : deux réglages envoyés coup sur coup ne s'écrasent pas.
+        $compte = DB::transaction(function () use ($request, $donnees): User {
+            $compte = User::query()->lockForUpdate()->findOrFail($request->user()->id);
+            $preferences = $compte->preferences_notifications ?? [];
+            foreach ($donnees['preferences'] as $preference) {
+                $preferences[$preference['type']] = [
+                    'application' => (bool) $preference['application'],
+                    'email' => (bool) $preference['email'],
+                ];
+            }
+            $compte->forceFill(['preferences_notifications' => $preferences])->save();
+
+            return $compte;
+        });
 
         return response()->json($this->reglages($compte));
     }

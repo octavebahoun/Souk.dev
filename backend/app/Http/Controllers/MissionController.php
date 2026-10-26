@@ -8,6 +8,7 @@ use App\Http\Resources\MissionResource;
 use App\Models\Appli;
 use App\Models\Mission;
 use App\Models\User;
+use App\Notifications\NouvelleMission;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
@@ -107,6 +108,7 @@ class MissionController extends Controller
             'delai' => $donnees['delai'] ?? null,
             'statut' => 'en_cours',
         ]);
+        $auteur->notify(new NouvelleMission($mission->setRelation('client', $request->user())));
 
         return (new MissionResource($mission->load(['client', 'auteur'])))
             ->response()

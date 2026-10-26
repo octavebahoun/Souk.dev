@@ -1,8 +1,8 @@
-import { useId, useState, type FormEvent } from 'react'
+import { useId, useRef, useState, type FormEvent } from 'react'
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
 import { Star } from 'lucide-react'
 import { listerAvisAppli, noterAppli, type AvisAppli, type PageAvis } from './api'
-import { erreursDeChamps, messageErreur } from '../paiements/api'
+import { erreursDeChamps, messageErreur, statutHttp } from '../paiements/api'
 import { Alerte, Avatar, Bouton, Carte, Champ, Etoiles, SqueletteLignes, ZoneTexte, cx, formaterDate, formaterNote, useToast } from '../../ui'
 
 const libellesNote = ['', 'Décevante', 'Moyenne', 'Correcte', 'Très bien', 'Excellente']
@@ -19,6 +19,12 @@ export function AvisClients({ appId, noteMoyenne, nbAvis }: { appId: number; not
     getNextPageParam: (derniere: PageAvis) => (derniere.meta.current_page < derniere.meta.last_page ? derniere.meta.current_page + 1 : undefined),
   })
   const [edition, setEdition] = useState(false)
+  const titre = useRef<HTMLHeadingElement>(null)
+  // Le formulaire disparaît (publié, enregistré, annulé) : le focus revient au titre de la section.
+  const revenir = () => {
+    setEdition(false)
+    titre.current?.focus()
+  }
   const premiere = avis.data?.pages[0]
   const monAvis = premiere?.mon_avis ?? null
   const autres = (avis.data?.pages.flatMap((page) => page.data) ?? []).filter((un) => un.id !== monAvis?.id)
@@ -27,7 +33,7 @@ export function AvisClients({ appId, noteMoyenne, nbAvis }: { appId: number; not
     <Carte as="section" aria-labelledby="titre-avis" className="flex flex-col gap-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="flex flex-col gap-0.5">
-          <h2 id="titre-avis" className="m-0 text-titre-3 text-titre">
+          <h2 id="titre-avis" ref={titre} tabIndex={-1} className="m-0 text-titre-3 text-titre focus:outline-none">
             Avis des clients
           </h2>
           <p className="m-0 text-petit text-texte-doux">Seuls les clients qui ont eu une copie payée de l’appli peuvent la noter.</p>
@@ -62,8 +68,8 @@ export function AvisClients({ appId, noteMoyenne, nbAvis }: { appId: number; not
         </Alerte>
       ) : null}
 
-      {premiere?.peut_noter ? <FormulaireAvis appId={appId} initial={null} onFini={() => undefined} /> : null}
-      {monAvis && edition ? <FormulaireAvis appId={appId} initial={monAvis} onFini={() => setEdition(false)} onAnnuler={() => setEdition(false)} /> : null}
+      {premiere?.peut_noter ? <FormulaireAvis appId={appId} initial={null} onFini={revenir} /> : null}
+      {monAvis && edition ? <FormulaireAvis appId={appId} initial={monAvis} onFini={revenir} onAnnuler={revenir} /> : null}
       {monAvis && !edition ? (
         <div className="flex flex-col gap-2 rounded-moyen border border-bordure bg-surface-douce p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -124,10 +130,13 @@ function FormulaireAvis({ appId, initial, onFini, onAnnuler }: { appId: number; 
   const [erreur, setErreur] = useState<string | null>(null)
   const [erreurs, setErreurs] = useState<Record<string, string>>({})
 
+  const premiereEtoile = useRef<HTMLInputElement>(null)
+
   async function envoyer(evenement: FormEvent<HTMLFormElement>) {
     evenement.preventDefault()
     if (note === 0) {
       setErreurs({ note: 'Choisissez une note, de 1 à 5 étoiles.' })
+      premiereEtoile.current?.focus()
       return
     }
     setEnvoi(true)
@@ -145,6 +154,8 @@ function FormulaireAvis({ appId, initial, onFini, onAnnuler }: { appId: number; 
       const parChamp = erreursDeChamps(probleme)
       setErreurs(parChamp)
       if (Object.keys(parChamp).length === 0) setErreur(messageErreur(probleme, 'Votre avis n’a pas pu être enregistré. Réessayez dans un instant.'))
+      // Déjà noté (dans un autre onglet) : la liste relue montre « Votre avis » à la place du formulaire.
+      if (statutHttp(probleme) === 409) await cache.invalidateQueries({ queryKey: ['avis-appli', appId] })
     } finally {
       setEnvoi(false)
     }
@@ -162,7 +173,15 @@ function FormulaireAvis({ appId, initial, onFini, onAnnuler }: { appId: number; 
                 key={valeur}
                 className="relative grid size-11 cursor-pointer place-items-center rounded-petit has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-lien"
               >
-                <input type="radio" name={`${id}-note`} value={valeur} checked={note === valeur} onChange={() => {
+                <input
+                  ref={valeur === 1 ? premiereEtoile : undefined}
+                  type="radio"
+                  name={`${id}-note`}
+                  value={valeur}
+                  checked={note === valeur}
+                  aria-invalid={erreurs.note ? true : undefined}
+                  aria-describedby={erreurs.note ? `${id}-erreur` : undefined}
+                  onChange={() => {
                     setNote(valeur)
                     setErreurs((actuelles) => Object.fromEntries(Object.entries(actuelles).filter(([champ]) => champ !== 'note')))
                   }} className="pour-lecteur" />
@@ -178,7 +197,7 @@ function FormulaireAvis({ appId, initial, onFini, onAnnuler }: { appId: number; 
           </span>
         </div>
         {erreurs.note ? (
-          <p id={`${id}-erreur`} className="m-0 text-petit text-danger">
+          <p id={`${id}-erreur`} role="alert" className="m-0 text-petit text-danger">
             {erreurs.note}
           </p>
         ) : null}
@@ -186,7 +205,11 @@ function FormulaireAvis({ appId, initial, onFini, onAnnuler }: { appId: number; 
       <Champ libelle="Votre avis" facultatif aide={`Ce que l’appli a changé pour vous, ce qui manque. ${commentaire.length} sur 1 000 caractères.`} erreur={erreurs.commentaire}>
         {(liaison) => <ZoneTexte {...liaison} value={commentaire} onChange={(evenement) => setCommentaire(evenement.target.value)} maxLength={1000} rows={3} />}
       </Champ>
-      {erreur ? <Alerte ton="danger">{erreur}</Alerte> : null}
+      {erreur ? (
+        <Alerte ton="danger" urgente>
+          {erreur}
+        </Alerte>
+      ) : null}
       <div className="flex flex-wrap gap-2">
         <Bouton type="submit" chargement={envoi}>
           {initial ? 'Enregistrer' : 'Publier mon avis'}

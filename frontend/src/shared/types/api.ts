@@ -312,7 +312,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Relancer l'analyse de sécurité (auteur uniquement), par exemple après avoir corrigé une dépendance */
+        /** Relancer l'analyse de sécurité (auteur uniquement), par exemple après avoir corrigé une dépendance ; 409 si une analyse est partie il y a moins de 30 minutes */
         post: operations["rescanAppSecurity"];
         delete?: never;
         options?: never;
@@ -1530,10 +1530,10 @@ export interface components {
         /** @description Analyse des dépendances du dépôt (Trivy). Secrets et docker-compose.yml dangereux bloquent la publication et n'apparaissent donc jamais ici. */
         Securite: {
             /**
-             * @description verifie = badge vert « Security Checked » ; problemes = badge orange « Problèmes détectés »
+             * @description verifie = badge vert « Security Checked » ; problemes = badge orange « Problèmes détectés » ; echec = l'analyse n'a pas pu se faire (dépôt devenu inaccessible, outil indisponible) : l'auteur la relance
              * @enum {string}
              */
-            statut: "en_cours" | "verifie" | "problemes";
+            statut: "en_cours" | "verifie" | "problemes" | "echec";
             /**
              * Format: date-time
              * @description null tant que la première analyse n'est pas finie
@@ -2248,6 +2248,17 @@ export interface components {
                 "application/json": components["schemas"]["Erreur"];
             };
         };
+        /** @description Service momentanément indisponible (la vérification du dépôt n'a pas répondu à temps) ; le message dit quoi faire */
+        Indisponible: {
+            headers: {
+                /** @description Secondes à attendre avant de réessayer */
+                "Retry-After"?: number;
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Erreur"];
+            };
+        };
     };
     parameters: {
         Id: number;
@@ -2692,6 +2703,8 @@ export interface operations {
             };
             419: components["responses"]["CsrfInvalide"];
             422: components["responses"]["Invalide"];
+            429: components["responses"]["TropDeRequetes"];
+            503: components["responses"]["Indisponible"];
         };
     };
     verifyAppRepo: {
@@ -2732,6 +2745,7 @@ export interface operations {
             419: components["responses"]["CsrfInvalide"];
             422: components["responses"]["Invalide"];
             429: components["responses"]["TropDeRequetes"];
+            503: components["responses"]["Indisponible"];
         };
     };
     getApp: {
@@ -2862,8 +2876,10 @@ export interface operations {
                     "application/json": components["schemas"]["Securite"];
                 };
             };
+            401: components["responses"]["NonConnecte"];
             403: components["responses"]["Interdit"];
             404: components["responses"]["Introuvable"];
+            409: components["responses"]["Conflit"];
             419: components["responses"]["CsrfInvalide"];
             429: components["responses"]["TropDeRequetes"];
         };

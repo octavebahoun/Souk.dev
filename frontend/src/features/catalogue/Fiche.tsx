@@ -22,6 +22,8 @@ export function Fiche() {
     queryKey: ['appli', Number(id)],
     queryFn: () => lireAppli(Number(id)),
     enabled: Number.isFinite(Number(id)),
+    // Analyse de sécurité en cours : la fiche se relit jusqu'au résultat.
+    refetchInterval: (requete) => (requete.state.data?.securite.statut === 'en_cours' ? 10_000 : false),
   })
   const discussions = useQuery({
     queryKey: ['discussions-appli', id],
@@ -161,6 +163,7 @@ export function Fiche() {
               {fiche.securite.statut === 'verifie' ? <span className="rounded-full bg-success-bg px-3 py-1 text-[13px] font-bold text-success">Security Checked</span> : null}
               {fiche.securite.statut === 'problemes' ? <span className="rounded-full bg-[#FFEDD5] px-3 py-1 text-[13px] font-bold text-[#9A3412]">Problèmes détectés</span> : null}
               {fiche.securite.statut === 'en_cours' ? <span className="rounded-full bg-page px-3 py-1 text-[13px] font-semibold text-subtle">Analyse en cours</span> : null}
+              {fiche.securite.statut === 'echec' ? <span className="rounded-full bg-page px-3 py-1 text-[13px] font-semibold text-subtle">Analyse impossible</span> : null}
             </div>
             <ul aria-label="Stack" className="m-0 flex list-none flex-wrap gap-1.5 p-0">
               {fiche.stack.map((techno) => <li key={techno} className="rounded-full bg-chip px-2.5 py-0.5 text-[13px] font-semibold text-nav-texte">{techno}</li>)}

@@ -8,6 +8,12 @@ let connexion: Echo<'reverb'> | null | undefined
 /** Écrans abonnés à chaque canal : on ne quitte un canal que lorsque le dernier s'en va. */
 const abonnes = new Map<string, number>()
 
+type AbonnementPusher = {
+  subscribed?: boolean
+  bind: (evenement: string, rappel: () => void) => void
+  unbind: (evenement: string, rappel: () => void) => void
+}
+
 /**
  * Connexion Reverb pour les canaux privés (factures, déploiements) : une seule par onglet,
  * autorisée par la session (POST /broadcasting/auth avec le jeton CSRF). Sans Reverb configuré,
@@ -72,14 +78,24 @@ export function useCanalPrive<T>(nom: string | null, evenement: string, recevoir
     const echo = nom ? echoPrive() : null
     if (!echo || !nom) return
     const canal = echo.private(nom)
+    const abonnement = (canal as unknown as { subscription?: AbonnementPusher }).subscription
     const ecouteur = (donnees: T) => rappel.current(donnees)
+    const surAbonnement = () => abonne.current?.()
+    // Autorisation refusée (session expirée) : le canal est oublié, le prochain écran le redemande.
+    const surRefus = () => {
+      abonnes.delete(nom)
+      echo.leave(nom)
+    }
     abonnes.set(nom, (abonnes.get(nom) ?? 0) + 1)
     canal.listen(`.${evenement}`, ecouteur)
     // Canal déjà ouvert par un autre écran (la cloche de l'en-tête) : l'abonnement est acquis.
-    if ((canal as unknown as { subscription?: { subscribed?: boolean } }).subscription?.subscribed) abonne.current?.()
-    else canal.subscribed(() => abonne.current?.())
+    if (abonnement?.subscribed) surAbonnement()
+    abonnement?.bind('pusher:subscription_succeeded', surAbonnement)
+    abonnement?.bind('pusher:subscription_error', surRefus)
     return () => {
       canal.stopListening(`.${evenement}`, ecouteur)
+      abonnement?.unbind('pusher:subscription_succeeded', surAbonnement)
+      abonnement?.unbind('pusher:subscription_error', surRefus)
       const restants = (abonnes.get(nom) ?? 1) - 1
       if (restants > 0) {
         abonnes.set(nom, restants)

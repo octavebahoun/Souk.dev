@@ -151,6 +151,22 @@ services:
       timeout: 10s
       retries: 3
 
+  # Recherche de secrets (gitleaks) avant publication : son propre worker, pour qu'une vérification
+  # n'attende jamais derrière une longue analyse Trivy de la file « analyse ».
+  analyse-secrets:
+    <<: *php
+    command: ["php", "artisan", "queue:work", "--queue=secrets", "--sleep=1", "--tries=1", "--timeout=700"]
+    volumes:
+      - ./backend:/app
+      - ./openapi.yaml:/openapi.yaml:ro
+      - secrets:/run/soukdev:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test: ["CMD", "php", "docker/sante.php", "worker"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   reverb:
     <<: *php
     command: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=8080"]

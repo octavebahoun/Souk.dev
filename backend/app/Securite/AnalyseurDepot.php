@@ -24,6 +24,7 @@ class AnalyseurDepot
      */
     public function secrets(string $repertoire): array
     {
+        $this->sansReglagesDuDepot($repertoire);
         $sortie = $this->lancer((string) config('moteur.image_gitleaks'), [
             'dir', '/src', '--redact', '--no-banner', '--exit-code', '0', '--report-format', 'json', '--report-path', '/dev/stdout',
         ], $repertoire, ['--network', 'none'], 300);
@@ -54,9 +55,11 @@ class AnalyseurDepot
     public function dependances(string $repertoire): array
     {
         // La base des failles se télécharge une fois dans un volume nommé, puis sert à chaque analyse.
+        // --offline-scan : Trivy ne suit pas les dépôts Maven ou npm déclarés par le dépôt analysé
+        // (une adresse interne ou un serveur lent ne doit ni être contacté, ni bloquer la file).
         $sortie = $this->lancer((string) config('moteur.image_trivy'), [
-            'fs', '--scanners', 'vuln', '--format', 'json', '--quiet', '--timeout', '10m', '/src',
-        ], $repertoire, ['-v', config('moteur.volume_trivy').':/root/.cache/trivy'], 900);
+            'fs', '--scanners', 'vuln', '--offline-scan', '--format', 'json', '--quiet', '--timeout', '5m', '/src',
+        ], $repertoire, ['-v', config('moteur.volume_trivy').':/root/.cache/trivy'], 400);
 
         $rapport = $this->json($sortie);
         $problemes = [];
@@ -88,7 +91,37 @@ class AnalyseurDepot
     }
 
     /**
-     * Conteneur jetable : créé, le dépôt copié dedans, lancé, puis supprimé quoi qu'il arrive.
+     * Le dépôt ne choisit pas ses propres règles : une configuration gitleaks ou une liste
+     * d'exceptions qu'il fournirait (.gitleaks.toml, .gitleaksignore, commentaires
+     * « gitleaks:allow ») laisserait passer une clé. La copie analysée les perd.
+     */
+    private function sansReglagesDuDepot(string $repertoire): void
+    {
+        $fichiers = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($repertoire, \FilesystemIterator::SKIP_DOTS));
+
+        foreach ($fichiers as $fichier) {
+            if (! $fichier->isFile() || $fichier->isLink() || str_contains($fichier->getPathname(), DIRECTORY_SEPARATOR.'.git'.DIRECTORY_SEPARATOR)) {
+                continue;
+            }
+
+            if (in_array($fichier->getFilename(), ['.gitleaks.toml', '.gitleaksignore'], true)) {
+                unlink($fichier->getPathname());
+
+                continue;
+            }
+
+            if ($fichier->getSize() <= 2_000_000) {
+                $contenu = (string) file_get_contents($fichier->getPathname());
+                if (stripos($contenu, 'gitleaks:allow') !== false) {
+                    file_put_contents($fichier->getPathname(), str_ireplace('gitleaks:allow', 'gitleaks-allow-ignore', $contenu));
+                }
+            }
+        }
+    }
+
+    /**
+     * Conteneur jetable, étiqueté (le nettoyage planifié retire ce qu'un travail interrompu
+     * laisserait) : créé, le dépôt copié dedans, lancé, puis supprimé quoi qu'il arrive.
      *
      * @param  list<string>  $arguments
      * @param  list<string>  $options
@@ -99,8 +132,9 @@ class AnalyseurDepot
             throw new LancementEchoue('Le dépôt à analyser est introuvable.');
         }
 
-        $creation = Commande::isolee()->timeout(120)->run([
-            'docker', 'create', '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges', '--pids-limit', '256', '--memory', '1g',
+        $creation = Commande::isolee()->timeout(60)->run([
+            'docker', 'create', '--rm', '--label', 'soukdev.analyse=1',
+            '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges', '--pids-limit', '256', '--memory', '1g',
             ...$options, $image, ...$arguments,
         ]);
 
@@ -125,7 +159,7 @@ class AnalyseurDepot
 
             return $analyse->output();
         } finally {
-            Commande::isolee()->timeout(60)->run(['docker', 'rm', '-f', $conteneur]);
+            Commande::isolee()->timeout(30)->run(['docker', 'rm', '-f', $conteneur]);
         }
     }
 

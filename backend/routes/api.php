@@ -40,8 +40,8 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('/me/tableau-de-bord', [CompteController::class, 'tableau']);
     Route::patch('/me', [CompteController::class, 'update']);
 
-    Route::post('/apps/verification', [AppliController::class, 'verification']);
-    Route::post('/apps', [AppliController::class, 'store']);
+    Route::post('/apps/verification', [AppliController::class, 'verification'])->middleware('throttle:depots');
+    Route::post('/apps', [AppliController::class, 'store'])->middleware('throttle:depots');
     Route::patch('/apps/{appli}', [AppliController::class, 'update']);
     Route::delete('/apps/{appli}', [AppliController::class, 'destroy']);
     Route::post('/apps/{appli}/captures', [AppliController::class, 'captures']);
