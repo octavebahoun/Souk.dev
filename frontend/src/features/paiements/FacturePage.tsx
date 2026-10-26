@@ -107,7 +107,7 @@ export function FacturePage() {
             <Logo />
             <p className="m-0 text-petit text-texte-doux">Hébergement de copies d’applis · Afrique de l’Ouest</p>
           </div>
-          <div className="flex flex-col items-end gap-1 text-right">
+          <div className="flex flex-col items-start gap-1 tablette:items-end tablette:text-right">
             <p className="m-0 text-titre-3 text-titre">{payee ? 'Reçu de paiement' : 'Facture'}</p>
             <p className="m-0 font-mono text-petit text-texte">{donnees.numero}</p>
             <PastilleEtat ton={etat.ton} libelle={etat.libelle} />
