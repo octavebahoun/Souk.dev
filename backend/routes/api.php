@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AdminFinancesController;
+use App\Http\Controllers\AnalyseIaController;
 use App\Http\Controllers\AppliController;
 use App\Http\Controllers\AvisAppliController;
 use App\Http\Controllers\CanalController;
@@ -126,6 +127,9 @@ Route::get('/canaux', [CanalController::class, 'index']);
 Route::post('/canaux', [CanalController::class, 'store'])->middleware('auth:sanctum');
 
 Route::get('/etiquettes', [EtiquetteController::class, 'index']);
+
+// Souk AI : l'auteur d'un bug demande une analyse (consentement, 3 par 24 heures, résultat par Reverb).
+Route::post('/discussions/{discussion}/analyse-ia', [AnalyseIaController::class, 'store'])->middleware('auth:sanctum');
 
 Route::get('/discussions/{discussion}/correctifs', [CorrectifController::class, 'index']);
 Route::post('/discussions/{discussion}/correctifs', [CorrectifController::class, 'store'])

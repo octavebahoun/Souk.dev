@@ -5,6 +5,9 @@ namespace App\Providers;
 use App\Comptes\EmetteurLienMagique;
 use App\Comptes\FrontUrl;
 use App\Exploitation\Battements;
+use App\Ia\DeepSeek;
+use App\Ia\FournisseurIa;
+use App\Ia\IaSimulee;
 use App\Models\Appli;
 use App\Models\Correctif;
 use App\Models\Deploiement;
@@ -94,6 +97,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(Battements::class, fn () => new Battements(storage_path('framework/sante')));
 
         $this->enregistrerPasserelles();
+        $this->enregistrerFournisseurIa();
 
         $this->app->singleton(FrontUrl::class, function () {
             return new FrontUrl((string) config('app.frontend_url'));
@@ -200,6 +204,31 @@ class AppServiceProvider extends ServiceProvider
      * production, où l'encaissement doit être réel. Reversements : toujours simulés, sauf
      * REVERSEMENTS_REELS=true avec SasPay (un payout fait sortir de l'argent du compte).
      */
+    /**
+     * Souk AI : DeepSeek, ou le fournisseur simulé (tests, hors ligne, dépôt cloné sans clé en
+     * développement) ; jamais simulé en production, où une clé absente refuse l'analyse.
+     */
+    private function enregistrerFournisseurIa(): void
+    {
+        $this->app->bind(FournisseurIa::class, function ($app) {
+            $sansCle = (string) config('services.deepseek.cle') === '';
+            if (config('services.ia.fournisseur') === 'simulee' || ($sansCle && ! $app->isProduction())) {
+                if ($app->isProduction()) {
+                    throw new \RuntimeException('Souk AI : le fournisseur simulé est refusé en production (IA_FOURNISSEUR).');
+                }
+
+                return new IaSimulee;
+            }
+
+            return new DeepSeek(
+                (string) config('services.deepseek.cle'),
+                (string) config('services.deepseek.modele'),
+                (string) config('services.deepseek.url'),
+                (int) config('services.deepseek.delai', 150),
+            );
+        });
+    }
+
     private function enregistrerPasserelles(): void
     {
         $this->app->singleton(ClientSasPay::class, fn () => new ClientSasPay(

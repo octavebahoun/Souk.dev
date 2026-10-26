@@ -2,6 +2,7 @@ import axios from 'axios'
 import type { components, operations } from '../../shared/types/api'
 import { cheminApi, cheminLaravel, client, clientLocal } from '../../shared/client'
 import type { FiltresFil } from './filtres'
+import { preparerCsrf } from '../../app/preparerCsrf'
 
 export type Discussion = components['schemas']['Discussion']
 export type Canal = components['schemas']['Canal']
@@ -120,7 +121,8 @@ export async function arreterDeploiement(id: number): Promise<void> {
 }
 
 export async function demanderAnalyse(id: number): Promise<AnalyseIa> {
-  const { data } = await client.post<AnalyseIa>(cheminApi(`/discussions/${id}/analyse-ia`))
+  await preparerCsrf()
+  const { data } = await clientLocal.post<AnalyseIa>(cheminLaravel(`/discussions/${id}/analyse-ia`), { consentement: true })
   if (!data || typeof data.statut !== 'string') throw new Error('Réponse vide')
   return data
 }

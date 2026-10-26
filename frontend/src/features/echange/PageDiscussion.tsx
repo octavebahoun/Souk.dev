@@ -8,6 +8,7 @@ import { ColonneCorrectifs } from './ColonneCorrectifs'
 import { FilMessages } from './FilMessages'
 import { ilYA, nomAuteur } from './texte'
 import { useDiscussionDirect } from './tempsReel'
+import { TexteMarkdown } from './TexteMarkdown'
 
 const boutonAccent =
   'rebond inline-flex min-h-cible items-center justify-center rounded-controle bg-accent px-4 font-semibold text-canvas hover:bg-accent-hover disabled:opacity-60'
@@ -140,7 +141,7 @@ function DiscussionChargee({
   return (
     <>
       <p className="m-0 text-sm text-muted">
-        <Link to="/echange" className="text-accent">
+        <Link to="/echange" className="text-accent underline underline-offset-2">
           Échange
         </Link>
         <span aria-hidden="true"> · </span>
@@ -190,7 +191,7 @@ function DiscussionChargee({
             <h2 id="titre-probleme" className="m-0 text-[17px] font-bold">
               Le problème
             </h2>
-            <p className="m-0 wrap-break-word whitespace-pre-wrap">{discussion.texte}</p>
+            <TexteMarkdown texte={discussion.texte} className="text-ink" />
             {discussion.bug ? (
               <div className="verre flex flex-col gap-3.5 rounded-carte p-5">
                 <div className="flex flex-wrap items-center gap-2">

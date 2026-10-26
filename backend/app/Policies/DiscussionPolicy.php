@@ -26,4 +26,12 @@ final class DiscussionPolicy
     {
         return $discussion->user_id === $compte->id;
     }
+
+    /**
+     * Seul l'auteur demande l'avis de Souk AI : c'est sa fiche et son code qui partent chez le fournisseur.
+     */
+    public function analyser(User $compte, Discussion $discussion): bool
+    {
+        return $discussion->user_id === $compte->id;
+    }
 }

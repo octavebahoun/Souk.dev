@@ -85,4 +85,14 @@ class Discussion extends Model
     {
         return $this->hasMany(Correctif::class);
     }
+
+    /**
+     * La dernière analyse Souk AI demandée : c'est elle qui s'affiche (une nouvelle remplace l'ancienne).
+     *
+     * @return HasOne<AnalyseIa, $this>
+     */
+    public function derniereAnalyse(): HasOne
+    {
+        return $this->hasOne(AnalyseIa::class)->latestOfMany();
+    }
 }

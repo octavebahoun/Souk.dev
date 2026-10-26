@@ -524,8 +524,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Demander l'avis de Souk AI (auteur uniquement, discussion avec l'étiquette bug ; 3 par jour)
-         * @description L'analyse tourne en arrière-plan ; son résultat arrive par Reverb et dans le champ analyse_ia de la discussion. Une nouvelle demande remplace l'analyse précédente. 409 si une analyse est déjà en cours.
+         * Demander l'avis de Souk AI (auteur uniquement, discussion avec l'étiquette bug ; 3 par 24 heures)
+         * @description L'analyse tourne en arrière-plan chez DeepSeek ; son résultat arrive par Reverb (analyse_ia.terminee sur discussion.{id}) et dans le champ analyse_ia de la discussion. Une nouvelle demande remplace l'analyse précédente. 409 si une analyse est déjà en cours ; 429 (avec Retry-After) au-delà de 3 demandes en 24 heures, les échecs ne comptant pas. Les clés repérées dans la fiche sont masquées avant l'envoi.
          */
         post: operations["createAnalyseIa"];
         delete?: never;
@@ -3366,7 +3366,17 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * @description L'auteur accepte que la fiche du bug et son code partent chez le fournisseur (DeepSeek)
+                     * @constant
+                     */
+                    consentement: true;
+                };
+            };
+        };
         responses: {
             /** @description Analyse mise en file */
             202: {

@@ -9,24 +9,21 @@ import { Modal } from '../../shared/ui/Modal'
 import {
   accepterCorrectif,
   creerCorrectif,
-  demanderAnalyse,
   deployerCorrectif,
   lireErreurHttp,
   lireMoi,
   listerCorrectifs,
   messageAction,
-  type AnalyseIa,
   type Correctif,
   type Discussion,
 } from './api'
 import { ilYA, nomAuteur } from './texte'
+import { AnalyseSoukAi } from './AnalyseSoukAi'
 
 const boutonAccent =
   'inline-flex min-h-cible items-center justify-center rounded-controle bg-accent px-4 font-semibold text-canvas disabled:opacity-60'
 const boutonSecond =
   'inline-flex min-h-cible items-center justify-center rounded-controle border border-line bg-canvas px-4 text-sm font-semibold text-ink'
-const boutonIa =
-  'inline-flex min-h-cible items-center justify-center rounded-controle bg-[#5B21B6] px-4 text-sm font-semibold text-canvas disabled:opacity-60'
 
 function urlHttp(valeur: string): boolean {
   try {
@@ -48,7 +45,6 @@ export function ColonneCorrectifs({ discussion, auteur, page, onPage }: ColonneC
   const client = useQueryClient()
   const [proposer, setProposer] = useState(false)
   const [aAccepter, setAAccepter] = useState<Correctif | null>(null)
-  const [demander, setDemander] = useState(false)
   const [depot, setDepot] = useState('')
   const [description, setDescription] = useState('')
   const [demo, setDemo] = useState('')
@@ -56,7 +52,6 @@ export function ColonneCorrectifs({ discussion, auteur, page, onPage }: ColonneC
   const [erreur, setErreur] = useState<string | null>(null)
   const fermerProposition = useCallback(() => setProposer(false), [])
   const fermerAcceptation = useCallback(() => setAAccepter(null), [])
-  const fermerAnalyse = useCallback(() => setDemander(false), [])
   const moi = useQuery({ queryKey: ['moi'], queryFn: lireMoi })
   const correctifs = useQuery({
     queryKey: ['correctifs', discussion.id, page],
@@ -113,18 +108,6 @@ export function ColonneCorrectifs({ discussion, auteur, page, onPage }: ColonneC
       await client.invalidateQueries({ queryKey: ['correctifs', discussion.id] })
     },
     onError: (recue) => setErreur(messageAction(recue, '10 correctifs par heure.')),
-  })
-
-  const analyseMutation = useMutation({
-    mutationFn: () => demanderAnalyse(discussion.id),
-    onSuccess: (recue) => {
-      client.setQueryData<Discussion>(['discussion', discussion.id], (actuelle) =>
-        actuelle ? { ...actuelle, analyse_ia: recue } : actuelle,
-      )
-      setDemander(false)
-      setErreur(null)
-    },
-    onError: (recue) => setErreur(messageAction(recue, '3 analyses par jour.')),
   })
 
   function soumettre(evenement: FormEvent) {
@@ -184,8 +167,8 @@ export function ColonneCorrectifs({ discussion, auteur, page, onPage }: ColonneC
       </button>
       <p className="m-0 text-[13px] text-muted">Un correctif, c’est l’URL de votre branche. Un seul correctif peut être accepté par discussion.</p>
 
-      {bug ? <Analyse analyse={analyse} auteur={auteur} onDemander={() => setDemander(true)} /> : null}
-      {erreur && !proposer && !demander && !aAccepter ? (
+      {bug ? <AnalyseSoukAi discussionId={discussion.id} analyse={analyse} auteur={auteur} /> : null}
+      {erreur && !proposer && !aAccepter ? (
         <p role="alert" className="m-0 text-sm text-danger">
           {erreur}
         </p>
@@ -228,20 +211,6 @@ export function ColonneCorrectifs({ discussion, auteur, page, onPage }: ColonneC
         </Modal>
       ) : null}
 
-      {demander ? (
-        <Modal titre="Demander l’avis de Souk AI" onFermer={fermerAnalyse}>
-          <p className="m-0 text-subtle">
-            Votre fiche et votre code partent chez un fournisseur extérieur (Claude, Anthropic). 3 analyses par jour. L’analyse ne résout pas la discussion.
-          </p>
-          {erreur ? <p role="alert" className="m-0 text-sm text-danger">{erreur}</p> : null}
-          <div className="flex flex-wrap justify-end gap-2">
-            <button type="button" onClick={fermerAnalyse} className={boutonSecond}>Annuler</button>
-            <button type="button" onClick={() => analyseMutation.mutate()} disabled={analyseMutation.isPending} className={boutonIa}>
-              Lancer l’analyse
-            </button>
-          </div>
-        </Modal>
-      ) : null}
     </aside>
   )
 }
@@ -347,52 +316,3 @@ function CorrectifCarte({
   )
 }
 
-function Analyse({
-  analyse,
-  auteur,
-  onDemander,
-}: {
-  analyse: AnalyseIa | null
-  auteur: boolean
-  onDemander: () => void
-}) {
-  return (
-    <section aria-labelledby="titre-ia" className="mt-2 flex flex-col gap-3 rounded-carte border border-[#DDD6FE] bg-canvas p-4">
-      <div>
-        <h2 id="titre-ia" className="m-0 text-base font-bold">
-          Analyse IA
-        </h2>
-        <span className="text-[12.5px] text-muted">Souk AI · une suggestion, pas un correctif</span>
-      </div>
-      {!analyse && auteur ? (
-        <>
-          <p className="m-0 text-sm text-subtle">Souk AI lit la fiche du bug et propose une piste, à côté des correctifs.</p>
-          <button type="button" onClick={onDemander} className={boutonIa}>
-            Demander l’avis de Souk AI
-          </button>
-          <p className="m-0 text-[12.5px] text-muted">3 analyses par jour. Le reste n’est pas renvoyé par l’API.</p>
-        </>
-      ) : null}
-      {!analyse && !auteur ? <p className="m-0 text-sm text-muted">Pas encore d’analyse.</p> : null}
-      {analyse?.statut === 'en_cours' ? (
-        <p role="status" className="m-0 rounded-controle bg-[#F5F3FF] p-3 text-sm text-[#4C1D95]">
-          Analyse en cours. La réponse arrive ici, sans recharger la page.
-        </p>
-      ) : null}
-      {analyse?.statut === 'prete' && analyse.texte ? (
-        <p className="m-0 text-sm wrap-break-word whitespace-pre-wrap">{analyse.texte}</p>
-      ) : null}
-      {analyse?.statut === 'echec' ? (
-        <p role="status" className="m-0 rounded-controle bg-page p-3 text-sm">
-          Analyse indisponible. Les réponses de la communauté restent là.
-        </p>
-      ) : null}
-      {auteur && analyse ? (
-        <button type="button" onClick={onDemander} className="inline-flex min-h-cible items-center justify-center rounded-controle border border-[#DDD6FE] bg-canvas px-3.5 text-sm font-semibold text-[#5B21B6]">
-          {analyse.statut === 'echec' ? 'Réessayer l’analyse' : 'Relancer'}
-        </button>
-      ) : null}
-      {auteur ? <p className="m-0 text-[12.5px] font-semibold text-[#5B21B6]">3 analyses par jour</p> : null}
-    </section>
-  )
-}

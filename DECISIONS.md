@@ -375,3 +375,12 @@ Choix faits par l'agent en exécutant `BRIEF.md` (le brief passe avant ce fichie
   - les textes des membres restent du texte dans les e-mails (Markdown sécurisé : ni lien ni image injectés) ;
   - une nouvelle demande de mission prévient le dev (type « Missions ») ;
   - les réglages de notification s'enregistrent sous verrou, l'un après l'autre.
+
+### Intelligence (phase 4)
+
+- **2026-10-26 — Souk AI sur l'API officielle DeepSeek**, modèle `deepseek-flash` lu dans `GET /models` (DeepSeek-V4.1-Flash), derrière `FournisseurIa` ; `DEEPSEEK_MODELE` le change. Le fournisseur simulé sert aux tests, au travail hors ligne et au dépôt cloné sans clé ; il est refusé en production.
+- **2026-10-26 — Consentement exigé par l'API**, pas seulement par l'écran : `consentement: true` obligatoire, date gardée avec la demande.
+- **2026-10-26 — « 3 par jour » = 3 sur 24 heures glissantes**, échecs exclus (une panne du fournisseur ne coûte rien au dev), vérifiées sous le verrou du compte. Raison : pas de remise à zéro à minuit UTC (1 h du matin au Bénin), et un 429 qui dit quand réessayer.
+- **2026-10-26 — Secrets masqués avant l'envoi** : une fiche de bug contient souvent un extrait de configuration ; les motifs de clés courants sont remplacés avant de partir chez DeepSeek.
+- **2026-10-26 — Réponse rendue en Markdown simple, sans HTML** : titres, listes, gras, code ; un texte du modèle ne peut ni injecter de script ni de lien déguisé.
+- **2026-10-26 — Travail sur la file par défaut** : quelques secondes par analyse, après les paiements (le worker sert `paiements` en priorité).

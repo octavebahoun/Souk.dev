@@ -16,9 +16,7 @@ class ContratRoutesTest extends TestCase
      * Routes du contrat volontairement pas encore codées (hors MVP).
      * On retire une ligne dès que la route existe.
      */
-    private const PAS_ENCORE_CODEES = [
-        'POST /discussions/{}/analyse-ia',
-    ];
+    private const PAS_ENCORE_CODEES = [];
 
     public function test_chaque_route_de_l_api_est_dans_le_contrat(): void
     {

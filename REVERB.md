@@ -39,6 +39,7 @@ Le back diffuse avec Laravel Reverb, le front écoute avec Laravel Echo.
 | `discussion.{id}` | `correctif.propose` | `Correctif` | Nouveau correctif proposé |
 | `discussion.{id}` | `correctif.etat` | `Correctif` | Changement d'état du déploiement d'un correctif, **seulement si son auteur l'a lancé** |
 | `discussion.{id}` | `correctif.accepte` | `Correctif` | L'auteur de la discussion accepte un correctif (un seul par discussion) |
+| `discussion.{id}` | `analyse_ia.terminee` | `AnalyseIa` | L'analyse Souk AI demandée par l'auteur est prête (`prete`, avec le texte) ou indisponible (`echec`) |
 | `evenement.{id}` | `inscriptions.maj` | `{ "nb_inscrits": integer }` | Inscription ou désinscription |
 | `evenement.{id}` | `evenement.modifie` | `Evenement` (avec `lien` à `null`) | L'organisateur modifie l'événement |
 | `evenement.{id}` | `evenement.annule` | `{ "id": integer }` | Suppression par l'organisateur ou un admin ; les inscrits sont aussi prévenus hors ligne |

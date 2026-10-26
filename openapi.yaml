@@ -884,10 +884,24 @@ paths:
     post:
       tags: [Discussions]
       operationId: createAnalyseIa
-      summary: Demander l'avis de Souk AI (auteur uniquement, discussion avec l'étiquette bug ; 3 par jour)
+      summary: Demander l'avis de Souk AI (auteur uniquement, discussion avec l'étiquette bug ; 3 par 24 heures)
       description: >-
-        L'analyse tourne en arrière-plan ; son résultat arrive par Reverb et dans le champ analyse_ia
-        de la discussion. Une nouvelle demande remplace l'analyse précédente. 409 si une analyse est déjà en cours.
+        L'analyse tourne en arrière-plan chez DeepSeek ; son résultat arrive par Reverb (analyse_ia.terminee sur
+        discussion.{id}) et dans le champ analyse_ia de la discussion. Une nouvelle demande remplace l'analyse
+        précédente. 409 si une analyse est déjà en cours ; 429 (avec Retry-After) au-delà de 3 demandes en
+        24 heures, les échecs ne comptant pas. Les clés repérées dans la fiche sont masquées avant l'envoi.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [consentement]
+              properties:
+                consentement:
+                  type: boolean
+                  const: true
+                  description: L'auteur accepte que la fiche du bug et son code partent chez le fournisseur (DeepSeek)
       responses:
         '202':
           description: Analyse mise en file

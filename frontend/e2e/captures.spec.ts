@@ -26,7 +26,8 @@ const lots: Lot[] = [
     compte: null,
     pages: async (page) => {
       const appli = await idDe(page, '/apps?q=PharmaStock', (applis) => applis[0]?.id)
-      return ['/', '/store', '/store?tri=note', `/store/${appli}`, '/echange', '/devs', '/evenements', '/connexion', '/page-inconnue']
+      const bug = await idDe(page, '/discussions?per_page=50', (discussions) => discussions.find((discussion) => String(discussion.titre).startsWith('Wave CI'))?.id)
+      return ['/', '/store', '/store?tri=note', `/store/${appli}`, '/echange', `/echange/${bug}`, '/devs', '/evenements', '/connexion', '/page-inconnue']
     },
   },
   { compte: 'soukdemo-awa', pages: async () => ['/tableau', '/copies', '/publier', '/missions', '/revenus', '/notifications', '/notifications/reglages'] },
@@ -39,6 +40,10 @@ const lots: Lot[] = [
     },
   },
   { compte: 'soukdemo-admin', pages: async () => ['/admin/finances'] },
+  {
+    compte: 'soukdemo-yao',
+    pages: async (page) => [`/echange/${await idDe(page, '/discussions?per_page=50', (discussions) => discussions.find((discussion) => String(discussion.titre).startsWith('Wave CI'))?.id)}`],
+  },
 ]
 
 for (const theme of ['light', 'dark'] as const) {

@@ -75,6 +75,7 @@ function ecouterUneDiscussion(id: number, client: QueryClient, onSupprimee: () =
   canal.listen('.copie_test.etat', relireDiscussion)
   canal.listen('.correctif.propose', relireCorrectifs)
   canal.listen('.correctif.etat', relireCorrectifs)
+  canal.listen('.analyse_ia.terminee', relireDiscussion)
   canal.listen('.correctif.accepte', () => {
     relireCorrectifs()
     relireDiscussion()

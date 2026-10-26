@@ -17,7 +17,7 @@ final class DiscussionResource extends JsonResource
     {
         /** @var Discussion $discussion */
         $discussion = $this->resource;
-        $discussion->loadMissing('auteur', 'canal');
+        $discussion->loadMissing('auteur', 'canal', 'derniereAnalyse');
 
         return [
             'id' => $discussion->id,
@@ -31,7 +31,7 @@ final class DiscussionResource extends JsonResource
             'etiquettes' => array_values($discussion->etiquettes ?? []),
             'bug' => $this->bug($discussion),
             'copie_test' => $discussion->copieTest?->versApi(),
-            'analyse_ia' => null,
+            'analyse_ia' => $discussion->derniereAnalyse?->versApi(),
             'resolue' => $discussion->resolue,
             'nb_messages' => $discussion->messages_count ?? $discussion->messages()->count(),
             'cree_le' => $discussion->created_at?->toIso8601String(),

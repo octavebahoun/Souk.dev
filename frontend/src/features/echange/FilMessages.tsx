@@ -6,6 +6,7 @@ import { Badge } from '../../shared/ui/Badge'
 import { EmptyState } from '../../shared/ui/EmptyState'
 import { creerMessage, listerMessages, lireErreurHttp, messageAction } from './api'
 import { ilYA, nomAuteur } from './texte'
+import { TexteMarkdown } from './TexteMarkdown'
 
 const boutonAccent =
   'inline-flex min-h-cible items-center justify-center rounded-controle bg-accent px-5 font-semibold text-canvas disabled:opacity-60'
@@ -94,7 +95,7 @@ export function FilMessages({ discussionId, auteurId, page, onPage }: FilMessage
                     {ilYA(message.cree_le)}
                   </time>
                 </div>
-                <p className="m-0 wrap-break-word whitespace-pre-wrap">{message.texte}</p>
+                <TexteMarkdown texte={message.texte} className="text-ink" />
               </div>
             </li>
           ))}

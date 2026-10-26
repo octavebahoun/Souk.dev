@@ -84,7 +84,8 @@ Journal de l'agent, tenu à jour en continu (voir `BRIEF.md`, section 1).
 9. à 15. 503 sans son message ni Retry-After, mission d'une notification ignorée sur la page Missions, rappels d'abonnement orphelins, réglages concurrents, conteneurs et clones laissés par un travail tué, pluriels, tests manquants (503 de bout en bout, configuration hostile, mission notifiée) et parcours E2E rendus rejouables.
 
 ### Phase 4 — Intelligence
-- [ ] Souk AI : DeepSeek, consentement, 3 par jour, résultat par Reverb
+- [x] Souk AI : API DeepSeek (`deepseek-flash`), consentement exigé par l'API, 3 sur 24 heures (échecs exclus), une à la fois, résultat par Reverb (`analyse_ia.terminee`), secrets masqués avant l'envoi, réponse en Markdown sans HTML
+- [x] Sortie : une analyse réelle s'affiche à côté des correctifs (E2E, DeepSeek, environ 8 s) ; la 4ᵉ demande en 24 heures reçoit 429
 
 ### Phase 5 — Plateforme
 - [ ] Mises à jour poussées (sauvegarde des volumes, retour arrière si la sonde échoue)
