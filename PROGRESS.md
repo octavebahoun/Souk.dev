@@ -6,8 +6,8 @@ Journal de l'agent, tenu à jour en continu (voir `BRIEF.md`, section 1).
 ## Où on en est
 
 - **Branche** : `saas-complet`, partie de `main` (la PR #28 `fin-mvp` y est fusionnée).
-- **Phase en cours** : 4 — Intelligence (phase 3 terminée : revue indépendante faite, 15 constats traités).
-- **Tâche suivante** : Souk AI (DeepSeek) — route, file, consentement, limite de 3 par 24 heures, résultat par Reverb.
+- **Phase en cours** : 5 — Plateforme (phase 4 terminée : revue indépendante faite, 15 constats traités).
+- **Tâche suivante** : mises à jour poussées (version publiée par le dev, clients prévenus, redéploiement sauvegardé et retour arrière si la sonde échoue).
 
 ## Étape 0 (25 octobre)
 
@@ -152,6 +152,10 @@ Journal de l'agent, tenu à jour en continu (voir `BRIEF.md`, section 1).
 | 2026-10-26 | 3 | Captures (3 tailles × 2 thèmes) : Store trié par note, fiche avec avis, notifications, réglages, cloche | 30 captures relues ; corrigés : interrupteur grisé illisible, bouton mal placé sur mobile, erreur de note restée affichée |
 | 2026-10-26 | 3 | Lighthouse (build de production), bureau | accueil 99 / 100 / 100, Store 95 / 100 / 96, fiche 99 / 100 / 96 (décalage de mise en page corrigé : 0,67 → 0,03), « Mes copies » et notifications 100 / 100 / 100 ; mobile de la fiche 66 (voir Problèmes ouverts) |
 | 2026-10-26 | 3 | `composer audit`, `npm audit`, licences | aucune faille, aucune licence interdite (gitleaks MIT et Trivy Apache 2.0 inscrits) |
+| 2026-10-26 | 4 | Analyse réelle par DeepSeek (`deepseek-flash`) sur le bug de démo | prête en 7,7 s, 387 jetons lus, 994 écrits, réponse en français en trois parties |
+| 2026-10-26 | 4 | Suite PHP dans le conteneur (contrat vérifié) ; Pint, ESLint, `tsc`, Vitest | 547/547 ; zéro erreur, 31/31 |
+| 2026-10-26 | 4 | Démarrage à froid d'une copie propre (worktree, projet séparé, `.env` réel) puis Playwright | 11 services sains en 51 s, 36 migrations ; 13/13 du premier coup (dont Souk AI réel : analyse affichée en direct, focus et annonce, 429 à la 4ᵉ) |
+| 2026-10-26 | 4 | Captures de la discussion avec l'analyse (3 tailles × 2 thèmes, auteur et visiteur) | 12 relues ; corrigés : italique non rendu, messages en Markdown brut alors que « Markdown accepté » |
 
 ## Problèmes ouverts
 

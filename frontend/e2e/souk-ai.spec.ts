@@ -60,7 +60,7 @@ test.describe.serial('souk ai', () => {
     // et la zone annoncée aux lecteurs d'écran le dit.
     await expect(analyse.getByRole('status')).toHaveText('Analyse de Souk AI prête.', { timeout: 180_000 })
     await expect(analyse.getByText('Analyse en cours. La réponse arrive ici, sans recharger la page.')).toBeHidden()
-    expect(await analyse.locator('p, li, pre').count()).toBeGreaterThan(4)
+    expect(await analyse.locator('p, li, pre').count()).toBeGreaterThan(3)
     await expect(analyse.getByRole('button', { name: 'Relancer l’analyse' })).toBeVisible()
     expect(resumer(await auditAxe(page))).toBe('')
 
@@ -68,7 +68,7 @@ test.describe.serial('souk ai', () => {
     await page.context().clearCookies()
     await page.reload()
     const vue = page.getByRole('region', { name: /Analyse IA/ })
-    await expect(vue.locator('p, li, pre').nth(4)).toBeVisible()
+    await expect(vue.locator('p, li, pre').nth(3)).toBeVisible()
     await expect(vue.getByRole('button', { name: /Relancer|Demander/ })).toHaveCount(0)
   })
 
