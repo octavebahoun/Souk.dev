@@ -329,3 +329,19 @@ Choix faits par l'agent en exécutant `BRIEF.md` (le brief passe avant ce fichie
 - **2026-10-25 — Autorisation** : une Policy par ressource ; un refus garde sa raison, et une Policy peut répondre `404` pour ne pas révéler qu'une ressource existe (factures, revenus, notifications). Les routes déjà au contrat gardent leur `403`.
 - **2026-10-25 — GitHub lié** : contrôlé aussi pour `POST /apps` et `POST /apps/verification` (le contrat l'exigeait, le code non).
 - **2026-10-25 — Souk Score de la recherche de devs** : une copie du profil calculé est rangée sur le compte, rafraîchie à chaque action validée et chaque nuit, pour trier sans tout recalculer. Le profil d'un dev reste calculé en direct.
+
+### Paiement (phase 2)
+
+- **2026-10-26 — Passerelle par défaut en développement** : le simulateur (`PAIEMENT_PASSERELLE=simulee` dans `docker-compose.yml`). La clé fournie est une clé de production sur un compte où les paiements échouent : elle sert aux parcours d'échec, sur demande. Jamais le simulateur en production (refusé au démarrage).
+- **2026-10-26 — Une vérification par l'API fait foi** : ni le navigateur ni le webhook ne paient une facture ; seul `GET /payments/{id}/verify/` à `SUCCESS` le fait, sous verrou, une seule fois.
+- **2026-10-26 — Grand livre immuable** : en plus du modèle, un trigger PostgreSQL refuse toute modification ; seule la purge du jeu de démo peut supprimer (variable de session `soukdev.purge`).
+- **2026-10-26 — Reversement repris sans double paiement** : bénéficiaire figé et chiffré sur le reversement, même `Idempotency-Key` à chaque essai ; un `409` de SasPay se réessaie et ne rend jamais le solde.
+- **2026-10-26 — Confirmation du numéro par un bouton** : le lien de l'e-mail ouvre une page ; seul le clic confirme. Raison : les analyseurs de liens des messageries ouvrent les liens tout seuls.
+- **2026-10-26 — Suspension = conteneurs arrêtés, volumes gardés**, page neutre sur le sous-domaine (rien sur la facture : le client d'une pharmacie n'a pas à savoir qu'elle n'a pas payé). Les copies déclarent `restart: unless-stopped` : une copie suspendue ne repart pas seule après un redémarrage de Docker.
+- **2026-10-26 — E-mails de facturation en file** : une panne de Resend ne bloque ni une suspension ni un paiement. Aucun e-mail ne part vers les comptes de démo (adresses inexistantes, rebonds nuisibles au domaine d'envoi).
+- **2026-10-26 — Liens absolus sur `APP_URL`** : simulateur, lien de paiement et confirmation visent l'API, même quand la requête passe par le proxy du front.
+- **2026-10-26 — Le contrat vérifié par les tests** : chaque réponse JSON de `/api` est validée contre `openapi.yaml` (JSON Schema 2020-12). Il a trouvé 11 descriptions YAML cassées et 4 listes paginées hors format.
+- **2026-10-26 — Miroir local des applis de démo** (développement seulement, `MOTEUR_MIROIRS`) : le moteur clone une appli cobaye écrite pour Souk.dev au lieu de `github.com/soukdemo/…`, ce qui permet de prouver « payer → en ligne → suspendu → réactivé » avec de vrais conteneurs.
+- **2026-10-26 — Copie annoncée en ligne après Traefik** : 3 secondes d'attente après l'écriture de la route (Traefik regroupe les changements toutes les 2 s), sinon un clic rapide tombait sur un 404.
+- **2026-10-26 — Logos des réseaux Mobile Money** (Logo.dev, 8 marques, une fois chacune) : seulement pour désigner le moyen de paiement choisi, hébergés dans `frontend/src/assets/reseaux/`.
+- **2026-10-26 — Animations chargées à part** (`LazyMotion`) et coquille statique dans `index.html` : premier affichage plus rapide, mêmes animations.

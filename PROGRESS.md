@@ -6,8 +6,8 @@ Journal de l'agent, tenu à jour en continu (voir `BRIEF.md`, section 1).
 ## Où on en est
 
 - **Branche** : `saas-complet`, partie de `main` (la PR #28 `fin-mvp` y est fusionnée).
-- **Phase en cours** : 2 — Paiement (phase 1 terminée, revue indépendante faite et corrigée).
-- **Tâche suivante** : phase 2 — brancher la facturation (cycle quotidien, suspension, réactivation), tests, écrans de paiement.
+- **Phase en cours** : 2 — Paiement, revue indépendante en cours (tout le reste de la phase est fait et vérifié).
+- **Tâche suivante** : corriger les constats de la revue, puis phase 3 (sécurité avant publication, avis, notifications).
 
 ## Étape 0 (25 octobre)
 
@@ -45,14 +45,16 @@ Journal de l'agent, tenu à jour en continu (voir `BRIEF.md`, section 1).
 9. et 10. Tri initial du Souk Score, Traefik sur la boucle locale, interrupteur de 44 px, compte admin de démo réservé au poste de dev.
 
 ### Phase 2 — Paiement (SasPay)
-- [ ] Adaptateurs `PasserellePaiement` (SasPay, simulée) et reversements (simulés)
-- [ ] Simulateur SasPay : page de paiement locale, statuts `PENDING`/`SUCCESS`/`FAILED`, webhooks signés
-- [ ] Factures à date anniversaire, rappel J-3, grâce 7 jours, suspension, réactivation, arrêt définitif à 30 jours
-- [ ] Webhook signé et idempotent, revérification par l'API, rapprochement (15 min et quotidien)
-- [ ] Grand livre en partie double, en entiers FCFA, sans modification (écritures inverses)
-- [ ] Reversements : solde, coordonnées Mobile Money confirmées, mensuel ou à la demande (≥ 5 000 F)
-- [ ] Avoirs saisis par l'admin
-- [ ] Écrans : paiement et retour, « Mes paiements », « Mes revenus », vue financière admin
+- [x] Adaptateurs `PasserellePaiement` (SasPay, simulée) et reversements (simulés)
+- [x] Simulateur SasPay : page de paiement locale, statuts `PENDING`/`SUCCESS`/`FAILED`, webhooks signés
+- [x] Factures à date anniversaire, rappel J-3, grâce 7 jours, suspension, réactivation, arrêt définitif à 30 jours
+- [x] Webhook signé et idempotent, revérification par l'API, rapprochement (15 min et quotidien)
+- [x] Grand livre en partie double, en entiers FCFA, sans modification (écritures inverses, trigger PostgreSQL)
+- [x] Reversements : solde, coordonnées Mobile Money confirmées, mensuel ou à la demande (≥ 5 000 F)
+- [x] Avoirs saisis par l'admin
+- [x] Écrans : commande et paiement, retour, « Mes paiements » et reçus, « Mes revenus », vue financière admin, « Mes copies »
+- [x] Sortie : un client paie et sa copie démarre ; un impayé est suspendu puis réactivé ; un dev est reversé (simulé) ; un échec réel de SasPay est géré de bout en bout
+- [ ] Revue indépendante de la phase 2 et corrections
 
 ### Phase 3 — Confiance
 - [ ] Sécurité avant publication : gitleaks et Trivy en conteneurs jetables, statuts, badge, relance
@@ -80,7 +82,15 @@ Journal de l'agent, tenu à jour en continu (voir `BRIEF.md`, section 1).
 
 ## Pages (but, action principale, ce qui doit sauter aux yeux)
 
-À remplir écran par écran avant de le redessiner.
+| Page | But | Action principale | Ce qui doit sauter aux yeux |
+|---|---|---|---|
+| Commande (`/store/{id}/deployer`) | Commander une copie en confiance | Payer | Le total d'aujourd'hui, puis ce qui revient chaque mois ; « 0 F de commission » |
+| Retour de paiement | Savoir si l'argent est passé et ce qui suit | Ouvrir ma copie (ou réessayer) | Le résultat (confirmé, refusé, en attente), puis les étapes de la copie |
+| Mes paiements | Payer ce qui est dû, retrouver ses reçus | Payer la facture due | Ce qui est à payer ; sinon « vous êtes à jour » et la prochaine facture |
+| Facture / reçu | Garder une preuve de paiement | Imprimer le reçu (ou payer) | Le total, payé quand et comment |
+| Mes revenus | Être payé | Recevoir son solde | Le solde, le numéro où l'argent arrive, sa confirmation |
+| Finances (admin) | Suivre l'argent de Souk.dev | Saisir un avoir après un remboursement | La marge, ce qui est dû aux devs, les impayés et les écarts |
+| Mes copies | Suivre ses copies | Payer, ouvrir ou relancer selon l'état | L'état de chaque copie, son adresse, ce qu'elle coûte
 
 ## Vérifications
 
@@ -93,6 +103,15 @@ Journal de l'agent, tenu à jour en continu (voir `BRIEF.md`, section 1).
 | 2026-10-25 | 1 | Playwright (parcours socle, axe sur la page introuvable en clair et en sombre) | 3/3, zéro violation sérieuse |
 | 2026-10-25 | 1 | `composer audit`, `npm audit` | aucune faille (Prism retiré : 8 failles npm de développement) |
 | 2026-10-25 | 1 | Revue indépendante | 10 constats, tous corrigés ; fuite des secrets vérifiée avant et après dans le conteneur moteur |
+| 2026-10-26 | 2 | `php artisan test` dans le conteneur, chaque réponse JSON validée contre `openapi.yaml` | 464/464, aucun test sauté |
+| 2026-10-26 | 2 | Pint, ESLint, `tsc`, Vitest | zéro erreur, 25/25 |
+| 2026-10-26 | 2 | Démarrage à froid (projet Docker séparé, volumes vierges) | 8 services sains en 66 s, 26 migrations |
+| 2026-10-26 | 2 | Playwright contre la plateforme démarrée à froid (moteur réel, paiement simulé) | 8/8 : payer → copie en ligne → impayé suspendu (page neutre via Traefik) → réactivé ; refus expliqué et retenté ; reversement ; vue admin ; audit axe sans violation sérieuse |
+| 2026-10-26 | 2 | Échec réel SasPay (passerelle `saspay`, numéro togolais impossible) | « Paiement échoué » chez SasPay ; vérifié par l'API : paiement `echoue`, facture toujours à payer, page « Paiement refusé » |
+| 2026-10-26 | 2 | Trigger du grand livre sur PostgreSQL ; migrations annulées puis rejouées | modification et suppression refusées ; aller-retour sans erreur |
+| 2026-10-26 | 2 | Captures (3 tailles × 2 thèmes) des écrans de paiement, critiquées | 6 défauts corrigés (bouton coupé, visuel de l'appli, état « à jour », compteurs à zéro, montants et ponctuation coupés en fin de ligne) |
+| 2026-10-26 | 2 | `composer audit`, `npm audit`, licences | aucune faille, aucune licence interdite |
+| 2026-10-26 | 2 | Lighthouse (build de production) sur la commande et « Mes copies » | bureau : 98 / 100 / 100 ; mobile simulé : accessibilité et bonnes pratiques 100, performance 72 à 79 (premier affichage 2,3 s, LCP 3,3 s) : sous l'objectif de 90, voir Problèmes ouverts |
 
 ## Problèmes ouverts
 
@@ -101,7 +120,11 @@ Journal de l'agent, tenu à jour en continu (voir `BRIEF.md`, section 1).
 - Tunnel public pour le webhook SasPay : refusé par le mode auto de Claude Code, en attente de l'utilisateur.
 - Déploiement réel d'un dépôt GitHub (`octavebahoun/marchilearnia`) : refusé par le mode auto (« code externe »). À autoriser par l'utilisateur ; en attendant, le moteur est vérifié avec une appli locale écrite par l'agent.
 
+- Performance Lighthouse sur mobile simulé (Moto G, 4G lente) entre 72 et 79 pour une appli 100 % JavaScript, alors que le bureau est à 98. Gains déjà faits : animations chargées à part, coquille statique. Pistes pour l'audit de la phase 8 : pré-rendu des pages publiques, CSS critique en ligne, données de la page demandées plus tôt, poids de react-router et d'axios.
+- Le compte SasPay fourni affiche le nom marchand « Gentube » sur la page de paiement : un compte au nom de Souk.dev sera nécessaire avant le lancement.
+- 26 octobre : deux plateformes lancées sur le même dossier de copies (vérification à froid) se nettoient l'une l'autre ; une copie de test de la plateforme habituelle a été arrêtée. Sans conséquence (jeu de démo) ; à ne pas reproduire.
+
 ## Dépenses et crédits
 
 - Vertex AI (Nano Banana Pro, `gemini-3-pro-image`) : 5,49 $ / 10 $ (41 images, détail dans `scripts/visuels/depenses.json`).
-- Logo.dev : aucun logo récupéré.
+- Logo.dev : 8 logos de réseaux Mobile Money récupérés une fois (16 crédits ; 486 restants sur 500 ce mois-ci).
