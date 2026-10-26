@@ -52,7 +52,7 @@ class EnvoyerWebhookSimule implements ShouldQueue
         ], JSON_UNESCAPED_SLASHES);
 
         $horodatage = time();
-        $signature = (new SignatureWebhook((string) config('services.saspay.secret_webhook')))->signer($corps, $horodatage);
+        $signature = SignatureWebhook::depuisConfig()->signer($corps, $horodatage);
 
         Http::withHeaders([
             'X-Webhook-Signature' => $signature,

@@ -6,8 +6,8 @@ Journal de l'agent, tenu à jour en continu (voir `BRIEF.md`, section 1).
 ## Où on en est
 
 - **Branche** : `saas-complet`, partie de `main` (la PR #28 `fin-mvp` y est fusionnée).
-- **Phase en cours** : 3 — Confiance (phase 2 terminée : revue indépendante faite, 25 constats corrigés).
-- **Tâche suivante** : phase 3 — écrans de la sécurité avant publication, avis des applis, notifications.
+- **Phase en cours** : 4 — Intelligence (phase 3 terminée : revue indépendante faite, 15 constats traités).
+- **Tâche suivante** : Souk AI (DeepSeek) — route, file, consentement, limite de 3 par 24 heures, résultat par Reverb.
 
 ## Étape 0 (25 octobre)
 
@@ -135,6 +135,13 @@ Journal de l'agent, tenu à jour en continu (voir `BRIEF.md`, section 1).
 | 2026-10-26 | 2 | `composer audit`, `npm audit`, licences | aucune faille, aucune licence interdite |
 | 2026-10-26 | 2 | Après corrections de la revue : suite PHP (réponses validées contre le contrat), Playwright 8/8, captures 42/42 | 494/494 ; 8/8 ; relues |
 | 2026-10-26 | 2 | Lighthouse (build de production) sur la commande et « Mes copies » | bureau : 98 / 100 / 100 ; mobile simulé : accessibilité et bonnes pratiques 100, performance 72 à 79 (premier affichage 2,3 s, LCP 3,3 s) : sous l'objectif de 90, voir Problèmes ouverts |
+| 2026-10-26 | 3 | Suite PHP dans le conteneur (réponses validées contre le contrat) ; Pint, ESLint, `tsc`, Vitest | 517/517 ; zéro erreur, 28/28 |
+| 2026-10-26 | 3 | Démarrage à froid d'une copie propre du dépôt (worktree, projet Docker séparé, volumes vierges) | 10 services sains en 61 s, 34 migrations ; a révélé les webhooks simulés refusés sans secret (corrigé : secret de développement tiré de `APP_KEY`) |
+| 2026-10-26 | 3 | Playwright contre la plateforme démarrée à froid | 11/11 au troisième passage (deux échecs isolés non reproduits : script axe non chargé depuis le CDN, un parcours de paiement refusé) ; secret refusé, badge vert, avis, cloche en direct, réglages, paiement, suspension, reversement, admin |
+| 2026-10-26 | 3 | Un e-mail par notification (12 sortes) envoyé par Resend à `delivered@resend.dev` | 12/12 remis (statut lu dans l'API de Resend) |
+| 2026-10-26 | 3 | Captures (3 tailles × 2 thèmes) : Store trié par note, fiche avec avis, notifications, réglages, cloche | 30 captures relues ; corrigés : interrupteur grisé illisible, bouton mal placé sur mobile, erreur de note restée affichée |
+| 2026-10-26 | 3 | Lighthouse (build de production), bureau | accueil 99 / 100 / 100, Store 95 / 100 / 96, fiche 99 / 100 / 96 (décalage de mise en page corrigé : 0,67 → 0,03), « Mes copies » et notifications 100 / 100 / 100 ; mobile de la fiche 66 (voir Problèmes ouverts) |
+| 2026-10-26 | 3 | `composer audit`, `npm audit`, licences | aucune faille, aucune licence interdite (gitleaks MIT et Trivy Apache 2.0 inscrits) |
 
 ## Problèmes ouverts
 
@@ -143,7 +150,7 @@ Journal de l'agent, tenu à jour en continu (voir `BRIEF.md`, section 1).
 - Tunnel public pour le webhook SasPay : refusé par le mode auto de Claude Code, en attente de l'utilisateur.
 - Déploiement réel d'un dépôt GitHub (`octavebahoun/marchilearnia`) : refusé par le mode auto (« code externe »). À autoriser par l'utilisateur ; en attendant, le moteur est vérifié avec une appli locale écrite par l'agent.
 
-- Performance Lighthouse sur mobile simulé (Moto G, 4G lente) entre 72 et 79 pour une appli 100 % JavaScript, alors que le bureau est à 98. Gains déjà faits : animations chargées à part, coquille statique. Pistes pour l'audit de la phase 8 : pré-rendu des pages publiques, CSS critique en ligne, données de la page demandées plus tôt, poids de react-router et d'axios.
+- Performance Lighthouse sur mobile simulé (Moto G, 4G lente) entre 66 (fiche) et 79 pour une appli 100 % JavaScript, alors que le bureau est à 98. Gains déjà faits : animations chargées à part, coquille statique. Pistes pour l'audit de la phase 8 : pré-rendu des pages publiques, CSS critique en ligne, données de la page demandées plus tôt, poids de react-router et d'axios.
 - Le compte SasPay fourni affiche le nom marchand « Gentube » sur la page de paiement : un compte au nom de Souk.dev sera nécessaire avant le lancement.
 - 26 octobre : deux plateformes lancées sur le même dossier de copies (vérification à froid) se nettoient l'une l'autre ; une copie de test de la plateforme habituelle a été arrêtée. Sans conséquence (jeu de démo) ; à ne pas reproduire.
 

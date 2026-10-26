@@ -13,6 +13,22 @@ final readonly class SignatureWebhook
         private int $tolerance = 300,
     ) {}
 
+    /**
+     * Le secret de SASPAY_WEBHOOK_SECRET. En développement sans secret (dépôt tout juste cloné),
+     * le simulateur et le webhook partagent un secret tiré de APP_KEY : les webhooks simulés
+     * passent dès le premier démarrage. Jamais ailleurs : sans secret, tout webhook est refusé.
+     */
+    public static function depuisConfig(): self
+    {
+        $secret = (string) config('services.saspay.secret_webhook');
+
+        if ($secret === '' && app()->environment('local')) {
+            $secret = hash_hmac('sha256', 'souk-webhook-simulateur', (string) config('app.key'));
+        }
+
+        return new self($secret, (int) config('services.saspay.tolerance_webhook', 300));
+    }
+
     public function signer(string $corps, int $horodatage): string
     {
         return hash_hmac('sha256', $horodatage.'.'.$corps, $this->secret);

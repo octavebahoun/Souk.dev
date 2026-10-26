@@ -115,7 +115,10 @@ test.describe.serial('confiance', () => {
 test.describe.serial('notifications', () => {
   test('la cloche reçoit en direct, mène à l’écran concerné et les réglages tiennent', async ({ page, browser }) => {
     await connexionDemo(page, 'soukdemo-awa')
+    // Le direct se vérifie une fois la cloche abonnée à son canal privé (autorisation Reverb reçue).
+    const abonnee = page.waitForResponse((reponse) => reponse.url().endsWith('/broadcasting/auth') && reponse.ok())
     await page.goto('/notifications')
+    await abonnee
     const cloche = page.getByRole('button', { name: /^Notifications/ })
     await expect(cloche).toBeVisible()
     const nomCloche = (nombre: number) => (nombre === 0 ? 'Notifications' : `Notifications, ${nombre} non ${nombre > 1 ? 'lues' : 'lue'}`)

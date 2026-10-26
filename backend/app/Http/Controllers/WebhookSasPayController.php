@@ -23,10 +23,7 @@ final class WebhookSasPayController extends Controller
     public function recevoir(Request $request): JsonResponse
     {
         $corps = $request->getContent();
-        $signature = new SignatureWebhook(
-            (string) config('services.saspay.secret_webhook'),
-            (int) config('services.saspay.tolerance_webhook', 300),
-        );
+        $signature = SignatureWebhook::depuisConfig();
 
         if (! $signature->verifier($corps, $request->header('X-Webhook-Signature'), $request->header('X-Webhook-Timestamp'))) {
             Log::warning('saspay: webhook refusé (signature ou horodatage)', ['evenement' => $request->header('X-Webhook-Event')]);

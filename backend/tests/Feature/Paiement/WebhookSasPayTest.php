@@ -21,6 +21,21 @@ class WebhookSasPayTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_sans_secret_le_simulateur_signe_en_developpement_seulement(): void
+    {
+        config(['services.saspay.secret_webhook' => '']);
+        $maintenant = time();
+
+        $this->app['env'] = 'local';
+        $locale = SignatureWebhook::depuisConfig();
+        $this->assertTrue($locale->verifier('{"event":"payment.success"}', $locale->signer('{"event":"payment.success"}', $maintenant), (string) $maintenant));
+
+        $this->app['env'] = 'production';
+        $production = SignatureWebhook::depuisConfig();
+        $this->assertFalse($production->verifier('{"event":"payment.success"}', $locale->signer('{"event":"payment.success"}', $maintenant), (string) $maintenant));
+        $this->app['env'] = 'testing';
+    }
+
     public function test_une_signature_fausse_est_refusee(): void
     {
         Queue::fake();
