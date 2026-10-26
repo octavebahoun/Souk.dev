@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { Link } from 'react-router'
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
+import { AnimatePresence, m, useReducedMotion } from 'motion/react'
 import { cx } from './cx'
 
 export type ElementMenu =
@@ -90,11 +90,14 @@ export function MenuDeroulant({ declencheur, libelle, elements, alignement = 'dr
         }}
         className={classeDeclencheur}
       >
-        {declencheur}
+        {/* Le nom du bouton vient d'aria-label : le contenu visible (initiales, flèche) est décoratif. */}
+        <span aria-hidden="true" className="contents">
+          {declencheur}
+        </span>
       </button>
       <AnimatePresence>
         {ouvert ? (
-          <motion.div
+          <m.div
             ref={liste}
             id={`${id}-menu`}
             role="menu"
@@ -137,7 +140,7 @@ export function MenuDeroulant({ declencheur, libelle, elements, alignement = 'dr
                 </button>
               )
             })}
-          </motion.div>
+          </m.div>
         ) : null}
       </AnimatePresence>
     </div>

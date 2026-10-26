@@ -21,9 +21,40 @@
         }
       })()
     </script>
+    <style>
+      /* Coquille affichée avant le JavaScript (React la remplace) : la page apparaît tout de suite. */
+      .coquille { min-height: 100vh; background: #f7faff; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; }
+      .coquille-entete { display: flex; align-items: center; gap: 8px; height: 64px; padding: 0 16px; border-bottom: 1px solid #e3e9f3; background: #ffffff; }
+      .coquille-nom { font-size: 21px; font-weight: 600; letter-spacing: -0.03em; color: #1f1f1f; }
+      .coquille-nom b { color: #1265dd; font-weight: 600; }
+      .coquille-contenu { max-width: 75rem; margin: 0 auto; padding: 32px 16px; display: grid; gap: 16px; }
+      .coquille-barre { height: 14px; border-radius: 999px; background: #e9eef7; }
+      [data-theme='dark'] .coquille { background: #0b0d1e; }
+      [data-theme='dark'] .coquille-entete { background: #12152b; border-color: #252a48; }
+      [data-theme='dark'] .coquille-nom { color: #f4f6fb; }
+      [data-theme='dark'] .coquille-nom b { color: #8db8ff; }
+      [data-theme='dark'] .coquille-barre { background: #1d2242; }
+      @media (min-width: 48rem) { .coquille-entete { padding: 0 24px; } .coquille-contenu { padding: 40px 24px; } }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="coquille" aria-busy="true">
+        <div class="coquille-entete">
+          <svg viewBox="0 0 32 32" width="32" height="32" aria-hidden="true">
+            <rect width="32" height="32" rx="8" fill="#1265dd" />
+            <path d="M20.2 7.6 11.6 13.3l9 5.7-8.4 5.6" fill="none" stroke="#ffffff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" />
+            <circle cx="22.7" cy="24.6" r="2.3" fill="#0ccf87" />
+          </svg>
+          <span class="coquille-nom">Souk.<b>dev</b></span>
+        </div>
+        <div class="coquille-contenu" role="status" aria-label="Chargement de Souk.dev">
+          <div class="coquille-barre" style="width: 12rem"></div>
+          <div class="coquille-barre" style="height: 28px; width: 60%"></div>
+          <div class="coquille-barre" style="width: 80%"></div>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

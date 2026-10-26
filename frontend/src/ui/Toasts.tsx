@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
+import { AnimatePresence, m, useReducedMotion } from 'motion/react'
 import { CircleAlert, CircleCheck, Info, X } from 'lucide-react'
 import { t } from '../i18n'
 import { cx } from './cx'
@@ -68,7 +68,7 @@ export function FournisseurToasts({ children }: { children: ReactNode }) {
       >
         <AnimatePresence initial={false}>
           {toasts.map((toast) => (
-            <motion.div
+            <m.div
               key={toast.id}
               layout={!reduit}
               initial={reduit ? { opacity: 0 } : { opacity: 0, y: 16, scale: 0.98 }}
@@ -106,7 +106,7 @@ export function FournisseurToasts({ children }: { children: ReactNode }) {
               >
                 <X aria-hidden="true" className="size-4" />
               </button>
-            </motion.div>
+            </m.div>
           ))}
         </AnimatePresence>
       </div>

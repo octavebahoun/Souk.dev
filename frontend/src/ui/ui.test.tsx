@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import { describe, expect, it, vi } from 'vitest'
 import { Bouton, Champ, ChoixCartes, Etapes, formaterFcfa, MenuDeroulant, Modale, Montant, Onglets, Saisie, Tableau } from '.'
@@ -120,7 +120,7 @@ describe('système de design', () => {
     expect(screen.getByRole('list', { name: 'Factures' })).toBeInTheDocument()
   })
 
-  it('le menu déroulant s’ouvre et se ferme au clavier', () => {
+  it('le menu déroulant s’ouvre et se ferme au clavier', async () => {
     const sortir = vi.fn()
     render(
       <MemoryRouter>
@@ -137,9 +137,14 @@ describe('système de design', () => {
     const bouton = screen.getByRole('button', { name: 'Menu du compte' })
     fireEvent.click(bouton)
     expect(bouton).toHaveAttribute('aria-expanded', 'true')
-    const menu = screen.getByRole('menu', { name: 'Menu du compte' })
+    expect(screen.getByRole('menu', { name: 'Menu du compte' })).toBeInTheDocument()
+    fireEvent.keyDown(screen.getByRole('menu', { name: 'Menu du compte' }), { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument())
+    expect(bouton).toHaveAttribute('aria-expanded', 'false')
+
+    fireEvent.click(bouton)
     fireEvent.click(screen.getByRole('menuitem', { name: 'Se déconnecter' }))
     expect(sortir).toHaveBeenCalledOnce()
-    expect(menu).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument())
   })
 })

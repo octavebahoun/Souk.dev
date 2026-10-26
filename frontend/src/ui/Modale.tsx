@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, type KeyboardEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
+import { AnimatePresence, m, useReducedMotion } from 'motion/react'
 import { X } from 'lucide-react'
 import { t } from '../i18n'
 import { BoutonIcone } from './Bouton'
@@ -72,7 +72,7 @@ export function Modale({ ouverte, onFermer, titre, description, pied, taille = '
     <AnimatePresence>
       {ouverte ? (
         <div className="fixed inset-0 z-50 flex items-end justify-center tablette:items-center tablette:p-6" onKeyDown={clavier}>
-          <motion.div
+          <m.div
             aria-hidden="true"
             className="absolute inset-0 bg-voile"
             initial={{ opacity: 0 }}
@@ -81,7 +81,7 @@ export function Modale({ ouverte, onFermer, titre, description, pied, taille = '
             transition={{ duration: 0.2 }}
             onClick={onFermer}
           />
-          <motion.div
+          <m.div
             ref={panneau}
             role="dialog"
             aria-modal="true"
@@ -116,7 +116,7 @@ export function Modale({ ouverte, onFermer, titre, description, pied, taille = '
             {pied ? (
               <div className="flex flex-col-reverse gap-2 border-t border-bordure px-5 py-4 tablette:flex-row tablette:justify-end">{pied}</div>
             ) : null}
-          </motion.div>
+          </m.div>
         </div>
       ) : null}
     </AnimatePresence>,

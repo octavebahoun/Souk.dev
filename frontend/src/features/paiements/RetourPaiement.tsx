@@ -1,7 +1,7 @@
 import { useRef, useState, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { motion, useReducedMotion } from 'motion/react'
+import { m, useReducedMotion } from 'motion/react'
 import { CircleCheck, CircleX, ExternalLink, Hourglass } from 'lucide-react'
 import { useCompte } from '../../app/compte'
 import { useCanalPrive } from '../../app/tempsReelPrive'
@@ -240,7 +240,7 @@ function IconeIssue({ issue }: { issue: Issue }) {
   const Icone = issue === 'confirme' ? CircleCheck : issue === 'attente' ? Hourglass : CircleX
   const teinte = issue === 'confirme' ? 'bg-fond-succes text-succes' : issue === 'attente' ? 'bg-fond-info text-info' : issue === 'annulee' ? 'bg-surface-douce text-texte-doux' : 'bg-fond-danger text-danger'
   return (
-    <motion.span
+    <m.span
       key={issue}
       aria-hidden="true"
       initial={reduit ? { opacity: 0 } : { opacity: 0, scale: 0.6 }}
@@ -249,7 +249,7 @@ function IconeIssue({ issue }: { issue: Issue }) {
       className={cx('grid size-16 place-items-center rounded-pastille', teinte)}
     >
       <Icone className={cx('size-8', issue === 'attente' && !reduit && 'animate-pulsation')} />
-    </motion.span>
+    </m.span>
   )
 }
 
