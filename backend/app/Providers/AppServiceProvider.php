@@ -147,6 +147,9 @@ class AppServiceProvider extends ServiceProvider
         // Webhooks de SasPay : en rafale après une panne, jamais bridés par la limite des visiteurs.
         RateLimiter::for('webhooks', fn (Request $request) => Limit::perMinute(600)->by('webhooks:'.$request->ip()));
 
+        // Un avis par client et par appli : les écritures sont rares.
+        RateLimiter::for('avis', fn (Request $request) => Limit::perHour(10)->by('avis:'.($request->user()?->id ?? $request->ip())));
+
         // Une analyse de sécurité occupe le moteur plusieurs minutes : 5 relances par heure.
         RateLimiter::for('securite', fn (Request $request) => Limit::perHour(5)->by('securite:'.($request->user()?->id ?? $request->ip())));
 

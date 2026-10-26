@@ -320,6 +320,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/apps/{id}/avis": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        /** Avis des clients sur une appli (publics), les plus récents d'abord ; avec la session, ce que le compte connecté peut faire */
+        get: operations["listAvisAppli"];
+        put?: never;
+        /** Noter une appli, de 1 à 5 : seulement un client qui en a eu une copie payée, un avis par client et par appli */
+        post: operations["noterAppli"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Modifier son propre avis sur l'appli */
+        patch: operations["modifierAvisAppli"];
+        trace?: never;
+    };
     "/categories": {
         parameters: {
             query?: never;
@@ -1351,6 +1372,10 @@ export interface components {
             readme?: string | null;
         };
         App: {
+            /** @description Moyenne des avis des clients (1 à 5, une décimale) ; null sans avis */
+            note_moyenne: number | null;
+            /** @description Nombre d'avis de clients */
+            nb_avis: number;
             id: number;
             nom: string;
             description: string;
@@ -1931,6 +1956,21 @@ export interface components {
             recu_le: string;
             rembourse: boolean;
         };
+        /** @description Avis d'un client sur une appli dont il a eu une copie payée */
+        AvisAppli: {
+            id: number;
+            note: number;
+            commentaire: string | null;
+            auteur: components["schemas"]["Dev"];
+            /** Format: date-time */
+            cree_le: string;
+            /** Format: date-time */
+            modifie_le: string;
+        };
+        AvisAppliSaisie: {
+            note: number;
+            commentaire?: string | null;
+        };
         AvoirCreation: {
             montant_hebergement: number;
             montant_appli: number;
@@ -2492,7 +2532,7 @@ export interface operations {
                 prix_max?: number;
                 type_prix?: components["schemas"]["TypePrix"];
                 /** @description Par défaut, les plus récentes d'abord */
-                tri?: "recent" | "prix_croissant" | "prix_decroissant";
+                tri?: "recent" | "prix_croissant" | "prix_decroissant" | "note";
             };
             header?: never;
             path?: never;
@@ -2720,6 +2760,103 @@ export interface operations {
             403: components["responses"]["Interdit"];
             404: components["responses"]["Introuvable"];
             419: components["responses"]["CsrfInvalide"];
+            429: components["responses"]["TropDeRequetes"];
+        };
+    };
+    listAvisAppli: {
+        parameters: {
+            query?: {
+                /** @description Numéro de page (commence à 1) */
+                page?: components["parameters"]["Page"];
+                /** @description Éléments par page (50 maximum) */
+                per_page?: components["parameters"]["ParPage"];
+            };
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Avis */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pagination"] & {
+                        data: components["schemas"]["AvisAppli"][];
+                        /** @description Le compte connecté a eu une copie payée de l'appli et ne l'a pas encore notée */
+                        peut_noter: boolean;
+                        mon_avis: components["schemas"]["AvisAppli"] | null;
+                    };
+                };
+            };
+            404: components["responses"]["Introuvable"];
+        };
+    };
+    noterAppli: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AvisAppliSaisie"];
+            };
+        };
+        responses: {
+            /** @description Avis publié */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AvisAppli"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+            404: components["responses"]["Introuvable"];
+            409: components["responses"]["Conflit"];
+            419: components["responses"]["CsrfInvalide"];
+            422: components["responses"]["Invalide"];
+            429: components["responses"]["TropDeRequetes"];
+        };
+    };
+    modifierAvisAppli: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AvisAppliSaisie"];
+            };
+        };
+        responses: {
+            /** @description Avis modifié */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AvisAppli"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            404: components["responses"]["Introuvable"];
+            419: components["responses"]["CsrfInvalide"];
+            422: components["responses"]["Invalide"];
             429: components["responses"]["TropDeRequetes"];
         };
     };

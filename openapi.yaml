@@ -359,7 +359,7 @@ paths:
         - name: tri
           in: query
           description: Par défaut, les plus récentes d'abord
-          schema: { type: string, enum: [recent, prix_croissant, prix_decroissant], default: recent }
+          schema: { type: string, enum: [recent, prix_croissant, prix_decroissant, note], default: recent, description: "note : les mieux notées par leurs clients d'abord" }
       responses:
         '200':
           description: Liste des applis
@@ -513,6 +513,75 @@ paths:
         '404': { $ref: '#/components/responses/Introuvable' }
         '429': { $ref: '#/components/responses/TropDeRequetes' }
         '419': { $ref: '#/components/responses/CsrfInvalide' }
+
+  /apps/{id}/avis:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Applis]
+      operationId: listAvisAppli
+      summary: Avis des clients sur une appli (publics), les plus récents d'abord ; avec la session, ce que le compte connecté peut faire
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/ParPage'
+      responses:
+        '200':
+          description: Avis
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Pagination'
+                  - type: object
+                    required: [data, peut_noter, mon_avis]
+                    properties:
+                      data: { type: array, items: { $ref: '#/components/schemas/AvisAppli' } }
+                      peut_noter: { type: boolean, description: "Le compte connecté a eu une copie payée de l'appli et ne l'a pas encore notée" }
+                      mon_avis: { oneOf: [{ $ref: '#/components/schemas/AvisAppli' }, { type: 'null' }] }
+        '404': { $ref: '#/components/responses/Introuvable' }
+    post:
+      tags: [Applis]
+      operationId: noterAppli
+      summary: "Noter une appli, de 1 à 5 : seulement un client qui en a eu une copie payée, un avis par client et par appli"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AvisAppliSaisie' }
+      responses:
+        '201':
+          description: Avis publié
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AvisAppli' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '409': { $ref: '#/components/responses/Conflit' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+        '422': { $ref: '#/components/responses/Invalide' }
+        '429': { $ref: '#/components/responses/TropDeRequetes' }
+    patch:
+      tags: [Applis]
+      operationId: modifierAvisAppli
+      summary: Modifier son propre avis sur l'appli
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AvisAppliSaisie' }
+      responses:
+        '200':
+          description: Avis modifié
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AvisAppli' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+        '422': { $ref: '#/components/responses/Invalide' }
+        '429': { $ref: '#/components/responses/TropDeRequetes' }
 
   /categories:
     get:
@@ -2167,8 +2236,10 @@ components:
     # ───────────── Applis ─────────────
     App:
       type: object
-      required: [id, nom, description, categorie, prix, type_prix, taille, mesure, demo_url, depot_url, captures, stack, backend, variables_client, securite, auteur, cree_le]
+      required: [id, nom, description, categorie, prix, type_prix, taille, mesure, demo_url, depot_url, captures, stack, backend, variables_client, securite, auteur, cree_le, note_moyenne, nb_avis]
       properties:
+        note_moyenne: { type: [number, 'null'], description: "Moyenne des avis des clients (1 à 5, une décimale) ; null sans avis" }
+        nb_avis: { type: integer, description: Nombre d'avis de clients }
         id: { type: integer }
         nom: { type: string }
         description: { type: string }
@@ -2838,6 +2909,25 @@ components:
         reference: { type: [string, 'null'], description: Référence SasPay du paiement en double }
         recu_le: { type: string, format: date-time }
         rembourse: { type: boolean }
+
+    AvisAppli:
+      type: object
+      description: Avis d'un client sur une appli dont il a eu une copie payée
+      required: [id, note, commentaire, auteur, cree_le, modifie_le]
+      properties:
+        id: { type: integer }
+        note: { type: integer, minimum: 1, maximum: 5 }
+        commentaire: { type: [string, 'null'], maxLength: 1000 }
+        auteur: { $ref: '#/components/schemas/Dev' }
+        cree_le: { type: string, format: date-time }
+        modifie_le: { type: string, format: date-time }
+
+    AvisAppliSaisie:
+      type: object
+      required: [note]
+      properties:
+        note: { type: integer, minimum: 1, maximum: 5 }
+        commentaire: { type: [string, 'null'], maxLength: 1000 }
 
     AvoirCreation:
       type: object

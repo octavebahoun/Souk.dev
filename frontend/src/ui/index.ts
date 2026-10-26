@@ -1,6 +1,6 @@
 /** Bibliothèque de composants de Souk.dev (docs/design.md, § 6). */
 export { Avatar } from './Avatar'
-export { formaterDate, formaterFcfa, formaterPeriode, initiales, joursAvant } from './format'
+export { formaterDate, formaterFcfa, formaterNote, formaterPeriode, initiales, joursAvant } from './format'
 export { Badge, PastilleEtat, type TonBadge } from './Badge'
 export { Bouton, BoutonIcone, LienBouton } from './Bouton'
 export { classeControle, classesBouton, type TailleBouton, type VarianteBouton } from './classes'
@@ -9,6 +9,7 @@ export { Champ, Liste, Saisie, SaisieMontant, ZoneTexte, type LiaisonChamp } fro
 export { CaseACocher, ChoixCartes, Interrupteur, type OptionChoix } from './Choix'
 export { cx } from './cx'
 export { EnTetePage, FilAriane, type Miette } from './EnTetePage'
+export { Etoiles } from './Etoiles'
 export { Etapes, type Etape, type EtatEtape } from './Etapes'
 export { AccesRefuse, Alerte, AvisDonneesPartielles, BandeauHorsLigne, EtatErreur, EtatVide, type TonAlerte } from './Etats'
 export { presentationEtatCopie, type PresentationEtat } from './presentationEtat'

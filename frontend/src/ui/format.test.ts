@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { formaterDate, formaterFcfa, formaterPeriode } from './format'
+import { formaterDate, formaterFcfa, formaterNote, formaterPeriode } from './format'
 
 describe('formats', () => {
+  it('écrit une note sur 5 avec une décimale au plus', () => {
+    expect(formaterNote(4.5)).toBe('4,5')
+    expect(formaterNote(5)).toBe('5')
+  })
+
   it('écrit les montants en francs CFA entiers', () => {
     expect(formaterFcfa(22000)).toBe('22 000 F')
   })

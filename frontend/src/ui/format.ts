@@ -53,3 +53,8 @@ export function joursAvant(valeur: string): number {
   const debut = new Date(aujourdhui.getFullYear(), aujourdhui.getMonth(), aujourdhui.getDate())
   return Math.round((new Date(cible.getFullYear(), cible.getMonth(), cible.getDate()).getTime() - debut.getTime()) / 86_400_000)
 }
+
+/** « 4,5 » : une note sur 5, une décimale au plus, virgule française. */
+export function formaterNote(note: number): string {
+  return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 }).format(note)
+}

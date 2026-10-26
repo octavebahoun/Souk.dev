@@ -5,6 +5,7 @@ import { categories, fcfa, libelleCategorie, listerApplis, type Appli } from './
 import { teintes } from './teintes'
 import { nomPays } from '../echange/texte'
 import { messageAction } from '../echange/api'
+import { Etoiles, formaterNote } from '../../ui'
 
 const page = 'mx-auto flex max-w-[1440px] flex-col gap-6 px-4 py-8 min-[761px]:px-9'
 
@@ -122,6 +123,7 @@ export function Store() {
                 <option value="recent">Les plus récentes</option>
                 <option value="prix_croissant">Prix croissant</option>
                 <option value="prix_decroissant">Prix décroissant</option>
+                <option value="note">Les mieux notées</option>
               </select>
             </Champ>
           </div>
@@ -232,6 +234,13 @@ function Carte({ appli }: { appli: Appli }) {
             <div className="min-w-0">
               <Link to={`/store/${appli.id}`} className="text-[17px] font-bold text-ink no-underline">{appli.nom}</Link>
               <p className="m-0 text-[13px] text-muted">par {appli.auteur.nom || appli.auteur.username || 'un dev'}</p>
+              {appli.note_moyenne !== null ? (
+                <p className="m-0 mt-0.5 flex items-center gap-1.5 text-[13px] font-semibold text-ink">
+                  <Etoiles note={appli.note_moyenne} taille="sm" />
+                  <span aria-hidden="true">{formaterNote(appli.note_moyenne)}</span>
+                  <span className="font-normal text-muted">({appli.nb_avis} avis)</span>
+                </p>
+              ) : null}
             </div>
           </div>
           <p className="m-0 line-clamp-3 flex-1 text-[14.5px] text-subtle">{appli.description}</p>

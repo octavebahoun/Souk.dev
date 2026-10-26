@@ -17,6 +17,9 @@ export type Specialite = components['schemas']['Specialite']
 export type VerificationDepot = components['schemas']['VerificationDepot']
 export type Discussion = components['schemas']['Discussion']
 export type Message = components['schemas']['Message']
+export type AvisAppli = components['schemas']['AvisAppli']
+export type AvisAppliSaisie = components['schemas']['AvisAppliSaisie']
+export type PageAvis = Page<AvisAppli> & { peut_noter: boolean; mon_avis: AvisAppli | null }
 
 export const categories: { valeur: Categorie; libelle: string }[] = [
   { valeur: 'commerce', libelle: 'Commerce' },
@@ -50,6 +53,18 @@ export function listerApplis(params: Record<string, string | number | boolean | 
 export async function lireAppli(id: number): Promise<Appli> {
   const { data } = await clientLocal.get<Appli>(cheminLaravel(`/apps/${id}`))
   if (!data || typeof data.id !== 'number') throw new Error('Réponse vide')
+  return data
+}
+
+export function listerAvisAppli(id: number, pageNum = 1) {
+  return page<AvisAppli>(clientLocal.get(cheminLaravel(`/apps/${id}/avis`), { params: pageNum > 1 ? { page: pageNum } : undefined })) as Promise<PageAvis>
+}
+
+export async function noterAppli(id: number, saisie: AvisAppliSaisie, modification: boolean): Promise<AvisAppli> {
+  await preparerCsrf()
+  const { data } = modification
+    ? await clientLocal.patch<AvisAppli>(cheminLaravel(`/apps/${id}/avis`), saisie)
+    : await clientLocal.post<AvisAppli>(cheminLaravel(`/apps/${id}/avis`), saisie)
   return data
 }
 

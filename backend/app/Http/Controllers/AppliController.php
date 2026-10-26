@@ -34,7 +34,7 @@ class AppliController extends Controller
             'pays' => ['sometimes', 'string', 'size:2', 'regex:/^[A-Z]{2}$/'],
             'prix_max' => ['sometimes', 'integer', 'min:0'],
             'type_prix' => ['sometimes', Rule::in(['mensuel', 'unique'])],
-            'tri' => ['sometimes', 'in:recent,prix_croissant,prix_decroissant'],
+            'tri' => ['sometimes', 'in:recent,prix_croissant,prix_decroissant,note'],
             'per_page' => ['sometimes', 'integer', 'min:1', 'max:50'],
         ]);
 
@@ -84,8 +84,15 @@ class AppliController extends Controller
                 $request->input('tri') === 'prix_decroissant',
                 fn ($requete) => $requete->orderByDesc('prix')->orderByDesc('id'),
             )
+            // Moyenne bayésienne (trois avis fictifs à 3/5) : un seul 5/5 ne passe pas devant vingt avis à 4,7.
             ->when(
-                ! in_array($request->input('tri'), ['prix_croissant', 'prix_decroissant'], true),
+                $request->input('tri') === 'note',
+                fn ($requete) => $requete->orderByRaw('(avis_somme + 9.0) / (avis_nombre + 3) desc')
+                    ->orderByDesc('avis_nombre')
+                    ->orderByDesc('id'),
+            )
+            ->when(
+                ! in_array($request->input('tri'), ['prix_croissant', 'prix_decroissant', 'note'], true),
                 fn ($requete) => $requete->latest(),
             )
             ->paginate($request->integer('per_page', 20))

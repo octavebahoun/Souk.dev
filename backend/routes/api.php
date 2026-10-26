@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AdminFinancesController;
 use App\Http\Controllers\AppliController;
+use App\Http\Controllers\AvisAppliController;
 use App\Http\Controllers\CanalController;
 use App\Http\Controllers\CompteController;
 use App\Http\Controllers\CoordonneesReversementController;
@@ -30,6 +31,7 @@ Route::get('/reseaux-mobile-money', [ReseauMobileMoneyController::class, 'index'
 
 Route::get('/apps', [AppliController::class, 'index']);
 Route::get('/apps/{appli}', [AppliController::class, 'show']);
+Route::get('/apps/{appli}/avis', [AvisAppliController::class, 'index']);
 Route::get('/categories', [AppliController::class, 'categories']);
 
 Route::middleware('auth:sanctum')->group(function (): void {
@@ -55,6 +57,8 @@ Route::middleware('auth:sanctum')->group(function (): void {
         ->middleware('throttle:securite');
     Route::post('/apps/{appli}/missions', [MissionController::class, 'pourAppli'])
         ->middleware('throttle:missions');
+    Route::post('/apps/{appli}/avis', [AvisAppliController::class, 'store'])->middleware('throttle:avis');
+    Route::patch('/apps/{appli}/avis', [AvisAppliController::class, 'update'])->middleware('throttle:avis');
 
     // Paiements : factures du client, sessions SasPay, vérification au retour.
     Route::get('/factures', [FactureController::class, 'index']);

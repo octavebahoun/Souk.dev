@@ -52,6 +52,8 @@
   --color-bordure-succes: #abefc6;
   --color-alerte: #b54708;
   --color-alerte-solide: #f79009;
+  /* Étoiles des avis : 3,4:1 sur blanc, la valeur exacte est toujours écrite à côté. */
+  --color-etoile: #dc6803;
   --color-fond-alerte: #fffaeb;
   --color-bordure-alerte: #fedf89;
   --color-danger: #b42318;
@@ -162,6 +164,7 @@
   --color-fond-succes: #0e2a1e;
   --color-bordure-succes: #1c5a3d;
   --color-alerte: #fdb022;
+  --color-etoile: #fdb022;
   --color-fond-alerte: #2b1f0a;
   --color-bordure-alerte: #5c3f0f;
   --color-danger: #f97066;

@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Comptes\ProfilCalcule;
 use App\Models\Abonnement;
 use App\Models\Appli;
+use App\Models\AvisAppli;
 use App\Models\Avoir;
 use App\Models\Canal;
 use App\Models\CoordonneesReversement;
@@ -92,8 +93,14 @@ class DemoSeeder extends Seeder
     {
         $this->effacerFacturation();
 
-        // Les comptes de démo emportent leurs applis, copies, discussions, missions et événements.
+        // Les comptes de démo emportent leurs applis, copies, discussions, missions, événements et
+        // avis : les autres applis qu'ils avaient notées recomptent les leurs.
+        $applisNotees = AvisAppli::query()
+            ->whereIn('user_id', User::query()->where('est_demo', true)->select('id'))
+            ->distinct()
+            ->pluck('appli_id');
         User::query()->where('est_demo', true)->get()->each->delete();
+        Appli::query()->whereIn('id', $applisNotees)->get()->each->recalculerAvis();
 
         Canal::query()
             ->whereIn('slug', ['laravel', 'mobile-money', 'react', 'devops', 'laravel-benin', 'dakar-tech', 'entraide-generale'])
@@ -477,6 +484,16 @@ class DemoSeeder extends Seeder
         $grandLivre->reserverReversement($reversement);
         $grandLivre->fraisReversement($reversement, 380);
         Carbon::setTestNow();
+
+        // La pharmacie, qui a payé deux mois, a noté PharmaStock ; l'association n'a pas encore noté Cotis'Asso.
+        $note = $debut->copy()->addMonth()->addDays(6)->setTime(18, 40);
+        AvisAppli::query()->create([
+            'appli_id' => $this->applis['pharmastock']->id,
+            'user_id' => $this->comptes['pharmacie']->id,
+            'note' => 5,
+            'commentaire' => 'Plus aucune rupture de stock depuis le premier mois, et Awa a répondu vite à nos questions.',
+        ])->forceFill(['created_at' => $note, 'updated_at' => $note])->save();
+        $this->applis['pharmastock']->recalculerAvis();
     }
 
     private function copieClient(string $client, string $appli, string $etat, Carbon $debut): Abonnement

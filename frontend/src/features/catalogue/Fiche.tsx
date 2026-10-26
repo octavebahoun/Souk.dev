@@ -8,6 +8,8 @@ import { nomPays } from '../echange/texte'
 import { Modal } from '../../shared/ui/Modal'
 import { useCompte } from '../../app/compte'
 import { RapportSecurite } from '../securite/RapportSecurite'
+import { AvisClients } from './AvisClients'
+import { Etoiles, formaterNote } from '../../ui'
 
 const hebergement = { petite: 3500, moyenne: 7000, grande: 13500 }
 const tailleNom = { petite: 'Petite, 512 Mo', moyenne: 'Moyenne, 1 Go', grande: 'Grande, 2 Go' }
@@ -15,8 +17,9 @@ const tailleNom = { petite: 'Petite, 512 Mo', moyenne: 'Moyenne, 1 Go', grande: 
 export function Fiche() {
   const compte = useCompte()
   const { id = '' } = useParams()
+  // Clé numérique, comme la commande et le rapport de sécurité : une invalidation les touche tous.
   const appli = useQuery({
-    queryKey: ['appli', id],
+    queryKey: ['appli', Number(id)],
     queryFn: () => lireAppli(Number(id)),
     enabled: Number.isFinite(Number(id)),
   })
@@ -64,6 +67,12 @@ export function Fiche() {
                 par {fiche.auteur.username ? <Link to={`/devs/${fiche.auteur.username}`} className="font-semibold">{auteur}</Link> : auteur}
                 {fiche.auteur.pays ? ` · ${nomPays(fiche.auteur.pays)}` : ''}
               </p>
+              {fiche.note_moyenne !== null ? (
+                <a href="#titre-avis" className="inline-flex min-h-cible items-center gap-2 self-start text-sm font-semibold text-ink no-underline">
+                  <Etoiles note={fiche.note_moyenne} taille="sm" />
+                  <span><span aria-hidden="true">{formaterNote(fiche.note_moyenne)} · </span>{fiche.nb_avis} avis</span>
+                </a>
+              ) : null}
             </header>
 
             <section aria-label="Captures de l'application" className="flex flex-col gap-3.5">
@@ -105,6 +114,8 @@ export function Fiche() {
             </section>
 
             <RapportSecurite appId={fiche.id} securite={fiche.securite} estAuteur={compte.data?.id === fiche.auteur.id} />
+
+            <AvisClients appId={fiche.id} noteMoyenne={fiche.note_moyenne} nbAvis={fiche.nb_avis} />
 
             <section aria-labelledby="titre-discussions" className="flex flex-col gap-3">
               <div className="flex items-center gap-2.5">
