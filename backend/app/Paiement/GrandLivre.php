@@ -51,6 +51,38 @@ final class GrandLivre
         ], "Paiement en double de la facture {$facture->numero}", ['facture_id' => $facture->id, 'paiement_id' => $paiement->id]);
     }
 
+    /** Paiement en double remboursé depuis le tableau de bord SasPay : le trop-perçu est soldé. */
+    public function rembourserTropPercu(Paiement $paiement, int $montant, string $motif): void
+    {
+        $this->passer('remboursement_trop_percu', [
+            ['compte' => self::COMPTE_TROP_PERCU, 'montant' => $montant],
+            ['compte' => Ecriture::COMPTE_SASPAY, 'montant' => -$montant],
+        ], mb_substr("Paiement en double n° {$paiement->id} remboursé : {$motif}", 0, 250), ['facture_id' => $paiement->facture_id, 'paiement_id' => $paiement->id]);
+    }
+
+    /** Ce qui reste dû au client pour un paiement en double (0 s'il est remboursé ou n'en est pas un). */
+    public function tropPercuDe(int $paiementId): int
+    {
+        return -(int) Ecriture::query()->where('compte', self::COMPTE_TROP_PERCU)->where('paiement_id', $paiementId)->sum('montant');
+    }
+
+    /**
+     * Paiements en double encore dus aux clients.
+     *
+     * @return array<int, int> identifiant du paiement => FCFA
+     */
+    public function tropPercusARembourser(): array
+    {
+        return Ecriture::query()
+            ->where('compte', self::COMPTE_TROP_PERCU)
+            ->groupBy('paiement_id')
+            ->havingRaw('sum(montant) < 0')
+            ->selectRaw('paiement_id, -sum(montant) as reste')
+            ->pluck('reste', 'paiement_id')
+            ->map(fn ($reste) => (int) $reste)
+            ->all();
+    }
+
     /** Reversement initié : le solde du dev baisse tout de suite, l'argent quitte le compte SasPay. */
     public function reserverReversement(Reversement $reversement): void
     {

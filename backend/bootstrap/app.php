@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Middleware\Administrateur;
 use App\Http\Middleware\Idempotence;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
@@ -9,6 +10,7 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\TokenMismatchException;
 use Illuminate\Support\Env;
 use Illuminate\Validation\ValidationException;
@@ -36,7 +38,10 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
         $middleware->alias([
             'idempotence' => Idempotence::class,
+            'administrateur' => Administrateur::class,
         ]);
+        // Le contrôle d'admin passe avant la recherche de l'objet de l'URL (403 plutôt que 404).
+        $middleware->prependToPriorityList(before: SubstituteBindings::class, prepend: Administrateur::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

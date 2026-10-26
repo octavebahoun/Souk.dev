@@ -59,8 +59,9 @@ Route::middleware('auth:sanctum')->group(function (): void {
     // Paiements : factures du client, sessions SasPay, vérification au retour.
     Route::get('/factures', [FactureController::class, 'index']);
     Route::get('/factures/{facture}', [FactureController::class, 'show']);
+    // L'autorisation passe avant la clé : une facture d'un autre client répond 404, jamais 428.
     Route::post('/factures/{facture}/paiement', [FactureController::class, 'payer'])
-        ->middleware(['throttle:paiements', 'idempotence']);
+        ->middleware(['throttle:paiements', 'can:payer,facture', 'idempotence:obligatoire']);
     Route::post('/factures/{facture}/verification', [FactureController::class, 'verifier'])
         ->middleware('throttle:verifications');
 
@@ -69,16 +70,17 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('/me/revenus/mouvements', [RevenusController::class, 'mouvements']);
     Route::get('/me/revenus/reversements', [RevenusController::class, 'reversements']);
     Route::post('/me/revenus/reversements', [RevenusController::class, 'demander'])
-        ->middleware(['throttle:reversements', 'idempotence']);
+        ->middleware(['throttle:reversements', 'idempotence:obligatoire']);
     Route::get('/me/coordonnees-reversement', [CoordonneesReversementController::class, 'show']);
     Route::put('/me/coordonnees-reversement', [CoordonneesReversementController::class, 'update'])
         ->middleware('throttle:coordonnees');
 
     // Administration : finances (grand livre), avoirs, reversements, rapprochements.
-    Route::prefix('admin')->middleware('can:administrer')->group(function (): void {
+    Route::prefix('admin')->middleware('administrateur')->group(function (): void {
         Route::get('/finances', [AdminFinancesController::class, 'finances']);
         Route::get('/factures', [AdminFinancesController::class, 'factures']);
-        Route::post('/factures/{facture}/avoir', [AdminFinancesController::class, 'avoir'])->middleware('idempotence');
+        Route::post('/factures/{facture}/avoir', [AdminFinancesController::class, 'avoir'])->middleware('idempotence:obligatoire');
+        Route::post('/paiements/{paiement}/remboursement', [AdminFinancesController::class, 'rembourserTropPercu'])->middleware('idempotence:obligatoire');
         Route::get('/reversements', [AdminFinancesController::class, 'reversements']);
         Route::get('/rapprochements', [AdminFinancesController::class, 'rapprochements']);
     });

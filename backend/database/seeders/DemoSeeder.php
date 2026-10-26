@@ -58,6 +58,13 @@ class DemoSeeder extends Seeder
 
     public function run(ProfilCalcule $profils): void
     {
+        // Jamais sur une base réelle : il purge des factures et des écritures du grand livre.
+        if (! app()->environment('local', 'testing')) {
+            $this->command?->error('Le jeu de démo ne se charge qu’en développement (APP_ENV=local).');
+
+            return;
+        }
+
         DB::transaction(function (): void {
             $this->effacer();
             $this->creerComptes();
@@ -400,10 +407,14 @@ class DemoSeeder extends Seeder
         $abonnements = Abonnement::query()->whereIn('client_id', $comptes)->orWhereIn('dev_id', $comptes)->pluck('id');
         $factures = Facture::query()->whereIn('abonnement_id', $abonnements)->pluck('id');
         $reversements = Reversement::query()->whereIn('dev_id', $comptes)->pluck('id');
-        $ecritures = Ecriture::query()->toBase()->where(fn ($requete) => $requete
+        // Des opérations entières, jamais une partie : le grand livre reste équilibré.
+        $operations = Ecriture::query()->where(fn ($requete) => $requete
             ->whereIn('facture_id', $factures)
             ->orWhereIn('reversement_id', $reversements)
-            ->orWhereIn('dev_id', $comptes));
+            ->orWhereIn('dev_id', $comptes))
+            ->distinct()
+            ->pluck('operation');
+        $ecritures = Ecriture::query()->toBase()->whereIn('operation', $operations);
 
         // Contrepassations d'abord : elles pointent vers les écritures qu'elles annulent.
         (clone $ecritures)->whereNotNull('contrepasse_id')->delete();

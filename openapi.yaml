@@ -1376,6 +1376,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/CleIdempotence'
       responses:
+        '428': { $ref: '#/components/responses/CleIdempotenceManquante' }
         '201':
           description: Session ouverte
           content:
@@ -1580,6 +1581,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/CleIdempotence'
       responses:
+        '428': { $ref: '#/components/responses/CleIdempotenceManquante' }
         '202':
           description: Reversement initié ; son état se suit dans la liste
           content:
@@ -1745,11 +1747,44 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/AvoirCreation' }
       responses:
+        '428': { $ref: '#/components/responses/CleIdempotenceManquante' }
         '201':
           description: Avoir enregistré
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Avoir' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '409': { $ref: '#/components/responses/Conflit' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+        '422': { $ref: '#/components/responses/Invalide' }
+
+  /admin/paiements/{id}/remboursement:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [Administration]
+      operationId: rembourserTropPercu
+      summary: "Noter le remboursement d'un paiement en double (admin), fait depuis le tableau de bord SasPay : le grand livre solde le trop-perçu dû au client. Seulement pour un paiement encore à rembourser."
+      parameters:
+        - $ref: '#/components/parameters/CleIdempotence'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [motif]
+              properties:
+                motif: { type: string, maxLength: 500, description: "ex. « remboursé par SasPay le 26 octobre, référence … »" }
+      responses:
+        '428': { $ref: '#/components/responses/CleIdempotenceManquante' }
+        '201':
+          description: Remboursement noté
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TropPercu' }
         '401': { $ref: '#/components/responses/NonConnecte' }
         '403': { $ref: '#/components/responses/Interdit' }
         '404': { $ref: '#/components/responses/Introuvable' }
@@ -1831,7 +1866,7 @@ components:
     CleIdempotence:
       name: Idempotency-Key
       in: header
-      required: false
+      required: true
       description: "Identifiant unique de l'intention (un UUID). Rejouée avec la même clé, la requête renvoie la réponse d'origine au lieu de recommencer."
       schema: { type: string, maxLength: 100 }
 
@@ -1842,6 +1877,11 @@ components:
       schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
 
   responses:
+    CleIdempotenceManquante:
+      description: "L'en-tête Idempotency-Key est obligatoire : cette opération déplace de l'argent"
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Erreur' }
     NonConnecte:
       description: Non connecté
       content:
@@ -2765,8 +2805,8 @@ components:
     # ───────────── Administration (finances) ─────────────
     Finances:
       type: object
-      description: "Tiré du grand livre (entiers FCFA). marge = revenus_hebergement − frais_reversement − avoirs côté hébergement."
-      required: [debut, fin, encaissements, revenus_hebergement, parts_devs, reversements, frais_reversement, avoirs, marge, solde_devs, solde_saspay_attendu, factures_impayees, copies_suspendues]
+      description: "Tiré du grand livre (entiers FCFA). marge = revenus_hebergement − frais (reversements et encaissements) − avoirs côté hébergement."
+      required: [debut, fin, encaissements, revenus_hebergement, parts_devs, reversements, frais_reversement, avoirs, marge, solde_devs, solde_saspay_attendu, factures_impayees, copies_suspendues, trop_percus]
       properties:
         debut: { type: string, format: date }
         fin: { type: string, format: date }
@@ -2781,6 +2821,23 @@ components:
         solde_saspay_attendu: { type: integer, description: "Ce que le compte SasPay devrait contenir d'après le grand livre" }
         factures_impayees: { type: integer }
         copies_suspendues: { type: integer }
+        trop_percus:
+          type: array
+          description: Paiements en double encore à rembourser aux clients (tous, quelle que soit la période)
+          items: { $ref: '#/components/schemas/TropPercu' }
+
+    TropPercu:
+      type: object
+      description: "Un paiement reçu pour une facture déjà payée ou annulée : l'argent est dû au client"
+      required: [paiement_id, facture_id, facture_numero, montant, reference, recu_le, rembourse]
+      properties:
+        paiement_id: { type: integer }
+        facture_id: { type: integer }
+        facture_numero: { type: string }
+        montant: { type: integer, description: FCFA à rendre au client }
+        reference: { type: [string, 'null'], description: Référence SasPay du paiement en double }
+        recu_le: { type: string, format: date-time }
+        rembourse: { type: boolean }
 
     AvoirCreation:
       type: object

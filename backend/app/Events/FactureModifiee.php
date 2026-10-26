@@ -8,12 +8,12 @@ use App\Http\Resources\FactureResource;
 use App\Models\Facture;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
 /** Une facture du compte change (payée après vérification, annulée, remboursée…). */
-final class FactureModifiee implements ShouldBroadcastNow
+final class FactureModifiee implements ShouldBroadcast
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 

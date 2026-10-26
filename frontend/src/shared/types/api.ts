@@ -1123,6 +1123,25 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/paiements/{id}/remboursement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Noter le remboursement d'un paiement en double (admin), fait depuis le tableau de bord SasPay : le grand livre solde le trop-perçu dû au client. Seulement pour un paiement encore à rembourser. */
+        post: operations["rembourserTropPercu"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/reversements": {
         parameters: {
             query?: never;
@@ -1874,7 +1893,7 @@ export interface components {
             nom: string;
             pays: components["schemas"]["Pays"];
         };
-        /** @description Tiré du grand livre (entiers FCFA). marge = revenus_hebergement − frais_reversement − avoirs côté hébergement. */
+        /** @description Tiré du grand livre (entiers FCFA). marge = revenus_hebergement − frais (reversements et encaissements) − avoirs côté hébergement. */
         Finances: {
             /** Format: date */
             debut: string;
@@ -1896,6 +1915,21 @@ export interface components {
             solde_saspay_attendu: number;
             factures_impayees: number;
             copies_suspendues: number;
+            /** @description Paiements en double encore à rembourser aux clients (tous, quelle que soit la période) */
+            trop_percus: components["schemas"]["TropPercu"][];
+        };
+        /** @description Un paiement reçu pour une facture déjà payée ou annulée : l'argent est dû au client */
+        TropPercu: {
+            paiement_id: number;
+            facture_id: number;
+            facture_numero: string;
+            /** @description FCFA à rendre au client */
+            montant: number;
+            /** @description Référence SasPay du paiement en double */
+            reference: string | null;
+            /** Format: date-time */
+            recu_le: string;
+            rembourse: boolean;
         };
         AvoirCreation: {
             montant_hebergement: number;
@@ -1995,6 +2029,15 @@ export interface components {
         };
     };
     responses: {
+        /** @description L'en-tête Idempotency-Key est obligatoire : cette opération déplace de l'argent */
+        CleIdempotenceManquante: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Erreur"];
+            };
+        };
         /** @description Non connecté */
         NonConnecte: {
             headers: {
@@ -3832,9 +3875,9 @@ export interface operations {
     payerFacture: {
         parameters: {
             query?: never;
-            header?: {
+            header: {
                 /** @description Identifiant unique de l'intention (un UUID). Rejouée avec la même clé, la requête renvoie la réponse d'origine au lieu de recommencer. */
-                "Idempotency-Key"?: components["parameters"]["CleIdempotence"];
+                "Idempotency-Key": components["parameters"]["CleIdempotence"];
             };
             path: {
                 id: components["parameters"]["Id"];
@@ -3856,6 +3899,7 @@ export interface operations {
             404: components["responses"]["Introuvable"];
             409: components["responses"]["Conflit"];
             419: components["responses"]["CsrfInvalide"];
+            428: components["responses"]["CleIdempotenceManquante"];
             429: components["responses"]["TropDeRequetes"];
             /** @description Le prestataire de paiement est indisponible ; réessayer dans quelques minutes */
             503: {
@@ -4121,9 +4165,9 @@ export interface operations {
     demanderReversement: {
         parameters: {
             query?: never;
-            header?: {
+            header: {
                 /** @description Identifiant unique de l'intention (un UUID). Rejouée avec la même clé, la requête renvoie la réponse d'origine au lieu de recommencer. */
-                "Idempotency-Key"?: components["parameters"]["CleIdempotence"];
+                "Idempotency-Key": components["parameters"]["CleIdempotence"];
             };
             path?: never;
             cookie?: never;
@@ -4143,6 +4187,7 @@ export interface operations {
             409: components["responses"]["Conflit"];
             419: components["responses"]["CsrfInvalide"];
             422: components["responses"]["Invalide"];
+            428: components["responses"]["CleIdempotenceManquante"];
             429: components["responses"]["TropDeRequetes"];
         };
     };
@@ -4345,9 +4390,9 @@ export interface operations {
     creerAvoir: {
         parameters: {
             query?: never;
-            header?: {
+            header: {
                 /** @description Identifiant unique de l'intention (un UUID). Rejouée avec la même clé, la requête renvoie la réponse d'origine au lieu de recommencer. */
-                "Idempotency-Key"?: components["parameters"]["CleIdempotence"];
+                "Idempotency-Key": components["parameters"]["CleIdempotence"];
             };
             path: {
                 id: components["parameters"]["Id"];
@@ -4375,6 +4420,46 @@ export interface operations {
             409: components["responses"]["Conflit"];
             419: components["responses"]["CsrfInvalide"];
             422: components["responses"]["Invalide"];
+            428: components["responses"]["CleIdempotenceManquante"];
+        };
+    };
+    rembourserTropPercu: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Identifiant unique de l'intention (un UUID). Rejouée avec la même clé, la requête renvoie la réponse d'origine au lieu de recommencer. */
+                "Idempotency-Key": components["parameters"]["CleIdempotence"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description ex. « remboursé par SasPay le 26 octobre, référence … » */
+                    motif: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Remboursement noté */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TropPercu"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+            404: components["responses"]["Introuvable"];
+            409: components["responses"]["Conflit"];
+            419: components["responses"]["CsrfInvalide"];
+            422: components["responses"]["Invalide"];
+            428: components["responses"]["CleIdempotenceManquante"];
         };
     };
     listReversementsAdmin: {

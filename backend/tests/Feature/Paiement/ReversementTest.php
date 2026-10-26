@@ -99,7 +99,7 @@ class ReversementTest extends TestCase
     {
         $dev = $this->devConfirme('0197123456');
         $this->crediter($dev, 15000);
-        $this->actingAs($dev)->postJson('/api/me/revenus/reversements')->assertAccepted();
+        $this->actingAs($dev)->postJson('/api/me/revenus/reversements', [], ['Idempotency-Key' => (string) str()->uuid()])->assertAccepted();
 
         $this->actingAs($dev)->getJson('/api/me/revenus/mouvements')
             ->assertOk()
@@ -118,7 +118,7 @@ class ReversementTest extends TestCase
         $dev = $this->devConfirme('0197120000');
         $this->crediter($dev, 9000);
 
-        $this->actingAs($dev)->postJson('/api/me/revenus/reversements')->assertAccepted()->assertJsonPath('statut', 'echoue');
+        $this->actingAs($dev)->postJson('/api/me/revenus/reversements', [], ['Idempotency-Key' => (string) str()->uuid()])->assertAccepted()->assertJsonPath('statut', 'echoue');
 
         $this->assertSame(9000, app(GrandLivre::class)->soldeDev($dev->id));
         $this->assertSame(0, (int) Ecriture::query()->sum('montant'));
@@ -129,7 +129,7 @@ class ReversementTest extends TestCase
         $dev = $this->devConfirme('0197123456');
         $this->crediter($dev, 4999);
 
-        $this->actingAs($dev)->postJson('/api/me/revenus/reversements')
+        $this->actingAs($dev)->postJson('/api/me/revenus/reversements', [], ['Idempotency-Key' => (string) str()->uuid()])
             ->assertUnprocessable()
             ->assertJsonPath('errors.reversement.0', "Le reversement à la demande commence à 5\u{202F}000\u{00A0}F ; le reste part le 1er du mois.");
     }
@@ -148,7 +148,7 @@ class ReversementTest extends TestCase
             }
         });
 
-        $this->actingAs($dev)->postJson('/api/me/revenus/reversements')->assertAccepted();
+        $this->actingAs($dev)->postJson('/api/me/revenus/reversements', [], ['Idempotency-Key' => (string) str()->uuid()])->assertAccepted();
         $reversement = Reversement::query()->sole();
 
         // Le job prend le 409 pour « réessayer plus tard », jamais pour un échec.
@@ -162,7 +162,7 @@ class ReversementTest extends TestCase
         $this->assertSame(0, app(GrandLivre::class)->soldeDev($dev->id), 'Le solde reste réservé tant que SasPay n\'a pas répondu.');
 
         // Une seconde demande pendant ce temps : 409, rien de plus n'est réservé.
-        $this->actingAs($dev)->postJson('/api/me/revenus/reversements')->assertStatus(409);
+        $this->actingAs($dev)->postJson('/api/me/revenus/reversements', [], ['Idempotency-Key' => (string) str()->uuid()])->assertStatus(409);
         $this->assertSame(1, Reversement::query()->count());
     }
 

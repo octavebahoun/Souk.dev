@@ -12,15 +12,22 @@ use Symfony\Component\HttpFoundation\Response;
  * En-tête Idempotency-Key sur les routes qui déplacent de l'argent : rejouée avec la même clé
  * et le même corps, la requête renvoie la réponse d'origine (24 heures) ; avec un autre corps,
  * ou pendant que la première tourne, 409. Une erreur serveur libère la clé.
+ * « idempotence:obligatoire » refuse une requête sans clé (428).
  */
 class Idempotence
 {
-    public function handle(Request $request, Closure $next): Response
+    public function handle(Request $request, Closure $next, ?string $mode = null): Response
     {
         $cle = $request->header('Idempotency-Key');
 
-        if ($cle === null || $request->user() === null) {
+        if ($request->user() === null) {
             return $next($request);
+        }
+
+        if ($cle === null) {
+            return $mode === 'obligatoire'
+                ? response()->json(['message' => 'L’en-tête Idempotency-Key est obligatoire pour cette opération (elle déplace de l’argent).'], 428)
+                : $next($request);
         }
 
         if (preg_match('/^[A-Za-z0-9_-]{8,100}$/', $cle) !== 1) {

@@ -2,9 +2,12 @@
 
 namespace Tests\Feature\Paiement;
 
+use App\Models\Ecriture;
 use App\Models\Facture;
+use App\Models\Paiement;
 use App\Models\SimulationSasPay;
 use App\Models\User;
+use App\Paiement\GrandLivre;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\URL;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -60,6 +63,7 @@ class AccesPaiementTest extends TestCase
             'avoir' => ['POST', '/api/admin/factures/1/avoir'],
             'reversements' => ['GET', '/api/admin/reversements'],
             'rapprochements' => ['GET', '/api/admin/rapprochements'],
+            'remboursement' => ['POST', '/api/admin/paiements/1/remboursement'],
         ];
     }
 
@@ -85,7 +89,42 @@ class AccesPaiementTest extends TestCase
         $this->assertSame('remboursee', $facture->refresh()->statut);
         $this->actingAs($admin)->postJson("/api/admin/factures/{$facture->id}/avoir", [
             'montant_hebergement' => 1, 'montant_appli' => 0, 'motif' => 'Encore ?',
-        ])->assertUnprocessable();
+        ], ['Idempotency-Key' => 'avoir-facture-2'])->assertUnprocessable();
+    }
+
+    public function test_une_operation_d_argent_sans_cle_d_idempotence_est_refusee(): void
+    {
+        $facture = Facture::factory()->create();
+
+        $this->actingAs($facture->client)->postJson("/api/factures/{$facture->id}/paiement")
+            ->assertStatus(428);
+        $this->actingAs(User::factory()->github()->create())->postJson('/api/me/revenus/reversements')
+            ->assertStatus(428);
+    }
+
+    public function test_l_admin_note_le_remboursement_d_un_paiement_en_double(): void
+    {
+        $facture = Facture::factory()->create(['statut' => 'payee', 'payee_le' => now()]);
+        $double = Paiement::query()->create([
+            'facture_id' => $facture->id, 'client_id' => $facture->client_id, 'passerelle' => 'simulee', 'montant' => 18500, 'statut' => 'reussi',
+        ]);
+        app(GrandLivre::class)->tropPercu($facture, $double);
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)->getJson('/api/admin/finances')
+            ->assertOk()
+            ->assertJsonPath('trop_percus.0.paiement_id', $double->id)
+            ->assertJsonPath('trop_percus.0.montant', 18500);
+
+        $this->actingAs($admin)->postJson("/api/admin/paiements/{$double->id}/remboursement", ['motif' => 'Remboursé par SasPay le 26 octobre.'], ['Idempotency-Key' => 'trop-percu-1'])
+            ->assertCreated()
+            ->assertJsonPath('rembourse', true);
+
+        $this->assertSame(0, app(GrandLivre::class)->tropPercuDe($double->id));
+        $this->assertSame(0, (int) Ecriture::query()->sum('montant'));
+        $this->actingAs($admin)->getJson('/api/admin/finances')->assertJsonCount(0, 'trop_percus');
+        $this->actingAs($admin)->postJson("/api/admin/paiements/{$double->id}/remboursement", ['motif' => 'Encore.'], ['Idempotency-Key' => 'trop-percu-2'])
+            ->assertStatus(409);
     }
 
     public function test_le_lien_de_paiement_de_l_e_mail_doit_etre_signe(): void

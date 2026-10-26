@@ -41,7 +41,10 @@ final class NumeroMobileMoney
     {
         $indicatif = (string) config('facturation.pays.'.$pays.'.indicatif', '');
         $local = str_starts_with($international, $indicatif) ? substr($international, strlen($indicatif)) : $international;
-        $visible = substr($local, 0, 2).str_repeat('•', max(0, strlen($local) - 6)).substr($local, -4);
+        // Assez pour reconnaître son numéro, jamais assez pour le reconstituer : les deux derniers
+        // chiffres, et les deux premiers seulement sur un numéro de 10 chiffres.
+        $debut = strlen($local) >= 10 ? substr($local, 0, 2) : '';
+        $visible = $debut.str_repeat('•', max(0, strlen($local) - strlen($debut) - 2)).substr($local, -2);
 
         // Par caractères, pas par octets : « • » tient sur trois octets en UTF-8.
         return trim('+'.$indicatif.' '.implode(' ', mb_str_split($visible, 2)));

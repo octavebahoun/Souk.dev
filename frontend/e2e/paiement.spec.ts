@@ -116,7 +116,7 @@ test.describe.serial('paiement', () => {
     await connexionDemo(page, 'soukdemo-awa')
     await page.goto('/revenus')
     await expect(page.getByRole('heading', { level: 1, name: 'Mes revenus' })).toBeVisible()
-    await expect(page.getByText('+229 01 •• •• 34 56')).toBeVisible()
+    await expect(page.getByText('+229 01 •• •• •• 56')).toBeVisible()
     expect(resumer(await auditAxe(page))).toBe('')
 
     const recevoir = page.getByRole('button', { name: /^Recevoir [\d\s ]+ F$/ })

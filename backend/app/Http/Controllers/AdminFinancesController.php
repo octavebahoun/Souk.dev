@@ -12,6 +12,7 @@ use App\Models\Abonnement;
 use App\Models\Avoir;
 use App\Models\Ecriture;
 use App\Models\Facture;
+use App\Models\Paiement;
 use App\Models\Rapprochement;
 use App\Models\Reversement;
 use App\Paiement\GrandLivre;
@@ -61,7 +62,61 @@ final class AdminFinancesController extends Controller
             'solde_saspay_attendu' => $grandLivre->solde(Ecriture::COMPTE_SASPAY),
             'factures_impayees' => Facture::query()->where('statut', 'a_payer')->where('echeance_le', '<', today())->count(),
             'copies_suspendues' => Abonnement::query()->where('statut', 'suspendu')->count(),
+            'trop_percus' => $this->tropPercus($grandLivre),
         ]);
+    }
+
+    /** Remboursement d'un paiement en double, fait depuis le tableau de bord SasPay. */
+    public function rembourserTropPercu(Request $request, Paiement $paiement, GrandLivre $grandLivre): JsonResponse
+    {
+        $donnees = $request->validate(['motif' => ['required', 'string', 'max:500']]);
+
+        $montant = DB::transaction(function () use ($paiement, $grandLivre, $donnees): int {
+            Paiement::query()->lockForUpdate()->findOrFail($paiement->id);
+            $reste = $grandLivre->tropPercuDe($paiement->id);
+
+            if ($reste <= 0) {
+                throw new ConflictHttpException('Ce paiement n’est pas un paiement en double à rembourser.');
+            }
+
+            $grandLivre->rembourserTropPercu($paiement, $reste, $donnees['motif']);
+
+            return $reste;
+        });
+
+        return response()->json($this->tropPercu($paiement->load('facture'), $montant, true), 201);
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function tropPercus(GrandLivre $grandLivre): array
+    {
+        $restes = $grandLivre->tropPercusARembourser();
+
+        return Paiement::query()
+            ->whereIn('id', array_keys($restes))
+            ->with('facture')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (Paiement $paiement) => $this->tropPercu($paiement, $restes[$paiement->id], false))
+            ->all();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function tropPercu(Paiement $paiement, int $montant, bool $rembourse): array
+    {
+        return [
+            'paiement_id' => $paiement->id,
+            'facture_id' => $paiement->facture_id,
+            'facture_numero' => (string) $paiement->facture?->numero,
+            'montant' => $montant,
+            'reference' => $paiement->reference,
+            'recu_le' => ($paiement->verifie_le ?? $paiement->updated_at)->toIso8601String(),
+            'rembourse' => $rembourse,
+        ];
     }
 
     public function factures(Request $request): AnonymousResourceCollection

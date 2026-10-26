@@ -106,7 +106,7 @@ class ParcoursPaiementTest extends TestCase
     {
         [$client] = $this->commande();
         $facture = Facture::query()->sole();
-        $session = $this->actingAs($client)->postJson("/api/factures/{$facture->id}/paiement")->assertCreated()->json();
+        $session = $this->actingAs($client)->postJson("/api/factures/{$facture->id}/paiement", [], ['Idempotency-Key' => (string) str()->uuid()])->assertCreated()->json();
 
         $this->payerSurLeSimulateur($session['checkout_url'], 'echec')->assertOk()->assertSee('Paiement refusé');
         $this->rejouerLesWebhooks()->assertOk();
@@ -129,7 +129,7 @@ class ParcoursPaiementTest extends TestCase
     {
         [$client] = $this->commande();
         $facture = Facture::query()->sole();
-        $session = $this->actingAs($client)->postJson("/api/factures/{$facture->id}/paiement")->assertCreated()->json();
+        $session = $this->actingAs($client)->postJson("/api/factures/{$facture->id}/paiement", [], ['Idempotency-Key' => (string) str()->uuid()])->assertCreated()->json();
         $this->payerSurLeSimulateur($session['checkout_url'], 'succes');
         $this->webhooks = [];
 
@@ -144,7 +144,7 @@ class ParcoursPaiementTest extends TestCase
     {
         [$client] = $this->commande();
         $facture = Facture::query()->sole();
-        $session = $this->actingAs($client)->postJson("/api/factures/{$facture->id}/paiement")->assertCreated()->json();
+        $session = $this->actingAs($client)->postJson("/api/factures/{$facture->id}/paiement", [], ['Idempotency-Key' => (string) str()->uuid()])->assertCreated()->json();
 
         $this->payerSurLeSimulateur($session['checkout_url'], 'attente')->assertOk();
         $this->actingAs($client)->postJson("/api/factures/{$facture->id}/verification")->assertOk()->assertJsonPath('statut', 'a_payer');
@@ -157,10 +157,10 @@ class ParcoursPaiementTest extends TestCase
     {
         [$client] = $this->commande();
         $facture = Facture::query()->sole();
-        $this->actingAs($client)->postJson("/api/factures/{$facture->id}/paiement")->assertCreated();
+        $this->actingAs($client)->postJson("/api/factures/{$facture->id}/paiement", [], ['Idempotency-Key' => (string) str()->uuid()])->assertCreated();
         Paiement::query()->sole()->forceFill(['passerelle' => 'saspay'])->save();
 
-        $this->actingAs($client)->postJson("/api/factures/{$facture->id}/paiement")->assertCreated();
+        $this->actingAs($client)->postJson("/api/factures/{$facture->id}/paiement", [], ['Idempotency-Key' => (string) str()->uuid()])->assertCreated();
 
         $this->assertSame(2, Paiement::query()->count());
     }
@@ -169,7 +169,7 @@ class ParcoursPaiementTest extends TestCase
     {
         [$client] = $this->commande();
         $facture = Facture::query()->sole();
-        $this->actingAs($client)->postJson("/api/factures/{$facture->id}/paiement")->assertCreated();
+        $this->actingAs($client)->postJson("/api/factures/{$facture->id}/paiement", [], ['Idempotency-Key' => (string) str()->uuid()])->assertCreated();
         $paiement = Paiement::query()->sole();
         $paiement->forceFill(['passerelle' => 'saspay', 'session_id' => '6f9b1d2e-0000-4000-8000-0000000000aa'])->save();
 
@@ -183,11 +183,11 @@ class ParcoursPaiementTest extends TestCase
     {
         [$client] = $this->commande();
         $facture = Facture::query()->sole();
-        $session = $this->actingAs($client)->postJson("/api/factures/{$facture->id}/paiement")->json();
+        $session = $this->actingAs($client)->postJson("/api/factures/{$facture->id}/paiement", [], ['Idempotency-Key' => (string) str()->uuid()])->json();
         $this->payerSurLeSimulateur($session['checkout_url'], 'succes');
         $this->rejouerLesWebhooks();
 
-        $this->actingAs($client)->postJson("/api/factures/{$facture->id}/paiement")
+        $this->actingAs($client)->postJson("/api/factures/{$facture->id}/paiement", [], ['Idempotency-Key' => (string) str()->uuid()])
             ->assertStatus(409)
             ->assertJsonPath('message', 'Cette facture est déjà payée.');
     }
