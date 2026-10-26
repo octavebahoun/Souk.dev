@@ -153,6 +153,18 @@ class ParcoursPaiementTest extends TestCase
         Queue::assertNotPushed(LancerDeploiement::class);
     }
 
+    public function test_une_session_d_une_autre_passerelle_n_est_pas_reutilisee(): void
+    {
+        [$client] = $this->commande();
+        $facture = Facture::query()->sole();
+        $this->actingAs($client)->postJson("/api/factures/{$facture->id}/paiement")->assertCreated();
+        Paiement::query()->sole()->forceFill(['passerelle' => 'saspay'])->save();
+
+        $this->actingAs($client)->postJson("/api/factures/{$facture->id}/paiement")->assertCreated();
+
+        $this->assertSame(2, Paiement::query()->count());
+    }
+
     public function test_une_facture_payee_ne_se_paie_pas_deux_fois(): void
     {
         [$client] = $this->commande();

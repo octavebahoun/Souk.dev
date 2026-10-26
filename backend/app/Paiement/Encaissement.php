@@ -49,6 +49,7 @@ final class Encaissement
 
         $recente = $facture->paiements()
             ->where('statut', 'en_attente')
+            ->where('passerelle', $this->passerelle->nom())
             ->whereNull('transaction_id')
             ->whereNotNull('checkout_url')
             ->where('created_at', '>=', now()->subMinutes(self::MINUTES_REUTILISATION))
