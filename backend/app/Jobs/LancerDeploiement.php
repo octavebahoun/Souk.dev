@@ -10,6 +10,7 @@ use App\Moteur\Exceptions\ManifestInvalide;
 use App\Moteur\Exceptions\VariablesManquantes;
 use App\Moteur\MoteurDeploiement;
 use App\Moteur\NettoyeurCopie;
+use App\Paiement\Facturation;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Throwable;
@@ -75,6 +76,8 @@ class LancerDeploiement implements ShouldQueue
 
             if (! $enLigne) {
                 $this->couper($moteur, $copie);
+            } else {
+                app(Facturation::class)->leverIncident($deploiement);
             }
         } catch (Throwable $exception) {
             if ($this->estArrete($deploiement)) {
@@ -86,6 +89,11 @@ class LancerDeploiement implements ShouldQueue
             }
 
             $deploiement->changerEtat('echec', erreur: $this->messageLisible($exception));
+
+            // Copie payée qui ne démarre pas : plus de facture, l'équipe et le client sont prévenus.
+            if ($deploiement->type === 'client') {
+                app(Facturation::class)->signalerIncident($deploiement, $this->messageLisible($exception));
+            }
 
             // Conteneurs, volumes et dossier cloné (avec son .env) ne restent pas après un échec.
             app(NettoyeurCopie::class)->liberer($copie?->id ?? $deploiement->copie, $copie?->repertoire ?? $deploiement->repertoire, $deploiement->id);
@@ -101,6 +109,10 @@ class LancerDeploiement implements ShouldQueue
         }
 
         $deploiement->changerEtat('echec', erreur: 'Le déploiement a échoué.');
+
+        if ($deploiement->type === 'client') {
+            app(Facturation::class)->signalerIncident($deploiement, 'Le déploiement a échoué ('.$exception->getMessage().').');
+        }
     }
 
     private function estArrete(Deploiement $deploiement): bool

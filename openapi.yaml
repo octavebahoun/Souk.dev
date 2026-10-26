@@ -2594,8 +2594,8 @@ components:
       properties:
         statut:
           type: string
-          enum: [en_attente, actif, en_retard, suspendu, resilie]
-          description: "en_attente : première facture pas encore payée ; en_retard : échéance passée, 7 jours de grâce ; suspendu : copie arrêtée, réactivée au paiement ; resilie : arrêt définitif après 30 jours de suspension"
+          enum: [en_attente, actif, en_retard, suspendu, incident, resilie]
+          description: "en_attente : première facture pas encore payée ; en_retard : échéance passée, 7 jours de grâce ; suspendu : copie arrêtée, réactivée au paiement ; incident : copie payée qui n'a pas pu démarrer, plus aucune facture tant que l'équipe n'a pas réglé le problème ; resilie : arrêt définitif après 30 jours de suspension"
         formule: { $ref: '#/components/schemas/Taille' }
         montant_hebergement: { type: integer, description: "FCFA par mois, figé à la commande" }
         prix_appli: { type: integer, description: "FCFA, figé à la commande ; 0 pour une appli gratuite" }

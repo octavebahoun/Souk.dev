@@ -7,6 +7,8 @@ use App\Models\Appli;
 use App\Models\Deploiement;
 use App\Models\Facture;
 use App\Models\User;
+use App\Notifications\AlerteAdmin;
+use App\Notifications\CopieEnIncident;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
@@ -98,6 +100,47 @@ final class Facturation
         });
 
         $abonnement->refresh();
+    }
+
+    /**
+     * Copie payée qui ne démarre pas (ou ne repart pas après un paiement) : plus aucune facture
+     * tant que l'équipe n'a pas réglé le problème, l'équipe et le client sont prévenus.
+     */
+    public function signalerIncident(Deploiement $deploiement, string $raison): void
+    {
+        $abonnement = $deploiement->abonnement()->first();
+
+        if ($abonnement === null) {
+            return;
+        }
+
+        $signale = DB::transaction(function () use ($abonnement): bool {
+            $verrouille = Abonnement::query()->lockForUpdate()->find($abonnement->id);
+
+            if (! in_array($verrouille?->statut, ['actif', 'en_retard'], true)) {
+                return false;
+            }
+
+            $verrouille->forceFill(['statut' => 'incident'])->save();
+
+            return true;
+        });
+
+        if (! $signale) {
+            return;
+        }
+
+        AlerteAdmin::envoyer("Copie payée n° {$deploiement->id} qui ne démarre pas", [
+            "{$deploiement->versApi()['app_nom']}, pour le compte n° {$deploiement->user_id} : {$raison}",
+            'Plus aucune facture n’est émise pour cette copie. Relancez-la, ou remboursez le client depuis SasPay puis saisissez un avoir.',
+        ]);
+        $abonnement->client?->notify(new CopieEnIncident($abonnement));
+    }
+
+    /** La copie tourne enfin : l'abonnement reprend son cours normal. */
+    public function leverIncident(Deploiement $deploiement): void
+    {
+        Abonnement::query()->where('deploiement_id', $deploiement->id)->where('statut', 'incident')->update(['statut' => 'actif', 'updated_at' => now()]);
     }
 
     public function prixHebergement(string $formule): int

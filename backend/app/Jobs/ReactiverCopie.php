@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\Deploiement;
 use App\Moteur\MoteurDeploiement;
+use App\Paiement\Facturation;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
@@ -51,7 +52,13 @@ class ReactiverCopie implements ShouldQueue
     {
         Log::critical('moteur: réactivation impossible', ['deploiement' => $this->deploiementId, 'erreur' => $exception->getMessage()]);
 
-        Deploiement::query()->find($this->deploiementId)
-            ?->changerEtat('echec', erreur: 'La copie n’a pas pu repartir après le paiement. Le support est prévenu et revient vers vous.');
+        $deploiement = Deploiement::query()->find($this->deploiementId);
+
+        if ($deploiement === null) {
+            return;
+        }
+
+        $deploiement->changerEtat('echec', erreur: 'La copie n’a pas pu repartir après le paiement. L’équipe est prévenue et revient vers vous.');
+        app(Facturation::class)->signalerIncident($deploiement, 'Réactivation impossible après paiement ('.$exception->getMessage().').');
     }
 }

@@ -11,6 +11,7 @@ use App\Paiement\Passerelles\PasserelleIndisponible;
 use App\Paiement\Passerelles\PasserellePaiement;
 use App\Paiement\Passerelles\PasserelleRefus;
 use Carbon\CarbonImmutable;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Notification;
@@ -20,9 +21,12 @@ use Illuminate\Support\Facades\Notification;
  * les paiements enregistrés. Un paiement réussi resté « en attente » ici (webhook perdu) est
  * corrigé par une revérification ; un écart qui demande un humain prévient l'admin.
  */
-class RapprochementQuotidien implements ShouldQueue
+class RapprochementQuotidien implements ShouldBeUnique, ShouldQueue
 {
     use Queueable;
+
+    /** Planifié : jamais deux passages en même temps (withoutOverlapping ne protège pas la file). */
+    public int $uniqueFor = 3600;
 
     public int $tries = 3;
 
@@ -32,6 +36,11 @@ class RapprochementQuotidien implements ShouldQueue
     public function __construct(public ?string $jour = null)
     {
         $this->onQueue('paiements');
+    }
+
+    public function uniqueId(): string
+    {
+        return $this->jour ?? CarbonImmutable::yesterday()->toDateString();
     }
 
     public function handle(PasserellePaiement $passerelle, Encaissement $encaissement): void

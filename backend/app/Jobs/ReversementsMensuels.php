@@ -6,15 +6,19 @@ use App\Models\CoordonneesReversement;
 use App\Models\User;
 use App\Paiement\GrandLivre;
 use App\Paiement\Reversements;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
 /** Le 1er de chaque mois : chaque dev au solde positif, coordonnées confirmées, est reversé. */
-class ReversementsMensuels implements ShouldQueue
+class ReversementsMensuels implements ShouldBeUnique, ShouldQueue
 {
     use Queueable;
+
+    /** Planifié : jamais deux passages en même temps (withoutOverlapping ne protège pas la file). */
+    public int $uniqueFor = 3600;
 
     public function __construct()
     {

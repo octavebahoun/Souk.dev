@@ -22,6 +22,8 @@ class Reversement extends Model
             'montant' => 'integer',
             'frais' => 'integer',
             'verifie_le' => 'datetime',
+            'alerte_le' => 'datetime',
+            'essais' => 'integer',
         ];
     }
 

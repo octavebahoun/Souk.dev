@@ -7,6 +7,7 @@ use App\Notifications\AlerteAdmin;
 use App\Paiement\Encaissement;
 use App\Paiement\Passerelles\PasserelleIndisponible;
 use App\Paiement\Passerelles\PasserelleRefus;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
@@ -15,9 +16,12 @@ use Illuminate\Support\Facades\Log;
  * Toutes les 15 minutes : revérifie les paiements encore ouverts. C'est le filet si un webhook
  * n'arrive jamais (ou si aucun n'est déclaré) ; une session SasPay vit une heure.
  */
-class RapprocherPaiementsEnAttente implements ShouldQueue
+class RapprocherPaiementsEnAttente implements ShouldBeUnique, ShouldQueue
 {
     use Queueable;
+
+    /** Planifié : jamais deux passages en même temps (withoutOverlapping ne protège pas la file). */
+    public int $uniqueFor = 3600;
 
     public function __construct()
     {

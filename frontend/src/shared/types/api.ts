@@ -1710,10 +1710,10 @@ export interface components {
         /** @description Facturation d'une copie client, à date anniversaire : l'hébergement chaque mois, plus le prix de l'appli chaque mois (mensuel) ou une seule fois (unique). */
         Abonnement: {
             /**
-             * @description en_attente : première facture pas encore payée ; en_retard : échéance passée, 7 jours de grâce ; suspendu : copie arrêtée, réactivée au paiement ; resilie : arrêt définitif après 30 jours de suspension
+             * @description en_attente : première facture pas encore payée ; en_retard : échéance passée, 7 jours de grâce ; suspendu : copie arrêtée, réactivée au paiement ; incident : copie payée qui n'a pas pu démarrer, plus aucune facture tant que l'équipe n'a pas réglé le problème ; resilie : arrêt définitif après 30 jours de suspension
              * @enum {string}
              */
-            statut: "en_attente" | "actif" | "en_retard" | "suspendu" | "resilie";
+            statut: "en_attente" | "actif" | "en_retard" | "suspendu" | "incident" | "resilie";
             formule: components["schemas"]["Taille"];
             /** @description FCFA par mois, figé à la commande */
             montant_hebergement: number;

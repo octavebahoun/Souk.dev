@@ -18,6 +18,7 @@ use App\Moteur\RouteurCopies;
 use App\Paiement\Passerelles\ClientSasPay;
 use App\Paiement\Passerelles\PasserellePaiement;
 use App\Paiement\Passerelles\PasserelleReversement;
+use App\Paiement\Passerelles\ReversementsInactifs;
 use App\Paiement\Passerelles\SasPayPaiement;
 use App\Paiement\Passerelles\SasPayReversement;
 use App\Paiement\Passerelles\SimulateurSasPay;
@@ -211,9 +212,12 @@ class AppServiceProvider extends ServiceProvider
         });
 
         $this->app->bind(PasserelleReversement::class, function ($app) {
-            return config('facturation.reversements_reels') && config('facturation.passerelle') === 'saspay'
-                ? $app->make(SasPayReversement::class)
-                : $app->make(SimulateurSasPay::class);
+            if (config('facturation.reversements_reels') && config('facturation.passerelle') === 'saspay') {
+                return $app->make(SasPayReversement::class);
+            }
+
+            // En production, jamais le simulateur : il déclarerait « versé » un argent qui ne part pas.
+            return $app->isProduction() ? new ReversementsInactifs : $app->make(SimulateurSasPay::class);
         });
     }
 }

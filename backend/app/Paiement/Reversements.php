@@ -6,6 +6,7 @@ use App\Jobs\InitierReversement;
 use App\Models\CoordonneesReversement;
 use App\Models\Reversement;
 use App\Models\User;
+use App\Notifications\AlerteAdmin;
 use App\Notifications\ReversementEffectue;
 use App\Paiement\Passerelles\DemandeReversement;
 use App\Paiement\Passerelles\PasserelleIndisponible;
@@ -40,6 +41,7 @@ final class Reversements
         $montant = fn (int $valeur): string => number_format($valeur, 0, ',', "\u{202F}")."\u{00A0}F";
 
         return match (true) {
+            $this->passerelle->nom() === 'inactif' => 'Les reversements sur Mobile Money ouvrent bientôt : votre solde vous attend.',
             $coordonnees === null => 'Ajoutez votre numéro Mobile Money pour recevoir vos revenus.',
             ! $coordonnees->estConfirme() => 'Confirmez votre numéro Mobile Money avec le lien reçu par e-mail.',
             $this->enCours($dev) !== null => 'Un reversement est déjà en cours.',
@@ -112,6 +114,7 @@ final class Reversements
         }
 
         $beneficiaire = $reversement->beneficiaire;
+        $reversement->forceFill(['essais' => $reversement->essais + 1])->save();
 
         try {
             $payout = $this->passerelle->initier(new DemandeReversement(
@@ -133,8 +136,17 @@ final class Reversements
                 throw new PasserelleIndisponible('Reversement en cours de traitement chez SasPay.');
             }
 
-            // 401, 403, 422 : SasPay n'a rien créé ; le dev retrouve son solde, l'admin est prévenu.
             Log::error('reversement: refusé', ['reversement' => $reversement->id, 'statut' => $exception->statutHttp, 'code' => $exception->codeErreur]);
+
+            // Une reprise refusée (clé ou IP changée entre deux essais) ne prouve pas que le premier
+            // appel n'a rien créé : le solde reste réservé, l'équipe vérifie chez SasPay.
+            if ($reversement->essais > 1) {
+                $this->aVerifier($reversement, "Refus de SasPay ({$exception->statutHttp}) après une tentative interrompue.");
+
+                return;
+            }
+
+            // 401, 403, 422 au premier appel : SasPay n'a rien créé ; le dev retrouve son solde.
             $this->echouer($reversement, 'Le prestataire a refusé le reversement.');
 
             return;
@@ -182,6 +194,20 @@ final class Reversements
         }
 
         $reversement->forceFill(['verifie_le' => now()])->save();
+    }
+
+    /** À trancher par l'équipe : le solde reste réservé, une alerte part une seule fois. */
+    public function aVerifier(Reversement $reversement, string $raison): void
+    {
+        if ($reversement->alerte_le !== null) {
+            return;
+        }
+
+        $reversement->forceFill(['erreur' => 'À vérifier par l’équipe.', 'alerte_le' => now()])->save();
+        AlerteAdmin::envoyer("Reversement n° {$reversement->id} à vérifier", [
+            "{$raison} Montant : {$reversement->montant} F, vers {$reversement->numero_masque} ({$reversement->reseau}).",
+            'Cherchez le payout dans le tableau de bord SasPay (clé d’idempotence '.$reversement->cle_idempotence.') avant de rendre le solde au dev.',
+        ]);
     }
 
     private function echouer(Reversement $reversement, string $erreur): void
