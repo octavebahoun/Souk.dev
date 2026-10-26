@@ -6,11 +6,14 @@ import { teintes } from './teintes'
 import { messageAction } from '../echange/api'
 import { nomPays } from '../echange/texte'
 import { Modal } from '../../shared/ui/Modal'
+import { useCompte } from '../../app/compte'
+import { RapportSecurite } from '../securite/RapportSecurite'
 
 const hebergement = { petite: 3500, moyenne: 7000, grande: 13500 }
 const tailleNom = { petite: 'Petite, 512 Mo', moyenne: 'Moyenne, 1 Go', grande: 'Grande, 2 Go' }
 
 export function Fiche() {
+  const compte = useCompte()
   const { id = '' } = useParams()
   const appli = useQuery({
     queryKey: ['appli', id],
@@ -101,6 +104,8 @@ export function Fiche() {
               <p className="m-0 text-[13.5px] text-muted">Affiché depuis le README du dépôt.</p>
             </section>
 
+            <RapportSecurite appId={fiche.id} securite={fiche.securite} estAuteur={compte.data?.id === fiche.auteur.id} />
+
             <section aria-labelledby="titre-discussions" className="flex flex-col gap-3">
               <div className="flex items-center gap-2.5">
                 <h2 id="titre-discussions" className="m-0 text-[26px] font-bold tracking-tight">Discussions</h2>
@@ -152,7 +157,6 @@ export function Fiche() {
               <div className="flex justify-between gap-3"><dt className="text-subtle">Commission Souk.dev</dt><dd className="m-0 font-semibold text-success">0 F</dd></div>
               <div className="flex justify-between gap-3 border-t border-[#EEF2F9] pt-2 font-bold"><dt>Total affiché</dt><dd className="m-0">{fcfa(fiche.prix + host)}</dd></div>
             </dl>
-            <p className="m-0 text-[13px] text-muted">Le paiement n’est pas encore activé sur la plateforme.</p>
             {fiche.demo_url ? <a href={fiche.demo_url} target="_blank" rel="noreferrer" className="inline-flex min-h-12 items-center justify-center rounded-xl bg-accent font-semibold text-canvas no-underline">Ouvrir l’application publiée ↗</a> : <p className="m-0 text-sm text-muted">L’auteur n’a pas renseigné d’URL publique pour cette application.</p>}
             <Link to={`/store/${fiche.id}/deployer`} className="inline-flex min-h-cible items-center justify-center rounded-controle bg-ink font-semibold text-canvas no-underline">Déployer ma copie</Link>
             <button type="button" onClick={() => setMission(true)} className="min-h-cible rounded-controle border border-line bg-canvas font-semibold">Demander une version sur mesure</button>

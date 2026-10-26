@@ -35,6 +35,10 @@ class DemoMiroirs extends Command
             File::ensureDirectoryExists(dirname($depot));
             File::copyDirectory($source, $travail);
 
+            if ($nom === 'fuite') {
+                $this->ajouterSecretFactice($travail);
+            }
+
             $git = fn (array $arguments, ?string $dossier = null) => Commande::isolee([
                 'GIT_CONFIG_GLOBAL' => '/dev/null',
                 'GIT_CONFIG_NOSYSTEM' => '1',
@@ -52,5 +56,16 @@ class DemoMiroirs extends Command
         }
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Une fausse clé de paiement, assemblée ici à chaque construction : aucun motif de clé
+     * n'existe dans le dépôt de Souk.dev (ni pour gitleaks, ni pour le scan de GitHub).
+     */
+    private function ajouterSecretFactice(string $travail): void
+    {
+        $cle = 'sk'.'_'.'live'.'_'.'51Factice'.bin2hex(random_bytes(16));
+        File::ensureDirectoryExists($travail.'/config');
+        File::put($travail.'/config/paiement.js', "// Oubli volontaire du jeu de démo : la publication doit être refusée.\nexport const cle = '{$cle}'\n");
     }
 }
