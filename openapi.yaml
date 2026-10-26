@@ -888,8 +888,9 @@ paths:
       description: >-
         L'analyse tourne en arrière-plan chez DeepSeek ; son résultat arrive par Reverb (analyse_ia.terminee sur
         discussion.{id}) et dans le champ analyse_ia de la discussion. Une nouvelle demande remplace l'analyse
-        précédente. 409 si une analyse est déjà en cours ; 429 (avec Retry-After) au-delà de 3 demandes en
-        24 heures, les échecs ne comptant pas. Les clés repérées dans la fiche sont masquées avant l'envoi.
+        précédente ; une fiche modifiée périme l'analyse. 409 si une analyse est déjà en cours (moins de
+        10 minutes) ; 429 (avec Retry-After) au-delà de 3 demandes en 24 heures (les pannes du fournisseur ne
+        comptent pas, 6 tentatives au plus). Les clés repérées dans la fiche sont masquées avant l'envoi.
       requestBody:
         required: true
         content:
@@ -908,12 +909,14 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/AnalyseIa' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
         '403': { $ref: '#/components/responses/Interdit' }
         '404': { $ref: '#/components/responses/Introuvable' }
         '409': { $ref: '#/components/responses/Conflit' }
         '422': { $ref: '#/components/responses/Invalide' }
         '429': { $ref: '#/components/responses/TropDeRequetes' }
         '419': { $ref: '#/components/responses/CsrfInvalide' }
+        '503': { $ref: '#/components/responses/Indisponible' }
 
   /messages/{id}:
     parameters:

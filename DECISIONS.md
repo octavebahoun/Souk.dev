@@ -380,7 +380,14 @@ Choix faits par l'agent en exécutant `BRIEF.md` (le brief passe avant ce fichie
 
 - **2026-10-26 — Souk AI sur l'API officielle DeepSeek**, modèle `deepseek-flash` lu dans `GET /models` (DeepSeek-V4.1-Flash), derrière `FournisseurIa` ; `DEEPSEEK_MODELE` le change. Le fournisseur simulé sert aux tests, au travail hors ligne et au dépôt cloné sans clé ; il est refusé en production.
 - **2026-10-26 — Consentement exigé par l'API**, pas seulement par l'écran : `consentement: true` obligatoire, date gardée avec la demande.
-- **2026-10-26 — « 3 par jour » = 3 sur 24 heures glissantes**, échecs exclus (une panne du fournisseur ne coûte rien au dev), vérifiées sous le verrou du compte. Raison : pas de remise à zéro à minuit UTC (1 h du matin au Bénin), et un 429 qui dit quand réessayer.
+- **2026-10-26 — « 3 par jour » = 3 sur 24 heures glissantes**, vérifiées sous le verrou du compte. Raison : pas de remise à zéro à minuit UTC (1 h du matin au Bénin), et un 429 qui dit quand réessayer. Seules les pannes du fournisseur sont rendues, avec six tentatives au plus (revue de la phase 4).
 - **2026-10-26 — Secrets masqués avant l'envoi** : une fiche de bug contient souvent un extrait de configuration ; les motifs de clés courants sont remplacés avant de partir chez DeepSeek.
 - **2026-10-26 — Réponse rendue en Markdown simple, sans HTML** : titres, listes, gras, code ; un texte du modèle ne peut ni injecter de script ni de lien déguisé.
-- **2026-10-26 — Travail sur la file par défaut** : quelques secondes par analyse, après les paiements (le worker sert `paiements` en priorité).
+- **2026-10-26 — Après la revue de la phase 4** :
+  - une analyse survit à sa discussion et compte toujours : supprimer puis recréer un bug ne rend pas d'analyse ; une réponse refusée ou coupée compte aussi (sinon une fiche qui pousse le modèle à l'échec offrirait des appels sans limite) ;
+  - file et worker `ia` dédiés : une analyse ne retient jamais un paiement ; 6 000 jetons et 90 secondes au plus par appel, un seul nouvel essai ;
+  - bornes tirées au hasard autour de la fiche, champs tronqués, masquage élargi (tableaux PHP, JSON, `.env`, adresses, en-têtes, Telegram, SendGrid, Slack, clés privées coupées) ;
+  - une fiche modifiée périme ses analyses ; une relance qui échoue laisse la bonne analyse affichée ; une analyse « en cours » depuis plus de 10 minutes ne bloque plus rien ;
+  - alerte de l'équipe une fois par heure au plus, y compris pour un modèle ou un paramètre refusés ;
+  - événements Reverb allégés (texte abrégé, analyse sans texte) : Reverb refuse les messages de plus de 10 Ko ;
+  - une limite propre à l'action (429) montre son propre message à l'écran.

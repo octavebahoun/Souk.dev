@@ -16,7 +16,7 @@ final class DeepSeek implements FournisseurIa
         private string $cle,
         private string $modele,
         private string $url = 'https://api.deepseek.com',
-        private int $delai = 150,
+        private int $delai = 90,
     ) {}
 
     public function analyser(string $consigne, string $demande): ReponseIa
@@ -38,9 +38,10 @@ final class DeepSeek implements FournisseurIa
                         ['role' => 'system', 'content' => $consigne],
                         ['role' => 'user', 'content' => $demande],
                     ],
-                    // Le raisonnement compte dans max_tokens : assez pour réfléchir, pas de quoi s'emballer.
+                    // Le raisonnement compte dans max_tokens : assez pour une réponse de 300 mots, pas de
+                    // quoi écrire un roman si la fiche le demande (une réponse coupée compte dans la limite).
                     'reasoning_effort' => 'high',
-                    'max_tokens' => 16000,
+                    'max_tokens' => 6000,
                     'stream' => false,
                 ]);
         } catch (ConnectionException) {

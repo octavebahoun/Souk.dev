@@ -54,6 +54,8 @@
         <server name="REVERSEMENTS_REELS" value="false"/>
         <server name="SIMULATEUR_WEBHOOK_URL" value="http://localhost:8000/api/webhooks/saspay"/>
         <server name="ADMIN_EMAIL" value="admin@exemple.test"/>
+        <server name="IA_FOURNISSEUR" value="simulee"/>
+        <server name="DEEPSEEK_API_KEY" value=""/>
         <server name="MOTEUR_DELAI_PROXY" value="0"/>
         <server name="BROADCAST_CONNECTION" value="null"/>
         <server name="DEMO_CONNEXION" value="false"/>

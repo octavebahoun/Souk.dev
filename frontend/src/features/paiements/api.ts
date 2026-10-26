@@ -50,7 +50,12 @@ export function messageErreur(erreur: unknown, repli: string): string {
   const donnees = erreur.response.data as { message?: unknown; errors?: Record<string, unknown> } | undefined
   if (statut === 401) return 'Votre session a expiré. Connectez-vous pour continuer.'
   if (statut === 419) return 'La page a expiré. Rechargez-la, puis réessayez.'
-  if (statut === 429) return 'Trop de tentatives en peu de temps. Patientez une minute, puis réessayez.'
+  // Une limite propre à l'action (ex. 3 analyses par 24 heures) dit elle-même quand réessayer.
+  if (statut === 429) {
+    return typeof donnees?.message === 'string' && donnees.message !== '' && donnees.message !== 'Limite de débit atteinte.'
+      ? donnees.message
+      : 'Trop de tentatives en peu de temps. Patientez une minute, puis réessayez.'
+  }
   const premiere = donnees?.errors ? Object.values(donnees.errors).flat().find((texte) => typeof texte === 'string') : undefined
   if (typeof premiere === 'string') return premiere
   if (typeof donnees?.message === 'string' && donnees.message !== '' && statut < 500) return donnees.message

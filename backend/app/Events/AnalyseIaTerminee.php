@@ -25,9 +25,13 @@ class AnalyseIaTerminee implements ShouldBroadcast
         return 'analyse_ia.terminee';
     }
 
-    /** @return array{statut: string, texte: string|null, cree_le: string|null} */
+    /**
+     * Sans le texte : il peut dépasser la taille d'un message Reverb ; la page relit la discussion.
+     *
+     * @return array{statut: string, texte: string|null, cree_le: string|null}
+     */
     public function broadcastWith(): array
     {
-        return $this->analyse->versApi();
+        return $this->analyse->versApi(avecTexte: false);
     }
 }

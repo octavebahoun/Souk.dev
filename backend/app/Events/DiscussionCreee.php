@@ -38,6 +38,6 @@ final class DiscussionCreee implements ShouldBroadcastNow
     {
         $this->discussion->loadCount('messages');
 
-        return (new DiscussionResource($this->discussion))->resolve();
+        return DiscussionResource::pourDiffusion($this->discussion);
     }
 }

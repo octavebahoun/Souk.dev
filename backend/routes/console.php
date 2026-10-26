@@ -9,6 +9,7 @@ use App\Jobs\RapprocherPaiementsEnAttente;
 use App\Jobs\RecalculerProfils;
 use App\Jobs\ReversementsMensuels;
 use App\Jobs\VerifierReversements;
+use App\Models\AnalyseIa;
 use App\Models\CleIdempotence;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -26,6 +27,12 @@ Schedule::job(new NettoyerCopies)->everyFiveMinutes()->withoutOverlapping()->nam
 Schedule::job(new NettoyerAnalyses)->hourly()->name('analyses-nettoyage');
 Schedule::command('securite:analyser --toutes')->weeklyOn(0, '04:00')->name('securite-hebdomadaire');
 Schedule::command('securite:analyser')->dailyAt('04:30')->name('securite-oubliees');
+
+// Souk AI : une analyse restée « en cours » (travail perdu) devient « indisponible ».
+Schedule::call(fn () => AnalyseIa::query()
+    ->where('statut', 'en_cours')
+    ->where('created_at', '<', now()->subMinutes(AnalyseIa::MINUTES_AVANT_ABANDON))
+    ->update(['statut' => 'echec', 'erreur' => 'abandonnee', 'termine_le' => now()]))->everyFifteenMinutes()->name('souk-ai-abandons');
 
 // Souk Score : la fenêtre d'activité de 30 jours avance chaque nuit.
 Schedule::job(new RecalculerProfils)->dailyAt('03:00')->name('profils');

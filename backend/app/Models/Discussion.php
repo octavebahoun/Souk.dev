@@ -87,12 +87,34 @@ class Discussion extends Model
     }
 
     /**
-     * La dernière analyse Souk AI demandée : c'est elle qui s'affiche (une nouvelle remplace l'ancienne).
+     * La dernière analyse Souk AI encore valable (une fiche modifiée périme les précédentes).
      *
      * @return HasOne<AnalyseIa, $this>
      */
     public function derniereAnalyse(): HasOne
     {
-        return $this->hasOne(AnalyseIa::class)->latestOfMany();
+        return $this->hasOne(AnalyseIa::class)->ofMany(['id' => 'max'], fn ($analyses) => $analyses->where('statut', '!=', 'perimee'));
+    }
+
+    /**
+     * La dernière analyse prête : elle reste affichée si une relance échoue.
+     *
+     * @return HasOne<AnalyseIa, $this>
+     */
+    public function dernierePrete(): HasOne
+    {
+        return $this->hasOne(AnalyseIa::class)->ofMany(['id' => 'max'], fn ($analyses) => $analyses->where('statut', 'prete'));
+    }
+
+    /** Ce que montre la discussion : l'analyse en cours ou prête, sinon un échec ; jamais une périmée. */
+    public function analyseAffichee(): ?AnalyseIa
+    {
+        $derniere = $this->derniereAnalyse;
+
+        if ($derniere !== null && ($derniere->statut === 'echec' || $derniere->estAbandonnee()) && $this->dernierePrete !== null) {
+            return $this->dernierePrete;
+        }
+
+        return $derniere;
     }
 }

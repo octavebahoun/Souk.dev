@@ -23,4 +23,13 @@ describe('TexteMarkdown', () => {
     expect(container.querySelectorAll('p br')).toHaveLength(1)
     expect(screen.getByText('ligne').tagName).toBe('EM')
   })
+
+  it('garde le calcul intact, numérote une liste depuis son premier numéro et titre en h3', () => {
+    const { container } = render(<TexteMarkdown texte={'# Étapes\n3. vérifier\n4. rejouer\n\nTotal : 5*3*2 lignes'} />)
+
+    expect(container.querySelector('h3')?.textContent).toBe('Étapes')
+    expect(container.querySelector('ol')?.getAttribute('start')).toBe('3')
+    expect(container.querySelector('em')).toBeNull()
+    expect(screen.getByText(/5\*3\*2/)).toBeInTheDocument()
+  })
 })

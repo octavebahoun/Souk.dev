@@ -12,9 +12,9 @@ final class IaRefus extends RuntimeException
         parent::__construct($message);
     }
 
-    /** La clé est refusée ou le solde épuisé : l'équipe doit intervenir. */
+    /** Clé refusée, solde épuisé, modèle ou paramètre rejeté : l'équipe doit intervenir. */
     public function concerneLEquipe(): bool
     {
-        return in_array($this->statut, [401, 402, 403], true);
+        return in_array($this->statut, [400, 401, 402, 403, 404, 422], true);
     }
 }

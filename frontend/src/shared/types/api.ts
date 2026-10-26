@@ -525,7 +525,7 @@ export interface paths {
         put?: never;
         /**
          * Demander l'avis de Souk AI (auteur uniquement, discussion avec l'étiquette bug ; 3 par 24 heures)
-         * @description L'analyse tourne en arrière-plan chez DeepSeek ; son résultat arrive par Reverb (analyse_ia.terminee sur discussion.{id}) et dans le champ analyse_ia de la discussion. Une nouvelle demande remplace l'analyse précédente. 409 si une analyse est déjà en cours ; 429 (avec Retry-After) au-delà de 3 demandes en 24 heures, les échecs ne comptant pas. Les clés repérées dans la fiche sont masquées avant l'envoi.
+         * @description L'analyse tourne en arrière-plan chez DeepSeek ; son résultat arrive par Reverb (analyse_ia.terminee sur discussion.{id}) et dans le champ analyse_ia de la discussion. Une nouvelle demande remplace l'analyse précédente ; une fiche modifiée périme l'analyse. 409 si une analyse est déjà en cours (moins de 10 minutes) ; 429 (avec Retry-After) au-delà de 3 demandes en 24 heures (les pannes du fournisseur ne comptent pas, 6 tentatives au plus). Les clés repérées dans la fiche sont masquées avant l'envoi.
          */
         post: operations["createAnalyseIa"];
         delete?: never;
@@ -3387,12 +3387,14 @@ export interface operations {
                     "application/json": components["schemas"]["AnalyseIa"];
                 };
             };
+            401: components["responses"]["NonConnecte"];
             403: components["responses"]["Interdit"];
             404: components["responses"]["Introuvable"];
             409: components["responses"]["Conflit"];
             419: components["responses"]["CsrfInvalide"];
             422: components["responses"]["Invalide"];
             429: components["responses"]["TropDeRequetes"];
+            503: components["responses"]["Indisponible"];
         };
     };
     deleteMessage: {

@@ -6,11 +6,14 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * Une demande d'analyse Souk AI : la dernière d'une discussion est affichée, toutes comptent
- * pour la limite quotidienne de leur auteur et gardent la consommation du fournisseur.
+ * Une demande d'analyse Souk AI. Elle survit à sa discussion (la limite de l'auteur ne se
+ * contourne pas en supprimant le bug) ; « perimee » quand la fiche du bug a changé depuis.
  */
 class AnalyseIa extends Model
 {
+    /** Une analyse « en cours » plus vieille que ça est abandonnée (travail perdu, file en panne). */
+    public const MINUTES_AVANT_ABANDON = 10;
+
     protected $table = 'analyses_ia';
 
     protected $fillable = ['discussion_id', 'user_id', 'statut', 'consentement_le'];
@@ -41,12 +44,19 @@ class AnalyseIa extends Model
         return $this->belongsTo(User::class, 'user_id');
     }
 
-    /** @return array{statut: string, texte: string|null, cree_le: string|null} */
-    public function versApi(): array
+    public function estAbandonnee(): bool
     {
+        return $this->statut === 'en_cours' && $this->created_at?->lt(now()->subMinutes(self::MINUTES_AVANT_ABANDON));
+    }
+
+    /** @return array{statut: string, texte: string|null, cree_le: string|null} */
+    public function versApi(bool $avecTexte = true): array
+    {
+        $statut = $this->estAbandonnee() ? 'echec' : (string) $this->statut;
+
         return [
-            'statut' => (string) $this->statut,
-            'texte' => $this->statut === 'prete' ? $this->texte : null,
+            'statut' => $statut,
+            'texte' => $statut === 'prete' && $avecTexte ? ($this->attributes['texte'] ?? null) : null,
             'cree_le' => $this->created_at?->toIso8601String(),
         ];
     }

@@ -10,13 +10,13 @@ export function TexteMarkdown({ texte, className }: { texte: string; className?:
   const blocs: ReactNode[] = []
   const lignes = texte.replace(/\r\n/g, '\n').split('\n')
   let paragraphe: string[] = []
-  let liste: { ordonnee: boolean; elements: string[] } | null = null
+  let liste: { ordonnee: boolean; debut: number; elements: string[] } | null = null
 
   const viderParagraphe = () => {
     if (paragraphe.length > 0) {
       const lignesDuParagraphe = paragraphe
       blocs.push(
-        <p key={blocs.length} className="m-0 wrap-break-word">
+        <p key={blocs.length} className="m-0 wrap-break-word whitespace-pre-wrap">
           {lignesDuParagraphe.map((ligne, index) => (
             <Fragment key={index}>
               {index > 0 ? <br /> : null}
@@ -33,7 +33,7 @@ export function TexteMarkdown({ texte, className }: { texte: string; className?:
       const elements = liste.elements.map((element, index) => <li key={index}>{enLigne(element)}</li>)
       blocs.push(
         liste.ordonnee ? (
-          <ol key={blocs.length} className="m-0 flex list-decimal flex-col gap-1 pl-5">
+          <ol key={blocs.length} start={liste.debut} className="m-0 flex list-decimal flex-col gap-1 pl-5">
             {elements}
           </ol>
         ) : (
@@ -67,21 +67,21 @@ export function TexteMarkdown({ texte, className }: { texte: string; className?:
     }
     const titre = /^#{1,6}\s+(.*)$/.exec(ligne)
     const puce = /^\s*[-*]\s+(.*)$/.exec(ligne)
-    const numero = /^\s*\d+[.)]\s+(.*)$/.exec(ligne)
+    const numero = /^\s*(\d+)[.)]\s+(.*)$/.exec(ligne)
     if (titre) {
       viderParagraphe()
       viderListe()
       blocs.push(
-        <p key={blocs.length} className="m-0 font-semibold text-titre">
+        <h3 key={blocs.length} className="m-0 text-corps font-semibold text-titre">
           {enLigne(titre[1])}
-        </p>,
+        </h3>,
       )
     } else if (puce || numero) {
       viderParagraphe()
       const ordonnee = Boolean(numero)
       if (liste && liste.ordonnee !== ordonnee) viderListe()
-      liste ??= { ordonnee, elements: [] }
-      liste.elements.push((puce ?? numero)![1])
+      liste ??= { ordonnee, debut: numero ? Number(numero[1]) : 1, elements: [] }
+      liste.elements.push(puce ? puce[1] : numero![2])
     } else if (ligne.trim() === '') {
       viderParagraphe()
       viderListe()
@@ -98,7 +98,8 @@ export function TexteMarkdown({ texte, className }: { texte: string; className?:
 
 /** **gras**, *italique* et `code` ; le reste est du texte. */
 function enLigne(texte: string): ReactNode[] {
-  return texte.split(/(\*\*[^*]+\*\*|\*[^*\s][^*]*\*|`[^`]+`)/g).map((morceau, index) => {
+  // L'italique n'existe qu'entre des mots entiers : « 5*3*2 » reste du calcul.
+  return texte.split(/(\*\*[^*]+\*\*|(?<![\w*])\*[^*\s](?:[^*]*[^*\s])?\*(?![\w*])|`[^`]+`)/g).map((morceau, index) => {
     if (morceau.startsWith('**') && morceau.endsWith('**') && morceau.length > 4) {
       return (
         <strong key={index} className="font-semibold text-titre">

@@ -53,11 +53,13 @@ test.describe.serial('souk ai', () => {
     await expect(consentement.getByRole('button', { name: 'Lancer l’analyse' })).toBeDisabled()
     await consentement.getByLabel('J’accepte que ma fiche et mon code partent chez DeepSeek').check()
     await consentement.getByRole('button', { name: 'Lancer l’analyse' }).click()
-    await expect(analyse.getByRole('status')).toContainText('Analyse en cours')
+    await expect(analyse.getByText('Analyse en cours. La réponse arrive ici, sans recharger la page.')).toBeVisible()
+    await expect(analyse.getByRole('heading', { name: /Analyse IA/ })).toBeFocused()
 
-    // La réponse de DeepSeek (quelques secondes à une minute) remplace l'attente, rendue en Markdown.
-    await expect(analyse.getByRole('status')).toBeHidden({ timeout: 180_000 })
-    await expect(analyse.getByText('Analyse indisponible')).toBeHidden()
+    // La réponse de DeepSeek (quelques secondes à une minute) remplace l'attente, rendue en Markdown,
+    // et la zone annoncée aux lecteurs d'écran le dit.
+    await expect(analyse.getByRole('status')).toHaveText('Analyse de Souk AI prête.', { timeout: 180_000 })
+    await expect(analyse.getByText('Analyse en cours. La réponse arrive ici, sans recharger la page.')).toBeHidden()
     expect(await analyse.locator('p, li, pre').count()).toBeGreaterThan(4)
     await expect(analyse.getByRole('button', { name: 'Relancer l’analyse' })).toBeVisible()
     expect(resumer(await auditAxe(page))).toBe('')

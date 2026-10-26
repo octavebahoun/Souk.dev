@@ -40,7 +40,7 @@ final class DiscussionController extends Controller
         ]);
 
         $discussions = Discussion::query()
-            ->with(['auteur', 'canal', 'derniereAnalyse'])
+            ->with(['auteur', 'canal', 'derniereAnalyse', 'dernierePrete'])
             ->withCount('messages')
             ->when($request->filled('app'), fn ($query) => $query->where('app_id', $request->integer('app')))
             ->when($request->filled('canal'), function ($query) use ($request): void {

@@ -7,6 +7,7 @@ namespace App\Http\Resources;
 use App\Models\Discussion;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Str;
 
 final class DiscussionResource extends JsonResource
 {
@@ -17,7 +18,7 @@ final class DiscussionResource extends JsonResource
     {
         /** @var Discussion $discussion */
         $discussion = $this->resource;
-        $discussion->loadMissing('auteur', 'canal', 'derniereAnalyse');
+        $discussion->loadMissing('auteur', 'canal', 'derniereAnalyse', 'dernierePrete');
 
         return [
             'id' => $discussion->id,
@@ -31,11 +32,31 @@ final class DiscussionResource extends JsonResource
             'etiquettes' => array_values($discussion->etiquettes ?? []),
             'bug' => $this->bug($discussion),
             'copie_test' => $discussion->copieTest?->versApi(),
-            'analyse_ia' => $discussion->derniereAnalyse?->versApi(),
+            'analyse_ia' => $discussion->analyseAffichee()?->versApi(),
             'resolue' => $discussion->resolue,
             'nb_messages' => $discussion->messages_count ?? $discussion->messages()->count(),
             'cree_le' => $discussion->created_at?->toIso8601String(),
         ];
+    }
+
+    /**
+     * Charge utile des événements Reverb : texte abrégé, analyse sans son texte. Reverb refuse
+     * les messages de plus de 10 Ko ; la page relit la discussion complète par l'API.
+     *
+     * @return array<string, mixed>
+     */
+    public static function pourDiffusion(Discussion $discussion): array
+    {
+        $donnees = (new self($discussion))->resolve();
+        $donnees['texte'] = Str::limit((string) $donnees['texte'], 500);
+        if (is_array($donnees['analyse_ia'])) {
+            $donnees['analyse_ia']['texte'] = null;
+        }
+        if (is_array($donnees['bug']) && is_string($donnees['bug']['code'] ?? null)) {
+            $donnees['bug']['code'] = Str::limit($donnees['bug']['code'], 500);
+        }
+
+        return $donnees;
     }
 
     /**

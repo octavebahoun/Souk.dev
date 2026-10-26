@@ -86,6 +86,15 @@ Journal de l'agent, tenu à jour en continu (voir `BRIEF.md`, section 1).
 ### Phase 4 — Intelligence
 - [x] Souk AI : API DeepSeek (`deepseek-flash`), consentement exigé par l'API, 3 sur 24 heures (échecs exclus), une à la fois, résultat par Reverb (`analyse_ia.terminee`), secrets masqués avant l'envoi, réponse en Markdown sans HTML
 - [x] Sortie : une analyse réelle s'affiche à côté des correctifs (E2E, DeepSeek, environ 8 s) ; la 4ᵉ demande en 24 heures reçoit 429
+- [x] Revue indépendante de la phase 4 (sous-agent neuf) : 15 constats, tous traités
+
+**Revue indépendante de la phase 4** :
+1. Supprimer la discussion rendait l'analyse (environ 240 par jour au lieu de 3) → les analyses survivent à leur discussion et comptent.
+2. Échecs provoqués gratuits, dépense sans plafond → refus comptés, pannes rendues dans la limite de six tentatives, 6 000 jetons et fiche tronquée.
+3. Analyses devant les paiements sur le même worker → file et worker `ia`.
+4. Masquage incomplet (PHP, JSON, `.env`, adresses, Bearer, MTN MoMo…) → motifs élargis, un test par format.
+5. Bloc de la fiche refermable, analyse gardée après modification → bornes aléatoires, analyses périmées à chaque modification.
+6. à 15. Analyse « en cours » éternelle, message du quota masqué à l'écran, alertes en rafale, annonces et focus, bonne analyse cachée par une relance ratée, « 1 h 60 », messages Reverb trop gros, 401 au contrat, rendu Markdown (retraits, italique, numérotation, titres), tests manquants.
 
 ### Phase 5 — Plateforme
 - [ ] Mises à jour poussées (sauvegarde des volumes, retour arrière si la sonde échoue)

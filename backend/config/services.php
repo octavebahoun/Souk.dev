@@ -48,7 +48,7 @@ return [
         'cle' => env('DEEPSEEK_API_KEY'),
         'url' => env('DEEPSEEK_BASE_URL', 'https://api.deepseek.com'),
         'modele' => env('DEEPSEEK_MODELE', 'deepseek-flash'),
-        'delai' => 150,
+        'delai' => 90,
     ],
 
     'github' => [

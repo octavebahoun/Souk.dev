@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { LoaderCircle } from 'lucide-react'
 import { Alerte, Bouton, CaseACocher, Carte, Modale } from '../../ui'
@@ -16,6 +16,16 @@ export function AnalyseSoukAi({ discussionId, analyse, auteur }: { discussionId:
   const [ouverte, setOuverte] = useState(false)
   const [accord, setAccord] = useState(false)
   const [erreur, setErreur] = useState<string | null>(null)
+  const titre = useRef<HTMLHeadingElement>(null)
+  // Une seule zone annoncée, toujours présente : le début, la fin et l'échec d'une analyse sont dits.
+  const annonce =
+    analyse?.statut === 'en_cours'
+      ? 'Analyse en cours.'
+      : analyse?.statut === 'prete'
+        ? 'Analyse de Souk AI prête.'
+        : analyse?.statut === 'echec'
+          ? 'Analyse indisponible.'
+          : ''
 
   const demande = useMutation({
     mutationFn: () => demanderAnalyse(discussionId),
@@ -24,6 +34,8 @@ export function AnalyseSoukAi({ discussionId, analyse, auteur }: { discussionId:
       setOuverte(false)
       setAccord(false)
       setErreur(null)
+      // Le bouton qui a ouvert la fenêtre disparaît pendant l'analyse : le focus va au titre du panneau.
+      window.setTimeout(() => titre.current?.focus(), 0)
     },
     onError: (probleme) => setErreur(messageErreur(probleme, 'L’analyse n’a pas pu être demandée. Réessayez dans un instant.')),
   })
@@ -36,7 +48,7 @@ export function AnalyseSoukAi({ discussionId, analyse, auteur }: { discussionId:
   return (
     <Carte as="section" aria-labelledby="titre-ia" className="mt-2 flex flex-col gap-3">
       <div className="flex flex-col gap-0.5">
-        <h2 id="titre-ia" className="m-0 flex items-center gap-2 text-corps-l font-semibold text-titre">
+        <h2 id="titre-ia" ref={titre} tabIndex={-1} className="m-0 flex items-center gap-2 text-corps-l font-semibold text-titre focus:outline-none">
           <span aria-hidden="true">🤖</span> Analyse IA
         </h2>
         <p className="m-0 text-petit text-texte-doux">Souk AI propose une piste, pas un correctif : la communauté et l’auteur décident.</p>
@@ -52,8 +64,11 @@ export function AnalyseSoukAi({ discussionId, analyse, auteur }: { discussionId:
       ) : null}
       {!analyse && !auteur ? <p className="m-0 text-petit text-texte-doux">Pas encore d’analyse : seul l’auteur du bug peut la demander.</p> : null}
 
+      <p role="status" className="pour-lecteur">
+        {annonce}
+      </p>
       {analyse?.statut === 'en_cours' ? (
-        <p role="status" className="m-0 flex items-center gap-2 rounded-moyen bg-fond-ia p-3 text-petit text-ia">
+        <p className="m-0 flex items-center gap-2 rounded-moyen bg-fond-ia p-3 text-petit text-ia">
           <LoaderCircle aria-hidden="true" className="size-4 shrink-0 animate-tourne" />
           Analyse en cours. La réponse arrive ici, sans recharger la page.
         </p>
