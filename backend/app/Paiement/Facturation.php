@@ -37,6 +37,8 @@ final class Facturation
                 'etat' => 'attente_paiement',
                 'variables' => $variables,
             ]);
+            // La copie démarrera sur la dernière version publiée, et y restera jusqu'à ce que son client en change.
+            $deploiement->forceFill(['version_id' => $appli->versionPubliee?->id])->save();
 
             $abonnement = Abonnement::query()->create([
                 'deploiement_id' => $deploiement->id,

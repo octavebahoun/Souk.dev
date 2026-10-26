@@ -7,7 +7,7 @@ Journal de l'agent, tenu à jour en continu (voir `BRIEF.md`, section 1).
 
 - **Branche** : `saas-complet`, partie de `main` (la PR #28 `fin-mvp` y est fusionnée).
 - **Phase en cours** : 5 — Plateforme (phase 4 terminée : revue indépendante faite, 15 constats traités).
-- **Tâche suivante** : mises à jour poussées (version publiée par le dev, clients prévenus, redéploiement sauvegardé et retour arrière si la sonde échoue).
+- **Tâche suivante** : backend intégré complet (connexion des utilisateurs finaux par SMS et e-mail, sauvegarde quotidienne, export par copie).
 
 ## Étape 0 (25 octobre)
 
@@ -97,7 +97,7 @@ Journal de l'agent, tenu à jour en continu (voir `BRIEF.md`, section 1).
 6. à 15. Analyse « en cours » éternelle, message du quota masqué à l'écran, alertes en rafale, annonces et focus, bonne analyse cachée par une relance ratée, « 1 h 60 », messages Reverb trop gros, 401 au contrat, rendu Markdown (retraits, italique, numérotation, titres), tests manquants.
 
 ### Phase 5 — Plateforme
-- [ ] Mises à jour poussées (sauvegarde des volumes, retour arrière si la sonde échoue)
+- [x] Mises à jour poussées : versions publiées par l'auteur (vérifiées comme une publication, commit épinglé), clients prévenus, mise à jour choisie par le client avec sauvegarde des volumes et retour arrière automatique ; vérifié en réel (version 2 appliquée, version cassée revenue d'elle-même)
 - [ ] Backend intégré complet : connexion SMS et e-mail des utilisateurs finaux, sauvegarde quotidienne, export
 - [ ] Plusieurs serveurs : liste, placement, maintenance, état ; test local avec deux machines
 

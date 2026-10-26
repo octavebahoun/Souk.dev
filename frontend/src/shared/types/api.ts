@@ -301,6 +301,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/apps/{id}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        /** Versions d'une appli, la plus récente d'abord (publiques une fois vérifiées ; l'auteur voit aussi celles en vérification ou refusées) */
+        get: operations["listAppVersions"];
+        put?: never;
+        /** Publier une nouvelle version (auteur) : une branche, un tag ou un commit du dépôt, vérifié comme à la publication (soukdev.json, docker-compose.yml, secrets) ; les clients sont prévenus et choisissent quand l'appliquer */
+        post: operations["createAppVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/apps/{id}/securite": {
         parameters: {
             query?: never;
@@ -429,6 +449,25 @@ export interface paths {
          * @description L'arrêt tourne en arrière-plan sur le moteur : l'état passe à arret_en_cours, puis à arrete (conteneurs, volumes et dossier supprimés), diffusé par Reverb. Si Docker refuse deux fois, le déploiement passe en echec avec son message et l'arrêt est retenté par le nettoyage planifié. Déjà arrêté ou en cours d'arrêt : rien ne change.
          */
         delete: operations["deleteDeployment"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/deployments/{id}/mise-a-jour": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Appliquer une nouvelle version à sa copie (client propriétaire) : volumes sauvegardés, redéploiement, retour automatique à la version précédente si la nouvelle ne démarre pas */
+        post: operations["updateDeployment"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1443,6 +1482,8 @@ export interface components {
             readme?: string | null;
         };
         App: {
+            /** @description Numéro de la dernière version publiée (1 : la publication) */
+            version: number;
             /** @description Moyenne des avis des clients (1 à 5, une décimale) ; null sans avis */
             note_moyenne: number | null;
             /** @description Nombre d'avis de clients */
@@ -1602,10 +1643,10 @@ export interface components {
              */
             type: "client" | "test" | "correctif";
             /**
-             * @description Copie client : attente_paiement jusqu'au paiement de la première facture. Puis en_file → construction → demarrage → en_ligne ; echec à n'importe quelle étape ; suspendu après 7 jours de facture impayée (réactivée au paiement) ; arret_en_cours puis arrete après DELETE /deployments/{id} ou 30 jours de suspension
+             * @description Copie client : attente_paiement jusqu'au paiement de la première facture. Puis en_file → construction → demarrage → en_ligne ; echec à n'importe quelle étape ; suspendu après 7 jours de facture impayée (réactivée au paiement) ; mise_a_jour pendant l'application d'une nouvelle version (retour à en_ligne, sur la nouvelle version ou la précédente) ; arret_en_cours puis arrete après DELETE /deployments/{id} ou 30 jours de suspension
              * @enum {string}
              */
-            etat: "attente_paiement" | "en_file" | "construction" | "demarrage" | "en_ligne" | "echec" | "suspendu" | "arret_en_cours" | "arrete";
+            etat: "attente_paiement" | "en_file" | "construction" | "demarrage" | "en_ligne" | "echec" | "suspendu" | "mise_a_jour" | "arret_en_cours" | "arrete";
             /**
              * Format: uri
              * @description Renseignée quand l'état est en_ligne
@@ -1619,6 +1660,56 @@ export interface components {
             abonnement: components["schemas"]["Abonnement"] | null;
             /** @description La facture à régler pour démarrer ou garder la copie ; null si tout est payé */
             facture_a_payer: components["schemas"]["FactureResume"] | null;
+            /** @description Numéro de la version de l'appli que la copie fait tourner ; null pour une copie de test */
+            version: number | null;
+            /** @description Version publiée plus récente que celle de la copie (copie client seulement), à appliquer quand le client le choisit */
+            version_disponible: components["schemas"]["VersionResume"] | null;
+            /** @description Dernière mise à jour demandée pour cette copie */
+            mise_a_jour: components["schemas"]["MiseAJour"] | null;
+        };
+        VersionResume: {
+            numero: number;
+            /** @description Ce qui change, écrit par l'auteur */
+            notes: string | null;
+            /** Format: date-time */
+            cree_le: string;
+        };
+        MiseAJour: {
+            /**
+             * @description reussie : la copie tourne sur la nouvelle version ; retablie : la nouvelle version n'a pas démarré, la copie est revenue à la précédente avec ses données ; echouee : le retour n'a pas pu se faire (l'équipe est prévenue)
+             * @enum {string}
+             */
+            statut: "en_file" | "en_cours" | "reussie" | "retablie" | "echouee";
+            de_version: number | null;
+            vers_version: number;
+            /** @description Ce qui a empêché la nouvelle version de démarrer */
+            erreur: string | null;
+            /** Format: date-time */
+            cree_le: string;
+            /** Format: date-time */
+            termine_le: string | null;
+        };
+        VersionAppli: {
+            id: number;
+            /** @description 1 : la publication */
+            numero: number;
+            /** @description Branche, tag ou commit demandé par l'auteur ; null pour la publication */
+            ref: string | null;
+            /** @description Commit vérifié (40 caractères hexadécimaux) ; null avant la vérification */
+            commit: string | null;
+            notes: string | null;
+            /** @enum {string} */
+            statut: "verification" | "publiee" | "refusee";
+            /** @description Raison du refus (soukdev.json, docker-compose.yml, secret…) */
+            erreur: string | null;
+            /** Format: date-time */
+            cree_le: string;
+        };
+        VersionCreation: {
+            /** @description Branche, tag ou commit ; par défaut la branche du dépôt publié */
+            ref?: string;
+            /** @description Ce qui change pour les clients */
+            notes: string;
         };
         DeploiementCreation: {
             /** @description Valeurs des variables_client de l'appli, ex. {"PHARMACIE_NOM": "Pharmacie du Port"} */
@@ -2028,7 +2119,7 @@ export interface components {
             rembourse: boolean;
         };
         /** @enum {string} */
-        TypeNotification: "correctif_propose" | "correctif_accepte" | "message_mission" | "echeance" | "suspension" | "reversement";
+        TypeNotification: "correctif_propose" | "correctif_accepte" | "message_mission" | "echeance" | "suspension" | "mise_a_jour" | "reversement";
         /** @description Diffusée aussi en direct : événement notification.creee sur le canal privé utilisateur.{id} */
         Notification: {
             /** Format: uuid */
@@ -2856,6 +2947,69 @@ export interface operations {
             422: components["responses"]["Invalide"];
         };
     };
+    listAppVersions: {
+        parameters: {
+            query?: {
+                /** @description Numéro de page (commence à 1) */
+                page?: components["parameters"]["Page"];
+                /** @description Éléments par page (50 maximum) */
+                per_page?: components["parameters"]["ParPage"];
+            };
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Versions */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pagination"] & {
+                        data: components["schemas"]["VersionAppli"][];
+                    };
+                };
+            };
+            404: components["responses"]["Introuvable"];
+        };
+    };
+    createAppVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VersionCreation"];
+            };
+        };
+        responses: {
+            /** @description Version en vérification */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VersionAppli"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+            404: components["responses"]["Introuvable"];
+            409: components["responses"]["Conflit"];
+            419: components["responses"]["CsrfInvalide"];
+            422: components["responses"]["Invalide"];
+            429: components["responses"]["TropDeRequetes"];
+        };
+    };
     rescanAppSecurity: {
         parameters: {
             query?: never;
@@ -3129,6 +3283,45 @@ export interface operations {
             403: components["responses"]["Interdit"];
             404: components["responses"]["Introuvable"];
             419: components["responses"]["CsrfInvalide"];
+        };
+    };
+    updateDeployment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /** @description Numéro de la version ; par défaut la dernière publiée */
+                    version?: number;
+                    /** @description Valeurs des nouvelles variables « client » que demande cette version */
+                    variables?: {
+                        [key: string]: string;
+                    };
+                };
+            };
+        };
+        responses: {
+            /** @description Mise à jour en file ; la copie passe à l'état mise_a_jour */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Deploiement"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            404: components["responses"]["Introuvable"];
+            409: components["responses"]["Conflit"];
+            419: components["responses"]["CsrfInvalide"];
+            422: components["responses"]["Invalide"];
+            429: components["responses"]["TropDeRequetes"];
         };
     };
     listDiscussions: {

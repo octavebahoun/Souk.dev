@@ -224,6 +224,7 @@ const etatCopie = {
   echec: 'Échec',
   arret_en_cours: 'Arrêt en cours',
   suspendu: 'Suspendue',
+  mise_a_jour: 'Mise à jour',
   arrete: 'Arrêtée',
 } as const
 

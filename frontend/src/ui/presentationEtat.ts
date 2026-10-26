@@ -16,6 +16,7 @@ const tonsCopie: Record<string, { ton: TonBadge; enCours: boolean }> = {
   arret_en_cours: { ton: 'neutre', enCours: true },
   arrete: { ton: 'neutre', enCours: false },
   suspendu: { ton: 'danger', enCours: false },
+  mise_a_jour: { ton: 'info', enCours: true },
 }
 
 /** Couleur et libellé d'un état de copie (docs/design.md, § 8). */

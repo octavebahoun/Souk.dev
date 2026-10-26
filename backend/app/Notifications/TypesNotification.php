@@ -35,6 +35,11 @@ final class TypesNotification
             'description' => 'Copie suspendue faute de paiement, dernier avertissement, arrêt, copie qui ne démarre pas.',
             'email_obligatoire' => true,
         ],
+        'mise_a_jour' => [
+            'libelle' => 'Mises à jour de vos copies',
+            'description' => 'Une nouvelle version d’une appli que vous utilisez, puis le résultat de sa mise à jour.',
+            'email_obligatoire' => false,
+        ],
         'reversement' => [
             'libelle' => 'Reversements',
             'description' => 'Argent envoyé sur votre Mobile Money, ou refusé par le réseau.',

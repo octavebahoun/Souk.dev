@@ -121,6 +121,11 @@ class PublicationAppliTest extends TestCase
                 return Process::result(errorOutput: 'inattendu', exitCode: 1);
             }
 
+            // Le commit lu après le clonage (version 1 de l'appli).
+            if (($process->command[1] ?? '') === 'rev-parse') {
+                return Process::result(str_repeat('a', 40));
+            }
+
             $destination = $process->command[array_key_last($process->command)];
             File::ensureDirectoryExists($destination);
             file_put_contents(

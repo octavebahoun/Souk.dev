@@ -159,6 +159,9 @@ class AppServiceProvider extends ServiceProvider
         // Vérifier ou publier un dépôt occupe le worker des secrets : 20 par heure et par compte.
         RateLimiter::for('depots', fn (Request $request) => Limit::perHour(20)->by('depots:'.($request->user()?->id ?? $request->ip())));
 
+        // Publier une version ou mettre à jour une copie occupe le moteur : 10 par heure et par compte.
+        RateLimiter::for('versions', fn (Request $request) => Limit::perHour(10)->by('versions:'.($request->user()?->id ?? $request->ip())));
+
         // Un avis par client et par appli : les écritures sont rares.
         RateLimiter::for('avis', fn (Request $request) => Limit::perHour(10)->by('avis:'.($request->user()?->id ?? $request->ip())));
 

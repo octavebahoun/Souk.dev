@@ -12,6 +12,7 @@ use Database\Factories\DeploiementFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Throwable;
 
@@ -55,6 +56,42 @@ class Deploiement extends Model
     public function appli(): BelongsTo
     {
         return $this->belongsTo(Appli::class)->withTrashed();
+    }
+
+    /**
+     * @return BelongsTo<VersionAppli, $this>
+     */
+    public function version(): BelongsTo
+    {
+        return $this->belongsTo(VersionAppli::class, 'version_id');
+    }
+
+    /**
+     * @return HasMany<MiseAJour, $this>
+     */
+    public function misesAJour(): HasMany
+    {
+        return $this->hasMany(MiseAJour::class);
+    }
+
+    /**
+     * @return HasOne<MiseAJour, $this>
+     */
+    public function derniereMiseAJour(): HasOne
+    {
+        return $this->hasOne(MiseAJour::class)->latestOfMany();
+    }
+
+    /** Une version publiée plus récente que celle de la copie client, à appliquer quand le client le choisit. */
+    public function versionDisponible(): ?VersionAppli
+    {
+        if ($this->type !== 'client' || $this->appli === null) {
+            return null;
+        }
+
+        $publiee = $this->appli->versionPubliee;
+
+        return $publiee !== null && $publiee->numero > (int) $this->version?->numero ? $publiee : null;
     }
 
     public function abonnement(): HasOne
@@ -181,7 +218,7 @@ class Deploiement extends Model
      */
     public function versApi(): array
     {
-        $this->loadMissing('appli');
+        $this->loadMissing(['appli.versionPubliee', 'version', 'derniereMiseAJour']);
 
         return [
             'id' => $this->id,
@@ -195,6 +232,9 @@ class Deploiement extends Model
             'cree_le' => $this->created_at->toIso8601String(),
             'abonnement' => $this->type === 'client' ? $this->abonnement?->versApi() : null,
             'facture_a_payer' => $this->factureAPayer(),
+            'version' => $this->version?->numero,
+            'version_disponible' => $this->versionDisponible()?->resume(),
+            'mise_a_jour' => $this->derniereMiseAJour?->versApi(),
         ];
     }
 

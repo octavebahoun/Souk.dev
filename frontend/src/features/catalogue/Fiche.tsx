@@ -9,6 +9,7 @@ import { Modal } from '../../shared/ui/Modal'
 import { useCompte } from '../../app/compte'
 import { RapportSecurite } from '../securite/RapportSecurite'
 import { AvisClients } from './AvisClients'
+import { VersionsAppli } from './VersionsAppli'
 import { Etoiles, formaterNote } from '../../ui'
 
 const hebergement = { petite: 3500, moyenne: 7000, grande: 13500 }
@@ -125,6 +126,8 @@ export function Fiche() {
             <RapportSecurite appId={fiche.id} securite={fiche.securite} estAuteur={compte.data?.id === fiche.auteur.id} />
 
             <AvisClients appId={fiche.id} noteMoyenne={fiche.note_moyenne} nbAvis={fiche.nb_avis} />
+
+            <VersionsAppli appId={fiche.id} estAuteur={compte.data?.id === fiche.auteur.id} />
 
             <section aria-labelledby="titre-discussions" className="flex flex-col gap-3">
               <div className="flex items-center gap-2.5">

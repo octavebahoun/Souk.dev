@@ -248,6 +248,9 @@ class DemoSeeder extends Seeder
                 'vues' => random_int(40, 900),
                 'created_at' => now()->subDays(random_int(3, 40)),
             ])->save();
+            // Version 1 : la publication (la branche publiée fait foi, sans commit épinglé).
+            $appli->versions()->create(['numero' => 1, 'statut' => 'publiee'])
+                ->forceFill(['created_at' => $appli->created_at])->save();
 
             $this->applis[$cle] = $appli;
         }
@@ -563,7 +566,7 @@ class DemoSeeder extends Seeder
             'etat' => $etat,
             'variables' => [],
         ]);
-        $copie->forceFill(['created_at' => $debut, 'updated_at' => $debut])->save();
+        $copie->forceFill(['created_at' => $debut, 'updated_at' => $debut, 'version_id' => $this->applis[$appli]->versionPubliee?->id])->save();
 
         return Abonnement::query()->create([
             'deploiement_id' => $copie->id,

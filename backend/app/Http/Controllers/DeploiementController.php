@@ -2,15 +2,19 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\MettreAJourCopie;
 use App\Models\Appli;
 use App\Models\Deploiement;
+use App\Models\MiseAJour;
 use App\Moteur\LimitesTaille;
 use App\Paiement\Facturation;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
 class DeploiementController extends Controller
 {
@@ -38,7 +42,7 @@ class DeploiementController extends Controller
 
         $deploiements = Deploiement::query()
             ->where('user_id', $request->user()->id)
-            ->with(['appli', 'abonnement.facturesAPayer'])
+            ->with(['appli.versionPubliee', 'version', 'derniereMiseAJour.deVersion', 'derniereMiseAJour.versVersion', 'abonnement.facturesAPayer'])
             ->when($request->filled('type'), fn ($requete) => $requete->where('type', $request->string('type')))
             ->latest()
             ->paginate($request->integer('per_page', 20))
@@ -52,6 +56,71 @@ class DeploiementController extends Controller
         Gate::authorize('view', $deploiement);
 
         return response()->json($deploiement->versApi());
+    }
+
+    /**
+     * Le client applique une nouvelle version à sa copie en ligne : la dernière publiée, ou celle
+     * qu'il choisit ; les nouvelles variables « client » qu'elle demande viennent avec la demande.
+     */
+    public function miseAJour(Request $request, Deploiement $deploiement): JsonResponse
+    {
+        Gate::authorize('mettreAJour', $deploiement);
+        $donnees = $request->validate([
+            'version' => ['sometimes', 'integer', 'min:1'],
+            'variables' => ['sometimes', 'array'],
+            'variables.*' => ['string', 'max:2000'],
+        ]);
+
+        $mise = DB::transaction(function () use ($deploiement, $donnees): MiseAJour {
+            $copie = Deploiement::query()->with(['appli', 'version'])->lockForUpdate()->findOrFail($deploiement->id);
+            if ($copie->type !== 'client' || $copie->appli === null) {
+                throw new ConflictHttpException('Seule une copie d’une appli du Store se met à jour.');
+            }
+            if ($copie->etat !== 'en_ligne') {
+                throw new ConflictHttpException($copie->etat === 'mise_a_jour'
+                    ? 'Une mise à jour de cette copie est déjà en cours.'
+                    : 'Seule une copie en ligne se met à jour.');
+            }
+
+            $actuelle = (int) $copie->version?->numero;
+            $cible = $copie->appli->versions()
+                ->where('statut', 'publiee')
+                ->where('numero', '>', $actuelle)
+                ->when(isset($donnees['version']), fn ($versions) => $versions->where('numero', $donnees['version']))
+                ->orderByDesc('numero')
+                ->first();
+            if ($cible === null) {
+                throw new ConflictHttpException(isset($donnees['version'])
+                    ? 'Cette version n’existe pas, ou elle n’est pas plus récente que celle de votre copie.'
+                    : 'Votre copie est déjà à jour.');
+            }
+
+            // Les nouvelles variables « client » obligatoires de cette version doivent être fournies.
+            $connues = [...(is_array($copie->variables) ? $copie->variables : []), ...($donnees['variables'] ?? [])];
+            $manquantes = [];
+            foreach ((array) ($cible->manifeste['variables'] ?? []) as $variable) {
+                if (($variable['source'] ?? null) === 'client' && ($variable['requis'] ?? false) === true && ! array_key_exists($variable['nom'], $connues)) {
+                    $manquantes['variables.'.$variable['nom']] = "La version {$cible->numero} demande « {$variable['libelle']} ».";
+                }
+            }
+            if ($manquantes !== []) {
+                throw ValidationException::withMessages($manquantes);
+            }
+
+            $mise = $copie->misesAJour()->create([
+                'de_version_id' => $copie->version_id,
+                'vers_version_id' => $cible->id,
+                'statut' => 'en_file',
+                'variables' => $donnees['variables'] ?? [],
+            ]);
+            $copie->changerEtat('mise_a_jour');
+
+            return $mise;
+        });
+
+        MettreAJourCopie::dispatch($mise->id);
+
+        return response()->json($deploiement->refresh()->versApi(), 202);
     }
 
     /**

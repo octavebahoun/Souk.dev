@@ -25,15 +25,30 @@ class PublicationDepot
      */
     public function lire(string $url): array
     {
+        return $this->verifier($url)['manifeste'];
+    }
+
+    /**
+     * Le dépôt sur une branche, un tag ou un commit : son manifeste validé et le commit lu.
+     *
+     * @return array{manifeste: array<string, mixed>, commit: string}
+     */
+    public function verifier(string $url, ?string $ref = null, ?callable $aussi = null): array
+    {
         $copie = 'v'.bin2hex(random_bytes(4));
         $repertoire = null;
 
         try {
-            $repertoire = $this->cloneur->cloner($url, $copie);
+            $repertoire = $this->cloneur->cloner($url, $copie, ref: $ref);
             $manifeste = $this->validateur->validerFichier($repertoire.DIRECTORY_SEPARATOR.'soukdev.json');
             $this->lanceur->verifier($repertoire, $manifeste['service_web']['nom']);
+            $commit = $this->cloneur->commit($repertoire);
+            // Contrôle supplémentaire sur le même clone (recherche de secrets d'une nouvelle version).
+            if ($aussi !== null) {
+                $aussi($repertoire);
+            }
 
-            return $manifeste;
+            return ['manifeste' => $manifeste, 'commit' => $commit];
         } catch (DepotInvalide|ManifestInvalide|LancementEchoue $exception) {
             throw $exception;
         } catch (Throwable $exception) {

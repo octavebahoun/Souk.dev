@@ -11,6 +11,7 @@ use App\Jobs\ReversementsMensuels;
 use App\Jobs\VerifierReversements;
 use App\Models\AnalyseIa;
 use App\Models\CleIdempotence;
+use App\Moteur\SauvegardeVolumes;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -33,6 +34,9 @@ Schedule::call(fn () => AnalyseIa::query()
     ->where('statut', 'en_cours')
     ->where('created_at', '<', now()->subMinutes(AnalyseIa::MINUTES_AVANT_ABANDON))
     ->update(['statut' => 'echec', 'erreur' => 'abandonnee', 'termine_le' => now()]))->everyFifteenMinutes()->name('souk-ai-abandons');
+
+// Sauvegardes des copies (avant une mise à jour) : gardées 7 jours, la dernière de chaque copie toujours.
+Schedule::call(fn (SauvegardeVolumes $sauvegardes) => $sauvegardes->nettoyer((int) config('moteur.sauvegardes_jours', 7)))->dailyAt('05:00')->name('sauvegardes-nettoyage');
 
 // Souk Score : la fenêtre d'activité de 30 jours avance chaque nuit.
 Schedule::job(new RecalculerProfils)->dailyAt('03:00')->name('profils');

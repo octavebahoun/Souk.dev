@@ -59,19 +59,78 @@ class BackendIntegre
 
         $this->attendre($copie);
         $this->executer($copie, $this->roleAnon(), 'role');
+        // Le registre des migrations est hors du schéma public : PostgREST ne l'expose pas.
+        $this->executer($copie, 'CREATE SCHEMA IF NOT EXISTS soukdev; CREATE TABLE IF NOT EXISTS soukdev.migrations (nom text PRIMARY KEY, appliquee_le timestamptz NOT NULL DEFAULT now());', 'registre');
+        $deja = $this->migrationsAppliquees($copie);
 
+        // Une nouvelle version n'applique que ses nouvelles migrations, dans l'ordre des fichiers.
         foreach ($this->fichiers->lister($copie->repertoire, (string) $copie->manifeste['migrations']) as $fichier) {
+            $nom = basename($fichier);
+            if (in_array($nom, $deja, true)) {
+                continue;
+            }
+
             $contenu = file_get_contents($fichier);
 
             if ($contenu === false) {
-                throw new LancementEchoue(basename($fichier).' est illisible.');
+                throw new LancementEchoue($nom.' est illisible.');
             }
 
-            $this->executer($copie, $contenu, basename($fichier));
+            $this->executer($copie, $contenu, $nom);
+            $this->executer($copie, "INSERT INTO soukdev.migrations (nom) VALUES ('".str_replace("'", "''", $nom)."');", $nom);
         }
 
         $this->executer($copie, $this->droitsAnon(), 'droits');
         $this->rechargerApi($copie);
+    }
+
+    /**
+     * Mise à jour d'une copie « integre » : la même base (mot de passe, secret JWT, clé) pour le
+     * nouveau code ; seuls les services du nouveau docker-compose.yml reçoivent l'adresse et la clé.
+     *
+     * @param  array<string, mixed>  $manifeste
+     * @param  array<string, string>  $env
+     * @return array<string, string>
+     */
+    public function reconduire(string $ancien, string $nouveau, array $manifeste, array $env): array
+    {
+        if (($manifeste['backend'] ?? '') !== 'integre') {
+            return $env;
+        }
+
+        $compose = (string) @file_get_contents($ancien.DIRECTORY_SEPARATOR.'docker-compose.backend.yml');
+        if (preg_match('/POSTGRES_PASSWORD: "([0-9a-f]{48})"/', $compose, $motDePasse) !== 1
+            || preg_match('/PGRST_JWT_SECRET: "([0-9a-f]{48})"/', $compose, $secret) !== 1
+            || preg_match('/SOUKDEV_CLE: "([A-Za-z0-9._-]+)"/', $compose, $cle) !== 1) {
+            throw new LancementEchoue('Le backend intégré de la copie est illisible : la mise à jour ne peut pas garder sa base.');
+        }
+
+        $this->fichiers->lister($nouveau, (string) ($manifeste['migrations'] ?? ''));
+        $this->ecrireCompose($nouveau, $motDePasse[1], $secret[1], $cle[1], $this->servicesDev($nouveau));
+        $env['SOUKDEV_URL'] = 'http://soukdev-api:3000';
+        $env['SOUKDEV_CLE'] = $cle[1];
+
+        return $env;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function migrationsAppliquees(CopieLocale $copie): array
+    {
+        $resultat = Commande::isolee()->path($copie->repertoire)
+            ->timeout(60)
+            ->run([
+                ...$this->lanceur->argumentsCompose($copie->repertoire, $copie->id),
+                'exec', '-T', 'soukdev-db',
+                'psql', '-U', 'soukdev', '-d', 'soukdev', '-tA', '-c', 'SELECT nom FROM soukdev.migrations',
+            ]);
+
+        if ($resultat->failed()) {
+            throw new LancementEchoue('Le registre des migrations du backend intégré est illisible.');
+        }
+
+        return array_values(array_filter(array_map('trim', explode("\n", $resultat->output()))));
     }
 
     /**

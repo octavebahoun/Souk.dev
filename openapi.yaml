@@ -500,6 +500,53 @@ paths:
         '422': { $ref: '#/components/responses/Invalide' }
         '419': { $ref: '#/components/responses/CsrfInvalide' }
 
+  /apps/{id}/versions:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Applis]
+      operationId: listAppVersions
+      summary: Versions d'une appli, la plus récente d'abord (publiques une fois vérifiées ; l'auteur voit aussi celles en vérification ou refusées)
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/ParPage'
+      responses:
+        '200':
+          description: Versions
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Pagination'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data: { type: array, items: { $ref: '#/components/schemas/VersionAppli' } }
+        '404': { $ref: '#/components/responses/Introuvable' }
+    post:
+      tags: [Applis]
+      operationId: createAppVersion
+      summary: "Publier une nouvelle version (auteur) : une branche, un tag ou un commit du dépôt, vérifié comme à la publication (soukdev.json, docker-compose.yml, secrets) ; les clients sont prévenus et choisissent quand l'appliquer"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/VersionCreation' }
+      responses:
+        '202':
+          description: Version en vérification
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VersionAppli' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '409': { $ref: '#/components/responses/Conflit' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+        '422': { $ref: '#/components/responses/Invalide' }
+        '429': { $ref: '#/components/responses/TropDeRequetes' }
+
   /apps/{id}/securite:
     parameters:
       - $ref: '#/components/parameters/Id'
@@ -707,6 +754,38 @@ paths:
         '419': { $ref: '#/components/responses/CsrfInvalide' }
 
   # ───────────── Discussions ─────────────
+
+  /deployments/{id}/mise-a-jour:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [Déploiements]
+      operationId: updateDeployment
+      summary: "Appliquer une nouvelle version à sa copie (client propriétaire) : volumes sauvegardés, redéploiement, retour automatique à la version précédente si la nouvelle ne démarre pas"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                version: { type: integer, description: Numéro de la version ; par défaut la dernière publiée }
+                variables:
+                  type: object
+                  additionalProperties: { type: string }
+                  description: Valeurs des nouvelles variables « client » que demande cette version
+      responses:
+        '202':
+          description: Mise à jour en file ; la copie passe à l'état mise_a_jour
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Deploiement' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '409': { $ref: '#/components/responses/Conflit' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+        '422': { $ref: '#/components/responses/Invalide' }
+        '429': { $ref: '#/components/responses/TropDeRequetes' }
   /discussions:
     get:
       tags: [Discussions]
@@ -2357,8 +2436,9 @@ components:
     # ───────────── Applis ─────────────
     App:
       type: object
-      required: [id, nom, description, categorie, prix, type_prix, taille, mesure, demo_url, depot_url, captures, stack, backend, variables_client, securite, auteur, cree_le, note_moyenne, nb_avis]
+      required: [id, nom, description, categorie, prix, type_prix, taille, mesure, demo_url, depot_url, captures, stack, backend, variables_client, securite, auteur, cree_le, note_moyenne, nb_avis, version]
       properties:
+        version: { type: integer, description: "Numéro de la dernière version publiée (1 : la publication)" }
         note_moyenne: { type: [number, 'null'], description: "Moyenne des avis des clients (1 à 5, une décimale) ; null sans avis" }
         nb_avis: { type: integer, description: Nombre d'avis de clients }
         id: { type: integer }
@@ -2542,7 +2622,7 @@ components:
     # ───────────── Déploiements ─────────────
     Deploiement:
       type: object
-      required: [id, app_id, app_nom, taille, type, etat, url, erreur, cree_le, abonnement, facture_a_payer]
+      required: [id, app_id, app_nom, taille, type, etat, url, erreur, cree_le, abonnement, facture_a_payer, version, version_disponible, mise_a_jour]
       properties:
         id: { type: integer }
         app_id: { type: [integer, 'null'], description: "null pour une copie de test lancée depuis le depot_url d'une discussion, sans appli publiée" }
@@ -2557,8 +2637,8 @@ components:
           description: Copie d'un client, copie de test d'une discussion, ou version corrigée
         etat:
           type: string
-          enum: [attente_paiement, en_file, construction, demarrage, en_ligne, echec, suspendu, arret_en_cours, arrete]
-          description: "Copie client : attente_paiement jusqu'au paiement de la première facture. Puis en_file → construction → demarrage → en_ligne ; echec à n'importe quelle étape ; suspendu après 7 jours de facture impayée (réactivée au paiement) ; arret_en_cours puis arrete après DELETE /deployments/{id} ou 30 jours de suspension"
+          enum: [attente_paiement, en_file, construction, demarrage, en_ligne, echec, suspendu, mise_a_jour, arret_en_cours, arrete]
+          description: "Copie client : attente_paiement jusqu'au paiement de la première facture. Puis en_file → construction → demarrage → en_ligne ; echec à n'importe quelle étape ; suspendu après 7 jours de facture impayée (réactivée au paiement) ; mise_a_jour pendant l'application d'une nouvelle version (retour à en_ligne, sur la nouvelle version ou la précédente) ; arret_en_cours puis arrete après DELETE /deployments/{id} ou 30 jours de suspension"
         url:
           type: [string, 'null']
           format: uri
@@ -2577,6 +2657,65 @@ components:
           oneOf:
             - $ref: '#/components/schemas/FactureResume'
             - type: 'null'
+        version:
+          type: [integer, 'null']
+          description: Numéro de la version de l'appli que la copie fait tourner ; null pour une copie de test
+        version_disponible:
+          description: Version publiée plus récente que celle de la copie (copie client seulement), à appliquer quand le client le choisit
+          oneOf:
+            - $ref: '#/components/schemas/VersionResume'
+            - type: 'null'
+        mise_a_jour:
+          description: Dernière mise à jour demandée pour cette copie
+          oneOf:
+            - $ref: '#/components/schemas/MiseAJour'
+            - type: 'null'
+
+    VersionResume:
+      type: object
+      required: [numero, notes, cree_le]
+      properties:
+        numero: { type: integer }
+        notes: { type: [string, 'null'], description: "Ce qui change, écrit par l'auteur" }
+        cree_le: { type: string, format: date-time }
+
+    MiseAJour:
+      type: object
+      required: [statut, de_version, vers_version, erreur, cree_le, termine_le]
+      properties:
+        statut:
+          type: string
+          enum: [en_file, en_cours, reussie, retablie, echouee]
+          description: "reussie : la copie tourne sur la nouvelle version ; retablie : la nouvelle version n'a pas démarré, la copie est revenue à la précédente avec ses données ; echouee : le retour n'a pas pu se faire (l'équipe est prévenue)"
+        de_version: { type: [integer, 'null'] }
+        vers_version: { type: integer }
+        erreur: { type: [string, 'null'], description: Ce qui a empêché la nouvelle version de démarrer }
+        cree_le: { type: string, format: date-time }
+        termine_le: { type: [string, 'null'], format: date-time }
+
+    VersionAppli:
+      type: object
+      required: [id, numero, ref, commit, notes, statut, erreur, cree_le]
+      properties:
+        id: { type: integer }
+        numero: { type: integer, description: "1 : la publication" }
+        ref: { type: [string, 'null'], description: "Branche, tag ou commit demandé par l'auteur ; null pour la publication" }
+        commit: { type: [string, 'null'], description: Commit vérifié (40 caractères hexadécimaux) ; null avant la vérification }
+        notes: { type: [string, 'null'] }
+        statut: { type: string, enum: [verification, publiee, refusee] }
+        erreur: { type: [string, 'null'], description: "Raison du refus (soukdev.json, docker-compose.yml, secret…)" }
+        cree_le: { type: string, format: date-time }
+
+    VersionCreation:
+      type: object
+      required: [notes]
+      properties:
+        ref:
+          type: string
+          maxLength: 200
+          pattern: '^[A-Za-z0-9._/-]+$'
+          description: Branche, tag ou commit ; par défaut la branche du dépôt publié
+        notes: { type: string, minLength: 3, maxLength: 2000, description: Ce qui change pour les clients }
 
     DeploiementCreation:
       type: object
@@ -3033,7 +3172,7 @@ components:
 
     TypeNotification:
       type: string
-      enum: [correctif_propose, correctif_accepte, message_mission, echeance, suspension, reversement]
+      enum: [correctif_propose, correctif_accepte, message_mission, echeance, suspension, mise_a_jour, reversement]
 
     Notification:
       type: object

@@ -20,6 +20,7 @@ export type Message = components['schemas']['Message']
 export type AvisAppli = components['schemas']['AvisAppli']
 export type AvisAppliSaisie = components['schemas']['AvisAppliSaisie']
 export type PageAvis = Page<AvisAppli> & { peut_noter: boolean; mon_avis: AvisAppli | null }
+export type VersionAppli = components['schemas']['VersionAppli']
 
 export const categories: { valeur: Categorie; libelle: string }[] = [
   { valeur: 'commerce', libelle: 'Commerce' },
@@ -95,6 +96,22 @@ export function listerMissions() {
 
 export function listerCopies() {
   return page<Deploiement>(clientLocal.get(cheminLaravel('/deployments'), { params: { type: 'client' } }))
+}
+
+export function listerVersions(appId: number) {
+  return page<VersionAppli>(clientLocal.get(cheminLaravel(`/apps/${appId}/versions`), { params: { per_page: 50 } }))
+}
+
+export async function publierVersion(appId: number, corps: { ref?: string; notes: string }): Promise<VersionAppli> {
+  await preparerCsrf()
+  const { data } = await clientLocal.post<VersionAppli>(cheminLaravel(`/apps/${appId}/versions`), corps)
+  return data
+}
+
+export async function mettreAJourCopie(id: number, corps: { variables?: Record<string, string> } = {}): Promise<Deploiement> {
+  await preparerCsrf()
+  const { data } = await clientLocal.post<Deploiement>(cheminLaravel(`/deployments/${id}/mise-a-jour`), corps)
+  return data
 }
 
 export async function arreterCopie(id: number): Promise<void> {

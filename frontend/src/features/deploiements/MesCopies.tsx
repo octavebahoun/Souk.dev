@@ -19,6 +19,8 @@ import {
   Montant,
   Onglets,
   PastilleEtat,
+  Saisie,
+  Champ,
   SqueletteListe,
   formaterDate,
   formaterFcfa,
@@ -26,7 +28,11 @@ import {
   presentationEtatCopie,
   useToast,
 } from "../../ui";
-import { arreterCopie, listerCopies } from "../catalogue/api";
+import {
+  arreterCopie,
+  listerCopies,
+  mettreAJourCopie,
+} from "../catalogue/api";
 import {
   allerPayer,
   messageErreur,
@@ -38,7 +44,13 @@ import { formules } from "../paiements/formules";
 
 type Filtre = "toutes" | "en_ligne" | "en_cours" | "a_payer" | "arretees";
 
-const EN_COURS = ["en_file", "construction", "demarrage", "arret_en_cours"];
+const EN_COURS = [
+  "en_file",
+  "construction",
+  "demarrage",
+  "mise_a_jour",
+  "arret_en_cours",
+];
 
 function dansLeFiltre(copie: Deploiement, filtre: Filtre): boolean {
   if (filtre === "toutes") return true;
@@ -215,6 +227,8 @@ function CarteCopie({
   const incident = abonnement?.statut === "incident";
   const facture = incident ? null : copie.facture_a_payer;
   const [annonce, setAnnonce] = useState("");
+  const [miseAJour, setMiseAJour] = useState(false);
+  const derniere = copie.mise_a_jour;
   useCanalPrive<Deploiement>(
     actif ? `deploiement.${copie.id}` : null,
     "deploiement.etat",
@@ -282,13 +296,15 @@ function CarteCopie({
               />
               <Badge>{formules[copie.taille].nom}</Badge>
             </div>
-            {copie.url && ["en_ligne", "suspendu"].includes(copie.etat) ? (
+            {copie.url &&
+            ["en_ligne", "suspendu", "mise_a_jour"].includes(copie.etat) ? (
               <p className="m-0 truncate font-mono text-petit text-texte">
                 {copie.url}
               </p>
             ) : null}
             <p className="m-0 text-petit text-texte-doux">
               {phraseCopie(copie)}
+              {copie.version !== null ? ` Version ${copie.version}.` : ""}
             </p>
           </div>
         </div>
@@ -349,10 +365,58 @@ function CarteCopie({
           {copie.erreur}
         </Alerte>
       ) : null}
+      {copie.version_disponible && copie.etat === "en_ligne" ? (
+        <Alerte
+          ton="info"
+          titre={`Version ${copie.version_disponible.numero} disponible`}
+          action={
+            <Bouton taille="sm" onClick={() => setMiseAJour(true)}>
+              Mettre à jour
+            </Bouton>
+          }
+        >
+          {copie.version_disponible.notes
+            ? `${copie.version_disponible.notes} `
+            : ""}
+          Votre copie reste sur la version {copie.version} tant que vous ne
+          l’appliquez pas.
+        </Alerte>
+      ) : null}
+      {copie.etat === "mise_a_jour" && derniere ? (
+        <Alerte
+          ton="info"
+          titre={`Passage à la version ${derniere.vers_version} en cours`}
+        >
+          Les données sont sauvegardées d’abord ; la copie est indisponible
+          quelques minutes. Si la nouvelle version ne démarre pas, elle revient
+          d’elle-même à la version {derniere.de_version}.
+        </Alerte>
+      ) : null}
+      {derniere?.statut === "retablie" &&
+      copie.etat === "en_ligne" &&
+      copie.version !== derniere.vers_version ? (
+        <Alerte
+          ton="alerte"
+          titre={`La version ${derniere.vers_version} n’a pas été appliquée`}
+        >
+          {derniere.erreur ? `${derniere.erreur} ` : ""}
+          Votre copie tourne sur la version {copie.version}, avec ses données.
+        </Alerte>
+      ) : null}
       {erreur ? (
         <Alerte ton="danger" urgente>
           {erreur}
         </Alerte>
+      ) : null}
+      {miseAJour && copie.version_disponible ? (
+        <ConfirmerMiseAJour
+          copie={copie}
+          onFermer={() => setMiseAJour(false)}
+          onLancee={(recue) => {
+            onChange(recue);
+            setMiseAJour(false);
+          }}
+        />
       ) : null}
 
       {(abonnement &&
@@ -481,6 +545,120 @@ function ConfirmerArret({
           {erreur}
         </Alerte>
       ) : null}
+    </Modale>
+  );
+}
+
+/**
+ * Appliquer une nouvelle version : la copie s'arrête quelques minutes, ses données sont
+ * sauvegardées avant, et elle revient d'elle-même à la version actuelle si la nouvelle ne
+ * démarre pas. Une version qui demande de nouvelles informations les demande ici.
+ */
+function ConfirmerMiseAJour({
+  copie,
+  onFermer,
+  onLancee,
+}: {
+  copie: Deploiement;
+  onFermer: () => void;
+  onLancee: (copie: Deploiement) => void;
+}) {
+  const [envoi, setEnvoi] = useState(false);
+  const [erreur, setErreur] = useState<string | null>(null);
+  const [demandees, setDemandees] = useState<
+    { nom: string; libelle: string }[]
+  >([]);
+  const [valeurs, setValeurs] = useState<Record<string, string>>({});
+  const numero = copie.version_disponible?.numero;
+
+  async function lancer() {
+    setEnvoi(true);
+    setErreur(null);
+    try {
+      onLancee(
+        await mettreAJourCopie(
+          copie.id,
+          demandees.length > 0 ? { variables: valeurs } : {},
+        ),
+      );
+    } catch (probleme) {
+      // Une nouvelle variable obligatoire : 422 sur « variables.NOM », avec son libellé entre guillemets.
+      const champs = axios.isAxiosError(probleme)
+        ? ((
+            probleme.response?.data as
+              | { errors?: Record<string, string[]> }
+              | undefined
+          )?.errors ?? {})
+        : {};
+      const variables = Object.entries(champs)
+        .filter(([cle]) => cle.startsWith("variables."))
+        .map(([cle, messages]) => ({
+          nom: cle.slice("variables.".length),
+          libelle: /«\s*(.+?)\s*»/.exec(messages[0] ?? "")?.[1] ?? cle,
+        }));
+      if (variables.length > 0) {
+        setDemandees(variables);
+        setErreur(
+          `La version ${numero} demande ${variables.length > 1 ? "de nouvelles informations" : "une nouvelle information"}.`,
+        );
+      } else {
+        setErreur(
+          messageErreur(
+            probleme,
+            "La mise à jour n’a pas pu être demandée. Réessayez dans un instant.",
+          ),
+        );
+      }
+      setEnvoi(false);
+    }
+  }
+
+  return (
+    <Modale
+      ouverte
+      onFermer={onFermer}
+      taille="moyenne"
+      titre={`Passer ${copie.app_nom} à la version ${numero} ?`}
+      description="La copie est indisponible quelques minutes. Ses données sont sauvegardées d’abord ; si la nouvelle version ne démarre pas, la copie revient d’elle-même à la version actuelle, avec ses données."
+      pied={
+        <>
+          <Bouton variante="contour" onClick={onFermer}>
+            Plus tard
+          </Bouton>
+          <Bouton chargement={envoi} onClick={() => void lancer()}>
+            Mettre à jour
+          </Bouton>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-3">
+        {copie.version_disponible?.notes ? (
+          <p className="m-0 whitespace-pre-line text-corps text-texte">
+            {copie.version_disponible.notes}
+          </p>
+        ) : null}
+        {demandees.map((variable) => (
+          <Champ key={variable.nom} libelle={variable.libelle}>
+            {(liaison) => (
+              <Saisie
+                {...liaison}
+                value={valeurs[variable.nom] ?? ""}
+                onChange={(evenement) =>
+                  setValeurs((actuelles) => ({
+                    ...actuelles,
+                    [variable.nom]: evenement.target.value,
+                  }))
+                }
+              />
+            )}
+          </Champ>
+        ))}
+        {erreur ? (
+          <Alerte ton={demandees.length > 0 ? "info" : "danger"} urgente>
+            {erreur}
+          </Alerte>
+        ) : null}
+      </div>
     </Modale>
   );
 }

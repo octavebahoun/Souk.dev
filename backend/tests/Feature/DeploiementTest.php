@@ -267,7 +267,7 @@ class DeploiementTest extends TestCase
         $this->mock(MoteurDeploiement::class, function ($mock) use ($copie, $deploiement) {
             $mock->shouldReceive('depuisGithub')
                 ->once()
-                ->with($deploiement->appli->depot_url, [], 'd'.$deploiement->id, true)
+                ->with($deploiement->appli->depot_url, [], 'd'.$deploiement->id, true, 'petite', null)
                 ->andReturn($copie);
             $mock->shouldReceive('mettreEnLigne')->once()->with($copie, 'petite')->andReturn($copie);
         });
@@ -422,7 +422,7 @@ class DeploiementTest extends TestCase
         $this->mock(MoteurDeploiement::class, function ($mock) use ($copie, $deploiement) {
             $mock->shouldReceive('depuisGithub')
                 ->once()
-                ->with('https://github.com/wasfade/momo', [], 'd'.$deploiement->id, true)
+                ->with('https://github.com/wasfade/momo', [], 'd'.$deploiement->id, true, 'petite', null)
                 ->andReturn($copie);
             $mock->shouldReceive('mettreEnLigne')->once()->with($copie, 'petite')->andReturn($copie);
         });

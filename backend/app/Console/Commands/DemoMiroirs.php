@@ -49,13 +49,38 @@ class DemoMiroirs extends Command
             $git(['init', '-q', '-b', 'main']);
             $git(['add', '-A']);
             $git(['commit', '-q', '-m', 'Appli de démo']);
+            $this->ajouterVersions($nom, $travail, $git);
             $git(['clone', '-q', '--bare', $travail, $depot], dirname($depot));
+            // Le moteur récupère une version par son commit (comme GitHub le permet) : le miroir l'accepte aussi.
+            $git(['config', 'uploadpack.allowAnySHA1InWant', 'true'], $depot);
             File::deleteDirectory($travail);
 
             $this->info("Miroir prêt : soukdemo/{$nom}");
         }
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Branches des versions suivantes (database/seeders/demo/versions/{appli}) : chacune part d'une
+     * autre et y pose ses fichiers. PharmaStock a une version 2 qui marche et une version cassée,
+     * pour montrer une mise à jour réussie puis un retour arrière.
+     */
+    private function ajouterVersions(string $nom, string $travail, callable $git): void
+    {
+        $dossier = database_path('seeders/demo/versions/'.$nom);
+        $liste = json_decode((string) @file_get_contents($dossier.'/versions.json'), true);
+        if (! is_array($liste)) {
+            return;
+        }
+
+        foreach ($liste as $version) {
+            $git(['checkout', '-q', '-b', $version['branche'], $version['depuis']]);
+            File::copyDirectory($dossier.'/'.$version['branche'], $travail);
+            $git(['add', '-A']);
+            $git(['commit', '-q', '-m', $version['message']]);
+        }
+        $git(['checkout', '-q', 'main']);
     }
 
     /**

@@ -40,7 +40,7 @@ class AppliController extends Controller
         ]);
 
         $applis = Appli::query()
-            ->with('auteur')
+            ->with(['auteur', 'versionPubliee'])
             ->when($request->filled('q'), function ($requete) use ($request): void {
                 $terme = '%'.$request->string('q')->toString().'%';
                 $requete->where(function ($recherche) use ($terme): void {
@@ -119,7 +119,8 @@ class AppliController extends Controller
         Gate::authorize('lierUnDepot');
 
         $donnees = $this->donnees($request);
-        $manifeste = $this->manifeste($donnees['depot_url'], $depot);
+        $lu = $this->depotLu($donnees['depot_url'], $depot);
+        $manifeste = $lu['manifeste'];
         $this->sansSecret($donnees['depot_url'], $secrets);
 
         $appli = Appli::query()->create([
@@ -140,6 +141,10 @@ class AppliController extends Controller
         $appli->forceFill([
             'captures' => $this->enregistrerCaptures($appli, $donnees['captures']),
         ])->save();
+
+        // Version 1 : le commit vérifié à la publication, celui que recevront les premières copies.
+        $appli->versions()->create(['numero' => 1, 'statut' => 'publiee'])
+            ->forceFill(['commit' => $lu['commit'], 'manifeste' => $manifeste])->save();
 
         $appli->demanderMesure();
         $appli->demanderAnalyseSecurite();
@@ -325,8 +330,16 @@ class AppliController extends Controller
      */
     private function manifeste(string $url, PublicationDepot $depot): array
     {
+        return $this->depotLu($url, $depot)['manifeste'];
+    }
+
+    /**
+     * @return array{manifeste: array<string, mixed>, commit: string}
+     */
+    private function depotLu(string $url, PublicationDepot $depot): array
+    {
         try {
-            return $depot->lire($url);
+            return $depot->verifier($url);
         } catch (DepotInvalide|ManifestInvalide|LancementEchoue $exception) {
             throw ValidationException::withMessages([
                 'depot_url' => $exception->getMessage(),

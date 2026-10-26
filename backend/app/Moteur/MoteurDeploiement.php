@@ -19,13 +19,13 @@ class MoteurDeploiement
     /**
      * @param  array<string, string>  $variablesClient
      */
-    public function depuisGithub(string $url, array $variablesClient = [], ?string $copie = null, bool $dryRun = false, string $taille = 'petite'): CopieLocale
+    public function depuisGithub(string $url, array $variablesClient = [], ?string $copie = null, bool $dryRun = false, string $taille = 'petite', ?string $commit = null): CopieLocale
     {
         $depot = DepotGithub::depuisUrl($url);
         $copie ??= $this->nouveauId($depot->owner.'-'.$depot->repo);
         $this->lanceur->verifierNomCopie($copie);
 
-        $repertoire = $this->cloneur->cloner($url, $copie);
+        $repertoire = $this->cloneur->cloner($url, $copie, $commit);
 
         return $this->preparer($repertoire, $variablesClient, $copie, $dryRun, $taille);
     }

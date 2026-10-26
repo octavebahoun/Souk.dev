@@ -49,6 +49,7 @@ class LancerDeploiement implements ShouldQueue
                 is_array($deploiement->variables) ? $deploiement->variables : [],
                 'd'.$deploiement->id,
                 true,
+                commit: $deploiement->version?->commit,
             );
 
             $deploiement->copie = $copie->id;

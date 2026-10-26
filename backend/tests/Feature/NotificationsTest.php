@@ -18,7 +18,9 @@ use App\Notifications\CorrectifRecu;
 use App\Notifications\CorrectifRetenu;
 use App\Notifications\FactureEmise;
 use App\Notifications\FactureEnRetard;
+use App\Notifications\MiseAJourTerminee;
 use App\Notifications\NouveauMessageMission;
+use App\Notifications\NouvelleVersion;
 use App\Notifications\PaiementRecu;
 use App\Notifications\ReversementEffectue;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -49,6 +51,9 @@ class NotificationsTest extends TestCase
             'depot_url' => 'https://github.com/dev/momo', 'description' => 'Le callback vérifie la commande.',
         ]);
         $mission = Mission::factory()->create(['client_id' => $client->id, 'auteur_id' => $dev->id]);
+        $version = $abonnement->appli->versions()->create(['numero' => 2, 'statut' => 'publiee', 'notes' => 'Export PDF.']);
+        $miseAJour = $abonnement->deploiement->misesAJour()->create(['vers_version_id' => $version->id, 'statut' => 'retablie', 'variables' => []]);
+        $miseAJour->forceFill(['erreur' => 'Le service web ne répond pas sur le port 80.'])->save();
 
         $envois = [
             [$client, new FactureEmise($facture), 'echeance'],
@@ -63,6 +68,8 @@ class NotificationsTest extends TestCase
             [$client, new CorrectifRecu($correctif), 'correctif_propose'],
             [$dev, new CorrectifRetenu($correctif), 'correctif_accepte'],
             [$client, new NouveauMessageMission(MissionMessage::query()->create(['mission_id' => $mission->id, 'auteur_id' => $dev->id, 'texte' => 'Je livre vendredi.'])), 'message_mission'],
+            [$client, new NouvelleVersion($version, $abonnement->deploiement), 'mise_a_jour'],
+            [$client, new MiseAJourTerminee($miseAJour), 'mise_a_jour'],
         ];
         foreach ($envois as [$compte, $notification]) {
             $compte->notify($notification);
@@ -117,7 +124,7 @@ class NotificationsTest extends TestCase
             ['type' => 'echeance', 'application' => true, 'email' => true],
             ['type' => 'echeance', 'application' => false, 'email' => false],
         ]])->assertUnprocessable();
-        $this->actingAs($compte)->getJson('/api/me/preferences-notifications')->assertOk()->assertJsonCount(6, 'types');
+        $this->actingAs($compte)->getJson('/api/me/preferences-notifications')->assertOk()->assertJsonCount(7, 'types');
         $this->assertNull($compte->fresh()->preferences_notifications);
     }
 

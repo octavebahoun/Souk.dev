@@ -84,6 +84,7 @@ export const fr = {
     arret_en_cours: 'Arrêt en cours',
     arrete: 'Arrêtée',
     suspendu: 'Suspendue',
+    mise_a_jour: 'Mise à jour en cours',
   },
   pied: {
     produit: 'Produit',

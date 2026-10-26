@@ -50,8 +50,9 @@ class SecuriteDepotTest extends TestCase
         $this->mock(VerificationSecrets::class, fn (MockInterface $mock) => $mock->shouldReceive('secrets')->andReturn([
             ['fichier' => 'config.js', 'ligne' => 3, 'regle' => 'stripe-access-token', 'description' => 'Found a Stripe Access Token'],
         ]))->makePartial();
-        $this->mock(PublicationDepot::class, fn (MockInterface $mock) => $mock->shouldReceive('lire')->andReturn([
-            'service_web' => ['nom' => 'web', 'port' => 80], 'backend' => 'propre', 'variables' => [],
+        $this->mock(PublicationDepot::class, fn (MockInterface $mock) => $mock->shouldReceive('verifier')->andReturn([
+            'manifeste' => ['service_web' => ['nom' => 'web', 'port' => 80], 'backend' => 'propre', 'variables' => []],
+            'commit' => str_repeat('a', 40),
         ]));
 
         $this->actingAs(User::factory()->github()->create())
@@ -181,8 +182,9 @@ class SecuriteDepotTest extends TestCase
     {
         Queue::fake();
         config(['moteur.delai_analyse_secrets' => 0]);
-        $this->mock(PublicationDepot::class, fn (MockInterface $mock) => $mock->shouldReceive('lire')->andReturn([
-            'service_web' => ['nom' => 'web', 'port' => 80], 'backend' => 'propre', 'variables' => [],
+        $this->mock(PublicationDepot::class, fn (MockInterface $mock) => $mock->shouldReceive('verifier')->andReturn([
+            'manifeste' => ['service_web' => ['nom' => 'web', 'port' => 80], 'backend' => 'propre', 'variables' => []],
+            'commit' => str_repeat('a', 40),
         ]));
 
         $this->actingAs(User::factory()->github()->create())

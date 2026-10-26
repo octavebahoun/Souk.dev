@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -76,6 +77,24 @@ class Appli extends Model
     public function deploiements(): HasMany
     {
         return $this->hasMany(Deploiement::class);
+    }
+
+    /**
+     * @return HasMany<VersionAppli, $this>
+     */
+    public function versions(): HasMany
+    {
+        return $this->hasMany(VersionAppli::class);
+    }
+
+    /**
+     * La dernière version publiée : celle que reçoit une nouvelle copie, et que les autres peuvent appliquer.
+     *
+     * @return HasOne<VersionAppli, $this>
+     */
+    public function versionPubliee(): HasOne
+    {
+        return $this->hasOne(VersionAppli::class)->ofMany(['numero' => 'max'], fn ($versions) => $versions->where('statut', 'publiee'));
     }
 
     /**
@@ -233,6 +252,7 @@ class Appli extends Model
             'cree_le' => $this->created_at->toIso8601String(),
             'note_moyenne' => $this->noteMoyenne(),
             'nb_avis' => (int) $this->avis_nombre,
+            'version' => (int) ($this->versionPubliee?->numero ?? 1),
         ];
     }
 }

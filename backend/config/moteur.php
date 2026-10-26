@@ -17,6 +17,11 @@ return [
 
     'copies' => storage_path('app/private/copies'),
 
+    // Sauvegardes des volumes des copies (avant une mise à jour, chaque nuit) et durée de garde.
+    'sauvegardes' => env('MOTEUR_SAUVEGARDES', storage_path('app/private/sauvegardes')),
+    'sauvegardes_jours' => (int) env('MOTEUR_SAUVEGARDES_JOURS', 7),
+    'sauvegarde_timeout' => (int) env('MOTEUR_SAUVEGARDE_TIMEOUT', 900),
+
     'git_timeout' => 120,
 
     'compose_timeout' => 600,

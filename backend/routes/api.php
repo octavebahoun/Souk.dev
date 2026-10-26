@@ -21,6 +21,7 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ReseauMobileMoneyController;
 use App\Http\Controllers\RevenusController;
 use App\Http\Controllers\TechnoController;
+use App\Http\Controllers\VersionController;
 use App\Http\Controllers\WebhookSasPayController;
 use Illuminate\Support\Facades\Route;
 
@@ -34,6 +35,7 @@ Route::get('/reseaux-mobile-money', [ReseauMobileMoneyController::class, 'index'
 Route::get('/apps', [AppliController::class, 'index']);
 Route::get('/apps/{appli}', [AppliController::class, 'show']);
 Route::get('/apps/{appli}/avis', [AvisAppliController::class, 'index']);
+Route::get('/apps/{appli}/versions', [VersionController::class, 'index']);
 Route::get('/categories', [AppliController::class, 'categories']);
 
 Route::middleware('auth:sanctum')->group(function (): void {
@@ -60,6 +62,9 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('/apps/{appli}/missions', [MissionController::class, 'pourAppli'])
         ->middleware('throttle:missions');
     Route::post('/apps/{appli}/avis', [AvisAppliController::class, 'store'])->middleware('throttle:avis');
+    // Mises à jour poussées : l'auteur publie une version, le client l'applique à sa copie.
+    Route::post('/apps/{appli}/versions', [VersionController::class, 'store'])->middleware('throttle:versions');
+    Route::post('/deployments/{deploiement}/mise-a-jour', [DeploiementController::class, 'miseAJour'])->middleware('throttle:versions');
     Route::patch('/apps/{appli}/avis', [AvisAppliController::class, 'update'])->middleware('throttle:avis');
 
     // Paiements : factures du client, sessions SasPay, vérification au retour.

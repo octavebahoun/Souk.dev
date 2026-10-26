@@ -391,3 +391,11 @@ Choix faits par l'agent en exécutant `BRIEF.md` (le brief passe avant ce fichie
   - alerte de l'équipe une fois par heure au plus, y compris pour un modèle ou un paramètre refusés ;
   - événements Reverb allégés (texte abrégé, analyse sans texte) : Reverb refuse les messages de plus de 10 Ko ;
   - une limite propre à l'action (429) montre son propre message à l'écran.
+
+### Plateforme (phase 5)
+
+- **2026-10-26 — Une copie est épinglée sur un commit** : la version 1 garde le commit lu à la publication, chaque version suivante le sien ; une nouvelle copie part de la dernière version publiée. Raison : un client ne doit jamais changer de code sans l'avoir demandé.
+- **2026-10-26 — Une nouvelle version passe les contrôles d'une publication** (soukdev.json, docker-compose.yml, secrets), sur le worker `analyse-secrets` (Git et Docker, jamais derrière une analyse Trivy). Une seule à la fois par appli.
+- **2026-10-26 — Le client choisit quand appliquer** ; la copie s'arrête le temps de la mise à jour. Le `.env` garde les secrets générés et les valeurs du client ; une nouvelle variable « client » obligatoire est demandée au client avant de commencer.
+- **2026-10-26 — Sauvegarde des volumes avant, retour arrière automatique** si la nouvelle version est refusée ou ne répond pas à la sonde ; « echouee » (retour impossible) alerte l'équipe. Les archives passent par le shell du moteur (pas par la mémoire de PHP) et l'image PostgreSQL déjà utilisée (aucune nouvelle image) ; gardées 7 jours, la dernière toujours.
+- **2026-10-26 — Registre des migrations du backend intégré** (`soukdev.migrations`, hors du schéma exposé) : une mise à jour n'applique que les nouvelles migrations.
