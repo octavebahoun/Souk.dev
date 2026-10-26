@@ -345,3 +345,12 @@ Choix faits par l'agent en exécutant `BRIEF.md` (le brief passe avant ce fichie
 - **2026-10-26 — Copie annoncée en ligne après Traefik** : 3 secondes d'attente après l'écriture de la route (Traefik regroupe les changements toutes les 2 s), sinon un clic rapide tombait sur un 404.
 - **2026-10-26 — Logos des réseaux Mobile Money** (Logo.dev, 8 marques, une fois chacune) : seulement pour désigner le moyen de paiement choisi, hébergés dans `frontend/src/assets/reseaux/`.
 - **2026-10-26 — Animations chargées à part** (`LazyMotion`) et coquille statique dans `index.html` : premier affichage plus rapide, mêmes animations.
+- **2026-10-26 — Après la revue de la phase 2** :
+  - le premier mois court depuis le paiement ; une réactivation après la date anniversaire ouvre un mois à partir du paiement (rien n'a été servi pendant la suspension) ;
+  - statut d'abonnement « incident » (contrat) : copie payée qui ne démarre pas, plus de facture tant que l'équipe n'a pas réglé le problème ;
+  - en production, reversements refusés tant que `REVERSEMENTS_REELS` n'est pas activé (jamais le simulateur) ;
+  - `Idempotency-Key` obligatoire (428) sur le paiement, le reversement, l'avoir et le remboursement d'un paiement en double ; l'autorisation passe avant ce contrôle ;
+  - routes d'administration : le contrôle d'admin passe avant la recherche de l'objet de l'URL (403, jamais un 404 révélateur) ;
+  - une carte débitée dans une autre devise est créditée et vérifiée par l'équipe ; un montant inattendu en francs CFA n'est jamais appliqué automatiquement ;
+  - frais retenus par SasPay malgré `ADD_ON` : charge de Souk.dev (compte `charge_frais_encaissement`), jamais sur la part du dev ;
+  - alertes de l'équipe par e-mail (`AlerteAdmin`, `ADMIN_EMAIL`) pour tout cas d'argent qu'aucun automatisme ne doit trancher seul.

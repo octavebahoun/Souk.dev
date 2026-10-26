@@ -6,8 +6,8 @@ Journal de l'agent, tenu à jour en continu (voir `BRIEF.md`, section 1).
 ## Où on en est
 
 - **Branche** : `saas-complet`, partie de `main` (la PR #28 `fin-mvp` y est fusionnée).
-- **Phase en cours** : 2 — Paiement, revue indépendante en cours (tout le reste de la phase est fait et vérifié).
-- **Tâche suivante** : corriger les constats de la revue, puis phase 3 (sécurité avant publication, avis, notifications).
+- **Phase en cours** : 3 — Confiance (phase 2 terminée : revue indépendante faite, 25 constats corrigés).
+- **Tâche suivante** : phase 3 — écrans de la sécurité avant publication, avis des applis, notifications.
 
 ## Étape 0 (25 octobre)
 
@@ -54,7 +54,17 @@ Journal de l'agent, tenu à jour en continu (voir `BRIEF.md`, section 1).
 - [x] Avoirs saisis par l'admin
 - [x] Écrans : commande et paiement, retour, « Mes paiements » et reçus, « Mes revenus », vue financière admin, « Mes copies »
 - [x] Sortie : un client paie et sa copie démarre ; un impayé est suspendu puis réactivé ; un dev est reversé (simulé) ; un échec réel de SasPay est géré de bout en bout
-- [ ] Revue indépendante de la phase 2 et corrections
+- [x] Revue indépendante de la phase 2 et corrections (25 constats, tous traités)
+
+**Revue indépendante de la phase 2** (sous-agent neuf, 8 constats prouvés par des tests jetables, repris en tests de non-régression) :
+1. Copie réactivée après sa date anniversaire resuspendue quelques jours plus tard → le paiement ouvre un mois à partir d'aujourd'hui.
+2. Succès tardif sur une tentative « annulée » jamais crédité → la transaction décide, revérifiée pendant 7 jours.
+3. Course entre le passage quotidien et un paiement (suspension ou arrêt d'une copie payée) → verrou et revérification à chaque étape, ordre des verrous commun.
+4. Copie payée qui ne démarre pas, toujours facturée → statut « incident », plus de facture, équipe et client prévenus.
+5. En production, reversements par le simulateur (« versé » sans argent) → refusés tant que les payouts réels ne sont pas activés.
+6. Carte débitée en dollars rejetée comme « montant incohérent » → créditée, l'équipe vérifie ; plus de « rien débité » faux.
+7. Double paiement possible pendant une validation USSD → 409 et « Vérifier le paiement ».
+8. à 25. Idempotency-Key obligatoire, diffusion en file, frais retenus passés en charge, remboursement des paiements en double, reprises et blocages des reversements, suspension dans le bon ordre, premier mois depuis le paiement, rapprochement robuste, annonces aux lecteurs d'écran, données partielles, prix de l'auteur, clés renouvelées, messages, captures complètes, garde du jeu de démo, jobs uniques, masquage des numéros.
 
 ### Phase 3 — Confiance
 - [ ] Sécurité avant publication : gitleaks et Trivy en conteneurs jetables, statuts, badge, relance
@@ -111,6 +121,7 @@ Journal de l'agent, tenu à jour en continu (voir `BRIEF.md`, section 1).
 | 2026-10-26 | 2 | Trigger du grand livre sur PostgreSQL ; migrations annulées puis rejouées | modification et suppression refusées ; aller-retour sans erreur |
 | 2026-10-26 | 2 | Captures (3 tailles × 2 thèmes) des écrans de paiement, critiquées | 6 défauts corrigés (bouton coupé, visuel de l'appli, état « à jour », compteurs à zéro, montants et ponctuation coupés en fin de ligne) |
 | 2026-10-26 | 2 | `composer audit`, `npm audit`, licences | aucune faille, aucune licence interdite |
+| 2026-10-26 | 2 | Après corrections de la revue : suite PHP (réponses validées contre le contrat), Playwright 8/8, captures 42/42 | 494/494 ; 8/8 ; relues |
 | 2026-10-26 | 2 | Lighthouse (build de production) sur la commande et « Mes copies » | bureau : 98 / 100 / 100 ; mobile simulé : accessibilité et bonnes pratiques 100, performance 72 à 79 (premier affichage 2,3 s, LCP 3,3 s) : sous l'objectif de 90, voir Problèmes ouverts |
 
 ## Problèmes ouverts
