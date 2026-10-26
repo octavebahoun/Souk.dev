@@ -93,6 +93,24 @@ class WebhookSasPayTest extends TestCase
         $this->assertNotNull(WebhookSasPay::query()->sole()->traite_le);
     }
 
+    public function test_une_transaction_simplement_creee_ne_declenche_rien(): void
+    {
+        Queue::fake();
+
+        $this->webhook($this->corps('transaction.created', 'f3b1c2d4-0000-4000-8000-000000000001'), time())->assertOk();
+
+        Queue::assertNothingPushed();
+    }
+
+    public function test_une_rafale_de_webhooks_n_est_pas_bridee_comme_un_visiteur(): void
+    {
+        Queue::fake();
+
+        foreach (range(1, 70) as $numero) {
+            $this->webhook($this->corps('transaction.success', sprintf('f3b1c2d4-0000-4000-8000-%012d', $numero)), time())->assertOk();
+        }
+    }
+
     public function test_un_corps_illisible_repond_400(): void
     {
         $this->webhook('pas du json', time())->assertBadRequest();

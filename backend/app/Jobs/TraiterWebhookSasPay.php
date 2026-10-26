@@ -52,13 +52,16 @@ class TraiterWebhookSasPay implements ShouldQueue
             ? Paiement::query()->where('transaction_id', $webhook->transaction_id)->get()
             : collect();
 
+        // Transaction encore inconnue (le client vient de payer) : seules les sessions récentes du
+        // même montant sont revérifiées, pour ménager la limite de l'API (300 requêtes par minute).
         if ($paiements->isEmpty()) {
             $paiements = Paiement::query()
                 ->whereNotNull('session_id')
                 ->whereIn('statut', ['en_attente', 'echoue'])
+                ->when($webhook->montant !== null, fn ($requete) => $requete->where('montant', $webhook->montant))
                 ->where('created_at', '>=', now()->subHours(2))
                 ->latest('id')
-                ->limit(20)
+                ->limit(10)
                 ->get();
         }
 

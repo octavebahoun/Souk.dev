@@ -9,10 +9,10 @@ class WebhookSasPay extends Model
 {
     protected $table = 'webhooks_saspay';
 
-    protected $fillable = ['empreinte', 'evenement', 'transaction_id'];
+    protected $fillable = ['empreinte', 'evenement', 'transaction_id', 'montant'];
 
     protected function casts(): array
     {
-        return ['traite_le' => 'datetime'];
+        return ['traite_le' => 'datetime', 'montant' => 'integer'];
     }
 }

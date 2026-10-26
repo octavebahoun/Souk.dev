@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\Paiement;
 use App\Models\Rapprochement;
+use App\Notifications\AlerteAdmin;
 use App\Notifications\EcartRapprochement;
 use App\Paiement\Encaissement;
 use App\Paiement\Passerelles\PasserelleIndisponible;
@@ -46,7 +47,9 @@ class RapprochementQuotidien implements ShouldQueue
         // transactions (webhook perdu, client parti avant le retour).
         Paiement::query()
             ->whereNotNull('session_id')
-            ->whereIn('statut', ['en_attente', 'echoue'])
+            ->where(fn ($requete) => $requete
+                ->whereIn('statut', ['en_attente', 'echoue'])
+                ->orWhere(fn ($annule) => $annule->where('statut', 'annule')->whereNotNull('transaction_id')))
             ->whereBetween('created_at', [$debut->subDay(), $fin])
             ->orderBy('id')
             ->each(function (Paiement $paiement) use ($encaissement, &$ecarts): void {
@@ -63,7 +66,14 @@ class RapprochementQuotidien implements ShouldQueue
                 }
             });
 
-        foreach ($passerelle->transactionsReussies($debut, $fin) as $transaction) {
+        try {
+            $transactions = iterator_to_array($passerelle->transactionsReussies($debut, $fin), false);
+        } catch (PasserelleIndisponible|PasserelleRefus $exception) {
+            $transactions = [];
+            $ecarts[] = $this->ecart('verification_impossible', 'GET /transactions/', "La liste des transactions de SasPay n'a pas pu être lue ({$exception->getMessage()}).");
+        }
+
+        foreach ($transactions as $transaction) {
             $paiement = Paiement::query()->where('transaction_id', $transaction->id)->first();
 
             if ($paiement === null) {
@@ -87,8 +97,19 @@ class RapprochementQuotidien implements ShouldQueue
 
             if ($paiement->statut !== 'reussi') {
                 $avant = $paiement->statut;
-                $paiement = $encaissement->verifier($paiement);
-                $ecarts[] = $this->ecart('corrige', $transaction->id, "Paiement n° {$paiement->id} {$avant} ici, {$paiement->statut} après vérification.");
+
+                try {
+                    $paiement = $encaissement->verifier($paiement);
+                } catch (PasserelleIndisponible|PasserelleRefus $exception) {
+                    $ecarts[] = $this->ecart('verification_impossible', $transaction->id, "Paiement n° {$paiement->id} réussi chez SasPay, {$avant} ici ; vérification impossible ({$exception->getMessage()}).");
+
+                    continue;
+                }
+
+                // « corrigé » seulement si le paiement est bien crédité ; sinon un humain regarde.
+                $ecarts[] = $paiement->statut === 'reussi'
+                    ? $this->ecart('corrige', $transaction->id, "Paiement n° {$paiement->id} {$avant} ici, réussi après vérification.")
+                    : $this->ecart('verification_impossible', $transaction->id, "Paiement n° {$paiement->id} réussi chez SasPay, toujours {$paiement->statut} ici après vérification.");
             }
         }
 
@@ -127,6 +148,15 @@ class RapprochementQuotidien implements ShouldQueue
         if ($aTraiter !== []) {
             Notification::route('mail', (string) config('app.admin_email'))->notify(new EcartRapprochement($rapprochement, count($aTraiter)));
         }
+    }
+
+    /** Le rapprochement n'a pas pu tourner : l'équipe le sait. */
+    public function failed(\Throwable $exception): void
+    {
+        AlerteAdmin::envoyer('Rapprochement SasPay impossible', [
+            'Le rapprochement quotidien a échoué : '.$exception->getMessage(),
+            'Les paiements restent revérifiés toutes les 15 minutes ; relancez-le après avoir vérifié SasPay.',
+        ]);
     }
 
     /**

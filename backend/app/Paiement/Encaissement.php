@@ -9,6 +9,7 @@ use App\Models\Abonnement;
 use App\Models\Facture;
 use App\Models\Paiement;
 use App\Models\User;
+use App\Notifications\AlerteAdmin;
 use App\Notifications\PaiementRecu;
 use App\Notifications\TropPercu;
 use App\Paiement\Passerelles\DemandeSession;
@@ -56,6 +57,31 @@ final class Encaissement
 
         if ($recente !== null) {
             return $recente;
+        }
+
+        // Une transaction attend encore la validation du client (USSD) : une seconde session
+        // ferait payer deux fois. On la revérifie d'abord ; toujours en attente, on refuse.
+        $enValidation = $facture->paiements()
+            ->where('statut', 'en_attente')
+            ->where('passerelle', $this->passerelle->nom())
+            ->whereNotNull('transaction_id')
+            ->where('created_at', '>=', now()->subHours(2))
+            ->first();
+
+        if ($enValidation !== null) {
+            try {
+                $enValidation = $this->verifier($enValidation);
+            } catch (PasserelleIndisponible|PasserelleRefus) {
+                // Sans réponse du prestataire, la prudence reste de ne pas ouvrir de seconde session.
+            }
+
+            if ($facture->refresh()->statut !== 'a_payer') {
+                throw new ConflictHttpException('Cette facture vient d’être payée.');
+            }
+
+            if ($enValidation->statut === 'en_attente') {
+                throw new ConflictHttpException('Un paiement est en cours de validation : confirmez-le sur votre téléphone, ou attendez sa réponse avant de réessayer.');
+            }
         }
 
         $paiement = Paiement::query()->create([
@@ -112,7 +138,8 @@ final class Encaissement
     /**
      * L'état fait foi chez le prestataire : statut de la session (dernière transaction), puis
      * vérification de la transaction. Une transaction refusée laisse la session ouverte : le
-     * client peut réessayer sur la même page.
+     * client peut réessayer sur la même page. Une tentative « annulée » qui porte une transaction
+     * se revérifie : un succès tardif (USSD validé après l'expiration de la session) est crédité.
      *
      * @throws PasserelleIndisponible|PasserelleRefus
      */
@@ -120,28 +147,34 @@ final class Encaissement
     {
         // Seule la passerelle qui a ouvert la session peut en dire l'état (jamais le simulateur
         // pour une session SasPay, ni l'inverse, par exemple après un changement de passerelle).
-        if (in_array($paiement->statut, ['reussi', 'annule'], true) || $paiement->session_id === null || $paiement->passerelle !== $this->passerelle->nom()) {
+        if ($paiement->statut === 'reussi' || ($paiement->statut === 'annule' && $paiement->transaction_id === null)
+            || $paiement->session_id === null || $paiement->passerelle !== $this->passerelle->nom()) {
             return $paiement;
         }
+
+        $session = null;
 
         try {
             $session = $this->passerelle->statutSession($paiement->session_id);
         } catch (PasserelleRefus $exception) {
-            // 404 ou 410 : la session n'existe plus chez le prestataire, la tentative est close.
-            if (in_array($exception->statutHttp, [404, 410], true) && $paiement->transaction_id === null) {
+            // 404 ou 410 : la session n'existe plus chez le prestataire. Sans transaction, la
+            // tentative est close ; avec une transaction, c'est elle qui décide.
+            if (! in_array($exception->statutHttp, [404, 410], true)) {
+                throw $exception;
+            }
+
+            if ($paiement->transaction_id === null) {
                 $paiement->forceFill(['statut' => 'annule', 'verifie_le' => now()])->save();
 
                 return $paiement;
             }
-
-            throw $exception;
         }
 
-        $transaction = $session->transactionId ?? $paiement->transaction_id;
+        $transaction = $session?->transactionId ?? $paiement->transaction_id;
         $paiement->verifie_le = now();
 
         if ($transaction === null) {
-            $paiement->statut = in_array($session->statut, ['CANCELLED', 'EXPIRED'], true) ? 'annule' : 'en_attente';
+            $paiement->statut = in_array($session?->statut, ['CANCELLED', 'EXPIRED'], true) ? 'annule' : 'en_attente';
             $paiement->save();
 
             return $paiement;
@@ -156,22 +189,14 @@ final class Encaissement
         ]);
 
         if ($verification->reussi()) {
-            if (! $this->coherent($paiement, $verification)) {
-                $paiement->forceFill(['statut' => 'echoue', 'erreur' => 'Montant ou devise différents de la facture.'])->save();
-                Log::critical('paiement: montant incohérent', ['paiement' => $paiement->id, 'attendu' => $paiement->montant, 'recu' => $verification->montantDemande]);
-
-                return $paiement;
-            }
-
-            $paiement->save();
-            $this->appliquerSucces($paiement);
-
-            return $paiement->refresh();
+            return $this->appliquerVerificationReussie($paiement, $verification);
         }
 
-        $paiement->statut = match (true) {
-            in_array($session->statut, ['CANCELLED', 'EXPIRED'], true) => 'annule',
-            $verification->echoue() => 'echoue',
+        // L'état de la transaction décide, pas l'expiration de la session : une transaction en
+        // attente reste en attente (elle peut encore aboutir).
+        $paiement->statut = match ($verification->statut) {
+            'FAILED' => 'echoue',
+            'CANCELLED' => 'annule',
             default => 'en_attente',
         };
         $paiement->save();
@@ -179,16 +204,60 @@ final class Encaissement
         return $paiement;
     }
 
-    private function coherent(Paiement $paiement, VerificationPaiement $verification): bool
+    /**
+     * SUCCESS chez le prestataire. En francs CFA, le montant doit être celui de la facture (sinon
+     * rien n'est appliqué et l'équipe vérifie) ; si SasPay a retenu des frais malgré ADD_ON, ils
+     * passent en charge. Une carte peut être débitée dans une autre devise (conversion par
+     * SasPay) : la transaction de notre session est créditée et l'équipe vérifie le montant reçu.
+     */
+    private function appliquerVerificationReussie(Paiement $paiement, VerificationPaiement $verification): Paiement
     {
-        return $verification->montantDemande === $paiement->montant
-            && ($verification->devise === null || $verification->devise === 'XOF');
+        $devise = $verification->devise ?? 'XOF';
+        $fraisRetenus = 0;
+
+        if ($devise === 'XOF' && $verification->montantDemande !== $paiement->montant) {
+            $dejaSignale = $paiement->erreur !== null;
+            $paiement->forceFill(['statut' => 'en_attente', 'erreur' => 'Montant à vérifier par l’équipe.'])->save();
+            Log::critical('paiement: montant incohérent', ['paiement' => $paiement->id, 'attendu' => $paiement->montant, 'recu' => $verification->montantDemande]);
+
+            if (! $dejaSignale) {
+                AlerteAdmin::envoyer("Paiement n° {$paiement->id} : montant à vérifier", [
+                    "SasPay a confirmé une transaction de {$verification->montantDemande} F pour une facture de {$paiement->montant} F.",
+                    'Rien n’a été appliqué. Vérifiez la transaction '.($verification->reference ?? $paiement->transaction_id).' dans le tableau de bord SasPay.',
+                ]);
+            }
+
+            return $paiement;
+        }
+
+        if ($devise === 'XOF' && $verification->montantNet !== null && $verification->montantNet < $paiement->montant) {
+            $fraisRetenus = $paiement->montant - $verification->montantNet;
+        }
+
+        $paiement->save();
+        $this->appliquerSucces($paiement, $fraisRetenus);
+
+        if ($devise !== 'XOF') {
+            AlerteAdmin::envoyer("Paiement n° {$paiement->id} en {$devise}", [
+                "La facture ({$paiement->montant} F) a été payée en {$devise} (carte, conversion par SasPay) : elle est créditée.",
+                'Vérifiez le montant reçu sur le compte SasPay, référence '.($verification->reference ?? $paiement->transaction_id).'.',
+            ]);
+        }
+
+        if ($fraisRetenus > 0) {
+            AlerteAdmin::envoyer("Paiement n° {$paiement->id} : frais retenus par SasPay", [
+                "SasPay a retenu {$fraisRetenus} F de frais alors que Souk.dev demande ADD_ON (frais payés par le client).",
+                'Ils sont passés en charge au grand livre. Vérifiez le mode de frais du compte marchand (ALLOW_CLIENT_OVERRIDE).',
+            ]);
+        }
+
+        return $paiement->refresh();
     }
 
     /** Une seule fois par paiement, sous verrou : facture payée, grand livre, copie lancée ou réactivée. */
-    private function appliquerSucces(Paiement $paiement): void
+    private function appliquerSucces(Paiement $paiement, int $fraisRetenus = 0): void
     {
-        $resultat = DB::transaction(function () use ($paiement): ?string {
+        $resultat = DB::transaction(function () use ($paiement, $fraisRetenus): ?string {
             $facture = Facture::query()->lockForUpdate()->findOrFail($paiement->facture_id);
             $verrouille = Paiement::query()->lockForUpdate()->findOrFail($paiement->id);
 
@@ -205,7 +274,7 @@ final class Encaissement
             }
 
             $facture->forceFill(['statut' => 'payee', 'payee_le' => now()])->save();
-            $this->grandLivre->encaisser($facture, $verrouille);
+            $this->grandLivre->encaisser($facture, $verrouille, $fraisRetenus);
             $this->activer($facture);
 
             return 'payee';

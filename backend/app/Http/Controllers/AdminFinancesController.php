@@ -41,7 +41,9 @@ final class AdminFinancesController extends Controller
 
         $revenus = -$grandLivre->solde(Ecriture::COMPTE_REVENU_HEBERGEMENT, $debut, $fin, 'encaissement');
         $avoirsHebergement = $grandLivre->solde(Ecriture::COMPTE_REVENU_HEBERGEMENT, $debut, $fin, 'avoir');
+        // Charges de Souk.dev : frais des payouts, et frais retenus par SasPay sur un encaissement.
         $frais = $grandLivre->solde(Ecriture::COMPTE_FRAIS_REVERSEMENT, $debut, $fin);
+        $fraisEncaissement = $grandLivre->solde(Ecriture::COMPTE_FRAIS_ENCAISSEMENT, $debut, $fin);
         $reverse = Ecriture::query()->where('compte', Ecriture::COMPTE_DEV)->whereIn('type', ['reversement', 'contrepassation'])
             ->whereNotNull('reversement_id')->where('cree_le', '>=', $debut)->where('cree_le', '<', $fin)->sum('montant');
 
@@ -54,7 +56,7 @@ final class AdminFinancesController extends Controller
             'reversements' => (int) $reverse,
             'frais_reversement' => $frais,
             'avoirs' => -$grandLivre->solde(Ecriture::COMPTE_SASPAY, $debut, $fin, 'avoir'),
-            'marge' => $revenus - $frais - $avoirsHebergement,
+            'marge' => $revenus - $frais - $fraisEncaissement - $avoirsHebergement,
             'solde_devs' => -$grandLivre->solde(Ecriture::COMPTE_DEV),
             'solde_saspay_attendu' => $grandLivre->solde(Ecriture::COMPTE_SASPAY),
             'factures_impayees' => Facture::query()->where('statut', 'a_payer')->where('echeance_le', '<', today())->count(),

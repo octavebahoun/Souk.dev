@@ -24,6 +24,9 @@ class Ecriture extends Model
 
     public const COMPTE_FRAIS_REVERSEMENT = 'charge_frais_reversement';
 
+    /** Frais retenus par SasPay sur un encaissement (ADD_ON non appliqué) : une charge de Souk.dev. */
+    public const COMPTE_FRAIS_ENCAISSEMENT = 'charge_frais_encaissement';
+
     protected $fillable = [
         'operation', 'type', 'compte', 'dev_id', 'montant', 'facture_id', 'paiement_id',
         'reversement_id', 'avoir_id', 'contrepasse_id', 'libelle',

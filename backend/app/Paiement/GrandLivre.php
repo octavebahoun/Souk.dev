@@ -27,14 +27,16 @@ final class GrandLivre
     /**
      * Facture payée : Souk.dev reçoit le montant plein (frais en ADD_ON payés par le client).
      * La part de l'appli va entièrement au dev, sans commission ; l'hébergement reste à Souk.dev.
+     * Si SasPay a quand même retenu des frais, ils sont une charge de Souk.dev, jamais du dev.
      */
-    public function encaisser(Facture $facture, Paiement $paiement): void
+    public function encaisser(Facture $facture, Paiement $paiement, int $fraisRetenus = 0): void
     {
         $facture->loadMissing('abonnement');
         $libelle = "Facture {$facture->numero} payée";
 
         $this->passer('encaissement', [
-            ['compte' => Ecriture::COMPTE_SASPAY, 'montant' => $facture->montant_total],
+            ['compte' => Ecriture::COMPTE_SASPAY, 'montant' => $facture->montant_total - $fraisRetenus],
+            ['compte' => Ecriture::COMPTE_FRAIS_ENCAISSEMENT, 'montant' => $fraisRetenus],
             ['compte' => Ecriture::COMPTE_REVENU_HEBERGEMENT, 'montant' => -$facture->montant_hebergement],
             ['compte' => Ecriture::COMPTE_DEV, 'dev_id' => $facture->abonnement->dev_id, 'montant' => -$facture->montant_appli],
         ], $libelle, ['facture_id' => $facture->id, 'paiement_id' => $paiement->id]);

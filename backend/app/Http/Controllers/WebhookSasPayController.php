@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Jobs\TraiterWebhookSasPay;
 use App\Models\WebhookSasPay;
+use App\Paiement\Passerelles\Montants;
 use App\Paiement\SignatureWebhook;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
@@ -46,12 +47,14 @@ final class WebhookSasPayController extends Controller
                 'empreinte' => hash('sha256', $corps),
                 'evenement' => mb_substr($donnees['event'], 0, 100),
                 'transaction_id' => $transaction !== null ? mb_substr($transaction, 0, 64) : null,
+                'montant' => is_array($donnees['data'] ?? null) ? Montants::versEntier($donnees['data']['amount'] ?? null) : null,
             ]);
         } catch (UniqueConstraintViolationException) {
             return response()->json(['message' => 'Déjà reçu.']);
         }
 
-        if (str_starts_with($donnees['event'], 'transaction.')) {
+        // Seuls les états finaux d'une transaction déclenchent une revérification (pas « created »).
+        if (in_array($donnees['event'], ['transaction.success', 'transaction.failed', 'transaction.cancelled'], true)) {
             TraiterWebhookSasPay::dispatch($webhook->id);
         }
 
