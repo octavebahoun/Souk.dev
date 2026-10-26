@@ -38,9 +38,11 @@ import {
   listerReversementsAdmin,
   messageErreur,
   nouvelleCle,
+  rembourserTropPercu,
   type Facture,
   type Rapprochement,
   type ReversementAdmin,
+  type TropPercu,
 } from '../paiements/api'
 import { presentationFacture, presentationReversement } from '../paiements/presentation'
 
@@ -125,6 +127,7 @@ export function Finances() {
             <Indicateur titre="Avoirs" valeur={finances.data.avoirs} />
             <Indicateur titre="Dû aux devs aujourd’hui" valeur={finances.data.solde_devs} />
           </dl>
+          {finances.data.trop_percus.length > 0 ? <TropPercus elements={finances.data.trop_percus} /> : null}
           <div className="flex flex-wrap gap-3">
             <Badge ton="info">Solde SasPay attendu : {formaterFcfa(finances.data.solde_saspay_attendu)}</Badge>
             <Badge ton={finances.data.factures_impayees > 0 ? 'alerte' : 'neutre'}>Factures échues impayées : {finances.data.factures_impayees}</Badge>
@@ -237,6 +240,7 @@ function SaisieAvoir({ facture, onFermer }: { facture: Facture; onFermer: () => 
       await cache.invalidateQueries({ queryKey: ['admin'] })
       onFermer()
     } catch (probleme) {
+      cle.current = nouvelleCle()
       setErreurs(erreursDeChamps(probleme))
       setErreur(messageErreur(probleme, 'L’avoir n’a pas pu être enregistré.'))
     } finally {
@@ -279,6 +283,96 @@ function SaisieAvoir({ facture, onFermer }: { facture: Facture; onFermer: () => 
           </Alerte>
         ) : null}
       </div>
+    </Modale>
+  )
+}
+
+/** Paiements en double à rendre aux clients : l'admin rembourse chez SasPay, puis le note ici. */
+function TropPercus({ elements }: { elements: TropPercu[] }) {
+  const [cible, setCible] = useState<TropPercu | null>(null)
+  return (
+    <section aria-labelledby="titre-trop-percus" className="flex flex-col gap-3">
+      <Alerte ton="alerte" titre={`${elements.length} paiement${elements.length > 1 ? 's' : ''} en double à rembourser`}>
+        Remboursez chaque client depuis le tableau de bord SasPay, puis notez-le ici : le grand livre solde ce qui lui est dû.
+      </Alerte>
+      <h2 id="titre-trop-percus" className="pour-lecteur">
+        Paiements en double à rembourser
+      </h2>
+      <ul className="m-0 flex list-none flex-col gap-2 p-0">
+        {elements.map((element) => (
+          <li key={element.paiement_id}>
+            <Carte className="flex flex-wrap items-center justify-between gap-3">
+              <span className="flex flex-col">
+                <span className="font-medium text-titre">
+                  {formaterFcfa(element.montant)} · facture {element.facture_numero}
+                </span>
+                <span className="text-petit text-texte-doux">
+                  Reçu le {formaterDate(element.recu_le)}
+                  {element.reference ? ` · référence ${element.reference}` : ''}
+                </span>
+              </span>
+              <Bouton variante="contour" taille="sm" onClick={() => setCible(element)}>
+                Noter le remboursement
+              </Bouton>
+            </Carte>
+          </li>
+        ))}
+      </ul>
+      {cible ? <NoterRemboursement element={cible} onFermer={() => setCible(null)} /> : null}
+    </section>
+  )
+}
+
+function NoterRemboursement({ element, onFermer }: { element: TropPercu; onFermer: () => void }) {
+  const cache = useQueryClient()
+  const toast = useToast()
+  const cle = useRef(nouvelleCle())
+  const [motif, setMotif] = useState('')
+  const [erreur, setErreur] = useState<string | null>(null)
+  const [envoi, setEnvoi] = useState(false)
+
+  async function noter() {
+    setEnvoi(true)
+    setErreur(null)
+    try {
+      await rembourserTropPercu(element.paiement_id, motif, cle.current)
+      toast.succes(`Remboursement de ${formaterFcfa(element.montant)} noté.`)
+      await cache.invalidateQueries({ queryKey: ['admin'] })
+      onFermer()
+    } catch (probleme) {
+      cle.current = nouvelleCle()
+      setErreur(messageErreur(probleme, 'Le remboursement n’a pas pu être noté.'))
+    } finally {
+      setEnvoi(false)
+    }
+  }
+
+  return (
+    <Modale
+      ouverte
+      onFermer={onFermer}
+      taille="petite"
+      titre={`Remboursement de ${formaterFcfa(element.montant)}`}
+      description={`Confirmez que le client a été remboursé depuis le tableau de bord SasPay (facture ${element.facture_numero}).`}
+      pied={
+        <>
+          <Bouton variante="contour" onClick={onFermer}>
+            Annuler
+          </Bouton>
+          <Bouton chargement={envoi} disabled={motif.trim() === ''} onClick={() => void noter()}>
+            Noter le remboursement
+          </Bouton>
+        </>
+      }
+    >
+      <Champ libelle="Référence ou motif" aide="Par exemple la date et la référence du remboursement chez SasPay.">
+        {(liaison) => <ZoneTexte {...liaison} rows={3} maxLength={500} value={motif} onChange={(evenement) => setMotif(evenement.target.value)} />}
+      </Champ>
+      {erreur ? (
+        <Alerte ton="danger" urgente className="mt-3">
+          {erreur}
+        </Alerte>
+      ) : null}
     </Modale>
   )
 }

@@ -58,6 +58,11 @@ export function messageErreur(erreur: unknown, repli: string): string {
   return repli
 }
 
+/** Statut HTTP d'une erreur d'appel (null : réseau coupé ou erreur hors API). */
+export function statutHttp(erreur: unknown): number | null {
+  return axios.isAxiosError(erreur) ? (erreur.response?.status ?? null) : null
+}
+
 /** Erreurs de validation par champ (422), pour les relier aux champs du formulaire. */
 export function erreursDeChamps(erreur: unknown): Record<string, string> {
   if (!axios.isAxiosError(erreur) || erreur.response?.status !== 422) return {}
@@ -146,6 +151,13 @@ export function listerFacturesAdmin(params: { statut?: StatutFacture; page?: num
 export async function creerAvoir(factureId: number, corps: AvoirCreation, cle: string): Promise<Avoir> {
   await preparerCsrf()
   return objet(clientLocal.post<Avoir>(cheminLaravel(`/admin/factures/${factureId}/avoir`), corps, { headers: { 'Idempotency-Key': cle } }))
+}
+
+export type TropPercu = Schemas['TropPercu']
+
+export async function rembourserTropPercu(paiementId: number, motif: string, cle: string): Promise<TropPercu> {
+  await preparerCsrf()
+  return objet(clientLocal.post<TropPercu>(cheminLaravel(`/admin/paiements/${paiementId}/remboursement`), { motif }, { headers: { 'Idempotency-Key': cle } }))
 }
 
 export function listerReversementsAdmin(numero = 1) {

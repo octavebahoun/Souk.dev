@@ -51,6 +51,8 @@ export function MesRevenus() {
   const [modification, setModification] = useState(false)
   const [envoi, setEnvoi] = useState(false)
   const [erreur, setErreur] = useState<string | null>(null)
+  const [lienEnvoye, setLienEnvoye] = useState(false)
+  const confirmationEnvoyee = useRef<HTMLDivElement>(null)
   const cle = useRef(nouvelleCle())
   const formulaire = useRef<HTMLDivElement>(null)
 
@@ -97,6 +99,7 @@ export function MesRevenus() {
       else toast.info('Reversement en cours : l’argent arrive sur votre Mobile Money dans quelques minutes.')
       await cache.invalidateQueries({ queryKey: ['revenus'] })
     } catch (probleme) {
+      cle.current = nouvelleCle()
       setErreur(messageErreur(probleme, 'Le reversement n’a pas pu partir. Réessayez dans un instant.'))
     } finally {
       setEnvoi(false)
@@ -249,6 +252,13 @@ export function MesRevenus() {
             titre="Où recevoir vos revenus"
             description="Un numéro Mobile Money à votre nom. Chaque changement se confirme par e-mail : une session volée ne peut pas détourner votre argent."
           />
+          {lienEnvoye && coordonnees && !coordonnees.confirme ? (
+            <div ref={confirmationEnvoyee} tabIndex={-1} className="outline-none">
+              <Alerte ton="succes" titre="Plus qu’une étape : confirmez ce numéro">
+                Un e-mail vient de partir{compte.data?.email ? ` à ${compte.data.email}` : ''}. Ouvrez le lien et cliquez sur « Confirmer ce numéro » : vos revenus pourront alors partir dessus.
+              </Alerte>
+            </div>
+          ) : null}
           {coordonnees && !afficherFormulaire ? (
             <div className="flex flex-wrap items-center gap-3 rounded-moyen border border-bordure p-4">
               <LogoReseau code={coordonnees.reseau} nom={nomReseau} />
@@ -265,11 +275,13 @@ export function MesRevenus() {
             <FormulaireCoordonnees
               reseaux={reseaux.data ?? []}
               paysParDefaut={coordonnees?.pays ?? compte.data?.pays ?? 'BJ'}
-              email={compte.data?.email ?? null}
               onAnnuler={coordonnees ? () => setModification(false) : undefined}
               onEnregistre={() => {
                 setModification(false)
+                setLienEnvoye(true)
                 void cache.invalidateQueries({ queryKey: ['revenus'] })
+                // Le message reste visible et reçoit le focus : le formulaire vient de disparaître.
+                requestAnimationFrame(() => confirmationEnvoyee.current?.focus())
               }}
             />
           )}

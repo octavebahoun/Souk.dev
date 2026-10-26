@@ -9,8 +9,8 @@ import { useTitrePage } from '../../app/titre'
 import { AccesRefuse, Alerte, Bouton, Carte, EtatErreur, Etapes, LienBouton, Montant, Squelette, cx, formaterDate, type Etape } from '../../ui'
 import { allerPayer, lireCopie, messageErreur, nouvelleCle, verifierFacture, type Deploiement, type Facture } from './api'
 
-/** 20 vérifications espacées de 3 secondes : une minute pour valider sur le téléphone. */
-const VERIFICATIONS_MAX = 20
+/** 12 vérifications espacées de 5 secondes : une minute pour valider sur le téléphone (limite de l'API SasPay ménagée). */
+const VERIFICATIONS_MAX = 12
 
 type Issue = 'confirme' | 'refuse' | 'attente' | 'annulee'
 
@@ -43,7 +43,7 @@ export function RetourPaiement() {
     retry: 1,
     refetchInterval: (requete) => {
       const facture = requete.state.data
-      return facture && issueDe(facture) === 'attente' && requete.state.dataUpdateCount < VERIFICATIONS_MAX ? 3000 : false
+      return facture && issueDe(facture) === 'attente' && requete.state.dataUpdateCount < VERIFICATIONS_MAX ? 5000 : false
     },
   })
   const facture = verification.data
@@ -150,7 +150,9 @@ export function RetourPaiement() {
           {facture.paiements[0]?.reference ? (
             <>
               <dt className="text-texte-doux">Référence SasPay</dt>
-              <dd className="m-0 truncate text-right font-mono text-petit text-titre">{facture.paiements[0].reference}</dd>
+              <dd className="m-0 text-right">
+                <ReferenceCopiable reference={facture.paiements[0].reference} />
+              </dd>
             </>
           ) : null}
         </dl>
@@ -229,7 +231,11 @@ const titres: Record<Issue, string> = {
 function description(issue: Issue, facture: Facture, longue: boolean): string {
   if (issue === 'confirme') return `Merci ! SasPay a confirmé votre paiement. Le reçu est dans « Mes paiements ».`
   if (issue === 'refuse') return 'Aucun montant n’a été débité. Le réseau a refusé l’opération : vérifiez votre solde ou le code saisi, puis réessayez.'
-  if (issue === 'annulee') return `La facture ${facture.numero} a été annulée : rien ne vous sera demandé.`
+  if (issue === 'annulee') {
+    return facture.paiements.some((paiement) => paiement.statut === 'reussi')
+      ? `Votre paiement a bien été reçu, mais la facture ${facture.numero} était annulée : l’équipe vous rembourse et vous écrit.`
+      : `La facture ${facture.numero} a été annulée : rien ne vous sera demandé.`
+  }
   return longue
     ? 'SasPay n’a pas encore la réponse de votre réseau. Vous recevrez un e-mail dès que le paiement sera confirmé ; vous pouvez fermer cette page.'
     : 'Validez l’opération sur votre téléphone si ce n’est pas déjà fait. Cette page se met à jour toute seule.'
@@ -273,12 +279,17 @@ function SuiviCopie({ copie }: { copie: Deploiement | undefined }) {
     },
   ]
 
+  const annonce = etat === 'en_ligne' ? 'Votre copie est en ligne.' : etat === 'echec' ? 'La copie n’a pas pu démarrer.' : enCours ? 'Construction de votre copie en cours.' : ''
+
   return (
     <div className="w-full max-w-md text-left">
+      <p role="status" className="pour-lecteur">
+        {annonce}
+      </p>
       <Etapes libelle="Démarrage de votre copie" etapes={etapes} />
       {etat === 'echec' ? (
         <Alerte ton="danger" className="mt-4" titre="La copie n’a pas pu démarrer">
-          {copie?.erreur ?? 'Le support est prévenu et revient vers vous. Votre paiement est bien enregistré.'}
+          Votre paiement est bien enregistré. L’équipe est prévenue et revient vers vous ; aucune nouvelle facture ne sera émise d’ici là.
         </Alerte>
       ) : null}
     </div>
@@ -287,4 +298,24 @@ function SuiviCopie({ copie }: { copie: Deploiement | undefined }) {
 
 function Conteneur({ children }: { children: ReactNode }) {
   return <div className="mx-auto w-full max-w-2xl px-4 py-8 tablette:py-12">{children}</div>
+}
+
+/** La référence SasPay en entier, copiable d'un geste (c'est elle que le support demande). */
+function ReferenceCopiable({ reference }: { reference: string }) {
+  const [copiee, setCopiee] = useState(false)
+  return (
+    <span className="inline-flex max-w-full items-center gap-2">
+      <span className="font-mono text-petit break-all text-titre">{reference}</span>
+      <button
+        type="button"
+        onClick={() => {
+          void navigator.clipboard?.writeText(reference).then(() => setCopiee(true))
+        }}
+        className="shrink-0 rounded-petit px-2 py-1 text-petit font-medium text-lien hover:bg-surface"
+      >
+        {copiee ? 'Copiée' : 'Copier'}
+        <span className="pour-lecteur"> la référence</span>
+      </button>
+    </span>
+  )
 }

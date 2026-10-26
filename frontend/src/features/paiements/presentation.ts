@@ -27,6 +27,15 @@ export function phraseEcheance(facture: Pick<Facture, 'statut' | 'echeance_le' |
   return `Échéance le ${formaterDate(facture.echeance_le)}`
 }
 
+/**
+ * Une transaction attend la validation du client (USSD) : payer à nouveau ferait payer deux fois.
+ * Reconnue à son paiement le plus récent, en attente mais déjà porteur d'une référence SasPay.
+ */
+export function enValidation(facture: Pick<Facture, 'statut' | 'paiements'>): boolean {
+  const dernier = facture.paiements[0]
+  return facture.statut === 'a_payer' && dernier?.statut === 'en_attente' && dernier.reference !== null
+}
+
 export function presentationPaiement(paiement: Pick<Paiement, 'statut'>): Presentation {
   switch (paiement.statut) {
     case 'reussi':

@@ -14,6 +14,7 @@ import {
   EnTeteCarte,
   EnTetePage,
   EtatErreur,
+  EtatVide,
   Etapes,
   LienBouton,
   Montant,
@@ -22,7 +23,7 @@ import {
   cx,
   formaterFcfa,
 } from '../../ui'
-import { allerPayer, commanderCopie, erreursDeChamps, messageErreur, nouvelleCle } from './api'
+import { allerPayer, commanderCopie, erreursDeChamps, messageErreur, nouvelleCle, statutHttp } from './api'
 import { formules } from './formules'
 import { MoyensDePaiement } from './MoyensDePaiement'
 
@@ -71,11 +72,16 @@ export function Commande() {
   if (!appli.data) {
     return (
       <Conteneur>
-        <EtatErreur
-          titre="Cette appli est introuvable"
-          description="Elle a peut-être été retirée du Store. Revenez au Store pour en choisir une autre."
-          onReessayer={() => void appli.refetch()}
-        />
+        {statutHttp(appli.error) === 404 ? (
+          <EtatVide
+            illustration="vide-store"
+            titre="Cette appli est introuvable"
+            description="Elle a peut-être été retirée du Store. Choisissez-en une autre."
+            action={<LienBouton to="/store">Retour au Store</LienBouton>}
+          />
+        ) : (
+          <EtatErreur onReessayer={() => void appli.refetch()} />
+        )}
       </Conteneur>
     )
   }
@@ -83,8 +89,10 @@ export function Commande() {
   const fiche = appli.data
   const formule = formules[fiche.taille]
   const enAttente = copies.data?.data.find((copie) => copie.app_id === fiche.id && copie.etat === 'attente_paiement' && copie.facture_a_payer)
-  const premiereFacture = formule.prix + fiche.prix
-  const mensuel = formule.prix + (fiche.type_prix === 'mensuel' ? fiche.prix : 0)
+  // L'auteur qui commande sa propre appli ne paie que l'hébergement (comme le calcule le serveur).
+  const prixAppli = compte.data.id === fiche.auteur.id ? 0 : fiche.prix
+  const premiereFacture = formule.prix + prixAppli
+  const mensuel = formule.prix + (fiche.type_prix === 'mensuel' ? prixAppli : 0)
   const total = enAttente?.facture_a_payer?.montant_total ?? premiereFacture
   const variables = enAttente ? [] : fiche.variables_client
   const incomplet = variables.some((variable) => variable.requis && !(valeurs[variable.nom] ?? '').trim())
@@ -105,6 +113,7 @@ export function Commande() {
       if (factureId === null) throw new Error('Facture absente')
       await allerPayer(factureId, cle.current)
     } catch (probleme) {
+      cle.current = nouvelleCle()
       const parChamp = erreursDeChamps(probleme)
       setErreursChamps(Object.fromEntries(Object.entries(parChamp).map(([champ, texte]) => [champ.replace(/^variables\./, ''), texte])))
       setErreur(messageErreur(probleme, 'Le paiement n’a pas pu s’ouvrir. Réessayez dans un instant.'))
@@ -193,26 +202,21 @@ export function Commande() {
 
             <dl className="m-0 flex flex-col gap-3 text-corps">
               <div className="flex items-baseline justify-between gap-4">
-                <dt className="text-texte">Appli {fiche.type_prix === 'unique' && fiche.prix > 0 ? '(paiement unique)' : ''}</dt>
+                <dt className="text-texte">
+                  L’appli {fiche.nom}
+                  {fiche.type_prix === 'unique' && prixAppli > 0 ? <span className="block text-petit text-texte-doux">payée une seule fois</span> : null}
+                </dt>
                 <dd className="m-0 text-titre">
-                  <Montant valeur={fiche.prix} periode={fiche.prix > 0 ? (fiche.type_prix === 'mensuel' ? 'mois' : 'unique') : undefined} gratuitSiZero />
+                  <Montant valeur={prixAppli} periode={prixAppli > 0 ? (fiche.type_prix === 'mensuel' ? 'mois' : 'unique') : undefined} gratuitSiZero />
                 </dd>
               </div>
               <div className="flex items-baseline justify-between gap-4">
                 <dt className="text-texte">
-                  Hébergement, formule {formule.nom.toLowerCase()}
-                  <span className="block text-petit text-texte-doux">
-                    {formule.memoire}, {formule.coeurs}
-                  </span>
+                  Hébergement de votre copie
+                  <span className="block text-petit text-texte-doux">capacité {formule.nom.toLowerCase()} ({formule.memoire} de mémoire)</span>
                 </dt>
                 <dd className="m-0 text-titre">
                   <Montant valeur={formule.prix} periode="mois" />
-                </dd>
-              </div>
-              <div className="flex items-baseline justify-between gap-4">
-                <dt className="text-texte">Commission Souk.dev</dt>
-                <dd className="m-0 text-titre">
-                  <Montant valeur={0} />
                 </dd>
               </div>
             </dl>
@@ -240,7 +244,7 @@ export function Commande() {
 
             <MoyensDePaiement />
             <p className="m-0 border-t border-bordure pt-4 text-petit text-texte-doux">
-              Le prix de l’appli va entièrement à son auteur : Souk.dev ne prend aucune commission et ne gagne que sur l’hébergement.
+              Le prix de l’appli va entièrement à son auteur : Souk.dev ne prend aucun pourcentage et ne gagne que sur l’hébergement.
             </p>
           </Carte>
         </aside>

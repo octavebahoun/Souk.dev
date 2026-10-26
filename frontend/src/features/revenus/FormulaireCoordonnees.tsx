@@ -7,7 +7,6 @@ import { nomsPays } from '../paiements/reseaux'
 type FormulaireCoordonneesProps = {
   reseaux: ReseauMobileMoney[]
   paysParDefaut: string
-  email: string | null
   onEnregistre: () => void
   onAnnuler?: () => void
 }
@@ -16,7 +15,7 @@ type FormulaireCoordonneesProps = {
  * Numéro Mobile Money de reversement : pays, réseau (logos), numéro saisi deux fois. Le numéro
  * ne sert qu'après le clic sur le lien de confirmation envoyé par e-mail.
  */
-export function FormulaireCoordonnees({ reseaux, paysParDefaut, email, onEnregistre, onAnnuler }: FormulaireCoordonneesProps) {
+export function FormulaireCoordonnees({ reseaux, paysParDefaut, onEnregistre, onAnnuler }: FormulaireCoordonneesProps) {
   const paysDisponibles = [...new Set(reseaux.map((reseau) => reseau.pays))]
   const [pays, setPays] = useState(paysDisponibles.includes(paysParDefaut) ? paysParDefaut : (paysDisponibles[0] ?? 'BJ'))
   const [reseau, setReseau] = useState<string | null>(null)
@@ -24,11 +23,13 @@ export function FormulaireCoordonnees({ reseaux, paysParDefaut, email, onEnregis
   const [numeroConfirmation, setNumeroConfirmation] = useState('')
   const [erreurs, setErreurs] = useState<Record<string, string>>({})
   const [erreur, setErreur] = useState<string | null>(null)
-  const [envoye, setEnvoye] = useState(false)
+  const [confirmationQuittee, setConfirmationQuittee] = useState(false)
   const [envoi, setEnvoi] = useState(false)
 
   const reseauxDuPays = reseaux.filter((element) => element.pays === pays)
   const differents = numeroConfirmation !== '' && numeroConfirmation.replace(/\D/g, '') !== numero.replace(/\D/g, '')
+  // L'erreur « numéros différents » attend que la saisie soit finie (sortie du champ).
+  const montrerDifference = differents && confirmationQuittee
   const complet = reseau !== null && numero.trim() !== '' && numeroConfirmation.trim() !== '' && !differents
 
   async function enregistrer(evenement: FormEvent) {
@@ -39,7 +40,6 @@ export function FormulaireCoordonnees({ reseaux, paysParDefaut, email, onEnregis
     setErreurs({})
     try {
       await enregistrerCoordonnees({ pays, reseau, numero, numero_confirmation: numeroConfirmation })
-      setEnvoye(true)
       onEnregistre()
     } catch (probleme) {
       setErreurs(erreursDeChamps(probleme))
@@ -47,14 +47,6 @@ export function FormulaireCoordonnees({ reseaux, paysParDefaut, email, onEnregis
     } finally {
       setEnvoi(false)
     }
-  }
-
-  if (envoye) {
-    return (
-      <Alerte ton="succes" titre="Plus qu’une étape : confirmez ce numéro">
-        Un e-mail vient de partir{email ? ` à ${email}` : ''}. Ouvrez le lien et cliquez sur « Confirmer ce numéro » : vos revenus pourront alors partir dessus.
-      </Alerte>
-    )
   }
 
   return (
@@ -97,8 +89,18 @@ export function FormulaireCoordonnees({ reseaux, paysParDefaut, email, onEnregis
         <Champ libelle="Numéro Mobile Money" aide="Sans l’indicatif du pays, comme sur votre téléphone." erreur={erreurs.numero}>
           {(liaison) => <Saisie {...liaison} type="tel" inputMode="tel" autoComplete="tel-national" value={numero} onChange={(evenement) => setNumero(evenement.target.value)} />}
         </Champ>
-        <Champ libelle="Numéro, une seconde fois" erreur={differents ? 'Les deux numéros ne correspondent pas.' : erreurs.numero_confirmation}>
-          {(liaison) => <Saisie {...liaison} type="tel" inputMode="tel" autoComplete="off" value={numeroConfirmation} onChange={(evenement) => setNumeroConfirmation(evenement.target.value)} />}
+        <Champ libelle="Numéro, une seconde fois" erreur={montrerDifference ? 'Les deux numéros ne correspondent pas.' : erreurs.numero_confirmation}>
+          {(liaison) => (
+            <Saisie
+              {...liaison}
+              type="tel"
+              inputMode="tel"
+              autoComplete="off"
+              value={numeroConfirmation}
+              onChange={(evenement) => setNumeroConfirmation(evenement.target.value)}
+              onBlur={() => setConfirmationQuittee(true)}
+            />
+          )}
         </Champ>
       </div>
 

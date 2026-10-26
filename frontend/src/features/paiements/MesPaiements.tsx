@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CircleCheck } from 'lucide-react'
@@ -7,6 +7,7 @@ import { useCanalPrive } from '../../app/tempsReelPrive'
 import { useTitrePage } from '../../app/titre'
 import {
   Alerte,
+  AvisDonneesPartielles,
   Bouton,
   Carte,
   EnTetePage,
@@ -26,8 +27,8 @@ import {
   type Colonne,
 } from '../../ui'
 import { listerCopies } from '../catalogue/api'
-import { allerPayer, listerFactures, messageErreur, nouvelleCle, type Facture } from './api'
-import { phraseEcheance, presentationFacture } from './presentation'
+import { allerPayer, listerFactures, messageErreur, nouvelleCle, verifierFacture, type Facture } from './api'
+import { enValidation, phraseEcheance, presentationFacture } from './presentation'
 
 type Filtre = 'toutes' | 'a_payer' | 'payee'
 
@@ -74,7 +75,9 @@ export function MesPaiements() {
       rendu: (facture) => (
         <span className="flex flex-col">
           <span className="font-medium text-titre">{facture.app_nom}</span>
-          <span className="text-petit text-texte-doux">{facture.numero}</span>
+          <span className="text-petit text-texte-doux">
+            {facture.numero} · copie n° {facture.deploiement_id}
+          </span>
         </span>
       ),
     },
@@ -108,6 +111,10 @@ export function MesPaiements() {
         <Alerte ton="alerte" titre="Le paiement est momentanément indisponible">
           SasPay ne répond pas pour le moment. Votre facture reste à payer ; réessayez dans quelques minutes.
         </Alerte>
+      ) : null}
+
+      {aPayer.isError ? (
+        <AvisDonneesPartielles>Les factures à payer n’ont pas pu être chargées. Rechargez la page dans un instant ; l’historique ci-dessous reste juste.</AvisDonneesPartielles>
       ) : null}
 
       {dues.length > 0 ? (
@@ -187,18 +194,35 @@ export function MesPaiements() {
 }
 
 function FactureAPayer({ facture }: { facture: Facture }) {
+  const cache = useQueryClient()
   const [envoi, setEnvoi] = useState(false)
   const [erreur, setErreur] = useState<string | null>(null)
-  const [cle] = useState(nouvelleCle)
+  const cle = useRef(nouvelleCle())
   const etat = presentationFacture(facture)
+  const validation = enValidation(facture)
 
   async function payer() {
     setEnvoi(true)
     setErreur(null)
     try {
-      await allerPayer(facture.id, cle)
+      await allerPayer(facture.id, cle.current)
     } catch (probleme) {
+      // Une erreur clôt cette tentative : la suivante est une nouvelle intention.
+      cle.current = nouvelleCle()
       setErreur(messageErreur(probleme, 'Le paiement n’a pas pu s’ouvrir. Réessayez dans un instant.'))
+      setEnvoi(false)
+    }
+  }
+
+  async function verifier() {
+    setEnvoi(true)
+    setErreur(null)
+    try {
+      await verifierFacture(facture.id)
+      await cache.invalidateQueries({ queryKey: ['factures'] })
+    } catch (probleme) {
+      setErreur(messageErreur(probleme, 'La vérification n’a pas abouti. Réessayez dans un instant.'))
+    } finally {
       setEnvoi(false)
     }
   }
@@ -212,18 +236,29 @@ function FactureAPayer({ facture }: { facture: Facture }) {
             <PastilleEtat ton={etat.ton} libelle={etat.libelle} />
           </div>
           <p className="m-0 text-petit text-texte-doux">
-            {facture.numero} · {formaterPeriode(facture.periode_debut, facture.periode_fin)} · {phraseEcheance(facture)}
+            {facture.numero} · copie n° {facture.deploiement_id} · {formaterPeriode(facture.periode_debut, facture.periode_fin)} · {phraseEcheance(facture)}
           </p>
         </div>
         <div className="flex flex-col gap-2 tablette:flex-row tablette:items-center">
           <LienBouton to={`/paiements/${facture.id}`} variante="fantome" aria-label={`Détails de la facture ${facture.numero}`}>
             Détails
           </LienBouton>
-          <Bouton chargement={envoi} onClick={() => void payer()}>
-            Payer {formaterFcfa(facture.montant_total)}
-          </Bouton>
+          {validation ? (
+            <Bouton variante="secondaire" chargement={envoi} onClick={() => void verifier()}>
+              Vérifier le paiement
+            </Bouton>
+          ) : (
+            <Bouton chargement={envoi} onClick={() => void payer()}>
+              Payer {formaterFcfa(facture.montant_total)}
+            </Bouton>
+          )}
         </div>
       </div>
+      {validation ? (
+        <Alerte ton="info" titre="Paiement en cours de validation">
+          Confirmez l’opération sur votre téléphone. Ne payez pas une seconde fois : la facture se met à jour dès la réponse du réseau.
+        </Alerte>
+      ) : null}
       {erreur ? (
         <Alerte ton="danger" urgente>
           {erreur}

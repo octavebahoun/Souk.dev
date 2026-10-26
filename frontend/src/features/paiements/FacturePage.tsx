@@ -1,12 +1,12 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useParams } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import { Printer } from 'lucide-react'
 import { useCompte } from '../../app/compte'
 import { useTitrePage } from '../../app/titre'
-import { Alerte, Bouton, Carte, EnTetePage, EtatErreur, Logo, Montant, PastilleEtat, Squelette, SqueletteLignes, formaterDate, formaterFcfa } from '../../ui'
-import { allerPayer, lireFacture, messageErreur, nouvelleCle } from './api'
-import { phraseEcheance, presentationFacture, presentationPaiement } from './presentation'
+import { Alerte, Bouton, Carte, EnTetePage, EtatErreur, EtatVide, LienBouton, Logo, Montant, PastilleEtat, Squelette, SqueletteLignes, formaterDate, formaterFcfa } from '../../ui'
+import { allerPayer, lireFacture, messageErreur, nouvelleCle, statutHttp } from './api'
+import { enValidation, phraseEcheance, presentationFacture, presentationPaiement } from './presentation'
 
 /**
  * Une facture et, une fois payée, son reçu imprimable (la page s'imprime seule, sans la coquille
@@ -16,10 +16,16 @@ export function FacturePage() {
   const { id = '' } = useParams()
   const factureId = Number(id)
   const compte = useCompte()
-  const facture = useQuery({ queryKey: ['facture', factureId], queryFn: () => lireFacture(factureId), enabled: Number.isInteger(factureId) && factureId > 0 })
+  const facture = useQuery({
+    queryKey: ['facture', factureId],
+    queryFn: () => lireFacture(factureId),
+    enabled: Number.isInteger(factureId) && factureId > 0,
+    // Paiement en cours de validation : relu toutes les 10 secondes jusqu'à la réponse du réseau.
+    refetchInterval: (requete) => (requete.state.data && enValidation(requete.state.data) ? 10_000 : false),
+  })
   const [envoi, setEnvoi] = useState(false)
   const [erreur, setErreur] = useState<string | null>(null)
-  const [cle] = useState(nouvelleCle)
+  const cle = useRef(nouvelleCle())
   const donnees = facture.data
   const payee = donnees?.statut === 'payee'
   useTitrePage(donnees ? `${payee ? 'Reçu' : 'Facture'} ${donnees.numero}` : 'Facture')
@@ -37,12 +43,15 @@ export function FacturePage() {
   }
 
   if (!donnees) {
-    return (
-      <EtatErreur
+    return statutHttp(facture.error) === 404 ? (
+      <EtatVide
+        illustration="vide-paiements"
         titre="Facture introuvable"
         description="Elle n’existe pas ou n’est pas à votre nom. Retrouvez vos factures dans « Mes paiements »."
-        onReessayer={() => void facture.refetch()}
+        action={<LienBouton to="/paiements">Mes paiements</LienBouton>}
       />
+    ) : (
+      <EtatErreur onReessayer={() => void facture.refetch()} />
     )
   }
 
@@ -53,8 +62,9 @@ export function FacturePage() {
     setEnvoi(true)
     setErreur(null)
     try {
-      await allerPayer(factureId, cle)
+      await allerPayer(factureId, cle.current)
     } catch (probleme) {
+      cle.current = nouvelleCle()
       setErreur(messageErreur(probleme, 'Le paiement n’a pas pu s’ouvrir. Réessayez dans un instant.'))
       setEnvoi(false)
     }
@@ -68,7 +78,7 @@ export function FacturePage() {
         titre={`${payee ? 'Reçu' : 'Facture'} ${donnees.numero}`}
         description={`${donnees.app_nom} · ${phraseEcheance(donnees)}`}
         actions={
-          donnees.statut === 'a_payer' ? (
+          donnees.statut === 'a_payer' && !enValidation(donnees) ? (
             <Bouton chargement={envoi} onClick={() => void payer()}>
               Payer {formaterFcfa(donnees.montant_total)}
             </Bouton>
@@ -80,6 +90,11 @@ export function FacturePage() {
         }
       />
 
+      {enValidation(donnees) ? (
+        <Alerte ton="info" titre="Paiement en cours de validation" className="ne-pas-imprimer">
+          Confirmez l’opération sur votre téléphone. Ne payez pas une seconde fois : cette page se met à jour dès la réponse du réseau.
+        </Alerte>
+      ) : null}
       {erreur ? (
         <Alerte ton="danger" urgente className="ne-pas-imprimer">
           {erreur}
