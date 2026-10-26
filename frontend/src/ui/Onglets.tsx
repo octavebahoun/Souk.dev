@@ -71,7 +71,7 @@ export function Onglets<V extends string>({ libelle, onglets, valeur, onChange, 
               className={classeOnglet(actif)}
             >
               {onglet.libelle}
-              {onglet.compteur !== undefined ? <Compteur valeur={onglet.compteur} /> : null}
+              {onglet.compteur ? <Compteur valeur={onglet.compteur} /> : null}
             </button>
           )
         })}
@@ -96,7 +96,7 @@ export function OngletsLiens({ libelle, liens, className }: OngletsLiensProps) {
       {liens.map((lien) => (
         <NavLink key={lien.vers} to={lien.vers} end={lien.fin} className={({ isActive }) => classeOnglet(isActive)}>
           {lien.libelle}
-          {lien.compteur !== undefined ? <Compteur valeur={lien.compteur} /> : null}
+          {lien.compteur ? <Compteur valeur={lien.compteur} /> : null}
         </NavLink>
       ))}
     </nav>

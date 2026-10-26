@@ -36,12 +36,15 @@ final class Reversements
         $solde = $this->grandLivre->soldeDev($dev->id);
         $seuil = (int) config('facturation.seuil_reversement');
 
+        // Espaces insécables : « 5 000 F » ne se coupe jamais en fin de ligne.
+        $montant = fn (int $valeur): string => number_format($valeur, 0, ',', "\u{202F}")."\u{00A0}F";
+
         return match (true) {
             $coordonnees === null => 'Ajoutez votre numéro Mobile Money pour recevoir vos revenus.',
             ! $coordonnees->estConfirme() => 'Confirmez votre numéro Mobile Money avec le lien reçu par e-mail.',
             $this->enCours($dev) !== null => 'Un reversement est déjà en cours.',
-            $declenchement === 'demande' && $solde < $seuil => 'Le reversement à la demande commence à '.number_format($seuil, 0, ',', ' ').' F.',
-            $solde <= 0 => 'Votre solde est nul.',
+            $solde <= 0 => 'Rien à recevoir pour l’instant.',
+            $declenchement === 'demande' && $solde < $seuil => 'Le reversement à la demande commence à '.$montant($seuil).' ; le reste part le 1er du mois.',
             default => null,
         };
     }

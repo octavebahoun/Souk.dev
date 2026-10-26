@@ -135,7 +135,7 @@ export function RetourPaiement() {
         <IconeIssue issue={issue} />
         <div aria-live="polite" className="flex flex-col gap-2">
           <h1 className="m-0 text-titre-1 text-titre">{titres[issue]}</h1>
-          <p className="m-0 max-w-[48ch] text-corps-l text-texte">{description(issue, facture, enAttenteLongue)}</p>
+          <p className="m-0 max-w-[48ch] text-corps-l text-balance text-texte">{description(issue, facture, enAttenteLongue)}</p>
         </div>
 
         <dl className="m-0 grid w-full max-w-md grid-cols-2 gap-x-6 gap-y-2 rounded-moyen border border-bordure bg-surface-douce p-4 text-left text-corps">
@@ -163,13 +163,13 @@ export function RetourPaiement() {
           </Alerte>
         ) : null}
 
-        <div className="flex w-full max-w-md flex-col gap-3 tablette:flex-row tablette:justify-center">
+        <div className="flex w-full max-w-md flex-col gap-3">
           {issue === 'refuse' ? (
             <>
-              <Bouton taille="lg" chargement={envoi} onClick={() => void reessayer()}>
+              <Bouton taille="lg" pleineLargeur chargement={envoi} onClick={() => void reessayer()}>
                 Réessayer le paiement
               </Bouton>
-              <LienBouton to="/paiements" variante="contour" taille="lg">
+              <LienBouton to="/paiements" variante="fantome" pleineLargeur>
                 Voir mes paiements
               </LienBouton>
             </>
@@ -177,11 +177,11 @@ export function RetourPaiement() {
           {issue === 'attente' ? (
             <>
               {enAttenteLongue ? (
-                <Bouton taille="lg" onClick={() => void verification.refetch()} chargement={verification.isFetching}>
+                <Bouton taille="lg" pleineLargeur onClick={() => void verification.refetch()} chargement={verification.isFetching}>
                   Vérifier à nouveau
                 </Bouton>
               ) : null}
-              <LienBouton to="/paiements" variante="contour" taille="lg">
+              <LienBouton to="/paiements" variante={enAttenteLongue ? 'fantome' : 'contour'} taille="lg" pleineLargeur>
                 Voir mes paiements
               </LienBouton>
             </>
@@ -192,18 +192,21 @@ export function RetourPaiement() {
                 <a href={copie.data.url} target="_blank" rel="noopener noreferrer" className={classeLienPrincipal}>
                   Ouvrir ma copie
                   <ExternalLink aria-hidden="true" className="size-4" />
+                  <span className="pour-lecteur">(nouvel onglet)</span>
                 </a>
               ) : null}
-              <LienBouton to="/copies" variante={copie.data?.etat === 'en_ligne' ? 'contour' : 'primaire'} taille="lg">
-                Suivre mes copies
-              </LienBouton>
-              <LienBouton to={`/paiements/${facture.id}`} variante="fantome" taille="lg">
-                Voir le reçu
-              </LienBouton>
+              <div className="grid gap-3 tablette:grid-cols-2">
+                <LienBouton to="/copies" variante={copie.data?.etat === 'en_ligne' ? 'contour' : 'primaire'} pleineLargeur>
+                  Suivre mes copies
+                </LienBouton>
+                <LienBouton to={`/paiements/${facture.id}`} variante="contour" pleineLargeur>
+                  Voir le reçu
+                </LienBouton>
+              </div>
             </>
           ) : null}
           {issue === 'annulee' ? (
-            <LienBouton to="/store" taille="lg">
+            <LienBouton to="/store" taille="lg" pleineLargeur>
               Retour au Store
             </LienBouton>
           ) : null}
@@ -214,7 +217,7 @@ export function RetourPaiement() {
 }
 
 const classeLienPrincipal =
-  'inline-flex h-12 items-center justify-center gap-2 rounded-moyen bg-primaire px-5 text-corps-l font-medium text-sur-primaire no-underline shadow-1 transition-colors duration-150 ease-souk hover:bg-primaire-survol'
+  'inline-flex h-12 w-full items-center justify-center gap-2 rounded-moyen bg-primaire px-5 text-corps-l font-medium whitespace-nowrap text-sur-primaire no-underline shadow-1 transition-colors duration-150 ease-souk hover:bg-primaire-survol'
 
 const titres: Record<Issue, string> = {
   confirme: 'Paiement confirmé',
@@ -258,8 +261,8 @@ function SuiviCopie({ copie }: { copie: Deploiement | undefined }) {
     { id: 'paiement', libelle: 'Paiement reçu', etat: 'terminee' },
     {
       id: 'construction',
-      libelle: etat === 'suspendu' ? 'Réactivation de votre copie' : 'Construction de votre copie',
-      description: 'Quelques minutes. Vous pouvez quitter cette page : la copie continue de démarrer.',
+      libelle: etat === 'suspendu' ? 'Réactivation de votre copie' : etat === 'en_ligne' ? 'Copie construite' : 'Construction de votre copie',
+      description: enCours ? 'Quelques minutes. Vous pouvez quitter cette page : la copie continue de démarrer.' : undefined,
       etat: etat === 'echec' ? 'echec' : etat === 'en_ligne' ? 'terminee' : enCours ? 'en_cours' : 'a_venir',
     },
     {

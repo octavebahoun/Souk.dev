@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
+import { CircleCheck } from 'lucide-react'
 import { useCompte } from '../../app/compte'
 import { useCanalPrive } from '../../app/tempsReelPrive'
 import { useTitrePage } from '../../app/titre'
@@ -19,10 +20,12 @@ import {
   SqueletteLignes,
   Tableau,
   cx,
+  formaterDate,
   formaterFcfa,
   formaterPeriode,
   type Colonne,
 } from '../../ui'
+import { listerCopies } from '../catalogue/api'
 import { allerPayer, listerFactures, messageErreur, nouvelleCle, type Facture } from './api'
 import { phraseEcheance, presentationFacture } from './presentation'
 
@@ -54,8 +57,13 @@ export function MesPaiements() {
     () => void cache.invalidateQueries({ queryKey: ['factures'] }),
   )
 
+  const copies = useQuery({ queryKey: ['copies'], queryFn: listerCopies })
   const dues = aPayer.data?.data ?? []
   const totalDu = dues.reduce((somme, facture) => somme + facture.montant_total, 0)
+  // La prochaine facture, pour rassurer quand rien n'est dû.
+  const prochaine = (copies.data?.data ?? [])
+    .filter((copie) => copie.abonnement?.prochaine_echeance && ['actif', 'en_retard'].includes(copie.abonnement.statut))
+    .sort((a, b) => String(a.abonnement?.prochaine_echeance).localeCompare(String(b.abonnement?.prochaine_echeance)))[0]
   const aucuneFacture = filtre === 'toutes' && page === 1 && historique.data?.meta.total === 0
 
   const colonnes: Colonne<Facture>[] = [
@@ -118,6 +126,20 @@ export function MesPaiements() {
             ))}
           </ul>
         </section>
+      ) : null}
+
+      {aPayer.isSuccess && dues.length === 0 && prochaine?.abonnement?.prochaine_echeance ? (
+        <Carte className="flex items-start gap-3">
+          <CircleCheck aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-succes" />
+          <div className="flex flex-col gap-0.5">
+            <p className="m-0 font-medium text-titre">Vous êtes à jour</p>
+            <p className="m-0 text-petit text-texte">
+              Prochaine facture : {prochaine.app_nom}, le {formaterDate(prochaine.abonnement.prochaine_echeance)} (
+              {formaterFcfa(prochaine.abonnement.montant_hebergement + (prochaine.abonnement.type_prix === 'mensuel' ? prochaine.abonnement.prix_appli : 0))}). Elle arrive 3 jours
+              avant, avec un lien de paiement.
+            </p>
+          </div>
+        </Carte>
       ) : null}
 
       {aucuneFacture ? (

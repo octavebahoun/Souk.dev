@@ -179,11 +179,16 @@ export function Commande() {
 
         <aside aria-labelledby="recapitulatif" className={cx('bureau:sticky bureau:top-24', variables.length > 0 ? '' : 'max-bureau:-order-1')}>
           <Carte marge="large" className="flex flex-col gap-5 shadow-2">
-            <div className="flex flex-col gap-1">
-              <h2 id="recapitulatif" className="m-0 text-titre-3 text-titre">Récapitulatif</h2>
-              <p className="m-0 text-petit text-texte-doux">
-                {fiche.nom}, par {auteur}
-              </p>
+            <div className="flex items-center gap-3">
+              {fiche.captures[0] ? (
+                <img src={fiche.captures[0].url} alt="" width={96} height={54} className="aspect-video w-24 shrink-0 rounded-moyen border border-bordure object-cover" />
+              ) : null}
+              <div className="flex min-w-0 flex-col gap-0.5">
+                <h2 id="recapitulatif" className="m-0 text-titre-3 text-titre">Récapitulatif</h2>
+                <p className="m-0 text-petit text-texte-doux">
+                  {fiche.nom}, par {auteur}
+                </p>
+              </div>
             </div>
 
             <dl className="m-0 flex flex-col gap-3 text-corps">

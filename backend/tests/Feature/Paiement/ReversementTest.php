@@ -131,7 +131,7 @@ class ReversementTest extends TestCase
 
         $this->actingAs($dev)->postJson('/api/me/revenus/reversements')
             ->assertUnprocessable()
-            ->assertJsonPath('errors.reversement.0', 'Le reversement à la demande commence à 5 000 F.');
+            ->assertJsonPath('errors.reversement.0', "Le reversement à la demande commence à 5\u{202F}000\u{00A0}F ; le reste part le 1er du mois.");
     }
 
     public function test_un_conflit_d_idempotence_chez_saspay_ne_rend_jamais_le_solde(): void

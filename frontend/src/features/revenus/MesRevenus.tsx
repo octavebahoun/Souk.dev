@@ -248,13 +248,6 @@ export function MesRevenus() {
           <EnTeteCarte
             titre="Où recevoir vos revenus"
             description="Un numéro Mobile Money à votre nom. Chaque changement se confirme par e-mail : une session volée ne peut pas détourner votre argent."
-            action={
-              coordonnees && !afficherFormulaire ? (
-                <Bouton variante="contour" taille="sm" onClick={() => setModification(true)}>
-                  Changer de numéro
-                </Bouton>
-              ) : null
-            }
           />
           {coordonnees && !afficherFormulaire ? (
             <div className="flex flex-wrap items-center gap-3 rounded-moyen border border-bordure p-4">
@@ -263,9 +256,10 @@ export function MesRevenus() {
                 <span className="text-titre">{nomReseau}</span>
                 <span className="font-mono text-corps text-texte">{coordonnees.numero_masque}</span>
               </div>
-              <Badge ton={coordonnees.confirme ? 'succes' : 'alerte'} className="ml-auto">
-                {coordonnees.confirme ? 'Confirmé' : 'À confirmer par e-mail'}
-              </Badge>
+              <Badge ton={coordonnees.confirme ? 'succes' : 'alerte'}>{coordonnees.confirme ? 'Confirmé' : 'À confirmer par e-mail'}</Badge>
+              <Bouton variante="contour" taille="sm" className="tablette:ml-auto" onClick={() => setModification(true)}>
+                Changer de numéro
+              </Bouton>
             </div>
           ) : (
             <FormulaireCoordonnees

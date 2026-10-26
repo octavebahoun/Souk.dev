@@ -212,7 +212,7 @@ function CarteCopie({ copie, onArreter, onChange, onRelire }: { copie: Deploieme
             </LienBouton>
           ) : null}
           {actif && copie.etat !== 'attente_paiement' ? (
-            <Bouton variante="fantome" className="text-danger hover:text-danger" onClick={onArreter}>
+            <Bouton variante="fantome" onClick={onArreter}>
               Arrêter
             </Bouton>
           ) : null}
