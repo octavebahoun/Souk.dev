@@ -5,7 +5,7 @@ namespace App\Moteur;
 use App\Moteur\Exceptions\DepotInvalide;
 use Illuminate\Support\Facades\File;
 
-final class CloneurGithub
+class CloneurGithub
 {
     /** Dépôt d'un inconnu : aucune configuration de la machine, aucune invite, messages en anglais. */
     public const ENV_GIT = [

@@ -4,15 +4,25 @@ namespace Tests\Feature;
 
 use App\Models\Appli;
 use App\Models\User;
+use App\Securite\VerificationSecrets;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Process\PendingProcess;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
+use Mockery\MockInterface;
 use Tests\TestCase;
 
 class VerificationDepotTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // La recherche de secrets tourne sur le moteur (voir SecuriteDepotTest) : ici, un dépôt sans secret.
+        $this->mock(VerificationSecrets::class, fn (MockInterface $mock) => $mock->shouldReceive('secrets')->andReturn([]));
+    }
 
     public function test_un_depot_valide_renvoie_ce_que_la_plateforme_a_lu(): void
     {

@@ -50,6 +50,9 @@ Route::middleware('auth:sanctum')->group(function (): void {
 
     Route::post('/devs/{username}/missions', [MissionController::class, 'pourDev'])
         ->middleware('throttle:missions');
+    // Relance de l'analyse de sécurité par l'auteur (Trivy, sur le moteur).
+    Route::post('/apps/{appli}/securite', [AppliController::class, 'securite'])
+        ->middleware('throttle:securite');
     Route::post('/apps/{appli}/missions', [MissionController::class, 'pourAppli'])
         ->middleware('throttle:missions');
 

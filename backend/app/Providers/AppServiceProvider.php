@@ -143,6 +143,9 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('reversements', fn (Request $request) => Limit::perHour(5)->by('reversements:'.($request->user()?->id ?? $request->ip())));
         RateLimiter::for('coordonnees', fn (Request $request) => Limit::perHour(5)->by('coordonnees:'.($request->user()?->id ?? $request->ip())));
 
+        // Une analyse de sécurité occupe le moteur plusieurs minutes : 5 relances par heure.
+        RateLimiter::for('securite', fn (Request $request) => Limit::perHour(5)->by('securite:'.($request->user()?->id ?? $request->ip())));
+
         $this->battreDansLesWorkers();
 
         // Publier une appli ou proposer un correctif, c'est lier un dépôt : GitHub obligatoire.

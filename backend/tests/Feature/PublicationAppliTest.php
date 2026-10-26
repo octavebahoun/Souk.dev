@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Jobs\MesurerMemoire;
 use App\Models\Appli;
 use App\Models\User;
+use App\Securite\VerificationSecrets;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Process\PendingProcess;
@@ -12,11 +13,20 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use Mockery\MockInterface;
 use Tests\TestCase;
 
 class PublicationAppliTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // La recherche de secrets tourne sur le moteur (voir SecuriteDepotTest) : ici, un dépôt sans secret.
+        $this->mock(VerificationSecrets::class, fn (MockInterface $mock) => $mock->shouldReceive('secrets')->andReturn([]));
+    }
 
     public function test_la_publication_lance_la_mesure_en_tache_de_fond(): void
     {

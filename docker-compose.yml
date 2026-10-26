@@ -135,6 +135,22 @@ services:
       timeout: 10s
       retries: 3
 
+  # Sécurité avant publication (gitleaks, Trivy) dans des conteneurs jetables : file « analyse »,
+  # à part du moteur, pour qu'une publication n'attende jamais derrière un déploiement.
+  analyse:
+    <<: *php
+    command: ["php", "artisan", "queue:work", "--queue=analyse", "--sleep=1", "--tries=1", "--timeout=1200"]
+    volumes:
+      - ./backend:/app
+      - ./openapi.yaml:/openapi.yaml:ro
+      - secrets:/run/soukdev:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test: ["CMD", "php", "docker/sante.php", "worker"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   reverb:
     <<: *php
     command: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=8080"]

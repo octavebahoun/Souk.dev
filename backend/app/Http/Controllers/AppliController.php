@@ -9,6 +9,7 @@ use App\Moteur\Exceptions\LancementEchoue;
 use App\Moteur\Exceptions\ManifestInvalide;
 use App\Moteur\LimitesTaille;
 use App\Moteur\PublicationDepot;
+use App\Securite\VerificationSecrets;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -105,12 +106,13 @@ class AppliController extends Controller
         return response()->json(Appli::CATEGORIES);
     }
 
-    public function store(Request $request, PublicationDepot $depot, ProfilCalcule $profils): JsonResponse
+    public function store(Request $request, PublicationDepot $depot, VerificationSecrets $secrets, ProfilCalcule $profils): JsonResponse
     {
         Gate::authorize('lierUnDepot');
 
         $donnees = $this->donnees($request);
         $manifeste = $this->manifeste($donnees['depot_url'], $depot);
+        $this->sansSecret($donnees['depot_url'], $secrets);
 
         $appli = Appli::query()->create([
             'user_id' => $request->user()->id,
@@ -132,12 +134,13 @@ class AppliController extends Controller
         ])->save();
 
         $appli->demanderMesure();
+        $appli->demanderAnalyseSecurite();
         $profils->rafraichir($request->user());
 
         return response()->json($appli->fresh()->versApi(), 201);
     }
 
-    public function verification(Request $request, PublicationDepot $depot): JsonResponse
+    public function verification(Request $request, PublicationDepot $depot, VerificationSecrets $secrets): JsonResponse
     {
         Gate::authorize('lierUnDepot');
 
@@ -146,6 +149,7 @@ class AppliController extends Controller
         ]);
 
         $manifeste = $this->manifeste($donnees['depot_url'], $depot);
+        $this->sansSecret($donnees['depot_url'], $secrets);
 
         return response()->json([
             'service_web' => [
@@ -281,6 +285,26 @@ class AppliController extends Controller
         }
 
         return $donnees;
+    }
+
+    /** Relance de l'analyse des dépendances par l'auteur, par exemple après une mise à jour. */
+    public function securite(Appli $appli): JsonResponse
+    {
+        Gate::authorize('update', $appli);
+
+        $appli->demanderAnalyseSecurite();
+
+        return response()->json($appli->fresh()->versApi()['securite'], 202);
+    }
+
+    /** Un secret dans le dépôt bloque la publication (gitleaks, sur le moteur). */
+    private function sansSecret(string $url, VerificationSecrets $secrets): void
+    {
+        $trouves = $secrets->secrets($url);
+
+        if ($trouves !== []) {
+            throw ValidationException::withMessages(['depot_url' => VerificationSecrets::message($trouves)]);
+        }
     }
 
     /**

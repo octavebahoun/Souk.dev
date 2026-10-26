@@ -17,7 +17,6 @@ class ContratRoutesTest extends TestCase
      * On retire une ligne dès que la route existe.
      */
     private const PAS_ENCORE_CODEES = [
-        'POST /apps/{}/securite',
         'POST /discussions/{}/analyse-ia',
     ];
 

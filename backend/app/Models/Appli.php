@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\Profil;
+use App\Jobs\AnalyserDependances;
 use App\Jobs\MesurerMemoire;
 use Database\Factories\AppliFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -12,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 
 class Appli extends Model
 {
@@ -90,6 +92,17 @@ class Appli extends Model
      * Remet la mesure à en_cours et lance le relevé en tâche de fond.
      * La taille choisie par le dev n'est pas modifiée.
      */
+    /** Analyse des dépendances (Trivy) sur le moteur ; le badge reste « en cours » jusqu'au résultat. */
+    public function demanderAnalyseSecurite(): void
+    {
+        $this->forceFill([
+            'securite_statut' => 'en_cours',
+            'securite_jeton' => (string) Str::uuid(),
+        ])->save();
+
+        AnalyserDependances::dispatch($this->id, (string) $this->securite_jeton);
+    }
+
     public function demanderMesure(): void
     {
         $this->forceFill([

@@ -30,6 +30,13 @@ return [
     // Sonde du service web : conteneur jetable branché sur le réseau de la copie.
     'image_sonde' => env('MOTEUR_IMAGE_SONDE', 'curlimages/curl:8.11.1'),
 
+    // Sécurité avant publication : images épinglées des conteneurs d'analyse (licences MIT et
+    // Apache 2.0), volume de la base des failles de Trivy, attente maximale de l'analyse des secrets.
+    'image_gitleaks' => env('MOTEUR_IMAGE_GITLEAKS', 'zricethezav/gitleaks:v8.21.2'),
+    'image_trivy' => env('MOTEUR_IMAGE_TRIVY', 'aquasec/trivy:0.58.1'),
+    'volume_trivy' => env('MOTEUR_VOLUME_TRIVY', 'soukdev-trivy'),
+    'delai_analyse_secrets' => (int) env('MOTEUR_DELAI_ANALYSE_SECRETS', 90),
+
     // Développement seulement : dossier de dépôts Git locaux ({owner}/{repo}.git) clonés à la place
     // de GitHub pour les applis du jeu de démo (php artisan demo:miroirs). Ignoré hors local et tests.
     'miroirs' => env('MOTEUR_MIROIRS'),
