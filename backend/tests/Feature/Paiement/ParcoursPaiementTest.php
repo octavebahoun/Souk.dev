@@ -165,6 +165,20 @@ class ParcoursPaiementTest extends TestCase
         $this->assertSame(2, Paiement::query()->count());
     }
 
+    public function test_un_paiement_d_une_autre_passerelle_n_est_jamais_verifie_par_celle_ci(): void
+    {
+        [$client] = $this->commande();
+        $facture = Facture::query()->sole();
+        $this->actingAs($client)->postJson("/api/factures/{$facture->id}/paiement")->assertCreated();
+        $paiement = Paiement::query()->sole();
+        $paiement->forceFill(['passerelle' => 'saspay', 'session_id' => '6f9b1d2e-0000-4000-8000-0000000000aa'])->save();
+
+        // Le simulateur ne connaît pas cette session : sans la garde, il la déclarerait introuvable.
+        $this->actingAs($client)->postJson("/api/factures/{$facture->id}/verification")->assertOk();
+
+        $this->assertSame('en_attente', $paiement->refresh()->statut);
+    }
+
     public function test_une_facture_payee_ne_se_paie_pas_deux_fois(): void
     {
         [$client] = $this->commande();

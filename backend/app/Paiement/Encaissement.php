@@ -119,7 +119,9 @@ final class Encaissement
      */
     public function verifier(Paiement $paiement): Paiement
     {
-        if (in_array($paiement->statut, ['reussi', 'annule'], true) || $paiement->session_id === null) {
+        // Seule la passerelle qui a ouvert la session peut en dire l'état (jamais le simulateur
+        // pour une session SasPay, ni l'inverse, par exemple après un changement de passerelle).
+        if (in_array($paiement->statut, ['reussi', 'annule'], true) || $paiement->session_id === null || $paiement->passerelle !== $this->passerelle->nom()) {
             return $paiement;
         }
 
