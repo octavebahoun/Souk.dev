@@ -10,7 +10,6 @@ use App\Models\Deploiement;
 use App\Models\UtilisateurFinal;
 use App\Notifications\CodeConnexionCopie;
 use App\Sms\FournisseurSms;
-use App\Sms\SmsNonEnvoye;
 use App\Sms\SmsSimule;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -64,7 +63,9 @@ final class ConnexionUtilisateurFinalController extends Controller
         if ($canal === 'sms') {
             try {
                 $sms->envoyer($destinataire, "{$code} : votre code de connexion à {$nom}. Il expire dans ".self::MINUTES_CODE.' minutes.');
-            } catch (SmsNonEnvoye) {
+            } catch (Throwable $erreur) {
+                report($erreur);
+
                 throw new ServiceUnavailableHttpException(60, 'Le SMS n’a pas pu partir. Réessayez dans un instant, ou connectez-vous par e-mail.');
             }
         } else {
@@ -86,6 +87,14 @@ final class ConnexionUtilisateurFinalController extends Controller
         [$canal, $destinataire] = $this->destinataire($request);
         $request->validate(['code' => ['required', 'string', 'regex:/^\d{6}$/']], ['code.regex' => 'Le code a 6 chiffres.', 'code.required' => 'Saisissez le code reçu.']);
         $empreinte = $this->empreinte($canal, $destinataire);
+
+        // Vingt essais par heure et par adresse IP : la clé publique figure dans le /config.js de
+        // chaque copie, et sans cela 5 faux essais suffisent à bloquer le code d'un autre
+        // destinataire, en boucle avec ses 3 codes par quart d'heure.
+        if (RateLimiter::tooManyAttempts('session-ip:'.$request->ip(), 20)) {
+            throw new TooManyRequestsHttpException(RateLimiter::availableIn('session-ip:'.$request->ip()), 'Trop d’essais : réessayez dans quelques minutes.');
+        }
+        RateLimiter::hit('session-ip:'.$request->ip(), 3600);
 
         // Le verdict sort de la transaction avant toute exception : un essai faux reste compté
         // (une exception dans la transaction l'annulerait, et les essais seraient illimités).
@@ -114,10 +123,11 @@ final class ConnexionUtilisateurFinalController extends Controller
         });
 
         if (is_string($utilisateur)) {
+            // Faux ou expiré : un seul verdict, sinon n'importe qui muni de la clé publique teste
+            // si un numéro a demandé un code sur une copie (oracle d'activité).
             match ($utilisateur) {
-                'expire' => throw ValidationException::withMessages(['code' => 'Ce code a expiré : demandez-en un nouveau.']),
                 'bloque' => throw new TooManyRequestsHttpException(60, 'Trop d’essais avec ce code : demandez-en un nouveau.'),
-                default => throw ValidationException::withMessages(['code' => 'Ce code est incorrect.']),
+                default => throw ValidationException::withMessages(['code' => 'Ce code est invalide ou expiré : demandez-en un nouveau.']),
             };
         }
 

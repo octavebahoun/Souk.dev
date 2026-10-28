@@ -126,7 +126,7 @@ class BackendIntegreCompletTest extends TestCase
         $bon = $this->dernierCode('+2290197123456');
         $faux = $bon === '000000' ? '111111' : '000000';
 
-        $this->postJson("/api/copies/{$copie->cle_publique}/auth/session", [...$demande, 'code' => $faux])->assertUnprocessable()->assertJsonPath('errors.code.0', 'Ce code est incorrect.');
+        $this->postJson("/api/copies/{$copie->cle_publique}/auth/session", [...$demande, 'code' => $faux])->assertUnprocessable()->assertJsonPath('errors.code.0', "Ce code est invalide ou expiré\u{00A0}: demandez-en un nouveau.");
         foreach (range(2, 5) as $essai) {
             $this->postJson("/api/copies/{$copie->cle_publique}/auth/session", [...$demande, 'code' => $faux])->assertUnprocessable();
         }
@@ -138,7 +138,50 @@ class BackendIntegreCompletTest extends TestCase
         $this->travel(11)->minutes();
         $this->postJson("/api/copies/{$copie->cle_publique}/auth/session", [...$demande, 'code' => $this->dernierCode('+2290197123456')])
             ->assertUnprocessable()
-            ->assertJsonPath('errors.code.0', "Ce code a expiré\u{00A0}: demandez-en un nouveau.");
+            ->assertJsonPath('errors.code.0', "Ce code est invalide ou expiré\u{00A0}: demandez-en un nouveau.");
+        // Le même verdict pour un numéro sans code : aucune différence observable (pas d'oracle).
+        $this->postJson("/api/copies/{$copie->cle_publique}/auth/session", ['canal' => 'sms', 'destinataire' => '+22990000009', 'code' => '123456'])
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.code.0', "Ce code est invalide ou expiré\u{00A0}: demandez-en un nouveau.");
+    }
+
+    public function test_les_essais_de_session_sont_brides_par_adresse_ip(): void
+    {
+        $copie = $this->copieIntegree();
+
+        // Quatre destinataires, cinq faux essais chacun : vingt essais, tous refusés en 422.
+        foreach (range(1, 4) as $rang) {
+            $numero = '+2299000000'.$rang;
+            $this->postJson("/api/copies/{$copie->cle_publique}/auth/code", ['canal' => 'sms', 'destinataire' => $numero])->assertStatus(202);
+            $faux = $this->dernierCode($numero) === '000000' ? '111111' : '000000';
+            foreach (range(1, 5) as $essai) {
+                $this->postJson("/api/copies/{$copie->cle_publique}/auth/session", ['canal' => 'sms', 'destinataire' => $numero, 'code' => $faux])->assertUnprocessable();
+            }
+        }
+
+        // Un cinquième destinataire, avec un code frais et aucun essai : refusé en 429 par la
+        // limite d'adresse IP, pas par les 5 essais du code.
+        $this->postJson("/api/copies/{$copie->cle_publique}/auth/code", ['canal' => 'sms', 'destinataire' => '+22990000005'])->assertStatus(202);
+        $this->postJson("/api/copies/{$copie->cle_publique}/auth/session", ['canal' => 'sms', 'destinataire' => '+22990000005', 'code' => $this->dernierCode('+22990000005')])
+            ->assertStatus(429)
+            ->assertJsonPath('message', 'Trop d’essais : réessayez dans quelques minutes.');
+    }
+
+    public function test_une_panne_sms_inattendue_repond_503_comme_la_voie_e_mail(): void
+    {
+        $copie = $this->copieIntegree();
+        app()->bind(FournisseurSms::class, fn () => new class implements FournisseurSms
+        {
+            public function envoyer(string $numero, string $message): void
+            {
+                throw new RuntimeException('fournisseur injoignable');
+            }
+        });
+
+        $this->postJson("/api/copies/{$copie->cle_publique}/auth/code", ['canal' => 'sms', 'destinataire' => '+2290197123456'])
+            ->assertStatus(503)
+            ->assertHeader('Retry-After', '60')
+            ->assertJsonPath('message', 'Le SMS n’a pas pu partir. Réessayez dans un instant, ou connectez-vous par e-mail.');
     }
 
     public function test_les_codes_sont_limites_et_les_copies_sans_backend_n_ont_pas_de_connexion(): void
