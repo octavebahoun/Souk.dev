@@ -124,6 +124,9 @@ services:
   moteur:
     <<: *php
     command: ["php", "artisan", "queue:work", "--queue=moteur", "--sleep=2", "--tries=1", "--timeout=1200"]
+    # Joint le second démon local (profil « machines ») par tcp://host.docker.internal:2376.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./backend:/app
       - ./openapi.yaml:/openapi.yaml:ro
@@ -253,6 +256,35 @@ services:
       api:
         condition: service_started
 
+  # Second démon Docker local, pour tester le placement sur deux machines
+  # (docs/machines.md) : `docker compose --profile machines up -d dind`, puis enregistrer
+  # tcp://host.docker.internal:2376 dans /admin/serveurs. Profil opt-in : `docker compose up`
+  # seul ne le lance pas. Développement uniquement : sans TLS, jamais en production.
+  dind:
+    image: docker:28-dind
+    profiles: [machines]
+    # Réseau de l'hôte : les conteneurs intérieurs y sont joignables, donc Traefik les sert
+    # comme ceux du démon local. Plages intérieures hors des ponts habituels (172.17/172.18…).
+    network_mode: host
+    privileged: true
+    restart: "no"
+    environment:
+      DOCKER_TLS_CERTDIR: ""
+    command:
+      - dockerd
+      - --host=unix:///var/run/docker.sock
+      - --host=tcp://0.0.0.0:2376
+      - --bip=10.200.1.1/24
+      - --fixed-cidr=10.200.1.0/24
+      - --default-address-pool=base=10.201.0.0/16,size=24
+    volumes:
+      - dind:/var/lib/docker
+    healthcheck:
+      test: ["CMD", "docker", "info"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
 networks:
   interne:
   web:
@@ -262,3 +294,4 @@ volumes:
   secrets:
   secrets_publics:
   front_node_modules:
+  dind:

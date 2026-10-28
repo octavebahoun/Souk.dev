@@ -39,7 +39,7 @@ const lots: Lot[] = [
       return ['/copies', '/paiements', `/paiements/${payee}`, `/store/${appli}`, `/store/${appli}/deployer`, `/paiement/retour?facture=${payee}`]
     },
   },
-  { compte: 'soukdemo-admin', pages: async () => ['/admin/finances'] },
+  { compte: 'soukdemo-admin', pages: async () => ['/admin/finances', '/admin/serveurs'] },
   {
     compte: 'soukdemo-yao',
     pages: async (page) => [`/echange/${await idDe(page, '/discussions?per_page=50', (discussions) => discussions.find((discussion) => String(discussion.titre).startsWith('Wave CI'))?.id)}`],
