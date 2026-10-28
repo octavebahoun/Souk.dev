@@ -52,6 +52,14 @@ l'archive passe par une redirection du shell du moteur, jamais par la mémoire d
 sauvegardes de plus de 7 jours sont retirées chaque nuit, la dernière de chaque copie toujours
 gardée (`MOTEUR_SAUVEGARDES_JOURS`).
 
+Trois sortes : `mise_a_jour` (copie arrêtée, avant d'appliquer une version), `quotidienne` (chaque
+nuit à 3 h 30, à chaud : la base du backend intégré par `pg_dump`, les autres volumes en archive,
+jamais les fichiers de la base en marche) et `manuelle` (le client clique « Sauvegarder
+maintenant », 3 par heure). Le client liste les siennes (`GET /deployments/{id}/sauvegardes`),
+voit la plus récente sur sa carte de « Mes copies » (en direct par `deploiement.etat`, sans
+recharger) et l'exporte en archive tar (`base.dump` au format `pg_dump` custom, chaque volume en
+tar.gz). Une sauvegarde ratée ne laisse aucun dossier à moitié écrit.
+
 ## Démo
 
 Le miroir local de PharmaStock a deux branches en plus de `main` : `v2` (un bandeau « Nouveau dans

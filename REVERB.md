@@ -25,7 +25,7 @@ Le back diffuse avec Laravel Reverb, le front écoute avec Laravel Echo.
 
 | Canal | Événement | Payload (schéma OpenAPI) | Quand |
 |---|---|---|---|
-| `deploiement.{id}` | `deploiement.etat` | `Deploiement` | À chaque changement d'état : `en_file` → `construction` → `demarrage` → `en_ligne` ou `echec` ; `arret_en_cours` puis `arrete` après un arrêt |
+| `deploiement.{id}` | `deploiement.etat` | `Deploiement` | À chaque changement d'état : `en_file` → `construction` → `demarrage` → `en_ligne` ou `echec` ; `arret_en_cours` puis `arrete` après un arrêt ; et à la fin d'une sauvegarde (même état, `derniere_sauvegarde` changée) |
 | `mission.{id}` | `message.cree` | `Message` | Nouveau message dans le fil privé |
 | `utilisateur.{id}` | `facture.modifiee` | `Facture` | Une facture du compte change (émise, payée après vérification par l'API SasPay, annulée, remboursée) |
 | `utilisateur.{id}` | `notification.creee` | `Notification` | Une notification arrive dans le centre (selon les préférences du compte) : la cloche se met à jour sans recharger |
