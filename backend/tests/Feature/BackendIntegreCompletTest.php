@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Events\DeploiementEtat;
 use App\Jobs\SauvegarderCopie;
+use App\Models\CodeConnexion;
 use App\Models\Deploiement;
 use App\Models\User;
 use App\Moteur\LanceurCompose;
@@ -93,6 +94,39 @@ class BackendIntegreCompletTest extends TestCase
         Notification::assertSentTo(new AnonymousNotifiable, CodeConnexionCopie::class, function (CodeConnexionCopie $notification, array $canaux, AnonymousNotifiable $destinataire) {
             return $destinataire->routes['mail'] === 'client@exemple.test' && preg_match('/^\d{6}$/', $notification->code) === 1;
         });
+    }
+
+    public function test_un_nom_d_appli_avec_retour_a_la_ligne_n_empeche_pas_l_envoi_du_code(): void
+    {
+        Notification::fake();
+        $copie = $this->copieIntegree();
+        $copie->appli->forceFill(['nom' => "Pharmacie\nBcc: pirate@exemple.test"])->save();
+
+        $this->postJson("/api/copies/{$copie->cle_publique}/auth/code", ['canal' => 'email', 'destinataire' => 'client@exemple.test'])->assertStatus(202);
+
+        Notification::assertSentTo(new AnonymousNotifiable, CodeConnexionCopie::class, function (CodeConnexionCopie $notification) {
+            return $notification->appli === 'Pharmacie Bcc: pirate@exemple.test'
+                && ! str_contains($notification->appli, "\n")
+                && ! str_contains($notification->appli, "\r");
+        });
+    }
+
+    public function test_les_codes_expires_sont_purges_chaque_nuit(): void
+    {
+        $planifiees = collect(app(\Illuminate\Console\Scheduling\Schedule::class)->events())
+            ->filter(fn ($tache) => $tache->description === 'codes-connexion');
+
+        $this->assertCount(1, $planifiees);
+        $this->assertSame('0 0 * * *', $planifiees->first()->expression);
+
+        CodeConnexion::query()->create([
+            'deploiement_id' => $this->copieIntegree()->id,
+            'empreinte' => 'expiree',
+            'code' => 'hache',
+            'expire_le' => now()->subDay(),
+        ]);
+        $this->assertSame(1, CodeConnexion::query()->where('expire_le', '<=', now())->delete());
+        $this->assertSame(0, CodeConnexion::query()->count());
     }
 
     public function test_un_envoi_impossible_repond_503_avec_un_message_clair(): void

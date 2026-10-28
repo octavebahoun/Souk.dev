@@ -228,7 +228,7 @@ class AppliController extends Controller
     private function donnees(Request $request): array
     {
         $donnees = $request->validate([
-            'nom' => ['required', 'string', 'max:100'],
+            'nom' => ['required', 'string', 'max:100', 'not_regex:/[\r\n]/'],
             'description' => ['required', 'string', 'max:1000'],
             'categorie' => ['required', Rule::in(Appli::CATEGORIES)],
             'depot_url' => ['required', 'string', 'url', 'max:500'],
@@ -268,7 +268,8 @@ class AppliController extends Controller
     private function donneesModification(Request $request): array
     {
         $donnees = $request->validate([
-            'nom' => ['sometimes', 'string', 'max:100'],
+            // Le nom part dans des sujets d'e-mail : un retour à la ligne y est une injection d'en-tête.
+            'nom' => ['sometimes', 'string', 'max:100', 'not_regex:/[\r\n]/'],
             'description' => ['sometimes', 'string', 'max:1000'],
             'demo_url' => ['sometimes', 'string', 'url', 'max:500'],
             'categorie' => ['sometimes', Rule::in(Appli::CATEGORIES)],

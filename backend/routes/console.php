@@ -12,6 +12,7 @@ use App\Jobs\SauvegarderCopie;
 use App\Jobs\VerifierReversements;
 use App\Models\AnalyseIa;
 use App\Models\CleIdempotence;
+use App\Models\CodeConnexion;
 use App\Models\Deploiement;
 use App\Moteur\SauvegardeVolumes;
 use Illuminate\Foundation\Inspiring;
@@ -62,6 +63,9 @@ Schedule::job(new ReversementsMensuels)->monthlyOn((int) config('facturation.jou
 
 // Clés d'idempotence expirées (24 heures).
 Schedule::call(fn () => CleIdempotence::query()->where('expire_le', '<=', now())->delete())->daily()->name('idempotence');
+
+// Codes de connexion expirés (10 minutes) : hashes et empreintes HMAC sans usage passé l'expiration.
+Schedule::call(fn () => CodeConnexion::query()->where('expire_le', '<=', now())->delete())->daily()->name('codes-connexion');
 
 // Contrôle de santé du planificateur (voir docker/sante.php).
 Schedule::call(fn (Battements $battements) => $battements->battre('planificateur'))->everyMinute()->name('battement');

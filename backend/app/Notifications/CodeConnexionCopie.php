@@ -11,7 +11,12 @@ class CodeConnexionCopie extends Notification
 {
     use Queueable;
 
-    public function __construct(public string $code, public string $appli, public int $minutes) {}
+    public function __construct(public string $code, public string $appli, public int $minutes)
+    {
+        // Le nom part dans le sujet : un retour à la ligne (nom saisi avant l'interdiction)
+        // jetterait une 503 pour tous les utilisateurs de la copie (CVE-2026-45070).
+        $this->appli = str_replace(["\r", "\n"], ' ', $this->appli);
+    }
 
     /** @return list<string> */
     public function via(object $notifiable): array
