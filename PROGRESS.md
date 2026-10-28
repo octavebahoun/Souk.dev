@@ -7,7 +7,7 @@ Journal de l'agent, tenu à jour en continu (voir `BRIEF.md`, section 1).
 
 - **Branche** : `saas-complet`, partie de `main` (la PR #28 `fin-mvp` y est fusionnée).
 - **Phase en cours** : 5 — Plateforme (phase 4 terminée : revue indépendante faite, 15 constats traités).
-- **Tâche suivante** : backend intégré complet (connexion des utilisateurs finaux par SMS et e-mail, sauvegarde quotidienne, export par copie).
+- **Tâche suivante** : plusieurs serveurs (liste, placement, maintenance, état ; test local avec deux machines).
 
 ## Étape 0 (25 octobre)
 
@@ -98,7 +98,7 @@ Journal de l'agent, tenu à jour en continu (voir `BRIEF.md`, section 1).
 
 ### Phase 5 — Plateforme
 - [x] Mises à jour poussées : versions publiées par l'auteur (vérifiées comme une publication, commit épinglé), clients prévenus, mise à jour choisie par le client avec sauvegarde des volumes et retour arrière automatique ; vérifié en réel (version 2 appliquée, version cassée revenue d'elle-même)
-- [ ] Backend intégré complet : connexion SMS et e-mail des utilisateurs finaux, sauvegarde quotidienne, export
+- [x] Backend intégré complet : connexion SMS et e-mail des utilisateurs finaux, sauvegarde quotidienne, export
 - [ ] Plusieurs serveurs : liste, placement, maintenance, état ; test local avec deux machines
 
 ### Phase 6 — Exploitation
@@ -156,6 +156,10 @@ Journal de l'agent, tenu à jour en continu (voir `BRIEF.md`, section 1).
 | 2026-10-26 | 4 | Suite PHP dans le conteneur (contrat vérifié) ; Pint, ESLint, `tsc`, Vitest | 547/547 ; zéro erreur, 31/31 |
 | 2026-10-26 | 4 | Démarrage à froid d'une copie propre (worktree, projet séparé, `.env` réel) puis Playwright | 11 services sains en 51 s, 36 migrations ; 13/13 du premier coup (dont Souk AI réel : analyse affichée en direct, focus et annonce, 429 à la 4ᵉ) |
 | 2026-10-26 | 4 | Captures de la discussion avec l'analyse (3 tailles × 2 thèmes, auteur et visiteur) | 12 relues ; corrigés : italique non rendu, messages en Markdown brut alors que « Markdown accepté » |
+| 2026-10-28 | 5 | Suite PHP sur l'hôte (réponses validées contre le contrat), dont `BackendIntegreCompletTest` (9 tests) et `ContratRoutesTest` | 563 passés, 4 échecs connus : `PublicationAppliTest` demande GD, absent de l'hôte (vert dans le conteneur, voir phase 1) ; Docker arrêté, suite en conteneur non relancée |
+| 2026-10-28 | 5 | Pint, ESLint (tout le front), `tsc`, Vitest, types régénérés depuis `openapi.yaml` | zéro erreur, 31/31 ; `api.ts` régénéré (routes d'authentification des copies, sauvegardes, `derniere_sauvegarde`, 503) |
+| 2026-10-28 | 5 | `composer audit`, `npm audit`, licences | 1 faille moyenne trouvée (symfony/mime CVE-2026-45070, injection d'en-têtes e-mail, publiée le jour même) : corrigée (8.1.7 → 8.1.10, `composer.lock` seul modifié) ; après : aucune faille, aucune licence interdite |
+| 2026-10-28 | 5 | Démarrage à froid, Playwright (dont `backend-integre.spec.ts`), captures, axe, Lighthouse | **non faits** : Docker arrêté sur le poste (`/var/run/docker.sock` absent, service inactif, `sudo` interdit) ; à refaire dès son retour, avant la revue de phase |
 
 ## Problèmes ouverts
 
@@ -167,6 +171,7 @@ Journal de l'agent, tenu à jour en continu (voir `BRIEF.md`, section 1).
 - Performance Lighthouse sur mobile simulé (Moto G, 4G lente) entre 66 (fiche) et 79 pour une appli 100 % JavaScript, alors que le bureau est à 98. Gains déjà faits : animations chargées à part, coquille statique. Pistes pour l'audit de la phase 8 : pré-rendu des pages publiques, CSS critique en ligne, données de la page demandées plus tôt, poids de react-router et d'axios.
 - Le compte SasPay fourni affiche le nom marchand « Gentube » sur la page de paiement : un compte au nom de Souk.dev sera nécessaire avant le lancement.
 - 26 octobre : deux plateformes lancées sur le même dossier de copies (vérification à froid) se nettoient l'une l'autre ; une copie de test de la plateforme habituelle a été arrêtée. Sans conséquence (jeu de démo) ; à ne pas reproduire.
+- 28 octobre : Docker arrêté sur le poste pendant le backend intégré (démon inactif, `sudo` interdit pour le relancer). La vérification Docker (suite en conteneur, démarrage à froid, Playwright dont `backend-integre.spec.ts`, captures 3 tailles × 2 thèmes, axe, Lighthouse) reste à faire avant de clore la phase 5 ; le parcours est écrit et relu, pas exécuté.
 
 ## Dépenses et crédits
 
