@@ -21,6 +21,7 @@ export type AvisAppli = components['schemas']['AvisAppli']
 export type AvisAppliSaisie = components['schemas']['AvisAppliSaisie']
 export type PageAvis = Page<AvisAppli> & { peut_noter: boolean; mon_avis: AvisAppli | null }
 export type VersionAppli = components['schemas']['VersionAppli']
+export type Sauvegarde = components['schemas']['Sauvegarde']
 
 export const categories: { valeur: Categorie; libelle: string }[] = [
   { valeur: 'commerce', libelle: 'Commerce' },
@@ -117,6 +118,13 @@ export async function mettreAJourCopie(id: number, corps: { variables?: Record<s
 export async function sauvegarderCopie(id: number): Promise<void> {
   await preparerCsrf()
   await clientLocal.post(cheminLaravel(`/deployments/${id}/sauvegardes`))
+}
+
+/** Sauvegardes gardées de la copie (7 jours), la plus récente d'abord. */
+export async function listerSauvegardes(id: number): Promise<Sauvegarde[]> {
+  const { data } = await clientLocal.get<{ data: Sauvegarde[] }>(cheminLaravel(`/deployments/${id}/sauvegardes`))
+  if (!data || !Array.isArray(data.data)) throw new Error('Réponse vide')
+  return data.data
 }
 
 /** Adresse d'export d'une sauvegarde (téléchargement direct, la session suffit). */

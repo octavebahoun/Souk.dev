@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
@@ -32,8 +32,10 @@ import {
   arreterCopie,
   lienSauvegarde,
   listerCopies,
+  listerSauvegardes,
   mettreAJourCopie,
   sauvegarderCopie,
+  type Sauvegarde,
 } from "../catalogue/api";
 import {
   allerPayer,
@@ -53,6 +55,28 @@ const EN_COURS = [
   "mise_a_jour",
   "arret_en_cours",
 ];
+
+/** Sans nouvelle sauvegarde après 15 minutes, la demande a échoué : le bouton revient, avec une erreur. */
+export const DELAI_ECHEC_SAUVEGARDE_MS = 15 * 60 * 1000;
+
+/**
+ * Une demande est en attente tant qu'aucune source (temps réel, liste relue) ne montre une
+ * sauvegarde plus récente que celle connue à la demande (les identifiants se suivent dans
+ * le temps : `AAAAMMJJ-HHMMSS`).
+ */
+function demandeEnAttente(
+  demandeeApres: string | null | undefined,
+  sauvegarde: Sauvegarde | null,
+  liste: Sauvegarde[] | undefined,
+): boolean {
+  if (demandeeApres === undefined) return false;
+  const plusRecente = (identifiant: string | undefined): boolean =>
+    identifiant !== undefined &&
+    (demandeeApres === null || identifiant > demandeeApres);
+  return (
+    !plusRecente(sauvegarde?.identifiant) && !plusRecente(liste?.[0]?.identifiant)
+  );
+}
 
 function dansLeFiltre(copie: Deploiement, filtre: Filtre): boolean {
   if (filtre === "toutes") return true;
@@ -234,17 +258,48 @@ function CarteCopie({
   const [demandeeApres, setDemandeeApres] = useState<string | null | undefined>(
     undefined,
   );
+  const [sauvegardeEchouee, setSauvegardeEchouee] = useState(false);
   const derniere = copie.mise_a_jour;
   const sauvegarde = copie.derniere_sauvegarde;
-  const sauvegardeDemandee =
-    demandeeApres !== undefined &&
-    demandeeApres === (sauvegarde?.identifiant ?? null);
+  // Toutes les sauvegardes gardées (7 jours), chacune exportable ; relues pendant une demande.
+  const sauvegardes = useQuery({
+    queryKey: ["sauvegardes", copie.id],
+    queryFn: () => listerSauvegardes(copie.id),
+    enabled: copie.etat === "en_ligne" || sauvegarde !== null,
+    refetchInterval: (requete) =>
+      demandeEnAttente(demandeeApres, sauvegarde, requete.state.data)
+        ? 15_000
+        : false,
+  });
+  const sauvegardeDemandee = demandeEnAttente(
+    demandeeApres,
+    sauvegarde,
+    sauvegardes.data,
+  );
+  // Sans nouvelle sauvegarde après ce délai, le travail a échoué : le bouton revient, avec une erreur.
+  useEffect(() => {
+    if (!sauvegardeDemandee) return;
+    const delai = setTimeout(() => {
+      setSauvegardeEchouee(true);
+      setDemandeeApres(undefined);
+    }, DELAI_ECHEC_SAUVEGARDE_MS);
+    return () => clearTimeout(delai);
+  }, [sauvegardeDemandee]);
 
   async function sauvegarderMaintenant() {
     setErreur(null);
+    setSauvegardeEchouee(false);
     try {
       await sauvegarderCopie(copie.id);
-      setDemandeeApres(sauvegarde?.identifiant ?? null);
+      const connues = [
+        sauvegarde?.identifiant,
+        sauvegardes.data?.[0]?.identifiant,
+      ].filter(
+        (identifiant): identifiant is string => typeof identifiant === "string",
+      );
+      setDemandeeApres(
+        connues.length > 0 ? connues.sort()[connues.length - 1] : null,
+      );
     } catch (probleme) {
       setErreur(
         messageErreur(
@@ -263,6 +318,7 @@ function CarteCopie({
         recue.etat === copie.etat &&
         recue.derniere_sauvegarde?.identifiant !==
           copie.derniere_sauvegarde?.identifiant;
+      if (nouvelleSauvegarde) setSauvegardeEchouee(false);
       setAnnonce(
         nouvelleSauvegarde
           ? `${recue.app_nom} : sauvegarde terminée.`
@@ -490,45 +546,72 @@ function CarteCopie({
         </div>
       ) : null}
       {copie.etat === "en_ligne" || sauvegarde ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-bordure pt-3 text-petit">
-          <p className="m-0 text-texte-doux">
-            {sauvegarde ? (
-              <>
-                Sauvegarde du {formaterDate(sauvegarde.cree_le, "avecHeure")}
-                {sauvegarde.type === "mise_a_jour"
-                  ? " (avant une mise à jour)"
-                  : sauvegarde.type === "manuelle"
-                    ? " (à votre demande)"
-                    : ""}{" "}
-                · {formaterTaille(sauvegarde.taille)} ·{" "}
-                <a
-                  href={lienSauvegarde(copie.id, sauvegarde.identifiant)}
-                  download
-                  className="font-medium"
-                >
-                  Exporter
-                </a>
-              </>
-            ) : (
-              "Sauvegardée chaque nuit, gardée 7 jours."
-            )}
-          </p>
-          {copie.etat === "en_ligne" ? (
-            sauvegardeDemandee ? (
-              <p role="status" className="m-0 text-texte-doux">
-                Sauvegarde demandée : elle apparaît ici dans quelques minutes.
-              </p>
-            ) : (
-              <Bouton
-                variante="fantome"
-                taille="sm"
-                onClick={() => void sauvegarderMaintenant()}
-              >
-                Sauvegarder maintenant
-              </Bouton>
-            )
+        <>
+          {sauvegardeEchouee ? (
+            <Alerte ton="danger" urgente>
+              La sauvegarde n’a pas abouti. Réessayez dans un instant.
+            </Alerte>
           ) : null}
-        </div>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-bordure pt-3 text-petit">
+            <p className="m-0 text-texte-doux">
+              {sauvegarde ? (
+                <>
+                  {phraseSauvegarde(sauvegarde)} ·{" "}
+                  <a
+                    href={lienSauvegarde(copie.id, sauvegarde.identifiant)}
+                    download
+                    className="font-medium"
+                  >
+                    Exporter
+                  </a>
+                </>
+              ) : (
+                "Sauvegardée chaque nuit, gardée 7 jours."
+              )}
+            </p>
+            {copie.etat === "en_ligne" ? (
+              sauvegardeDemandee ? (
+                <p role="status" className="m-0 text-texte-doux">
+                  Sauvegarde demandée : elle apparaît ici dans quelques minutes.
+                </p>
+              ) : (
+                <Bouton
+                  variante="fantome"
+                  taille="sm"
+                  onClick={() => void sauvegarderMaintenant()}
+                >
+                  Sauvegarder maintenant
+                </Bouton>
+              )
+            ) : null}
+            {sauvegardes.data && sauvegardes.data.length > 1 ? (
+              <details className="w-full">
+                <summary className="cursor-pointer text-texte-doux">
+                  Voir les {sauvegardes.data.length} sauvegardes gardées
+                </summary>
+                <ul className="m-0 mt-2 flex list-none flex-col gap-1.5 p-0">
+                  {sauvegardes.data.map((element) => (
+                    <li
+                      key={element.identifiant}
+                      className="flex flex-wrap items-center justify-between gap-2"
+                    >
+                      <span className="text-texte-doux">
+                        {phraseSauvegarde(element)}
+                      </span>
+                      <a
+                        href={lienSauvegarde(copie.id, element.identifiant)}
+                        download
+                        className="font-medium"
+                      >
+                        Exporter
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            ) : null}
+          </div>
+        </>
       ) : null}
     </Carte>
   );
@@ -733,6 +816,17 @@ function ConfirmerMiseAJour({
       </div>
     </Modale>
   );
+}
+
+/** « Sauvegarde du 26 octobre à 03:30 (à votre demande) · 12 Mo » : une ligne de sauvegarde, la plus récente comme chaque gardée. */
+function phraseSauvegarde(element: Sauvegarde): string {
+  const precision =
+    element.type === "mise_a_jour"
+      ? " (avant une mise à jour)"
+      : element.type === "manuelle"
+        ? " (à votre demande)"
+        : "";
+  return `Sauvegarde du ${formaterDate(element.cree_le, "avecHeure")}${precision} · ${formaterTaille(element.taille)}`;
 }
 
 /** « 12 Mo », « 840 Ko » : la taille d'une sauvegarde, à l'unité lisible. */
