@@ -99,7 +99,19 @@ Journal de l'agent, tenu à jour en continu (voir `BRIEF.md`, section 1).
 ### Phase 5 — Plateforme
 - [x] Mises à jour poussées : versions publiées par l'auteur (vérifiées comme une publication, commit épinglé), clients prévenus, mise à jour choisie par le client avec sauvegarde des volumes et retour arrière automatique ; vérifié en réel (version 2 appliquée, version cassée revenue d'elle-même)
 - [x] Backend intégré complet : connexion SMS et e-mail des utilisateurs finaux, sauvegarde quotidienne, export
+- [x] Revue indépendante du backend intégré (sous-agent neuf) : 8 constats, 7 corrigés, 1 en attente de Docker (voir ci-dessous)
 - [ ] Plusieurs serveurs : liste, placement, maintenance, état ; test local avec deux machines
+
+**Revue indépendante du backend intégré** (8 constats, tous fondés ; aucun réfuté) :
+1. Élevé : Playwright (dont `backend-integre.spec.ts`), captures /copies, axe et Lighthouse jamais exécutés (Docker arrêté) → **non corrigé ici** : Docker toujours arrêté, à refaire dès son retour avant de clore la phase 5.
+2. Moyen : `/session` sans limite propre (5 faux essais bloquaient le code d'autrui) → 20 essais par heure et par adresse IP.
+3. Moyen : verdicts distincts faux/expiré (oracle d'activité sur un numéro) → verdict unique « invalide ou expiré ».
+4. Moyen : panne SMS inattendue en 500, contre 503 au contrat → toute panne SMS rend 503 + `Retry-After`, comme l'e-mail.
+5. Moyen : nom d'appli avec retour à la ligne → 503 pour tous les utilisateurs de la copie (CVE-2026-45070) → nom sans CR/LF à la saisie, nettoyé à l'envoi.
+6. Moyen : codes expirés jamais purgés → purge quotidienne planifiée.
+7. Moyen : « Mes copies » ne montrait que la dernière sauvegarde → liste de chaque sauvegarde gardée, chacune exportable.
+8. Moyen : demande de sauvegarde sans fin en cas d'échec du travail → erreur et bouton de retour après 15 minutes sans nouvelle sauvegarde.
+Contrat inchangé : les codes et routes utilisés (422, 429, 503, `GET /deployments/{id}/sauvegardes`) y figuraient déjà.
 
 ### Phase 6 — Exploitation
 - [ ] Administration et modération (signalements, suspensions, canaux, finances, serveurs, politique d'abus)
@@ -160,6 +172,9 @@ Journal de l'agent, tenu à jour en continu (voir `BRIEF.md`, section 1).
 | 2026-10-28 | 5 | Pint, ESLint (tout le front), `tsc`, Vitest, types régénérés depuis `openapi.yaml` | zéro erreur, 31/31 ; `api.ts` régénéré (routes d'authentification des copies, sauvegardes, `derniere_sauvegarde`, 503) |
 | 2026-10-28 | 5 | `composer audit`, `npm audit`, licences | 1 faille moyenne trouvée (symfony/mime CVE-2026-45070, injection d'en-têtes e-mail, publiée le jour même) : corrigée (8.1.7 → 8.1.10, `composer.lock` seul modifié) ; après : aucune faille, aucune licence interdite |
 | 2026-10-28 | 5 | Démarrage à froid, Playwright (dont `backend-integre.spec.ts`), captures, axe, Lighthouse | **non faits** : Docker arrêté sur le poste (`/var/run/docker.sock` absent, service inactif, `sudo` interdit) ; à refaire dès son retour, avant la revue de phase |
+| 2026-10-28 | 5 | Après corrections de la revue : suite PHP sur l'hôte (dont 5 tests de non-régression du backend intégré) | 568 passés, 4 échecs connus : `PublicationAppliTest` demande GD, absent de l'hôte (vert dans le conteneur) |
+| 2026-10-28 | 5 | Après corrections de la revue : Pint (431 fichiers), ESLint, `tsc`, Vitest (dont `MesCopies.test.tsx`) | zéro erreur, 33/33 |
+| 2026-10-28 | 5 | Après corrections de la revue : `composer audit`, `npm audit`, licences | aucune faille, aucune licence interdite |
 
 ## Problèmes ouverts
 
@@ -171,7 +186,7 @@ Journal de l'agent, tenu à jour en continu (voir `BRIEF.md`, section 1).
 - Performance Lighthouse sur mobile simulé (Moto G, 4G lente) entre 66 (fiche) et 79 pour une appli 100 % JavaScript, alors que le bureau est à 98. Gains déjà faits : animations chargées à part, coquille statique. Pistes pour l'audit de la phase 8 : pré-rendu des pages publiques, CSS critique en ligne, données de la page demandées plus tôt, poids de react-router et d'axios.
 - Le compte SasPay fourni affiche le nom marchand « Gentube » sur la page de paiement : un compte au nom de Souk.dev sera nécessaire avant le lancement.
 - 26 octobre : deux plateformes lancées sur le même dossier de copies (vérification à froid) se nettoient l'une l'autre ; une copie de test de la plateforme habituelle a été arrêtée. Sans conséquence (jeu de démo) ; à ne pas reproduire.
-- 28 octobre : Docker arrêté sur le poste pendant le backend intégré (démon inactif, `sudo` interdit pour le relancer). La vérification Docker (suite en conteneur, démarrage à froid, Playwright dont `backend-integre.spec.ts`, captures 3 tailles × 2 thèmes, axe, Lighthouse) reste à faire avant de clore la phase 5 ; le parcours est écrit et relu, pas exécuté.
+- 28 octobre : Docker arrêté sur le poste pendant le backend intégré (démon inactif, `sudo` interdit pour le relancer). La vérification Docker (suite en conteneur, démarrage à froid, Playwright dont `backend-integre.spec.ts`, captures 3 tailles × 2 thèmes, axe, Lighthouse) reste à faire avant de clore la phase 5 ; le parcours est écrit et relu, pas exécuté. Les 7 autres constats de la revue sont corrigés et testés ; le constat Docker (élevé) est revérifié toujours bloqué le 28 octobre au soir.
 
 ## Dépenses et crédits
 

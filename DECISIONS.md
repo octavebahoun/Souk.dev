@@ -404,3 +404,10 @@ Choix faits par l'agent en exécutant `BRIEF.md` (le brief passe avant ce fichie
 - **2026-10-28 — `/api/copies/*` ouvert à toute origine, sans cookies** : l'appli appelle la connexion depuis son propre domaine ; le CORS avec cookies du reste de l'API ne s'y applique pas.
 - **2026-10-28 — Sauvegarde quotidienne à chaud à 3 h 30** (base intégrée par `pg_dump`, autres volumes en archive, jamais les fichiers de la base en marche) et à la demande (3 par heure) ; le client liste et exporte (archive tar : `base.dump`, un tar.gz par volume) ; gardées 7 jours, la dernière toujours ; la fin arrive en direct par `deploiement.etat`.
 - **2026-10-28 — `search_path` du rôle soukdev fixé à public** : le schéma `soukdev` (registre, `utilisateur_id()`) porte le nom du rôle, et sans cela les tables des migrations du dev atterrissaient hors de l'API PostgREST.
+- **2026-10-28 — Après la revue du backend intégré** (8 constats, 7 corrigés, Docker toujours arrêté) :
+  - échange du code bridé à 20 essais par heure et par adresse IP (la clé publique est dans le `/config.js` de chaque copie) ; sans limite par destinataire, qui punirait la victime ;
+  - verdict unique « invalide ou expiré » pour un code faux, expiré ou absent (plus d'oracle d'activité) ; le 429 après 5 essais reste, comme toute limite de débit ;
+  - toute panne du fournisseur SMS rend 503 + `Retry-After`, comme la voie e-mail (le contrat ne connaît pas de 500 ici) ;
+  - nom d'appli sans retour à la ligne à la saisie (publication, modification), nettoyé à l'envoi du code (les noms déjà saisis partent aussi dans des sujets) ;
+  - codes de connexion expirés purgés chaque nuit ;
+  - « Mes copies » liste chaque sauvegarde gardée avec son export ; une demande sans nouvelle sauvegarde après 15 minutes affiche une erreur et rend le bouton, la liste relue détectant aussi le succès sans temps réel.
