@@ -1,0 +1,23 @@
+server {
+    listen 80;
+
+    location / {
+        root /usr/share/nginx/html;
+        index index.html;
+    }
+
+    # Adresse de connexion des utilisateurs, injectée par Souk.dev (SOUKDEV_AUTH_URL).
+    location = /config.js {
+        default_type application/javascript;
+        add_header Cache-Control "no-store";
+        return 200 'window.SOUKDEV = { auth: "${SOUKDEV_AUTH_URL}" };';
+    }
+
+    # L'API du backend intégré (PostgREST), servie par le même domaine que l'appli.
+    resolver 127.0.0.11 valid=10s;
+    set $api http://soukdev-api:3000;
+    location /donnees/ {
+        rewrite ^/donnees/(.*)$ /$1 break;
+        proxy_pass $api;
+    }
+}

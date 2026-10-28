@@ -37,8 +37,9 @@ class DemoTest extends TestCase
         $demo = User::query()->where('est_demo', true);
         $this->assertSame(9, $demo->count());
         $this->assertSame(0, (clone $demo)->where('email', 'not like', '%@demo.souk.dev')->count());
-        $this->assertSame(8, Appli::query()->count());
+        $this->assertSame(9, Appli::query()->count());
         $this->assertTrue(Appli::query()->where('depot_url', 'https://github.com/octavebahoun/marchilearnia')->exists());
+        $this->assertSame('integre', Appli::query()->where('depot_url', 'https://github.com/soukdemo/carnet')->sole()->backend);
         $this->assertTrue(Discussion::query()->where('resolue', true)->exists());
         $this->assertNotNull($vrai->fresh(), 'Un vrai compte ne doit jamais être touché.');
         // Facturation de démo relancée deux fois : grand livre équilibré, Awa garde 15 000 F.

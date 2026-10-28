@@ -218,6 +218,7 @@ class DemoSeeder extends Seeder
             'momo-pay-kit' => ['awa', 'MoMo Pay Kit', 'Console d’encaissement pour développeurs : transactions MTN, Moov et Wave, webhooks rejoués, clés API cachées.', 'finance', 0, 'mensuel', 'petite', 'https://momo-pay-kit-demo.souk.dev', 'https://github.com/soukdemo/momo-pay-kit', ['laravel'], 'verifie', 210],
             'stock-boutique' => ['chinedu', 'Stock Boutique', 'Inventaire pour boutique de quartier : produits, quantités, alertes de stock bas et ventes de la semaine.', 'commerce', 12000, 'mensuel', 'moyenne', 'https://stock-boutique-demo.souk.dev', 'https://github.com/soukdemo/stock-boutique', ['go', 'postgresql', 'redis'], 'verifie', 540],
             'clinique-rdv' => ['mariam', 'Clinique RDV', 'Prise de rendez-vous pour cliniques : agenda par médecin, rappels par SMS, fiche patient.', 'sante', 20000, 'mensuel', 'grande', 'https://clinique-rdv-demo.souk.dev', 'https://github.com/soukdemo/clinique-rdv', ['django', 'postgresql'], 'problemes', 1320],
+            'carnet' => ['kofi', 'Carnet de commandes', 'Carnet de commandes pour vendeurs et artisans : chaque client se connecte avec un code reçu par SMS et ne voit que ses propres notes. Aucun serveur à gérer, la base est fournie par Souk.dev.', 'commerce', 3000, 'mensuel', 'petite', 'https://carnet-demo.souk.dev', 'https://github.com/soukdemo/carnet', ['postgresql', 'autre'], 'verifie', 160],
         ];
 
         foreach ($applis as $cle => [$auteur, $nom, $description, $categorie, $prix, $typePrix, $taille, $demo, $depot, $stack, $securite, $memoire]) {
@@ -232,7 +233,8 @@ class DemoSeeder extends Seeder
                 'demo_url' => $demo,
                 'depot_url' => $depot,
                 'stack' => $stack,
-                'backend' => 'propre',
+                // Carnet montre le backend intégré : connexion par code et base fournie par la plateforme.
+                'backend' => $cle === 'carnet' ? 'integre' : 'propre',
                 'variables_client' => [],
             ]);
 
