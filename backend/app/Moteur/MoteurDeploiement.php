@@ -19,7 +19,7 @@ class MoteurDeploiement
     /**
      * @param  array<string, string>  $variablesClient
      */
-    public function depuisGithub(string $url, array $variablesClient = [], ?string $copie = null, bool $dryRun = false, string $taille = 'petite', ?string $commit = null): CopieLocale
+    public function depuisGithub(string $url, array $variablesClient = [], ?string $copie = null, bool $dryRun = false, string $taille = 'petite', ?string $commit = null, ?string $clePublique = null): CopieLocale
     {
         $depot = DepotGithub::depuisUrl($url);
         $copie ??= $this->nouveauId($depot->owner.'-'.$depot->repo);
@@ -27,7 +27,7 @@ class MoteurDeploiement
 
         $repertoire = $this->cloneur->cloner($url, $copie, $commit);
 
-        return $this->preparer($repertoire, $variablesClient, $copie, $dryRun, $taille);
+        return $this->preparer($repertoire, $variablesClient, $copie, $dryRun, $taille, $clePublique);
     }
 
     /**
@@ -50,7 +50,7 @@ class MoteurDeploiement
     /**
      * @param  array<string, string>  $variablesClient
      */
-    public function preparer(string $repertoire, array $variablesClient, string $copie, bool $dryRun = false, string $taille = 'petite'): CopieLocale
+    public function preparer(string $repertoire, array $variablesClient, string $copie, bool $dryRun = false, string $taille = 'petite', ?string $clePublique = null): CopieLocale
     {
         // Ces fichiers sont écrits par la plateforme. Venus du dépôt, ils seraient lancés sans vérification.
         foreach (LanceurCompose::FICHIERS_RESERVES as $fichier) {
@@ -68,6 +68,7 @@ class MoteurDeploiement
             $repertoire,
             $manifeste,
             $this->generateur->generer($manifeste, $variablesClient),
+            $clePublique,
         );
         $this->generateur->ecrire($repertoire.DIRECTORY_SEPARATOR.'.env', $env);
 

@@ -454,6 +454,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/deployments/{id}/sauvegardes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        /** Sauvegardes de la copie (client propriétaire), la plus récente d'abord ; gardées 7 jours */
+        get: operations["listDeploymentBackups"];
+        put?: never;
+        /** Sauvegarder la copie maintenant, à chaud (client propriétaire ; 3 par heure) */
+        post: operations["createDeploymentBackup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/deployments/{id}/sauvegardes/{sauvegarde}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+                sauvegarde: string;
+            };
+            cookie?: never;
+        };
+        /** Exporter une sauvegarde : une archive tar (base du backend intégré au format pg_dump, et chaque volume en tar.gz) */
+        get: operations["downloadDeploymentBackup"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/copies/{cle}/auth/code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Clé publique de la copie (SOUKDEV_CLE_PUBLIQUE dans son environnement) */
+                cle: components["parameters"]["CleCopie"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Connexion des utilisateurs d'une appli au backend intégré : envoie un code à 6 chiffres par SMS ou par e-mail (appelée par l'appli, depuis le navigateur) */
+        post: operations["sendEndUserCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/copies/{cle}/auth/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Clé publique de la copie (SOUKDEV_CLE_PUBLIQUE dans son environnement) */
+                cle: components["parameters"]["CleCopie"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Échange le code contre un jeton valable une journée pour l'API du backend intégré de la copie (rôle soukdev_utilisateur, identifiant dans sub) */
+        post: operations["createEndUserSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/deployments/{id}/mise-a-jour": {
         parameters: {
             query?: never;
@@ -1666,6 +1746,43 @@ export interface components {
             version_disponible: components["schemas"]["VersionResume"] | null;
             /** @description Dernière mise à jour demandée pour cette copie */
             mise_a_jour: components["schemas"]["MiseAJour"] | null;
+            /** @description La sauvegarde la plus récente (copie client), à exporter depuis « Mes copies » */
+            derniere_sauvegarde: components["schemas"]["Sauvegarde"] | null;
+        };
+        Sauvegarde: {
+            identifiant: string;
+            /**
+             * @description quotidienne : chaque nuit, à chaud ; mise_a_jour : avant l'application d'une version, copie arrêtée ; manuelle : demandée par le client
+             * @enum {string}
+             */
+            type: "quotidienne" | "mise_a_jour" | "manuelle";
+            /** Format: date-time */
+            cree_le: string;
+            /** @description Octets */
+            taille: number;
+        };
+        DemandeCodeConnexion: {
+            /** @enum {string} */
+            canal: "sms" | "email";
+            /** @description Numéro au format international (+229…) pour un SMS, adresse pour un e-mail */
+            destinataire: string;
+        };
+        SessionUtilisateurFinal: {
+            /** @description JWT pour l'API du backend intégré (en-tête Authorization: Bearer) */
+            jeton: string;
+            /** Format: date-time */
+            expire_le: string;
+            utilisateur: {
+                /**
+                 * Format: uuid
+                 * @description Identifiant stable de l'utilisateur dans cette copie (soukdev.utilisateur_id() en SQL)
+                 */
+                id: string;
+                /** @enum {string} */
+                canal: "sms" | "email";
+                /** @description Numéro ou adresse masqués */
+                destinataire: string;
+            };
         };
         VersionResume: {
             numero: number;
@@ -2352,6 +2469,8 @@ export interface components {
         };
     };
     parameters: {
+        /** @description Clé publique de la copie (SOUKDEV_CLE_PUBLIQUE dans son environnement) */
+        CleCopie: string;
         Id: number;
         /** @description Numéro de page (commence à 1) */
         Page: number;
@@ -3283,6 +3402,148 @@ export interface operations {
             403: components["responses"]["Interdit"];
             404: components["responses"]["Introuvable"];
             419: components["responses"]["CsrfInvalide"];
+        };
+    };
+    listDeploymentBackups: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sauvegardes */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Sauvegarde"][];
+                    };
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            404: components["responses"]["Introuvable"];
+        };
+    };
+    createDeploymentBackup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sauvegarde en file ; elle apparaît dans la liste une fois écrite */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["NonConnecte"];
+            404: components["responses"]["Introuvable"];
+            409: components["responses"]["Conflit"];
+            419: components["responses"]["CsrfInvalide"];
+            429: components["responses"]["TropDeRequetes"];
+        };
+    };
+    downloadDeploymentBackup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+                sauvegarde: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Archive de la sauvegarde */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/x-tar": string;
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            404: components["responses"]["Introuvable"];
+        };
+    };
+    sendEndUserCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Clé publique de la copie (SOUKDEV_CLE_PUBLIQUE dans son environnement) */
+                cle: components["parameters"]["CleCopie"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DemandeCodeConnexion"];
+            };
+        };
+        responses: {
+            /** @description Code envoyé (même si le destinataire est nouveau) */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description Secondes de validité du code */
+                        expire_dans: number;
+                    };
+                };
+            };
+            404: components["responses"]["Introuvable"];
+            422: components["responses"]["Invalide"];
+            429: components["responses"]["TropDeRequetes"];
+            503: components["responses"]["Indisponible"];
+        };
+    };
+    createEndUserSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Clé publique de la copie (SOUKDEV_CLE_PUBLIQUE dans son environnement) */
+                cle: components["parameters"]["CleCopie"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DemandeCodeConnexion"] & {
+                    code: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Session ouverte */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionUtilisateurFinal"];
+                };
+            };
+            404: components["responses"]["Introuvable"];
+            422: components["responses"]["Invalide"];
+            429: components["responses"]["TropDeRequetes"];
         };
     };
     updateDeployment: {

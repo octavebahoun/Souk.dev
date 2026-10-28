@@ -8,6 +8,7 @@ use App\Events\DeploiementEtat;
 use App\Jobs\ArreterDeploiement;
 use App\Moteur\DepotGithub;
 use App\Moteur\Exceptions\DepotInvalide;
+use App\Moteur\SauvegardeVolumes;
 use Database\Factories\DeploiementFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -40,6 +41,8 @@ class Deploiement extends Model
         'expire_le',
     ];
 
+    protected $hidden = ['backend_secret'];
+
     protected function casts(): array
     {
         return [
@@ -48,6 +51,8 @@ class Deploiement extends Model
             'discussion_id' => 'integer',
             'correctif_id' => 'integer',
             'variables' => 'array',
+            // Secret de l'API du backend intégré : signe les jetons des utilisateurs de l'appli.
+            'backend_secret' => 'encrypted',
             'expire_le' => 'datetime',
         ];
     }
@@ -235,6 +240,7 @@ class Deploiement extends Model
             'version' => $this->version?->numero,
             'version_disponible' => $this->versionDisponible()?->resume(),
             'mise_a_jour' => $this->derniereMiseAJour?->versApi(),
+            'derniere_sauvegarde' => $this->type === 'client' && $this->copie !== null ? app(SauvegardeVolumes::class)->derniere((string) $this->copie) : null,
         ];
     }
 

@@ -3,12 +3,14 @@
 declare(strict_types=1);
 
 use App\Http\Middleware\Administrateur;
+use App\Http\Middleware\CorsCopies;
 use App\Http\Middleware\Idempotence;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
+use Illuminate\Http\Middleware\HandleCors;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\TokenMismatchException;
@@ -32,6 +34,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // La connexion des utilisateurs d'une appli (/api/copies/*) a sa propre règle d'origine,
+        // sans cookies : le CORS de l'API (avec cookies, origines listées) ne s'y applique pas.
+        HandleCors::skipWhen(fn (Request $request) => $request->is('api/copies/*'));
+        $middleware->prepend(CorsCopies::class);
         $middleware->statefulApi();
         $middleware->api(append: [
             'throttle:60,1',

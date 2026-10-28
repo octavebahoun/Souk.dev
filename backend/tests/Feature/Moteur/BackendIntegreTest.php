@@ -60,14 +60,18 @@ class BackendIntegreTest extends TestCase
 
             // La lecture du registre (psql -c) n'envoie rien sur l'entrée standard.
             $scripts = array_values(array_filter($scripts, fn (string $script) => $script !== ''));
-            $this->assertCount(7, $scripts);
+            $this->assertCount(8, $scripts);
             $this->assertStringContainsString('soukdev_anon', $scripts[0]);
             $this->assertStringContainsString('soukdev.migrations', $scripts[1]);
-            $this->assertStringContainsString('CREATE TABLE pharmacies', $scripts[2]);
-            $this->assertStringContainsString("INSERT INTO soukdev.migrations (nom) VALUES ('001_init.sql')", $scripts[3]);
-            $this->assertStringContainsString('CREATE TABLE ventes', $scripts[4]);
-            $this->assertStringContainsString("VALUES ('002_suite.sql')", $scripts[5]);
-            $this->assertStringContainsString('GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES', $scripts[6]);
+            // Le schéma soukdev porte le nom du rôle : les tables des migrations doivent aller dans public.
+            $this->assertStringContainsString('ALTER ROLE soukdev SET search_path TO public', $scripts[1]);
+            // Le rôle des utilisateurs connectés et soukdev.utilisateur_id() existent avant les migrations du dev.
+            $this->assertStringContainsString('soukdev.utilisateur_id()', $scripts[2]);
+            $this->assertStringContainsString('CREATE TABLE pharmacies', $scripts[3]);
+            $this->assertStringContainsString("INSERT INTO soukdev.migrations (nom) VALUES ('001_init.sql')", $scripts[4]);
+            $this->assertStringContainsString('CREATE TABLE ventes', $scripts[5]);
+            $this->assertStringContainsString("VALUES ('002_suite.sql')", $scripts[6]);
+            $this->assertStringContainsString('GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO soukdev_anon, soukdev_utilisateur', $scripts[7]);
             $this->assertTrue($relance);
         } finally {
             $this->supprimer($repertoire);

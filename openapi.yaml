@@ -32,6 +32,7 @@ tags:
   - name: Paiements
   - name: Revenus
   - name: Notifications
+  - name: Backend intégré
   - name: Administration
 
 security:
@@ -754,6 +755,114 @@ paths:
         '419': { $ref: '#/components/responses/CsrfInvalide' }
 
   # ───────────── Discussions ─────────────
+
+  /deployments/{id}/sauvegardes:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Déploiements]
+      operationId: listDeploymentBackups
+      summary: Sauvegardes de la copie (client propriétaire), la plus récente d'abord ; gardées 7 jours
+      responses:
+        '200':
+          description: Sauvegardes
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Sauvegarde' } }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+    post:
+      tags: [Déploiements]
+      operationId: createDeploymentBackup
+      summary: Sauvegarder la copie maintenant, à chaud (client propriétaire ; 3 par heure)
+      responses:
+        '202': { description: Sauvegarde en file ; elle apparaît dans la liste une fois écrite }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '409': { $ref: '#/components/responses/Conflit' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+        '429': { $ref: '#/components/responses/TropDeRequetes' }
+
+  /deployments/{id}/sauvegardes/{sauvegarde}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+      - name: sauvegarde
+        in: path
+        required: true
+        schema: { type: string, pattern: '^\d{8}-\d{6}$' }
+    get:
+      tags: [Déploiements]
+      operationId: downloadDeploymentBackup
+      summary: "Exporter une sauvegarde : une archive tar (base du backend intégré au format pg_dump, et chaque volume en tar.gz)"
+      responses:
+        '200':
+          description: Archive de la sauvegarde
+          content:
+            application/x-tar:
+              schema: { type: string, format: binary }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+
+  /copies/{cle}/auth/code:
+    parameters:
+      - $ref: '#/components/parameters/CleCopie'
+    post:
+      tags: [Backend intégré]
+      operationId: sendEndUserCode
+      summary: "Connexion des utilisateurs d'une appli au backend intégré : envoie un code à 6 chiffres par SMS ou par e-mail (appelée par l'appli, depuis le navigateur)"
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DemandeCodeConnexion' }
+      responses:
+        '202':
+          description: Code envoyé (même si le destinataire est nouveau)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [expire_dans]
+                properties:
+                  expire_dans: { type: integer, description: Secondes de validité du code }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '422': { $ref: '#/components/responses/Invalide' }
+        '429': { $ref: '#/components/responses/TropDeRequetes' }
+        '503': { $ref: '#/components/responses/Indisponible' }
+
+  /copies/{cle}/auth/session:
+    parameters:
+      - $ref: '#/components/parameters/CleCopie'
+    post:
+      tags: [Backend intégré]
+      operationId: createEndUserSession
+      summary: "Échange le code contre un jeton valable une journée pour l'API du backend intégré de la copie (rôle soukdev_utilisateur, identifiant dans sub)"
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/DemandeCodeConnexion'
+                - type: object
+                  required: [code]
+                  properties:
+                    code: { type: string, pattern: '^\d{6}$' }
+      responses:
+        '200':
+          description: Session ouverte
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SessionUtilisateurFinal' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '422': { $ref: '#/components/responses/Invalide' }
+        '429': { $ref: '#/components/responses/TropDeRequetes' }
 
   /deployments/{id}/mise-a-jour:
     parameters:
@@ -2110,6 +2219,12 @@ components:
       description: 'Session Laravel Sanctum (SPA), cookie fixé par SESSION_COOKIE. Requêtes POST, PATCH et DELETE : en-tête X-XSRF-TOKEN obligatoire.'
 
   parameters:
+    CleCopie:
+      name: cle
+      in: path
+      required: true
+      description: Clé publique de la copie (SOUKDEV_CLE_PUBLIQUE dans son environnement)
+      schema: { type: string, format: uuid }
     Id:
       name: id
       in: path
@@ -2622,7 +2737,7 @@ components:
     # ───────────── Déploiements ─────────────
     Deploiement:
       type: object
-      required: [id, app_id, app_nom, taille, type, etat, url, erreur, cree_le, abonnement, facture_a_payer, version, version_disponible, mise_a_jour]
+      required: [id, app_id, app_nom, taille, type, etat, url, erreur, cree_le, abonnement, facture_a_payer, version, version_disponible, mise_a_jour, derniere_sauvegarde]
       properties:
         id: { type: integer }
         app_id: { type: [integer, 'null'], description: "null pour une copie de test lancée depuis le depot_url d'une discussion, sans appli publiée" }
@@ -2670,6 +2785,41 @@ components:
           oneOf:
             - $ref: '#/components/schemas/MiseAJour'
             - type: 'null'
+        derniere_sauvegarde:
+          description: La sauvegarde la plus récente (copie client), à exporter depuis « Mes copies »
+          oneOf:
+            - $ref: '#/components/schemas/Sauvegarde'
+            - type: 'null'
+
+    Sauvegarde:
+      type: object
+      required: [identifiant, type, cree_le, taille]
+      properties:
+        identifiant: { type: string, pattern: '^\d{8}-\d{6}$' }
+        type: { type: string, enum: [quotidienne, mise_a_jour, manuelle], description: "quotidienne : chaque nuit, à chaud ; mise_a_jour : avant l'application d'une version, copie arrêtée ; manuelle : demandée par le client" }
+        cree_le: { type: string, format: date-time }
+        taille: { type: integer, description: Octets }
+
+    DemandeCodeConnexion:
+      type: object
+      required: [canal, destinataire]
+      properties:
+        canal: { type: string, enum: [sms, email] }
+        destinataire: { type: string, maxLength: 254, description: "Numéro au format international (+229…) pour un SMS, adresse pour un e-mail" }
+
+    SessionUtilisateurFinal:
+      type: object
+      required: [jeton, expire_le, utilisateur]
+      properties:
+        jeton: { type: string, description: "JWT pour l'API du backend intégré (en-tête Authorization: Bearer)" }
+        expire_le: { type: string, format: date-time }
+        utilisateur:
+          type: object
+          required: [id, canal, destinataire]
+          properties:
+            id: { type: string, format: uuid, description: "Identifiant stable de l'utilisateur dans cette copie (soukdev.utilisateur_id() en SQL)" }
+            canal: { type: string, enum: [sms, email] }
+            destinataire: { type: string, description: Numéro ou adresse masqués }
 
     VersionResume:
       type: object

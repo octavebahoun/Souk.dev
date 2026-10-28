@@ -6,6 +6,7 @@ use App\Http\Controllers\AppliController;
 use App\Http\Controllers\AvisAppliController;
 use App\Http\Controllers\CanalController;
 use App\Http\Controllers\CompteController;
+use App\Http\Controllers\ConnexionUtilisateurFinalController;
 use App\Http\Controllers\CoordonneesReversementController;
 use App\Http\Controllers\CopieTestController;
 use App\Http\Controllers\CorrectifController;
@@ -20,6 +21,7 @@ use App\Http\Controllers\MissionMessageController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ReseauMobileMoneyController;
 use App\Http\Controllers\RevenusController;
+use App\Http\Controllers\SauvegardeController;
 use App\Http\Controllers\TechnoController;
 use App\Http\Controllers\VersionController;
 use App\Http\Controllers\WebhookSasPayController;
@@ -36,6 +38,10 @@ Route::get('/apps', [AppliController::class, 'index']);
 Route::get('/apps/{appli}', [AppliController::class, 'show']);
 Route::get('/apps/{appli}/avis', [AvisAppliController::class, 'index']);
 Route::get('/apps/{appli}/versions', [VersionController::class, 'index']);
+
+// Backend intégré : connexion des utilisateurs d'une appli déployée (code par SMS ou e-mail).
+Route::post('/copies/{cle}/auth/code', [ConnexionUtilisateurFinalController::class, 'code']);
+Route::post('/copies/{cle}/auth/session', [ConnexionUtilisateurFinalController::class, 'session']);
 Route::get('/categories', [AppliController::class, 'categories']);
 
 Route::middleware('auth:sanctum')->group(function (): void {
@@ -65,6 +71,10 @@ Route::middleware('auth:sanctum')->group(function (): void {
     // Mises à jour poussées : l'auteur publie une version, le client l'applique à sa copie.
     Route::post('/apps/{appli}/versions', [VersionController::class, 'store'])->middleware('throttle:versions');
     Route::post('/deployments/{deploiement}/mise-a-jour', [DeploiementController::class, 'miseAJour'])->middleware('throttle:versions');
+    // Sauvegardes d'une copie : liste, sauvegarde à la demande, export.
+    Route::get('/deployments/{deploiement}/sauvegardes', [SauvegardeController::class, 'index']);
+    Route::post('/deployments/{deploiement}/sauvegardes', [SauvegardeController::class, 'store'])->middleware('throttle:sauvegardes');
+    Route::get('/deployments/{deploiement}/sauvegardes/{sauvegarde}', [SauvegardeController::class, 'show'])->where('sauvegarde', '\d{8}-\d{6}');
     Route::patch('/apps/{appli}/avis', [AvisAppliController::class, 'update'])->middleware('throttle:avis');
 
     // Paiements : factures du client, sessions SasPay, vérification au retour.

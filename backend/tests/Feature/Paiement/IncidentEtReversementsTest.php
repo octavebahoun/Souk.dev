@@ -51,7 +51,7 @@ class IncidentEtReversementsTest extends TestCase
         $abonnement->deploiement->forceFill(['etat' => 'en_file'])->save();
         $this->mock(MoteurDeploiement::class, fn (MockInterface $mock) => $mock->shouldReceive('depuisGithub')->andThrow(new LancementEchoue('Le service web ne répond pas sur le port 80.')));
 
-        (new LancerDeploiement($abonnement->deploiement_id))->handle(app(MoteurDeploiement::class));
+        app()->call([new LancerDeploiement($abonnement->deploiement_id), 'handle']);
 
         $this->assertSame('echec', $abonnement->deploiement->refresh()->etat);
         $this->assertSame('incident', $abonnement->refresh()->statut);

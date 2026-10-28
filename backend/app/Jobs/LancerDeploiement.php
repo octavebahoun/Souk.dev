@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\Deploiement;
+use App\Moteur\BackendIntegre;
 use App\Moteur\CopieLocale;
 use App\Moteur\Exceptions\DepotInvalide;
 use App\Moteur\Exceptions\LancementEchoue;
@@ -13,6 +14,7 @@ use App\Moteur\NettoyeurCopie;
 use App\Paiement\Facturation;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Str;
 use Throwable;
 
 class LancerDeploiement implements ShouldQueue
@@ -24,7 +26,7 @@ class LancerDeploiement implements ShouldQueue
         $this->onQueue('moteur');
     }
 
-    public function handle(MoteurDeploiement $moteur): void
+    public function handle(MoteurDeploiement $moteur, BackendIntegre $backend): void
     {
         $deploiement = Deploiement::query()->find($this->deploiementId);
 
@@ -44,16 +46,23 @@ class LancerDeploiement implements ShouldQueue
                 return;
             }
 
+            // Clé publique de la copie : l'adresse de connexion de ses utilisateurs (backend intégré).
+            if ($deploiement->cle_publique === null) {
+                $deploiement->forceFill(['cle_publique' => (string) Str::uuid()])->save();
+            }
+
             $copie = $moteur->depuisGithub(
                 $deploiement->depotACloner(),
                 is_array($deploiement->variables) ? $deploiement->variables : [],
                 'd'.$deploiement->id,
                 true,
                 commit: $deploiement->version?->commit,
+                clePublique: $deploiement->cle_publique,
             );
 
             $deploiement->copie = $copie->id;
             $deploiement->repertoire = $copie->repertoire;
+            $deploiement->backend_secret = $backend->secretDe($copie->repertoire);
             $deploiement->save();
 
             if ($this->estArrete($deploiement)) {

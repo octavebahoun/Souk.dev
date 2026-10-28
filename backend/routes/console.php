@@ -8,9 +8,11 @@ use App\Jobs\RapprochementQuotidien;
 use App\Jobs\RapprocherPaiementsEnAttente;
 use App\Jobs\RecalculerProfils;
 use App\Jobs\ReversementsMensuels;
+use App\Jobs\SauvegarderCopie;
 use App\Jobs\VerifierReversements;
 use App\Models\AnalyseIa;
 use App\Models\CleIdempotence;
+use App\Models\Deploiement;
 use App\Moteur\SauvegardeVolumes;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -35,7 +37,11 @@ Schedule::call(fn () => AnalyseIa::query()
     ->where('created_at', '<', now()->subMinutes(AnalyseIa::MINUTES_AVANT_ABANDON))
     ->update(['statut' => 'echec', 'erreur' => 'abandonnee', 'termine_le' => now()]))->everyFifteenMinutes()->name('souk-ai-abandons');
 
-// Sauvegardes des copies (avant une mise à jour) : gardées 7 jours, la dernière de chaque copie toujours.
+// Sauvegarde quotidienne à chaud de chaque copie client en ligne (base intégrée par pg_dump), sur le moteur.
+Schedule::call(fn () => Deploiement::query()->where('type', 'client')->where('etat', 'en_ligne')->pluck('id')
+    ->each(fn (int $id) => SauvegarderCopie::dispatch($id, 'quotidienne')))->dailyAt('03:30')->name('sauvegardes-quotidiennes');
+
+// Sauvegardes des copies : gardées 7 jours, la dernière de chaque copie toujours.
 Schedule::call(fn (SauvegardeVolumes $sauvegardes) => $sauvegardes->nettoyer((int) config('moteur.sauvegardes_jours', 7)))->dailyAt('05:00')->name('sauvegardes-nettoyage');
 
 // Souk Score : la fenêtre d'activité de 30 jours avance chaque nuit.

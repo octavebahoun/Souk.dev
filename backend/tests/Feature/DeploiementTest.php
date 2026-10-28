@@ -267,7 +267,7 @@ class DeploiementTest extends TestCase
         $this->mock(MoteurDeploiement::class, function ($mock) use ($copie, $deploiement) {
             $mock->shouldReceive('depuisGithub')
                 ->once()
-                ->with($deploiement->appli->depot_url, [], 'd'.$deploiement->id, true, 'petite', null)
+                ->withArgs(fn (string $url, array $variables, string $copie, bool $essai, string $taille, ?string $commit, ?string $cle) => $url === $deploiement->appli->depot_url && $variables === [] && $copie === 'd'.$deploiement->id && $essai && $commit === null && is_string($cle))
                 ->andReturn($copie);
             $mock->shouldReceive('mettreEnLigne')->once()->with($copie, 'petite')->andReturn($copie);
         });
@@ -422,7 +422,7 @@ class DeploiementTest extends TestCase
         $this->mock(MoteurDeploiement::class, function ($mock) use ($copie, $deploiement) {
             $mock->shouldReceive('depuisGithub')
                 ->once()
-                ->with('https://github.com/wasfade/momo', [], 'd'.$deploiement->id, true, 'petite', null)
+                ->withArgs(fn (string $url, array $variables, string $copie, bool $essai, string $taille, ?string $commit, ?string $cle) => $url === 'https://github.com/wasfade/momo' && $variables === [] && $copie === 'd'.$deploiement->id && $essai && $commit === null && is_string($cle))
                 ->andReturn($copie);
             $mock->shouldReceive('mettreEnLigne')->once()->with($copie, 'petite')->andReturn($copie);
         });

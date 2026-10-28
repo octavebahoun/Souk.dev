@@ -33,6 +33,9 @@ use App\Policies\EvenementPolicy;
 use App\Policies\FacturePolicy;
 use App\Policies\MessagePolicy;
 use App\Policies\MissionPolicy;
+use App\Sms\FournisseurSms;
+use App\Sms\SmsNonEnvoye;
+use App\Sms\SmsSimule;
 use App\Soukdev\ComposeRunner;
 use App\Soukdev\CopyLauncher;
 use App\Soukdev\EnvGenerator;
@@ -98,6 +101,7 @@ class AppServiceProvider extends ServiceProvider
 
         $this->enregistrerPasserelles();
         $this->enregistrerFournisseurIa();
+        $this->enregistrerFournisseurSms();
 
         $this->app->singleton(FrontUrl::class, function () {
             return new FrontUrl((string) config('app.frontend_url'));
@@ -159,6 +163,9 @@ class AppServiceProvider extends ServiceProvider
         // Vérifier ou publier un dépôt occupe le worker des secrets : 20 par heure et par compte.
         RateLimiter::for('depots', fn (Request $request) => Limit::perHour(20)->by('depots:'.($request->user()?->id ?? $request->ip())));
 
+        // Une sauvegarde à la demande occupe le moteur : 3 par heure et par compte.
+        RateLimiter::for('sauvegardes', fn (Request $request) => Limit::perHour(3)->by('sauvegardes:'.($request->user()?->id ?? $request->ip())));
+
         // Publier une version ou mettre à jour une copie occupe le moteur : 10 par heure et par compte.
         RateLimiter::for('versions', fn (Request $request) => Limit::perHour(10)->by('versions:'.($request->user()?->id ?? $request->ip())));
 
@@ -207,6 +214,27 @@ class AppServiceProvider extends ServiceProvider
      * production, où l'encaissement doit être réel. Reversements : toujours simulés, sauf
      * REVERSEMENTS_REELS=true avec SasPay (un payout fait sortir de l'argent du compte).
      */
+    /**
+     * SMS des codes de connexion (backend intégré) : le simulateur tant qu'aucun fournisseur n'est
+     * branché (SMS_PROVIDER) ; en production, un SMS impossible est dit clairement (503).
+     */
+    private function enregistrerFournisseurSms(): void
+    {
+        $this->app->bind(FournisseurSms::class, function ($app) {
+            if ($app->isProduction()) {
+                return new class implements FournisseurSms
+                {
+                    public function envoyer(string $numero, string $message): void
+                    {
+                        throw new SmsNonEnvoye('Aucun fournisseur de SMS n’est configuré.');
+                    }
+                };
+            }
+
+            return new SmsSimule;
+        });
+    }
+
     /**
      * Souk AI : DeepSeek, ou le fournisseur simulé (tests, hors ligne, dépôt cloné sans clé en
      * développement) ; jamais simulé en production, où une clé absente refuse l'analyse.

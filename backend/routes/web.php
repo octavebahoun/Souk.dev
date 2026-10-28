@@ -7,6 +7,9 @@ use App\Http\Controllers\LienMagiqueController;
 use App\Http\Controllers\LienPaiementController;
 use App\Http\Controllers\LogoutController;
 use App\Http\Controllers\SimulateurSasPayController;
+use App\Sms\SmsSimule;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -29,6 +32,16 @@ Route::get('/paiement/facture/{id}', [LienPaiementController::class, 'ouvrir'])
 
 // Simulateur SasPay : développement et tests seulement (introuvable avec la vraie passerelle).
 Route::get('/simulateur/saspay/{session}', [SimulateurSasPayController::class, 'afficher']);
+
+// SMS simulés (codes de connexion du backend intégré), lisibles en développement seulement.
+Route::get('/simulateur/sms', function (Request $request) {
+    abort_unless(app()->environment('local', 'testing'), 404);
+    $messages = collect(Cache::get(SmsSimule::CLE, []))
+        ->when($request->filled('numero'), fn ($liste) => $liste->where('numero', (string) $request->query('numero')))
+        ->values();
+
+    return response()->json(['data' => $messages]);
+});
 Route::post('/simulateur/saspay/{session}', [SimulateurSasPayController::class, 'choisir']);
 
 // Confirmation du numéro de reversement : le lien de l'e-mail ouvre une page, le bouton confirme.
