@@ -39,6 +39,7 @@ function copie(): Deploiement {
     version_disponible: null,
     mise_a_jour: null,
     derniere_sauvegarde: sauvegarde('20261026-033000'),
+    machine_nom: 'locale',
   }
 }
 

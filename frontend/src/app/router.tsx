@@ -70,6 +70,7 @@ export function creerRoutes(): RouteObject[] {
               { path: '/notifications', lazy: async () => ({ Component: (await import('../features/notifications/PageNotifications')).PageNotifications }) },
               { path: '/notifications/reglages', lazy: async () => ({ Component: (await import('../features/notifications/ReglagesNotifications')).ReglagesNotifications }) },
               { path: '/admin/finances', lazy: async () => ({ Component: (await import('../features/admin/Finances')).Finances }) },
+              { path: '/admin/serveurs', lazy: async () => ({ Component: (await import('../features/admin/Serveurs')).Serveurs }) },
             ],
           },
         ],

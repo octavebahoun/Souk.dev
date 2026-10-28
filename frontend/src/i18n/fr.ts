@@ -66,6 +66,7 @@ export const fr = {
     paiements: 'Mes paiements',
     revenus: 'Mes revenus',
     finances: 'Finances',
+    serveurs: 'Serveurs',
     missions: 'Missions',
     parametres: 'Paramètres',
     monProfil: 'Mon profil',
