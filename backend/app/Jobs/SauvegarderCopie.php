@@ -48,6 +48,7 @@ class SauvegarderCopie implements ShouldBeUnique, ShouldQueue
                 $this->type,
                 $integre ? $lanceur->argumentsCompose((string) $copie->repertoire, (string) $copie->copie) : null,
                 $integre ? (string) $copie->repertoire : null,
+                $copie->cibleMachine(),
             );
         } catch (Throwable $erreur) {
             Log::warning('sauvegarde: copie non sauvegardée', ['copie' => $copie->id, 'erreur' => class_basename($erreur)]);

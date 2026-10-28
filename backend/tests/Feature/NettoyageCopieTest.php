@@ -8,9 +8,11 @@ use App\Models\Deploiement;
 use App\Models\User;
 use App\Moteur\Exceptions\LancementEchoue;
 use App\Moteur\LanceurCompose;
+use App\Moteur\MachineCible;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Queue;
+use Mockery;
 use Tests\TestCase;
 
 class NettoyageCopieTest extends TestCase
@@ -88,7 +90,7 @@ class NettoyageCopieTest extends TestCase
         $valide = $this->copie($client, 'en_ligne', now()->addHour());
 
         $this->mock(LanceurCompose::class, function ($mock) use ($expiree) {
-            $mock->shouldReceive('arreter')->once()->with('/tmp/copie-'.$expiree->id, 'd'.$expiree->id);
+            $mock->shouldReceive('arreter')->once()->with('/tmp/copie-'.$expiree->id, 'd'.$expiree->id, Mockery::type(MachineCible::class));
         });
 
         $this->artisan('moteur:nettoyer', ['--sans-orphelins' => true])->assertSuccessful();

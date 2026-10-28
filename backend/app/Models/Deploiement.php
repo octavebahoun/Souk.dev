@@ -8,6 +8,8 @@ use App\Events\DeploiementEtat;
 use App\Jobs\ArreterDeploiement;
 use App\Moteur\DepotGithub;
 use App\Moteur\Exceptions\DepotInvalide;
+use App\Moteur\MachineCible;
+use App\Moteur\MachineDocker;
 use App\Moteur\SauvegardeVolumes;
 use Database\Factories\DeploiementFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -119,6 +121,17 @@ class Deploiement extends Model
         return $this->belongsTo(User::class, 'user_id');
     }
 
+    public function machine(): BelongsTo
+    {
+        return $this->belongsTo(Machine::class);
+    }
+
+    /** Le démon Docker qui héberge la copie (le démon local tant qu'elle n'est pas placée). */
+    public function cibleMachine(): MachineCible
+    {
+        return $this->machine?->cible() ?? new MachineDocker(null);
+    }
+
     public function changerEtat(string $etat, ?string $url = null, ?string $erreur = null): bool
     {
         $this->refresh();
@@ -223,7 +236,7 @@ class Deploiement extends Model
      */
     public function versApi(): array
     {
-        $this->loadMissing(['appli.versionPubliee', 'version', 'derniereMiseAJour']);
+        $this->loadMissing(['appli.versionPubliee', 'version', 'derniereMiseAJour', 'machine']);
 
         return [
             'id' => $this->id,
@@ -241,6 +254,7 @@ class Deploiement extends Model
             'version_disponible' => $this->versionDisponible()?->resume(),
             'mise_a_jour' => $this->derniereMiseAJour?->versApi(),
             'derniere_sauvegarde' => $this->type === 'client' && $this->copie !== null ? app(SauvegardeVolumes::class)->derniere((string) $this->copie) : null,
+            'machine_nom' => $this->machine?->nom,
         ];
     }
 

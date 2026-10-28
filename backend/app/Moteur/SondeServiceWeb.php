@@ -26,7 +26,7 @@ final class SondeServiceWeb
 
     public const IMAGE_SONDE = 'curlimages/curl:8.11.1';
 
-    public function attendre(string $hote, int $port, ?string $reseau = null): void
+    public function attendre(string $hote, int $port, ?string $reseau = null, ?MachineCible $machine = null): void
     {
         if ($port < 1 || $port > 65535) {
             throw new LancementEchoue('Le port du service web est invalide.');
@@ -37,7 +37,7 @@ final class SondeServiceWeb
         }
 
         if ($reseau !== null && $this->requete === null) {
-            $this->attendreDepuisLeReseau($reseau, $hote, $port);
+            $this->attendreDepuisLeReseau($reseau, $hote, $port, $machine);
 
             return;
         }
@@ -61,7 +61,7 @@ final class SondeServiceWeb
      * Une seule requête curl, qui réessaie elle-même : toute réponse HTTP compte,
      * même une erreur 500 ; seuls un refus de connexion ou un délai dépassé échouent.
      */
-    private function attendreDepuisLeReseau(string $reseau, string $hote, int $port): void
+    private function attendreDepuisLeReseau(string $reseau, string $hote, int $port, ?MachineCible $machine = null): void
     {
         if (preg_match('/^[a-z0-9][a-z0-9_.-]{0,127}$/', $reseau) !== 1) {
             throw new LancementEchoue('Le réseau de la copie est invalide.');
@@ -69,7 +69,7 @@ final class SondeServiceWeb
 
         $tentatives = max(1, $this->tentatives);
 
-        $resultat = Commande::isolee()->timeout($tentatives * 7 + 120)->run([
+        $resultat = Commande::pour($machine)->timeout($tentatives * 7 + 120)->run([
             'docker', 'run', '--rm',
             '--network', $reseau,
             '--cap-drop', 'ALL',

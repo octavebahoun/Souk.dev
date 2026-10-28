@@ -19,7 +19,7 @@ class MoteurDeploiement
     /**
      * @param  array<string, string>  $variablesClient
      */
-    public function depuisGithub(string $url, array $variablesClient = [], ?string $copie = null, bool $dryRun = false, string $taille = 'petite', ?string $commit = null, ?string $clePublique = null): CopieLocale
+    public function depuisGithub(string $url, array $variablesClient = [], ?string $copie = null, bool $dryRun = false, string $taille = 'petite', ?string $commit = null, ?string $clePublique = null, ?MachineCible $machine = null): CopieLocale
     {
         $depot = DepotGithub::depuisUrl($url);
         $copie ??= $this->nouveauId($depot->owner.'-'.$depot->repo);
@@ -27,13 +27,13 @@ class MoteurDeploiement
 
         $repertoire = $this->cloneur->cloner($url, $copie, $commit);
 
-        return $this->preparer($repertoire, $variablesClient, $copie, $dryRun, $taille, $clePublique);
+        return $this->preparer($repertoire, $variablesClient, $copie, $dryRun, $taille, $clePublique, $machine);
     }
 
     /**
      * @param  array<string, string>  $variablesClient
      */
-    public function depuisChemin(string $chemin, array $variablesClient = [], ?string $copie = null, bool $dryRun = false, string $taille = 'petite'): CopieLocale
+    public function depuisChemin(string $chemin, array $variablesClient = [], ?string $copie = null, bool $dryRun = false, string $taille = 'petite', ?MachineCible $machine = null): CopieLocale
     {
         $repertoire = realpath($chemin);
 
@@ -44,13 +44,13 @@ class MoteurDeploiement
         $copie ??= $this->nouveauId(basename($repertoire));
         $this->lanceur->verifierNomCopie($copie);
 
-        return $this->preparer($repertoire, $variablesClient, $copie, $dryRun, $taille);
+        return $this->preparer($repertoire, $variablesClient, $copie, $dryRun, $taille, null, $machine);
     }
 
     /**
      * @param  array<string, string>  $variablesClient
      */
-    public function preparer(string $repertoire, array $variablesClient, string $copie, bool $dryRun = false, string $taille = 'petite', ?string $clePublique = null): CopieLocale
+    public function preparer(string $repertoire, array $variablesClient, string $copie, bool $dryRun = false, string $taille = 'petite', ?string $clePublique = null, ?MachineCible $machine = null): CopieLocale
     {
         // Ces fichiers sont écrits par la plateforme. Venus du dépôt, ils seraient lancés sans vérification.
         foreach (LanceurCompose::FICHIERS_RESERVES as $fichier) {
@@ -78,6 +78,7 @@ class MoteurDeploiement
             manifeste: $manifeste,
             env: $env,
             lancee: false,
+            machine: $machine,
         );
 
         if ($dryRun) {
@@ -89,22 +90,22 @@ class MoteurDeploiement
 
     public function mettreEnLigne(CopieLocale $copie, string $taille = 'petite'): CopieLocale
     {
-        $this->lanceur->lancer($copie->repertoire, $copie->id, $taille);
+        $this->lanceur->lancer($copie->repertoire, $copie->id, $taille, $copie->machine);
 
         try {
             $this->backend->appliquer($copie);
 
             $nom = $copie->manifeste['service_web']['nom'];
             $port = (int) $copie->manifeste['service_web']['port'];
-            $hote = $this->lanceur->adresseService($copie->repertoire, $copie->id, $nom);
-            $this->sonde->attendre($hote, $port, $copie->id.'_'.Durcissement::RESEAU);
+            $hote = $this->lanceur->adresseService($copie->repertoire, $copie->id, $nom, $copie->machine);
+            $this->sonde->attendre($hote, $port, $copie->id.'_'.Durcissement::RESEAU, $copie->machine);
 
             // Le sous-domaine ne s'ouvre qu'une fois le service web joignable, et vers lui seul.
             $this->routeur->publier($copie->id, $hote, $port);
             $this->attendreLeProxy();
         } catch (Exceptions\LancementEchoue $exception) {
             try {
-                $this->lanceur->arreter($copie->repertoire, $copie->id);
+                $this->lanceur->arreter($copie->repertoire, $copie->id, $copie->machine);
             } catch (Exceptions\LancementEchoue) {
                 // L'erreur de lancement reste celle à montrer ; le job libère la copie ensuite.
             }
@@ -118,12 +119,13 @@ class MoteurDeploiement
             manifeste: $copie->manifeste,
             env: $copie->env,
             lancee: true,
+            machine: $copie->machine,
         );
     }
 
     public function arreter(CopieLocale $copie): void
     {
-        $this->lanceur->arreter($copie->repertoire, $copie->id);
+        $this->lanceur->arreter($copie->repertoire, $copie->id, $copie->machine);
     }
 
     /**
@@ -131,9 +133,9 @@ class MoteurDeploiement
      * Dans cet ordre : si l'arrêt échoue, la copie reste en ligne avec sa route normale (le job
      * réessaie), au lieu d'une page « indisponible » devant une copie qui tourne.
      */
-    public function suspendre(string $repertoire, string $copie): void
+    public function suspendre(string $repertoire, string $copie, ?MachineCible $machine = null): void
     {
-        $this->lanceur->suspendre($repertoire, $copie);
+        $this->lanceur->suspendre($repertoire, $copie, $machine);
         $this->routeur->publierPageSuspendue($copie);
     }
 
@@ -141,15 +143,15 @@ class MoteurDeploiement
      * Paiement reçu : les mêmes conteneurs repartent avec leurs données ; le sous-domaine revient
      * vers le service web une fois celui-ci sondé (son adresse a pu changer au redémarrage).
      */
-    public function reprendre(string $repertoire, string $copie): void
+    public function reprendre(string $repertoire, string $copie, ?MachineCible $machine = null): void
     {
         $manifeste = $this->validateur->validerFichier($repertoire.DIRECTORY_SEPARATOR.'soukdev.json');
-        $this->lanceur->reprendre($repertoire, $copie);
+        $this->lanceur->reprendre($repertoire, $copie, $machine);
 
         $nom = $manifeste['service_web']['nom'];
         $port = (int) $manifeste['service_web']['port'];
-        $hote = $this->lanceur->adresseService($repertoire, $copie, $nom);
-        $this->sonde->attendre($hote, $port, $copie.'_'.Durcissement::RESEAU);
+        $hote = $this->lanceur->adresseService($repertoire, $copie, $nom, $machine);
+        $this->sonde->attendre($hote, $port, $copie.'_'.Durcissement::RESEAU, $machine);
         $this->routeur->publier($copie, $hote, $port);
         $this->attendreLeProxy();
     }

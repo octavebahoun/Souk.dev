@@ -15,9 +15,9 @@ use Illuminate\Support\Facades\File;
 class SauvegardeVolumes
 {
     /** Volumes du projet, triés (une sauvegarde est reproductible). */
-    public function volumes(string $copie): array
+    public function volumes(string $copie, ?MachineCible $machine = null): array
     {
-        $resultat = Commande::isolee()->timeout(60)->run([
+        $resultat = Commande::pour($machine)->timeout(60)->run([
             'docker', 'volume', 'ls', '--quiet', '--filter', 'label=com.docker.compose.project='.$copie,
         ]);
         if ($resultat->failed()) {
@@ -31,15 +31,15 @@ class SauvegardeVolumes
     }
 
     /** Sauvegarde tous les volumes (conteneurs déjà arrêtés) et rend l'identifiant de la sauvegarde. */
-    public function sauvegarder(string $copie, string $type = 'mise_a_jour'): string
+    public function sauvegarder(string $copie, string $type = 'mise_a_jour', ?MachineCible $machine = null): string
     {
         $identifiant = now()->format('Ymd-His');
         $dossier = $this->dossier($copie, $identifiant);
         File::ensureDirectoryExists($dossier);
-        $volumes = $this->volumes($copie);
+        $volumes = $this->volumes($copie, $machine);
 
         foreach ($volumes as $volume) {
-            $resultat = Commande::isolee()->timeout((int) config('moteur.sauvegarde_timeout', 900))->run([
+            $resultat = Commande::pour($machine)->timeout((int) config('moteur.sauvegarde_timeout', 900))->run([
                 'sh', '-c', 'docker run --rm --network none -v "$1":/donnees:ro "$2" tar czf - -C /donnees . > "$3"',
                 'sauvegarde', $volume, $this->image(), $dossier.DIRECTORY_SEPARATOR.$volume.'.tar.gz',
             ]);
@@ -63,7 +63,7 @@ class SauvegardeVolumes
      *
      * @param  list<string>  $argumentsCompose  docker compose -p … -f … pour joindre la base intégrée
      */
-    public function sauvegarderAChaud(string $copie, string $type, ?array $argumentsCompose = null, ?string $repertoire = null): string
+    public function sauvegarderAChaud(string $copie, string $type, ?array $argumentsCompose = null, ?string $repertoire = null, ?MachineCible $machine = null): string
     {
         $identifiant = now()->format('Ymd-His');
         $dossier = $this->dossier($copie, $identifiant);
@@ -72,7 +72,7 @@ class SauvegardeVolumes
 
         try {
             if ($argumentsCompose !== null && $repertoire !== null) {
-                $resultat = Commande::isolee()->path($repertoire)->timeout((int) config('moteur.sauvegarde_timeout', 900))->run([
+                $resultat = Commande::pour($machine)->path($repertoire)->timeout((int) config('moteur.sauvegarde_timeout', 900))->run([
                     'sh', '-c', '"$@" > "$0"', $dossier.DIRECTORY_SEPARATOR.'base.dump',
                     ...$argumentsCompose, 'exec', '-T', 'soukdev-db', 'pg_dump', '-U', 'soukdev', '-d', 'soukdev', '--format=custom',
                 ]);
@@ -80,12 +80,12 @@ class SauvegardeVolumes
                     throw new LancementEchoue('La base du backend intégré n’a pas pu être exportée.');
                 }
                 // Les fichiers de la base en marche ne valent rien : son export suffit.
-                $exclus = $this->volumesDuService($copie, 'soukdev-db');
+                $exclus = $this->volumesDuService($copie, 'soukdev-db', $machine);
             }
 
-            $volumes = array_values(array_diff($this->volumes($copie), $exclus));
+            $volumes = array_values(array_diff($this->volumes($copie, $machine), $exclus));
             foreach ($volumes as $volume) {
-                $resultat = Commande::isolee()->timeout((int) config('moteur.sauvegarde_timeout', 900))->run([
+                $resultat = Commande::pour($machine)->timeout((int) config('moteur.sauvegarde_timeout', 900))->run([
                     'sh', '-c', 'docker run --rm --network none -v "$1":/donnees:ro "$2" tar czf - -C /donnees . > "$3"',
                     'sauvegarde', $volume, $this->image(), $dossier.DIRECTORY_SEPARATOR.$volume.'.tar.gz',
                 ]);
@@ -143,9 +143,9 @@ class SauvegardeVolumes
     }
 
     /** @return list<string> */
-    private function volumesDuService(string $copie, string $service): array
+    private function volumesDuService(string $copie, string $service, ?MachineCible $machine = null): array
     {
-        $resultat = Commande::isolee()->timeout(60)->run([
+        $resultat = Commande::pour($machine)->timeout(60)->run([
             'docker', 'ps', '-a', '--quiet', '--filter', 'label=com.docker.compose.project='.$copie, '--filter', 'label=com.docker.compose.service='.$service,
         ]);
         $conteneur = trim(strtok($resultat->output(), "\n") ?: '');
@@ -153,7 +153,7 @@ class SauvegardeVolumes
             return [];
         }
 
-        $inspection = Commande::isolee()->timeout(60)->run(['docker', 'inspect', '--format', '{{range .Mounts}}{{if eq .Type "volume"}}{{.Name}} {{end}}{{end}}', $conteneur]);
+        $inspection = Commande::pour($machine)->timeout(60)->run(['docker', 'inspect', '--format', '{{range .Mounts}}{{if eq .Type "volume"}}{{.Name}} {{end}}{{end}}', $conteneur]);
 
         return array_values(array_filter(explode(' ', trim($inspection->output()))));
     }
@@ -164,7 +164,7 @@ class SauvegardeVolumes
     }
 
     /** Remet chaque volume dans l'état de la sauvegarde (conteneurs arrêtés). */
-    public function restaurer(string $copie, string $identifiant): void
+    public function restaurer(string $copie, string $identifiant, ?MachineCible $machine = null): void
     {
         $dossier = $this->dossier($copie, $identifiant);
         $volumes = json_decode((string) @file_get_contents($dossier.DIRECTORY_SEPARATOR.'volumes.json'), true);
@@ -178,7 +178,7 @@ class SauvegardeVolumes
                 throw new LancementEchoue('Une archive de la sauvegarde est introuvable.');
             }
 
-            $resultat = Commande::isolee()->timeout((int) config('moteur.sauvegarde_timeout', 900))->run([
+            $resultat = Commande::pour($machine)->timeout((int) config('moteur.sauvegarde_timeout', 900))->run([
                 'sh', '-c', 'docker run --rm -i --network none -v "$1":/donnees "$2" sh -c "find /donnees -mindepth 1 -delete && tar xzf - -C /donnees" < "$3"',
                 'restauration', $volume, $this->image(), $archive,
             ]);

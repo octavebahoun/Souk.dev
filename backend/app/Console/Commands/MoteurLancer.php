@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Machine;
 use App\Moteur\Exceptions\DepotInvalide;
 use App\Moteur\Exceptions\LancementEchoue;
 use App\Moteur\Exceptions\ManifestInvalide;
@@ -19,6 +20,7 @@ class MoteurLancer extends Command
                             {--copie= : Nom du projet Docker Compose}
                             {--taille=petite : Formule : petite (512 Mo, 0,5 cœur), moyenne (1 Go, 1 cœur) ou grande (2 Go, 2 cœurs)}
                             {--var=* : Variable client au format NOM=valeur}
+                            {--machine= : Nom de la machine visée (défaut : démon local)}
                             {--dry-run : Valider et écrire le .env sans lancer Compose}';
 
     protected $description = 'Lance une copie isolée à partir d\'un dépôt GitHub ou d\'un chemin local';
@@ -48,14 +50,29 @@ class MoteurLancer extends Command
             return self::FAILURE;
         }
 
+        $cible = null;
+        $nomMachine = $this->option('machine');
+
+        if (is_string($nomMachine) && $nomMachine !== '') {
+            $machine = Machine::query()->where('nom', $nomMachine)->first();
+
+            if ($machine === null) {
+                $this->error("Machine « {$nomMachine} » inconnue.");
+
+                return self::FAILURE;
+            }
+
+            $cible = $machine->cible();
+        }
+
         try {
             $variables = $this->variablesClient();
             $copie = $this->option('copie') ?: null;
             $dryRun = (bool) $this->option('dry-run');
 
             $resultat = $chemin
-                ? $moteur->depuisChemin($chemin, $variables, $copie, $dryRun, $taille)
-                : $moteur->depuisGithub($depot, $variables, $copie, $dryRun, $taille);
+                ? $moteur->depuisChemin($chemin, $variables, $copie, $dryRun, $taille, $cible)
+                : $moteur->depuisGithub($depot, $variables, $copie, $dryRun, $taille, null, null, $cible);
         } catch (ManifestInvalide|DepotInvalide|VariablesManquantes|LancementEchoue $exception) {
             $this->error($exception->getMessage());
 

@@ -14,5 +14,6 @@ final readonly class CopieLocale
         public array $manifeste,
         public array $env,
         public bool $lancee,
+        public ?MachineCible $machine = null,
     ) {}
 }

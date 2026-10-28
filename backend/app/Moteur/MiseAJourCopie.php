@@ -37,17 +37,17 @@ class MiseAJourCopie
      * @throws MiseAJourRetablie la nouvelle version n'a pas démarré, la copie tourne à nouveau sur l'ancienne
      * @throws LancementEchoue le nouveau code est refusé avant tout arrêt (rien n'a changé), ou le retour arrière a échoué
      */
-    public function appliquer(string $copie, string $repertoire, string $depot, string $commit, array $variablesClient, string $taille): string
+    public function appliquer(string $copie, string $repertoire, string $depot, string $commit, array $variablesClient, string $taille, ?MachineCible $machine = null): string
     {
         $nouveau = $this->preparer($copie, $repertoire, $depot, $commit, $variablesClient);
         $precedent = $repertoire.'-precedente';
 
         try {
-            $this->lanceur->suspendre($repertoire, $copie);
-            $sauvegarde = $this->sauvegardes->sauvegarder($copie);
+            $this->lanceur->suspendre($repertoire, $copie, $machine);
+            $sauvegarde = $this->sauvegardes->sauvegarder($copie, 'mise_a_jour', $machine);
         } catch (Throwable $erreur) {
             File::deleteDirectory($nouveau['repertoire']);
-            $this->relancer($copie, $repertoire, $taille);
+            $this->relancer($copie, $repertoire, $taille, $machine);
 
             throw new MiseAJourRetablie($erreur instanceof LancementEchoue ? $erreur->getMessage() : 'La sauvegarde des données a échoué : rien n’a été modifié.', null);
         }
@@ -57,10 +57,10 @@ class MiseAJourCopie
         rename($nouveau['repertoire'], $repertoire);
 
         try {
-            $this->mettreEnLigne(new CopieLocale($copie, $repertoire, $nouveau['manifeste'], $nouveau['env'], false), $taille);
+            $this->mettreEnLigne(new CopieLocale($copie, $repertoire, $nouveau['manifeste'], $nouveau['env'], false, $machine), $taille);
         } catch (Throwable $echec) {
             Log::warning('mise-a-jour: nouvelle version refusée, retour arrière', ['copie' => $copie, 'erreur' => class_basename($echec)]);
-            $this->retablir($copie, $repertoire, $precedent, $sauvegarde, $taille);
+            $this->retablir($copie, $repertoire, $precedent, $sauvegarde, $taille, $machine);
 
             throw new MiseAJourRetablie($echec instanceof LancementEchoue ? $echec->getMessage() : 'La nouvelle version n’a pas démarré.', $sauvegarde);
         }
@@ -103,41 +103,41 @@ class MiseAJourCopie
     /** Nouveaux conteneurs, migrations, sonde, route : la même mise en ligne qu'un premier déploiement, volumes gardés. */
     private function mettreEnLigne(CopieLocale $copie, string $taille): void
     {
-        $this->lanceur->lancer($copie->repertoire, $copie->id, $taille);
+        $this->lanceur->lancer($copie->repertoire, $copie->id, $taille, $copie->machine);
         $this->backend->appliquer($copie);
-        $this->sonder($copie->id, $copie->repertoire, $copie->manifeste);
+        $this->sonder($copie->id, $copie->repertoire, $copie->manifeste, $copie->machine);
     }
 
     /** Retour arrière : les fichiers et les données d'avant, puis les anciens conteneurs. */
-    private function retablir(string $copie, string $repertoire, string $precedent, string $sauvegarde, string $taille): void
+    private function retablir(string $copie, string $repertoire, string $precedent, string $sauvegarde, string $taille, ?MachineCible $machine = null): void
     {
         try {
-            $this->lanceur->suspendre($repertoire, $copie);
+            $this->lanceur->suspendre($repertoire, $copie, $machine);
         } catch (Throwable) {
             // Les nouveaux conteneurs n'ont peut-être jamais démarré.
         }
 
         File::deleteDirectory($repertoire);
         rename($precedent, $repertoire);
-        $this->sauvegardes->restaurer($copie, $sauvegarde);
-        $this->relancer($copie, $repertoire, $taille);
+        $this->sauvegardes->restaurer($copie, $sauvegarde, $machine);
+        $this->relancer($copie, $repertoire, $taille, $machine);
     }
 
-    private function relancer(string $copie, string $repertoire, string $taille): void
+    private function relancer(string $copie, string $repertoire, string $taille, ?MachineCible $machine = null): void
     {
-        $this->lanceur->lancer($repertoire, $copie, $taille);
-        $this->sonder($copie, $repertoire, $this->validateur->validerFichier($repertoire.DIRECTORY_SEPARATOR.'soukdev.json'));
+        $this->lanceur->lancer($repertoire, $copie, $taille, $machine);
+        $this->sonder($copie, $repertoire, $this->validateur->validerFichier($repertoire.DIRECTORY_SEPARATOR.'soukdev.json'), $machine);
     }
 
     /**
      * @param  array<string, mixed>  $manifeste
      */
-    private function sonder(string $copie, string $repertoire, array $manifeste): void
+    private function sonder(string $copie, string $repertoire, array $manifeste, ?MachineCible $machine = null): void
     {
         $nom = $manifeste['service_web']['nom'];
         $port = (int) $manifeste['service_web']['port'];
-        $hote = $this->lanceur->adresseService($repertoire, $copie, $nom);
-        $this->sonde->attendre($hote, $port, $copie.'_'.Durcissement::RESEAU);
+        $hote = $this->lanceur->adresseService($repertoire, $copie, $nom, $machine);
+        $this->sonde->attendre($hote, $port, $copie.'_'.Durcissement::RESEAU, $machine);
         $this->routeur->publier($copie, $hote, $port);
 
         // Traefik relit ses routes par lots : la copie n'est annoncée qu'une fois joignable.

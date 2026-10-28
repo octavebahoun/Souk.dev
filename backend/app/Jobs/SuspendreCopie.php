@@ -37,7 +37,7 @@ class SuspendreCopie implements ShouldQueue
             return;
         }
 
-        $moteur->suspendre((string) $deploiement->repertoire, $deploiement->copie);
+        $moteur->suspendre((string) $deploiement->repertoire, $deploiement->copie, $deploiement->cibleMachine());
         $deploiement->changerEtat('suspendu');
     }
 

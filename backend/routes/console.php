@@ -9,6 +9,7 @@ use App\Jobs\RapprocherPaiementsEnAttente;
 use App\Jobs\RecalculerProfils;
 use App\Jobs\ReversementsMensuels;
 use App\Jobs\SauvegarderCopie;
+use App\Jobs\SonderMachine;
 use App\Jobs\VerifierReversements;
 use App\Models\AnalyseIa;
 use App\Models\CleIdempotence;
@@ -25,6 +26,9 @@ Artisan::command('inspire', function () {
 
 // Copies de test expirées et dossiers orphelins, sur le moteur (seul à parler à Docker).
 Schedule::job(new NettoyerCopies)->everyFiveMinutes()->withoutOverlapping()->name('moteur-nettoyage');
+
+// Santé des serveurs du moteur (joignable, mémoire, version), sondée par le moteur.
+Schedule::job(new SonderMachine)->everyFiveMinutes()->withoutOverlapping()->name('machines-sonde');
 
 // Sécurité avant publication : restes d'analyses interrompues chaque heure ; chaque semaine, toutes
 // les applis sont réanalysées (la base des failles grandit) ; chaque nuit, celles jamais analysées.

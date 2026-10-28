@@ -17,6 +17,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Process\PendingProcess;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Process;
+use Mockery;
 use Mockery\MockInterface;
 use Tests\TestCase;
 
@@ -68,7 +69,7 @@ class SuspensionCopieTest extends TestCase
         $abonnement = Abonnement::factory()->create(['statut' => 'suspendu', 'suspendu_le' => now()]);
         $deploiement = $abonnement->deploiement;
         $deploiement->forceFill(['copie' => 'd'.$deploiement->id, 'repertoire' => '/tmp/copie', 'url' => 'http://d'.$deploiement->id.'.localhost'])->save();
-        $this->mock(MoteurDeploiement::class, fn (MockInterface $mock) => $mock->shouldReceive('suspendre')->once()->with('/tmp/copie', 'd'.$deploiement->id));
+        $this->mock(MoteurDeploiement::class, fn (MockInterface $mock) => $mock->shouldReceive('suspendre')->once()->with('/tmp/copie', 'd'.$deploiement->id, Mockery::any()));
 
         (new SuspendreCopie($deploiement->id))->handle(app(MoteurDeploiement::class));
 
@@ -92,7 +93,7 @@ class SuspensionCopieTest extends TestCase
         $abonnement = Abonnement::factory()->create(['statut' => 'actif']);
         $deploiement = $abonnement->deploiement;
         $deploiement->forceFill(['etat' => 'suspendu', 'copie' => 'd'.$deploiement->id, 'repertoire' => '/tmp/copie', 'url' => 'http://d'.$deploiement->id.'.localhost'])->save();
-        $this->mock(MoteurDeploiement::class, fn (MockInterface $mock) => $mock->shouldReceive('reprendre')->once()->with('/tmp/copie', 'd'.$deploiement->id));
+        $this->mock(MoteurDeploiement::class, fn (MockInterface $mock) => $mock->shouldReceive('reprendre')->once()->with('/tmp/copie', 'd'.$deploiement->id, Mockery::any()));
 
         (new ReactiverCopie($deploiement->id))->handle(app(MoteurDeploiement::class));
 

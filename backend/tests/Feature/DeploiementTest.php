@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Moteur\CopieLocale;
 use App\Moteur\Exceptions\DepotInvalide;
 use App\Moteur\LanceurCompose;
+use App\Moteur\MachineCible;
 use App\Moteur\MoteurDeploiement;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
@@ -19,6 +20,7 @@ use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Queue;
+use Mockery;
 use Tests\TestCase;
 
 class DeploiementTest extends TestCase
@@ -235,7 +237,7 @@ class DeploiementTest extends TestCase
         $this->mock(LanceurCompose::class, function ($mock) use ($deploiement) {
             $mock->shouldReceive('arreter')
                 ->once()
-                ->with('/tmp/copie', 'd'.$deploiement->id);
+                ->with('/tmp/copie', 'd'.$deploiement->id, Mockery::type(MachineCible::class));
         });
 
         // Le moteur arrête la copie en arrière-plan (file synchrone dans les tests).

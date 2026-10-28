@@ -66,6 +66,8 @@ class NettoyageCopies
             ->pluck('id')
             ->all();
 
+        $machines = Deploiement::query()->whereIn('id', array_keys($dossiers))->with('machine')->get()->keyBy('id');
+
         $supprimes = 0;
 
         foreach ($dossiers as $id => $chemin) {
@@ -73,8 +75,8 @@ class NettoyageCopies
                 continue;
             }
 
-            // down d'abord : un dossier orphelin peut encore avoir des conteneurs.
-            if ($this->nettoyeur->liberer('d'.$id, $chemin, $id)) {
+            // down d'abord : un dossier orphelin peut encore avoir des conteneurs, sur sa machine.
+            if ($this->nettoyeur->liberer('d'.$id, $chemin, $id, $machines->get($id)?->cibleMachine())) {
                 $supprimes++;
             }
         }

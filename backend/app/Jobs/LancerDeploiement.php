@@ -11,6 +11,7 @@ use App\Moteur\Exceptions\ManifestInvalide;
 use App\Moteur\Exceptions\VariablesManquantes;
 use App\Moteur\MoteurDeploiement;
 use App\Moteur\NettoyeurCopie;
+use App\Moteur\PlacementMachines;
 use App\Paiement\Facturation;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -46,6 +47,11 @@ class LancerDeploiement implements ShouldQueue
                 return;
             }
 
+            // Placement : la machine active et joignable qui a le plus de mémoire libre.
+            $machine = app(PlacementMachines::class)->choisir((string) $deploiement->taille);
+            $deploiement->forceFill(['machine_id' => $machine->id])->save();
+            $cible = $machine->cible();
+
             // Clé publique de la copie : l'adresse de connexion de ses utilisateurs (backend intégré).
             if ($deploiement->cle_publique === null) {
                 $deploiement->forceFill(['cle_publique' => (string) Str::uuid()])->save();
@@ -58,6 +64,7 @@ class LancerDeploiement implements ShouldQueue
                 true,
                 commit: $deploiement->version?->commit,
                 clePublique: $deploiement->cle_publique,
+                machine: $cible,
             );
 
             $deploiement->copie = $copie->id;
@@ -106,7 +113,7 @@ class LancerDeploiement implements ShouldQueue
             }
 
             // Conteneurs, volumes et dossier cloné (avec son .env) ne restent pas après un échec.
-            app(NettoyeurCopie::class)->liberer($copie?->id ?? $deploiement->copie, $copie?->repertoire ?? $deploiement->repertoire, $deploiement->id);
+            app(NettoyeurCopie::class)->liberer($copie?->id ?? $deploiement->copie, $copie?->repertoire ?? $deploiement->repertoire, $deploiement->id, $copie?->machine);
         }
     }
 

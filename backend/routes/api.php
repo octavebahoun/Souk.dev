@@ -15,6 +15,7 @@ use App\Http\Controllers\DiscussionController;
 use App\Http\Controllers\EtiquetteController;
 use App\Http\Controllers\EvenementController;
 use App\Http\Controllers\FactureController;
+use App\Http\Controllers\MachineController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\MissionController;
 use App\Http\Controllers\MissionMessageController;
@@ -111,6 +112,14 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::post('/paiements/{paiement}/remboursement', [AdminFinancesController::class, 'rembourserTropPercu'])->middleware('idempotence:obligatoire');
         Route::get('/reversements', [AdminFinancesController::class, 'reversements']);
         Route::get('/rapprochements', [AdminFinancesController::class, 'rapprochements']);
+
+        // Serveurs du moteur : liste, enregistrement, maintenance, santé.
+        Route::get('/machines', [MachineController::class, 'index']);
+        Route::post('/machines', [MachineController::class, 'store']);
+        Route::get('/machines/{machine}', [MachineController::class, 'show']);
+        Route::patch('/machines/{machine}', [MachineController::class, 'update']);
+        Route::delete('/machines/{machine}', [MachineController::class, 'destroy']);
+        Route::post('/machines/{machine}/sonde', [MachineController::class, 'sonder']);
     });
 
     Route::get('/missions', [MissionController::class, 'index']);

@@ -151,7 +151,7 @@ class BackendIntegre
      */
     private function migrationsAppliquees(CopieLocale $copie): array
     {
-        $resultat = Commande::isolee()->path($copie->repertoire)
+        $resultat = Commande::pour($copie->machine)->path($copie->repertoire)
             ->timeout(60)
             ->run([
                 ...$this->lanceur->argumentsCompose($copie->repertoire, $copie->id),
@@ -252,7 +252,7 @@ YAML;
         $tentatives = $this->tentatives();
 
         for ($essai = 1; $essai <= $tentatives; $essai++) {
-            $resultat = Commande::isolee()->path($copie->repertoire)
+            $resultat = Commande::pour($copie->machine)->path($copie->repertoire)
                 ->timeout(15)
                 ->run([
                     ...$this->lanceur->argumentsCompose($copie->repertoire, $copie->id),
@@ -274,7 +274,7 @@ YAML;
 
     private function executer(CopieLocale $copie, string $sql, string $nom): void
     {
-        $resultat = Commande::isolee()->path($copie->repertoire)
+        $resultat = Commande::pour($copie->machine)->path($copie->repertoire)
             ->input($sql)
             ->timeout(60)
             ->run([
@@ -290,7 +290,7 @@ YAML;
 
     private function rechargerApi(CopieLocale $copie): void
     {
-        $resultat = Commande::isolee()->path($copie->repertoire)
+        $resultat = Commande::pour($copie->machine)->path($copie->repertoire)
             ->timeout(60)
             ->run([
                 ...$this->lanceur->argumentsCompose($copie->repertoire, $copie->id),

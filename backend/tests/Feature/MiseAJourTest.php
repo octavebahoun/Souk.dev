@@ -222,7 +222,7 @@ class MiseAJourTest extends TestCase
 
                 return '20261026-090000';
             });
-            $mock->shouldReceive('restaurer')->once()->with('d7', '20261026-090000')->andReturnUsing(function () use (&$etapes) {
+            $mock->shouldReceive('restaurer')->once()->with('d7', '20261026-090000', null)->andReturnUsing(function () use (&$etapes) {
                 $etapes[] = 'restauration';
             });
         });

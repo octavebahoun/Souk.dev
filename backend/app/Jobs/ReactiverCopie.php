@@ -43,7 +43,7 @@ class ReactiverCopie implements ShouldQueue
             return;
         }
 
-        $moteur->reprendre((string) $deploiement->repertoire, $deploiement->copie);
+        $moteur->reprendre((string) $deploiement->repertoire, $deploiement->copie, $deploiement->cibleMachine());
         $deploiement->changerEtat('en_ligne', url: $url ?? str_replace('{copie}', $deploiement->copie, (string) config('moteur.url_copie')));
     }
 

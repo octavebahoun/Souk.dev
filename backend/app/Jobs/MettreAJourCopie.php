@@ -54,7 +54,7 @@ class MettreAJourCopie implements ShouldBeUnique, ShouldQueue
         $url = (string) $copie->url;
 
         try {
-            $sauvegarde = $service->appliquer('d'.$copie->id, (string) $copie->repertoire, (string) $copie->appli->depot_url, (string) $mise->versVersion?->commit, $variables, (string) $copie->taille);
+            $sauvegarde = $service->appliquer('d'.$copie->id, (string) $copie->repertoire, (string) $copie->appli->depot_url, (string) $mise->versVersion?->commit, $variables, (string) $copie->taille, $copie->cibleMachine());
 
             $copie->forceFill(['version_id' => $mise->vers_version_id, 'variables' => $variables])->save();
             $mise->forceFill(['statut' => 'reussie', 'sauvegarde' => $sauvegarde, 'termine_le' => now()])->save();
