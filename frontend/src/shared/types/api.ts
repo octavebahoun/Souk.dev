@@ -1387,6 +1387,64 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/machines": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Serveurs Docker du moteur, avec leur état et leur santé (admin) */
+        get: operations["listMachines"];
+        put?: never;
+        /** Enregistrer un serveur Docker (admin). La santé est sondée aussitôt par le moteur, qui seul parle à Docker. */
+        post: operations["creerMachine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/machines/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        /** Un serveur et sa santé (admin) */
+        get: operations["lireMachine"];
+        put?: never;
+        post?: never;
+        /** Retirer un serveur (admin). Refusé tant que des copies y tournent. */
+        delete: operations["supprimerMachine"];
+        options?: never;
+        head?: never;
+        /** Renommer, redimensionner ou basculer en maintenance (admin). En maintenance : plus aucune nouvelle copie, celles qui tournent continuent. Le démon ne change pas tant que des copies tournent dessus. */
+        patch: operations["modifierMachine"];
+        trace?: never;
+    };
+    "/admin/machines/{id}/sonde": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Relancer la sonde de santé d'un serveur (admin). Le moteur la passe aussitôt ; cette réponse garde l'état stocké, à relire. */
+        post: operations["sonderMachine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1748,6 +1806,8 @@ export interface components {
             mise_a_jour: components["schemas"]["MiseAJour"] | null;
             /** @description La sauvegarde la plus récente (copie client), à exporter depuis « Mes copies » */
             derniere_sauvegarde: components["schemas"]["Sauvegarde"] | null;
+            /** @description Serveur qui héberge la copie ; null tant qu'elle attend son paiement (pas encore placée) */
+            machine_nom: string | null;
         };
         Sauvegarde: {
             identifiant: string;
@@ -2320,6 +2380,50 @@ export interface components {
             }[];
             /** Format: date-time */
             cree_le: string;
+        };
+        /**
+         * @description maintenance : plus aucune nouvelle copie n'y part (drain), celles qui tournent continuent
+         * @enum {string}
+         */
+        EtatMachine: "active" | "maintenance";
+        Machine: {
+            id: number;
+            /** @description Nom choisi par l'équipe, ex. locale */
+            nom: string;
+            /** @description Démon Docker visé (DOCKER_HOST) : unix:///… ou tcp://hôte:port ; null = démon local (socket) */
+            hote_docker: string | null;
+            etat: components["schemas"]["EtatMachine"];
+            /** @description Faux depuis la dernière sonde ratée : le placement l'évite */
+            joignable: boolean;
+            /** @description Lue par la dernière sonde réussie */
+            version_docker: string | null;
+            /** @description Mémoire du démon, lue par la sonde (Mo) */
+            memoire_totale_mo: number | null;
+            /** @description Mémoire réservée aux copies (Mo), déclarée par l'équipe ; null = sans limite déclarée */
+            capacite_mo: number | null;
+            /** @description Plafonds des copies qui y tournent (Mo) */
+            memoire_reservee_mo: number;
+            /** @description Capacité moins réservée (Mo) ; null sans limite déclarée */
+            memoire_libre_mo: number | null;
+            /** @description Copies hébergées (ni arrêtées, ni en échec) */
+            copies: number;
+            /** @description Raison courte de la dernière sonde ratée */
+            sonde_erreur: string | null;
+            /** Format: date-time */
+            sondee_le: string | null;
+        };
+        MachineCreation: {
+            nom: string;
+            /** @description unix:///… ou tcp://hôte:port ; null = démon local */
+            hote_docker?: string | null;
+            /** @description Mémoire réservée aux copies (Mo) ; null = sans limite déclarée */
+            capacite_mo?: number | null;
+        };
+        MachineModification: {
+            nom?: string;
+            hote_docker?: string | null;
+            capacite_mo?: number | null;
+            etat?: components["schemas"]["EtatMachine"];
         };
         Evenement: {
             id: number;
@@ -5367,6 +5471,166 @@ export interface operations {
             };
             401: components["responses"]["NonConnecte"];
             403: components["responses"]["Interdit"];
+        };
+    };
+    listMachines: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Machines */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Machine"][];
+                    };
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+        };
+    };
+    creerMachine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MachineCreation"];
+            };
+        };
+        responses: {
+            /** @description Machine enregistrée */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Machine"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+            419: components["responses"]["CsrfInvalide"];
+            422: components["responses"]["Invalide"];
+        };
+    };
+    lireMachine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Machine */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Machine"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+            404: components["responses"]["Introuvable"];
+        };
+    };
+    supprimerMachine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Machine retirée */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+            404: components["responses"]["Introuvable"];
+            409: components["responses"]["Conflit"];
+            419: components["responses"]["CsrfInvalide"];
+        };
+    };
+    modifierMachine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MachineModification"];
+            };
+        };
+        responses: {
+            /** @description Machine modifiée */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Machine"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+            404: components["responses"]["Introuvable"];
+            409: components["responses"]["Conflit"];
+            419: components["responses"]["CsrfInvalide"];
+            422: components["responses"]["Invalide"];
+        };
+    };
+    sonderMachine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sonde demandée */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Machine"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+            404: components["responses"]["Introuvable"];
+            419: components["responses"]["CsrfInvalide"];
         };
     };
 }

@@ -2210,6 +2210,113 @@ paths:
         '401': { $ref: '#/components/responses/NonConnecte' }
         '403': { $ref: '#/components/responses/Interdit' }
 
+  /admin/machines:
+    get:
+      tags: [Administration]
+      operationId: listMachines
+      summary: Serveurs Docker du moteur, avec leur état et leur santé (admin)
+      responses:
+        '200':
+          description: Machines
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Machine' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+    post:
+      tags: [Administration]
+      operationId: creerMachine
+      summary: "Enregistrer un serveur Docker (admin). La santé est sondée aussitôt par le moteur, qui seul parle à Docker."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MachineCreation' }
+      responses:
+        '201':
+          description: Machine enregistrée
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Machine' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+        '422': { $ref: '#/components/responses/Invalide' }
+
+  /admin/machines/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Administration]
+      operationId: lireMachine
+      summary: Un serveur et sa santé (admin)
+      responses:
+        '200':
+          description: Machine
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Machine' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+    patch:
+      tags: [Administration]
+      operationId: modifierMachine
+      summary: "Renommer, redimensionner ou basculer en maintenance (admin). En maintenance : plus aucune nouvelle copie, celles qui tournent continuent. Le démon ne change pas tant que des copies tournent dessus."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MachineModification' }
+      responses:
+        '200':
+          description: Machine modifiée
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Machine' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '409': { $ref: '#/components/responses/Conflit' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+        '422': { $ref: '#/components/responses/Invalide' }
+    delete:
+      tags: [Administration]
+      operationId: supprimerMachine
+      summary: Retirer un serveur (admin). Refusé tant que des copies y tournent.
+      responses:
+        '204':
+          description: Machine retirée
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '409': { $ref: '#/components/responses/Conflit' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+
+  /admin/machines/{id}/sonde:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [Administration]
+      operationId: sonderMachine
+      summary: "Relancer la sonde de santé d'un serveur (admin). Le moteur la passe aussitôt ; cette réponse garde l'état stocké, à relire."
+      responses:
+        '202':
+          description: Sonde demandée
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Machine' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+
 components:
   securitySchemes:
     session:
@@ -2737,7 +2844,7 @@ components:
     # ───────────── Déploiements ─────────────
     Deploiement:
       type: object
-      required: [id, app_id, app_nom, taille, type, etat, url, erreur, cree_le, abonnement, facture_a_payer, version, version_disponible, mise_a_jour, derniere_sauvegarde]
+      required: [id, app_id, app_nom, taille, type, etat, url, erreur, cree_le, abonnement, facture_a_payer, version, version_disponible, mise_a_jour, derniere_sauvegarde, machine_nom]
       properties:
         id: { type: integer }
         app_id: { type: [integer, 'null'], description: "null pour une copie de test lancée depuis le depot_url d'une discussion, sans appli publiée" }
@@ -2790,6 +2897,9 @@ components:
           oneOf:
             - $ref: '#/components/schemas/Sauvegarde'
             - type: 'null'
+        machine_nom:
+          type: [string, 'null']
+          description: "Serveur qui héberge la copie ; null tant qu'elle attend son paiement (pas encore placée)"
 
     Sauvegarde:
       type: object
@@ -3427,6 +3537,45 @@ components:
               reference: { type: string, description: "Transaction SasPay, ou paiement n° … chez Souk.dev" }
               detail: { type: string, description: "Ce qui a été constaté, en clair" }
         cree_le: { type: string, format: date-time }
+
+    EtatMachine:
+      type: string
+      enum: [active, maintenance]
+      description: "maintenance : plus aucune nouvelle copie n'y part (drain), celles qui tournent continuent"
+
+    Machine:
+      type: object
+      required: [id, nom, hote_docker, etat, joignable, version_docker, memoire_totale_mo, capacite_mo, memoire_reservee_mo, memoire_libre_mo, copies, sonde_erreur, sondee_le]
+      properties:
+        id: { type: integer }
+        nom: { type: string, description: "Nom choisi par l'équipe, ex. locale" }
+        hote_docker: { type: [string, 'null'], description: "Démon Docker visé (DOCKER_HOST) : unix:///… ou tcp://hôte:port ; null = démon local (socket)" }
+        etat: { $ref: '#/components/schemas/EtatMachine' }
+        joignable: { type: boolean, description: "Faux depuis la dernière sonde ratée : le placement l'évite" }
+        version_docker: { type: [string, 'null'], description: "Lue par la dernière sonde réussie" }
+        memoire_totale_mo: { type: [integer, 'null'], description: "Mémoire du démon, lue par la sonde (Mo)" }
+        capacite_mo: { type: [integer, 'null'], description: "Mémoire réservée aux copies (Mo), déclarée par l'équipe ; null = sans limite déclarée" }
+        memoire_reservee_mo: { type: integer, description: "Plafonds des copies qui y tournent (Mo)" }
+        memoire_libre_mo: { type: [integer, 'null'], description: "Capacité moins réservée (Mo) ; null sans limite déclarée" }
+        copies: { type: integer, description: "Copies hébergées (ni arrêtées, ni en échec)" }
+        sonde_erreur: { type: [string, 'null'], description: "Raison courte de la dernière sonde ratée" }
+        sondee_le: { type: [string, 'null'], format: date-time }
+
+    MachineCreation:
+      type: object
+      required: [nom]
+      properties:
+        nom: { type: string, maxLength: 64 }
+        hote_docker: { type: [string, 'null'], maxLength: 255, description: "unix:///… ou tcp://hôte:port ; null = démon local" }
+        capacite_mo: { type: [integer, 'null'], minimum: 512, maximum: 1048576, description: "Mémoire réservée aux copies (Mo) ; null = sans limite déclarée" }
+
+    MachineModification:
+      type: object
+      properties:
+        nom: { type: string, maxLength: 64 }
+        hote_docker: { type: [string, 'null'], maxLength: 255 }
+        capacite_mo: { type: [integer, 'null'], minimum: 512, maximum: 1048576 }
+        etat: { $ref: '#/components/schemas/EtatMachine' }
 
     # ───────────── Événements ─────────────
     Evenement:
