@@ -56,6 +56,7 @@ Versions exactes déjà installées. Les autres lignes attendent leur installati
 | Traefik (image Docker du reverse proxy) | 3.3.4 | MIT |
 | gitleaks (image zricethezav/gitleaks : secrets d'un dépôt avant publication, conteneur jetable) | v8.21.2 | MIT |
 | Trivy (image aquasec/trivy : failles connues des dépendances, conteneur jetable) | 0.58.1 | Apache 2.0 |
+| docker:dind (image Docker du second démon local, profil « machines » : test du placement sur deux machines, développement uniquement) | 28 | Apache 2.0 |
 | resend/resend-php (envoi des emails) | 1.17.0 | MIT |
 | laravel/boost (outil de dev : règles et skills pour les agents) | 2.10.3 | MIT |
 | laravel/mcp (tiré par laravel/boost) | 1.1.1 | MIT |

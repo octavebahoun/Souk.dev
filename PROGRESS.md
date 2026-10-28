@@ -6,8 +6,8 @@ Journal de l'agent, tenu à jour en continu (voir `BRIEF.md`, section 1).
 ## Où on en est
 
 - **Branche** : `saas-complet`, partie de `main` (la PR #28 `fin-mvp` y est fusionnée).
-- **Phase en cours** : 5 — Plateforme (phase 4 terminée : revue indépendante faite, 15 constats traités).
-- **Tâche suivante** : plusieurs serveurs (liste, placement, maintenance, état ; test local avec deux machines).
+- **Phase en cours** : 5 — Plateforme (plusieurs serveurs codé et testé sur l'hôte ; vérification Docker en dette).
+- **Tâche suivante** : au retour de Docker, exécuter `backend-integre.spec.ts` et `machines.spec.ts`, captures, axe et Lighthouse, puis revue indépendante de la phase 5.
 
 ## Étape 0 (25 octobre)
 
@@ -100,7 +100,7 @@ Journal de l'agent, tenu à jour en continu (voir `BRIEF.md`, section 1).
 - [x] Mises à jour poussées : versions publiées par l'auteur (vérifiées comme une publication, commit épinglé), clients prévenus, mise à jour choisie par le client avec sauvegarde des volumes et retour arrière automatique ; vérifié en réel (version 2 appliquée, version cassée revenue d'elle-même)
 - [x] Backend intégré complet : connexion SMS et e-mail des utilisateurs finaux, sauvegarde quotidienne, export
 - [x] Revue indépendante du backend intégré (sous-agent neuf) : 8 constats, 7 corrigés, 1 en attente de Docker (voir ci-dessous)
-- [ ] Plusieurs serveurs : liste, placement, maintenance, état ; test local avec deux machines
+- [x] Plusieurs serveurs : liste des machines, placement sur la plus libre, maintenance (drain), état et santé sondés, page admin ; test local avec deux machines écrit (`machines.spec.ts`), à exécuter au retour de Docker (voir ci-dessous)
 
 **Revue indépendante du backend intégré** (8 constats, tous fondés ; aucun réfuté) :
 1. Élevé : Playwright (dont `backend-integre.spec.ts`), captures /copies, axe et Lighthouse jamais exécutés (Docker arrêté) → **non corrigé ici** : Docker toujours arrêté, à refaire dès son retour avant de clore la phase 5.
@@ -135,6 +135,7 @@ Contrat inchangé : les codes et routes utilisés (422, 429, 503, `GET /deployme
 | Mes revenus | Être payé | Recevoir son solde | Le solde, le numéro où l'argent arrive, sa confirmation |
 | Finances (admin) | Suivre l'argent de Souk.dev | Saisir un avoir après un remboursement | La marge, ce qui est dû aux devs, les impayés et les écarts |
 | Mes copies | Suivre ses copies | Payer, ouvrir ou relancer selon l'état | L'état de chaque copie, son adresse, ce qu'elle coûte
+| Serveurs (`/admin/serveurs`) | Voir la flotte et sa santé, l'entretenir | Ajouter un serveur (ou sonder, basculer, retirer) | Les pastilles d'état (en service, en maintenance, injoignable) et les jauges de mémoire libre |
 
 ## Vérifications
 
@@ -175,6 +176,11 @@ Contrat inchangé : les codes et routes utilisés (422, 429, 503, `GET /deployme
 | 2026-10-28 | 5 | Après corrections de la revue : suite PHP sur l'hôte (dont 5 tests de non-régression du backend intégré) | 568 passés, 4 échecs connus : `PublicationAppliTest` demande GD, absent de l'hôte (vert dans le conteneur) |
 | 2026-10-28 | 5 | Après corrections de la revue : Pint (431 fichiers), ESLint, `tsc`, Vitest (dont `MesCopies.test.tsx`) | zéro erreur, 33/33 |
 | 2026-10-28 | 5 | Après corrections de la revue : `composer audit`, `npm audit`, licences | aucune faille, aucune licence interdite |
+| 2026-10-28 | 5 | Suite PHP sur l'hôte, dont `MachinesTest` (21 tests : contrat, placement, maintenance, anti-IDOR admin, sonde, démons) et `ContratRoutesTest` | 589 passés, 4 échecs connus : `PublicationAppliTest` demande GD, absent de l'hôte (vert dans le conteneur) ; Docker arrêté, suite en conteneur non relancée |
+| 2026-10-28 | 5 | Pint (442 fichiers), ESLint (tout le front), `tsc`, Vitest (dont `etatServeurs.test.ts`), types régénérés depuis `openapi.yaml` | zéro erreur, 41/41 ; `api.ts` régénéré (schémas `Machine`, `machine_nom` sur `Deploiement`) |
+| 2026-10-28 | 5 | `composer audit`, `npm audit`, `composer check-licenses`, `npm run check-licenses` | aucune faille, aucune licence interdite (docker:dind Apache 2.0 inscrit) |
+| 2026-10-28 | 5 | `docker compose config` (dont profil `machines`) et chargement du parcours `machines.spec.ts` | compose valide, 3 tests listés ; exécution impossible : Docker arrêté |
+| 2026-10-28 | 5 | Playwright `machines.spec.ts`, captures `/admin/serveurs` (3 tailles × 2 thèmes), axe, Lighthouse | **non faits** : Docker arrêté sur le poste (`/var/run/docker.sock` absent, `sudo` interdit) ; parcours écrit et relu, à exécuter à son retour (voir Problèmes ouverts) |
 
 ## Problèmes ouverts
 
@@ -187,6 +193,7 @@ Contrat inchangé : les codes et routes utilisés (422, 429, 503, `GET /deployme
 - Le compte SasPay fourni affiche le nom marchand « Gentube » sur la page de paiement : un compte au nom de Souk.dev sera nécessaire avant le lancement.
 - 26 octobre : deux plateformes lancées sur le même dossier de copies (vérification à froid) se nettoient l'une l'autre ; une copie de test de la plateforme habituelle a été arrêtée. Sans conséquence (jeu de démo) ; à ne pas reproduire.
 - 28 octobre : Docker arrêté sur le poste pendant le backend intégré (démon inactif, `sudo` interdit pour le relancer). La vérification Docker (suite en conteneur, démarrage à froid, Playwright dont `backend-integre.spec.ts`, captures 3 tailles × 2 thèmes, axe, Lighthouse) reste à faire avant de clore la phase 5 ; le parcours est écrit et relu, pas exécuté. Les 7 autres constats de la revue sont corrigés et testés ; le constat Docker (élevé) est revérifié toujours bloqué le 28 octobre au soir.
+- 28 octobre : plusieurs serveurs livré sans Docker (même cause). Dette précise avant de clore la phase 5 : démarrer Docker, `docker compose up -d`, `docker compose --profile machines up -d dind`, vérifier la sonde du second démon dans `/admin/serveurs`, exécuter `npx playwright test e2e/machines.spec.ts` (3 tests : enregistrement + sonde, copie sur la plus libre et joignable, maintenance + retrait refusé), captures `/admin/serveurs` (`PAGES=/admin/serveurs npm run e2e:captures`, 3 tailles × 2 thèmes, à regarder et critiquer), axe (inclus dans le parcours) et Lighthouse. Limite assumée : routage direct v1 (voir `docs/machines.md`), bord par machine à concevoir en phase 6 avant tout second VPS réel.
 
 ## Dépenses et crédits
 
