@@ -13,6 +13,7 @@ use App\Notifications\CodeConnexionCopie;
 use App\Sms\FournisseurSms;
 use App\Sms\SmsNonEnvoye;
 use App\Sms\SmsSimule;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Notifications\ChannelManager;
@@ -113,7 +114,7 @@ class BackendIntegreCompletTest extends TestCase
 
     public function test_les_codes_expires_sont_purges_chaque_nuit(): void
     {
-        $planifiees = collect(app(\Illuminate\Console\Scheduling\Schedule::class)->events())
+        $planifiees = collect(app(Schedule::class)->events())
             ->filter(fn ($tache) => $tache->description === 'codes-connexion');
 
         $this->assertCount(1, $planifiees);
