@@ -114,6 +114,16 @@ export async function mettreAJourCopie(id: number, corps: { variables?: Record<s
   return data
 }
 
+export async function sauvegarderCopie(id: number): Promise<void> {
+  await preparerCsrf()
+  await clientLocal.post(cheminLaravel(`/deployments/${id}/sauvegardes`))
+}
+
+/** Adresse d'export d'une sauvegarde (téléchargement direct, la session suffit). */
+export function lienSauvegarde(id: number, identifiant: string): string {
+  return cheminLaravel(`/deployments/${id}/sauvegardes/${identifiant}`)
+}
+
 export async function arreterCopie(id: number): Promise<void> {
   await preparerCsrf()
   await clientLocal.delete(cheminLaravel(`/deployments/${id}`))

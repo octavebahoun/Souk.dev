@@ -30,8 +30,10 @@ import {
 } from "../../ui";
 import {
   arreterCopie,
+  lienSauvegarde,
   listerCopies,
   mettreAJourCopie,
+  sauvegarderCopie,
 } from "../catalogue/api";
 import {
   allerPayer,
@@ -228,14 +230,43 @@ function CarteCopie({
   const facture = incident ? null : copie.facture_a_payer;
   const [annonce, setAnnonce] = useState("");
   const [miseAJour, setMiseAJour] = useState(false);
+  // La dernière sauvegarde connue au moment de la demande : la nouvelle, arrivée en direct, la remplace.
+  const [demandeeApres, setDemandeeApres] = useState<string | null | undefined>(
+    undefined,
+  );
   const derniere = copie.mise_a_jour;
+  const sauvegarde = copie.derniere_sauvegarde;
+  const sauvegardeDemandee =
+    demandeeApres !== undefined &&
+    demandeeApres === (sauvegarde?.identifiant ?? null);
+
+  async function sauvegarderMaintenant() {
+    setErreur(null);
+    try {
+      await sauvegarderCopie(copie.id);
+      setDemandeeApres(sauvegarde?.identifiant ?? null);
+    } catch (probleme) {
+      setErreur(
+        messageErreur(
+          probleme,
+          "La sauvegarde n’a pas pu être demandée. Réessayez dans un instant.",
+        ),
+      );
+    }
+  }
   useCanalPrive<Deploiement>(
     actif ? `deploiement.${copie.id}` : null,
     "deploiement.etat",
     (recue) => {
       onChange(recue);
+      const nouvelleSauvegarde =
+        recue.etat === copie.etat &&
+        recue.derniere_sauvegarde?.identifiant !==
+          copie.derniere_sauvegarde?.identifiant;
       setAnnonce(
-        `${recue.app_nom} : ${presentationEtatCopie(recue.etat).libelle}.`,
+        nouvelleSauvegarde
+          ? `${recue.app_nom} : sauvegarde terminée.`
+          : `${recue.app_nom} : ${presentationEtatCopie(recue.etat).libelle}.`,
       );
     },
     onRelire,
@@ -458,6 +489,47 @@ function CarteCopie({
           ) : null}
         </div>
       ) : null}
+      {copie.etat === "en_ligne" || sauvegarde ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-bordure pt-3 text-petit">
+          <p className="m-0 text-texte-doux">
+            {sauvegarde ? (
+              <>
+                Sauvegarde du {formaterDate(sauvegarde.cree_le, "avecHeure")}
+                {sauvegarde.type === "mise_a_jour"
+                  ? " (avant une mise à jour)"
+                  : sauvegarde.type === "manuelle"
+                    ? " (à votre demande)"
+                    : ""}{" "}
+                · {formaterTaille(sauvegarde.taille)} ·{" "}
+                <a
+                  href={lienSauvegarde(copie.id, sauvegarde.identifiant)}
+                  download
+                  className="font-medium"
+                >
+                  Exporter
+                </a>
+              </>
+            ) : (
+              "Sauvegardée chaque nuit, gardée 7 jours."
+            )}
+          </p>
+          {copie.etat === "en_ligne" ? (
+            sauvegardeDemandee ? (
+              <p role="status" className="m-0 text-texte-doux">
+                Sauvegarde demandée : elle apparaît ici dans quelques minutes.
+              </p>
+            ) : (
+              <Bouton
+                variante="fantome"
+                taille="sm"
+                onClick={() => void sauvegarderMaintenant()}
+              >
+                Sauvegarder maintenant
+              </Bouton>
+            )
+          ) : null}
+        </div>
+      ) : null}
     </Carte>
   );
 }
@@ -661,4 +733,12 @@ function ConfirmerMiseAJour({
       </div>
     </Modale>
   );
+}
+
+/** « 12 Mo », « 840 Ko » : la taille d'une sauvegarde, à l'unité lisible. */
+function formaterTaille(octets: number): string {
+  if (octets < 1024 * 1024) {
+    return `${Math.max(1, Math.round(octets / 1024))} Ko`;
+  }
+  return `${new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 1 }).format(octets / (1024 * 1024))} Mo`;
 }
