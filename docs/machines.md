@@ -57,11 +57,11 @@ qu'une copie part sur `aux` et y répond, bascule `aux` en maintenance, tente le
 - **Routage direct (v1)** : Traefik central vise l'adresse du conteneur. Ça marche quand
   les démons partagent l'espace réseau de l'hôte (démon local + DinD ci-dessus). Des VPS
   séparés exigeront un proxy en bordure par machine et la livraison de ses routes :
-  à concevoir avec l'exploitation (phase 6), avant tout second VPS réel.
+  conçu en phase 6, voir `docs/multi-vps.md`, avant tout second VPS réel.
 - **`tcp://` sans TLS** : réservé au poste de développement (DinD ci-dessus, `localhost`,
   `127.0.0.0/8`, `host.docker.internal`). Un démon distant sans TLS exposerait Docker
   sans authentification : refusé par l'API en production (422). Le TLS par machine
-  (`DOCKER_TLS_VERIFY` et certificats stockés par machine) se conçoit avec le bord par
-  machine (phase 6), avant tout second VPS réel.
+  (`DOCKER_TLS_VERIFY` et certificats stockés par machine) est conçu avec le bord par
+  machine en phase 6, voir `docs/multi-vps.md`, avant tout second VPS réel.
 - **Pas de migration de copies** : la maintenance draine naturellement (les copies s'y
   terminent), elle ne les déplace pas.
