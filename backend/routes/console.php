@@ -4,12 +4,14 @@ use App\Exploitation\Battements;
 use App\Jobs\FacturationQuotidienne;
 use App\Jobs\NettoyerAnalyses;
 use App\Jobs\NettoyerCopies;
+use App\Jobs\NettoyerImagesDocker;
 use App\Jobs\RapprochementQuotidien;
 use App\Jobs\RapprocherPaiementsEnAttente;
 use App\Jobs\RecalculerProfils;
 use App\Jobs\ReversementsMensuels;
 use App\Jobs\SauvegarderCopie;
 use App\Jobs\SonderMachine;
+use App\Jobs\SurveillerExploitation;
 use App\Jobs\VerifierReversements;
 use App\Models\AnalyseIa;
 use App\Models\CleIdempotence;
@@ -73,3 +75,9 @@ Schedule::call(fn () => CodeConnexion::query()->where('expire_le', '<=', now())-
 
 // Contrôle de santé du planificateur (voir docker/sante.php).
 Schedule::call(fn (Battements $battements) => $battements->battre('planificateur'))->everyMinute()->name('battement');
+
+// Exploitation : file bloquée, disque plein, machine injoignable → e-mail à l'équipe.
+Schedule::job(new SurveillerExploitation)->hourly()->withoutOverlapping()->name('exploitation-surveillance');
+
+// Images et caches Docker inutilisés depuis 7 jours, sur le démon local (moteur).
+Schedule::job(new NettoyerImagesDocker)->weeklyOn(0, '05:30')->withoutOverlapping()->name('images-nettoyage');
