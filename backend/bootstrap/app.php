@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Middleware\Administrateur;
+use App\Http\Middleware\CompteActif;
 use App\Http\Middleware\CorsCopies;
 use App\Http\Middleware\Idempotence;
 use Illuminate\Auth\AuthenticationException;
@@ -45,6 +46,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'idempotence' => Idempotence::class,
             'administrateur' => Administrateur::class,
+            'compte.actif' => CompteActif::class,
         ]);
         // Le contrôle d'admin passe avant la recherche de l'objet de l'URL (403 plutôt que 404).
         $middleware->prependToPriorityList(before: SubstituteBindings::class, prepend: Administrateur::class);

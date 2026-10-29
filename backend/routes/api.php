@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\AdminComptesController;
+use App\Http\Controllers\AdminCopiesController;
 use App\Http\Controllers\AdminFinancesController;
 use App\Http\Controllers\AnalyseIaController;
 use App\Http\Controllers\AppliController;
@@ -23,6 +25,7 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ReseauMobileMoneyController;
 use App\Http\Controllers\RevenusController;
 use App\Http\Controllers\SauvegardeController;
+use App\Http\Controllers\SignalementController;
 use App\Http\Controllers\TechnoController;
 use App\Http\Controllers\VersionController;
 use App\Http\Controllers\WebhookSasPayController;
@@ -45,7 +48,7 @@ Route::post('/copies/{cle}/auth/code', [ConnexionUtilisateurFinalController::cla
 Route::post('/copies/{cle}/auth/session', [ConnexionUtilisateurFinalController::class, 'session']);
 Route::get('/categories', [AppliController::class, 'categories']);
 
-Route::middleware('auth:sanctum')->group(function (): void {
+Route::middleware(['auth:sanctum', 'compte.actif'])->group(function (): void {
     Route::get('/me', [CompteController::class, 'show']);
     Route::get('/me/tableau-de-bord', [CompteController::class, 'tableau']);
     Route::patch('/me', [CompteController::class, 'update']);
@@ -104,6 +107,9 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::put('/me/coordonnees-reversement', [CoordonneesReversementController::class, 'update'])
         ->middleware('throttle:coordonnees');
 
+    // Signaler un contenu ou un comportement à l'équipe.
+    Route::post('/signalements', [SignalementController::class, 'store'])->middleware('throttle:signalements');
+
     // Administration : finances (grand livre), avoirs, reversements, rapprochements.
     Route::prefix('admin')->middleware('administrateur')->group(function (): void {
         Route::get('/finances', [AdminFinancesController::class, 'finances']);
@@ -112,6 +118,23 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::post('/paiements/{paiement}/remboursement', [AdminFinancesController::class, 'rembourserTropPercu'])->middleware('idempotence:obligatoire');
         Route::get('/reversements', [AdminFinancesController::class, 'reversements']);
         Route::get('/rapprochements', [AdminFinancesController::class, 'rapprochements']);
+
+        // Modération : signalements, comptes, copies, canaux.
+        Route::get('/signalements', [SignalementController::class, 'index']);
+        Route::get('/signalements/{signalement}', [SignalementController::class, 'show']);
+        Route::post('/signalements/{signalement}/traiter', [SignalementController::class, 'traiter']);
+        Route::post('/signalements/{signalement}/rejeter', [SignalementController::class, 'rejeter']);
+
+        Route::get('/comptes', [AdminComptesController::class, 'index']);
+        Route::post('/comptes/{compte}/suspension', [AdminComptesController::class, 'suspendre']);
+        Route::delete('/comptes/{compte}/suspension', [AdminComptesController::class, 'leverSuspension']);
+
+        Route::get('/deployments', [AdminCopiesController::class, 'index']);
+        Route::post('/deployments/{deploiement}/suspension', [AdminCopiesController::class, 'suspendre']);
+        Route::delete('/deployments/{deploiement}/suspension', [AdminCopiesController::class, 'reactiver']);
+
+        Route::patch('/canaux/{canal:slug}', [CanalController::class, 'update']);
+        Route::delete('/canaux/{canal:slug}', [CanalController::class, 'destroy']);
 
         // Serveurs du moteur : liste, enregistrement, maintenance, santé.
         Route::get('/machines', [MachineController::class, 'index']);
@@ -131,48 +154,48 @@ Route::middleware('auth:sanctum')->group(function (): void {
 
 Route::get('/discussions', [DiscussionController::class, 'index']);
 Route::post('/discussions', [DiscussionController::class, 'store'])
-    ->middleware(['auth:sanctum', 'throttle:discussions']);
+    ->middleware(['auth:sanctum', 'compte.actif', 'throttle:discussions']);
 
 Route::get('/discussions/{discussion}', [DiscussionController::class, 'show']);
-Route::patch('/discussions/{discussion}', [DiscussionController::class, 'update'])->middleware('auth:sanctum');
-Route::delete('/discussions/{discussion}', [DiscussionController::class, 'destroy'])->middleware('auth:sanctum');
+Route::patch('/discussions/{discussion}', [DiscussionController::class, 'update'])->middleware(['auth:sanctum', 'compte.actif']);
+Route::delete('/discussions/{discussion}', [DiscussionController::class, 'destroy'])->middleware(['auth:sanctum', 'compte.actif']);
 
 // Copie de test : seulement à la demande de l'auteur, dans la limite des 3 déploiements par heure.
 Route::post('/discussions/{discussion}/copie-test', [CopieTestController::class, 'store'])
-    ->middleware(['auth:sanctum', 'throttle:deploiements']);
+    ->middleware(['auth:sanctum', 'compte.actif', 'throttle:deploiements']);
 
 Route::get('/discussions/{discussion}/messages', [MessageController::class, 'index']);
-Route::post('/discussions/{discussion}/messages', [MessageController::class, 'store'])->middleware('auth:sanctum');
+Route::post('/discussions/{discussion}/messages', [MessageController::class, 'store'])->middleware(['auth:sanctum', 'compte.actif']);
 
-Route::patch('/messages/{message}', [MessageController::class, 'update'])->middleware('auth:sanctum');
-Route::delete('/messages/{message}', [MessageController::class, 'destroy'])->middleware('auth:sanctum');
+Route::patch('/messages/{message}', [MessageController::class, 'update'])->middleware(['auth:sanctum', 'compte.actif']);
+Route::delete('/messages/{message}', [MessageController::class, 'destroy'])->middleware(['auth:sanctum', 'compte.actif']);
 
 Route::get('/canaux', [CanalController::class, 'index']);
-Route::post('/canaux', [CanalController::class, 'store'])->middleware('auth:sanctum');
+Route::post('/canaux', [CanalController::class, 'store'])->middleware(['auth:sanctum', 'compte.actif']);
 
 Route::get('/etiquettes', [EtiquetteController::class, 'index']);
 
 // Souk AI : l'auteur d'un bug demande une analyse (consentement, 3 par 24 heures, résultat par Reverb).
-Route::post('/discussions/{discussion}/analyse-ia', [AnalyseIaController::class, 'store'])->middleware('auth:sanctum');
+Route::post('/discussions/{discussion}/analyse-ia', [AnalyseIaController::class, 'store'])->middleware(['auth:sanctum', 'compte.actif']);
 
 Route::get('/discussions/{discussion}/correctifs', [CorrectifController::class, 'index']);
 Route::post('/discussions/{discussion}/correctifs', [CorrectifController::class, 'store'])
-    ->middleware(['auth:sanctum', 'throttle:correctifs']);
+    ->middleware(['auth:sanctum', 'compte.actif', 'throttle:correctifs']);
 Route::post('/correctifs/{correctif}/accepter', [CorrectifController::class, 'accepter'])
-    ->middleware('auth:sanctum');
+    ->middleware(['auth:sanctum', 'compte.actif']);
 Route::post('/correctifs/{correctif}/deploiement', [CorrectifController::class, 'deployer'])
-    ->middleware(['auth:sanctum', 'throttle:deploiements']);
+    ->middleware(['auth:sanctum', 'compte.actif', 'throttle:deploiements']);
 
 Route::get('/events', [EvenementController::class, 'index']);
-Route::post('/events', [EvenementController::class, 'store'])->middleware('auth:sanctum');
+Route::post('/events', [EvenementController::class, 'store'])->middleware(['auth:sanctum', 'compte.actif']);
 Route::get('/events/{evenement}', [EvenementController::class, 'show']);
-Route::patch('/events/{evenement}', [EvenementController::class, 'update'])->middleware('auth:sanctum');
-Route::delete('/events/{evenement}', [EvenementController::class, 'destroy'])->middleware('auth:sanctum');
-Route::post('/events/{evenement}/inscription', [EvenementController::class, 'inscrire'])->middleware('auth:sanctum');
-Route::delete('/events/{evenement}/inscription', [EvenementController::class, 'desinscrire'])->middleware('auth:sanctum');
+Route::patch('/events/{evenement}', [EvenementController::class, 'update'])->middleware(['auth:sanctum', 'compte.actif']);
+Route::delete('/events/{evenement}', [EvenementController::class, 'destroy'])->middleware(['auth:sanctum', 'compte.actif']);
+Route::post('/events/{evenement}/inscription', [EvenementController::class, 'inscrire'])->middleware(['auth:sanctum', 'compte.actif']);
+Route::delete('/events/{evenement}/inscription', [EvenementController::class, 'desinscrire'])->middleware(['auth:sanctum', 'compte.actif']);
 Route::get('/events/{evenement}/participants', [EvenementController::class, 'participants']);
 Route::get('/events/{evenement}/avis', [EvenementController::class, 'avis']);
-Route::post('/events/{evenement}/avis', [EvenementController::class, 'noter'])->middleware('auth:sanctum');
+Route::post('/events/{evenement}/avis', [EvenementController::class, 'noter'])->middleware(['auth:sanctum', 'compte.actif']);
 
 // Webhooks SasPay : pas de session, la signature HMAC fait foi (voir WebhookSasPayController).
 Route::post('/webhooks/saspay', [WebhookSasPayController::class, 'recevoir'])

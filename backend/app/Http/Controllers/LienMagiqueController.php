@@ -33,6 +33,12 @@ final class LienMagiqueController extends Controller
             ], 410);
         }
 
+        if ($compte->estSuspendu()) {
+            return response()->json([
+                'message' => 'Compte suspendu : '.(string) $compte->suspension_motif,
+            ], 403);
+        }
+
         Auth::login($compte);
         request()->session()->regenerate();
 

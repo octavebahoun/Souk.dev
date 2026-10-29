@@ -40,7 +40,14 @@ class User extends Authenticatable
             'competences' => 'array',
             'specialites' => 'array',
             'preferences_notifications' => 'array',
+            'suspendu_le' => 'datetime',
         ];
+    }
+
+    /** Un compte suspendu par l'équipe ne peut plus se connecter ni appeler l'API. */
+    public function estSuspendu(): bool
+    {
+        return $this->suspendu_le !== null;
     }
 
     /**

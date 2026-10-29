@@ -24,6 +24,8 @@ final class CompteResource extends JsonResource
             'email' => $compte->email,
             'github_lie' => $compte->github_lie,
             'est_admin' => $compte->est_admin,
+            'suspendu_le' => $compte->suspendu_le?->toIso8601String(),
+            'suspension_motif' => $compte->suspension_motif,
             'bio' => $compte->bio,
             'competences' => array_values($compte->competences ?? []),
             'specialites' => array_values($compte->specialites ?? []),

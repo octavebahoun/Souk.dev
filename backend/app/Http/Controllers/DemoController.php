@@ -35,6 +35,8 @@ final class DemoController extends Controller
         // préproduction joignable de l'extérieur (même avec DEMO_CONNEXION=true).
         abort_if($compte->est_admin && ! app()->environment('local', 'testing'), 404);
 
+        abort_if($compte->estSuspendu(), 403, 'Compte suspendu.');
+
         Auth::login($compte);
         $request->session()->regenerate();
 

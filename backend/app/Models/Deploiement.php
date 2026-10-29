@@ -255,6 +255,7 @@ class Deploiement extends Model
             'mise_a_jour' => $this->derniereMiseAJour?->versApi(),
             'derniere_sauvegarde' => $this->type === 'client' && $this->copie !== null ? app(SauvegardeVolumes::class)->derniere((string) $this->copie) : null,
             'machine_nom' => $this->machine?->nom,
+            'suspension_admin_motif' => $this->suspension_admin_motif,
         ];
     }
 

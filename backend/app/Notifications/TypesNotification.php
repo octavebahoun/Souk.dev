@@ -31,8 +31,8 @@ final class TypesNotification
             'email_obligatoire' => false,
         ],
         'suspension' => [
-            'libelle' => 'Suspension d’une copie',
-            'description' => 'Copie suspendue faute de paiement, dernier avertissement, arrêt, copie qui ne démarre pas.',
+            'libelle' => 'Suspensions',
+            'description' => 'Copie suspendue (impayé ou abus), compte suspendu, dernier avertissement, arrêt, copie qui ne démarre pas.',
             'email_obligatoire' => true,
         ],
         'mise_a_jour' => [
