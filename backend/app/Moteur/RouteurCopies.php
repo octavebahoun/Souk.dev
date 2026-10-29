@@ -60,6 +60,7 @@ class RouteurCopies
             "    {$copie}:",
             "      rule: \"Host(`{$domaine}`)\"",
             "      service: {$copie}",
+            ...$this->lignesTls(),
             '  services:',
             "    {$copie}:",
             '      loadBalancer:',
@@ -88,6 +89,7 @@ class RouteurCopies
             "    {$copie}:",
             "      rule: \"Host(`{$domaine}`)\"",
             "      service: {$copie}",
+            ...$this->lignesTls(),
             '      middlewares:',
             "        - {$copie}-suspendue",
             '  middlewares:',
@@ -100,6 +102,27 @@ class RouteurCopies
             '        servers:',
             "          - url: \"{$page}\"",
         ])."\n");
+    }
+
+    /**
+     * En production, les copies sont servies en HTTPS (MOTEUR_URL_COPIE en https://) : le routeur
+     * écoute le point d'entrée sécurisé et demande son certificat à Let's Encrypt. En développement
+     * (http://{copie}.localhost), rien : Traefik sert le HTTP seul.
+     *
+     * @return list<string>
+     */
+    private function lignesTls(): array
+    {
+        if (parse_url($this->urlCopie, PHP_URL_SCHEME) !== 'https') {
+            return [];
+        }
+
+        return [
+            '      entryPoints:',
+            '        - websecure',
+            '      tls:',
+            '        certResolver: letsencrypt',
+        ];
     }
 
     private function domaine(string $copie): string

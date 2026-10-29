@@ -41,6 +41,10 @@ class RouteurCopiesTest extends TestCase
                 d42:
                   rule: "Host(`d42.soukdev.com`)"
                   service: d42
+                  entryPoints:
+                    - websecure
+                  tls:
+                    certResolver: letsencrypt
               services:
                 d42:
                   loadBalancer:
@@ -49,6 +53,16 @@ class RouteurCopiesTest extends TestCase
 
             YAML, file_get_contents($chemin));
         $this->assertFileDoesNotExist($chemin.'.tmp');
+    }
+
+    public function test_en_http_local_pas_de_tls(): void
+    {
+        $chemin = $this->routeur('http://{copie}.localhost')->publier('d42', '172.18.0.3', 8080);
+
+        $contenu = (string) file_get_contents($chemin);
+        $this->assertStringContainsString('Host(`d42.localhost`)', $contenu);
+        $this->assertStringNotContainsString('websecure', $contenu);
+        $this->assertStringNotContainsString('certResolver', $contenu);
     }
 
     public function test_une_copie_suspendue_affiche_la_page_de_la_plateforme(): void
@@ -64,6 +78,10 @@ class RouteurCopiesTest extends TestCase
                 d42:
                   rule: "Host(`d42.soukdev.com`)"
                   service: d42
+                  entryPoints:
+                    - websecure
+                  tls:
+                    certResolver: letsencrypt
                   middlewares:
                     - d42-suspendue
               middlewares:
