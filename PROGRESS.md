@@ -6,8 +6,8 @@ Journal de l'agent, tenu à jour en continu (voir `BRIEF.md`, section 1).
 ## Où on en est
 
 - **Branche** : `saas-complet`, partie de `main` (la PR #28 `fin-mvp` y est fusionnée).
-- **Phase en cours** : 5 — Plateforme (revue des serveurs traitée : 5 corrigés sur 6 ; vérification Docker en dette).
-- **Tâche suivante** : au retour de Docker, exécuter `backend-integre.spec.ts` et `machines.spec.ts`, captures (avec les nouveaux états serveurs), axe et Lighthouse, puis revue indépendante de la phase 5.
+- **Phase en cours** : 6 — Exploitation, livrée sans Docker (vérification Docker en dette, comme la phase 5).
+- **Tâche suivante** : au retour de Docker, exécuter `moderation.spec.ts`, les captures `/admin/moderation` et `/legal/*`, le test de restauration et le démarrage prod, puis revue indépendante de la phase 6 (et, toujours en attente, la vérification Docker de la phase 5).
 
 ## Étape 0 (25 octobre)
 
@@ -124,9 +124,11 @@ Contrat inchangé : les codes et routes utilisés (422, 429, 503, `GET /deployme
 Contrat : seule la description de `memoire_libre_mo` change (capacité utile, sinon sondée) ; types régénérés.
 
 ### Phase 6 — Exploitation
-- [ ] Administration et modération (signalements, suspensions, canaux, finances, serveurs, politique d'abus)
-- [ ] `docker-compose.prod.yml`, sauvegardes avec test de restauration, journaux JSON, alertes, nettoyage des images
-- [ ] Pages légales (brouillons à faire valider par un juriste)
+- [x] Administration et modération : signalements (motifs graves en e-mail aussitôt), suspensions de copies pour abus (moteur, volumes gardés) et de comptes (plus de connexion ni d'API), gestion des canaux, finances et serveurs déjà en place, politique d'abus (`docs/moderation.md`, `/legal/abus`)
+- [x] `docker-compose.prod.yml` (HTTPS Traefik + Let's Encrypt, worker et planificateur séparés, volumes persistants, front nginx statique), sauvegardes avec test de restauration (scripts écrits, exécution en dette Docker), journaux JSON (canal `json`, Traefik JSON), alertes e-mail (file, disque, machines), nettoyage hebdomadaire des images
+- [x] Pages légales : CGU, CGV, confidentialité (APDP Bénin), politique d'abus — brouillons marqués « à faire valider par un juriste »
+- [x] Routage multi-VPS conçu dans `docs/multi-vps.md` (TLS par machine, proxy en bordure par machine, VPN WireGuard, push SSH des routes), sans second VPS réel ; `docs/machines.md` mis à jour
+- [ ] Vérification Docker en dette (démon arrêté, voir Problèmes ouverts) ; revue indépendante de la phase 6 à lancer ensuite
 
 ### Phase 7 — Refonte du design
 - [ ] Chaque page redessinée, captures critiquées (3 tailles, 2 thèmes), zéro violation axe sérieuse
@@ -146,6 +148,8 @@ Contrat : seule la description de `memoire_libre_mo` change (capacité utile, si
 | Finances (admin) | Suivre l'argent de Souk.dev | Saisir un avoir après un remboursement | La marge, ce qui est dû aux devs, les impayés et les écarts |
 | Mes copies | Suivre ses copies | Payer, ouvrir ou relancer selon l'état | L'état de chaque copie, son adresse, ce qu'elle coûte
 | Serveurs (`/admin/serveurs`) | Voir la flotte et sa santé, l'entretenir | Ajouter un serveur (ou sonder, basculer, retirer) | Les pastilles d'état (en service, en maintenance, injoignable) et les jauges de mémoire libre |
+| Modération (`/admin/moderation`) | Examiner et décider vite | Traiter un signalement (ou suspendre) | Les motifs graves en rouge, puis les copies et comptes suspendus |
+| Pages légales (`/legal/*`) | Lire les règles et ses droits | Comprendre (aucune action) | Le bandeau « brouillon à faire valider par un juriste », puis le plan en 4-5 articles |
 
 ## Vérifications
 
@@ -195,6 +199,13 @@ Contrat : seule la description de `memoire_libre_mo` change (capacité utile, si
 | 2026-10-29 | 5 | Après corrections de la revue des serveurs : Pint (442 fichiers), ESLint, `tsc`, Vitest, types régénérés depuis `openapi.yaml` | zéro erreur, 43/43 ; `api.ts` régénéré (description `memoire_libre_mo`) |
 | 2026-10-29 | 5 | Après corrections de la revue des serveurs : `composer audit`, `npm audit`, licences | aucune faille, aucune licence interdite |
 | 2026-10-29 | 5 | Playwright `machines.spec.ts`, captures `/admin/serveurs` (3 tailles × 2 thèmes, nouveaux états), axe, Lighthouse | **toujours non faits** : Docker encore arrêté (`/var/run/docker.sock` absent) ; dette maintenue (voir Problèmes ouverts) |
+| 2026-10-29 | 6 | Suite PHP sur l'hôte, dont `ModerationTest` (18 tests : signalements, suspensions copies/comptes, canaux, anti-IDOR admin) et `ExploitationTest` (7 tests : alertes, nettoyage, journaux JSON), `ContratRoutesTest` | 620 passés, 4 échecs connus : `PublicationAppliTest` demande GD, absent de l'hôte (vert dans le conteneur) |
+| 2026-10-29 | 6 | Pint (460 fichiers), ESLint (tout le front), `tsc` (appli + E2E), Vitest (dont `presentationModeration.test.ts`), types régénérés identiques | zéro erreur, 46/46 ; `api.ts` régénéré (schémas `Signalement`, `CompteAdmin`, suspensions, `CanalModification`) |
+| 2026-10-29 | 6 | `composer audit`, `npm audit`, `composer check-licenses`, `npm run check-licenses` | aucune faille, aucune licence interdite (nginx BSD-2-Clause, alpine MIT inscrits) |
+| 2026-10-29 | 6 | `docker compose -f docker-compose.prod.yml config` (avec `DOMAINE`, `ACME_EMAIL`, `VITE_REVERB_KEY` de test), YAML Traefik, `sh -n` des scripts | compose valide ; `traefik.prod.yml` et `plateforme.yml.dist` parsés ; `init-prod.sh` et scripts de sauvegarde valides |
+| 2026-10-29 | 6 | `npx playwright test e2e/moderation.spec.ts --list`, `tsc` + ESLint du parcours | 4 tests listés (suspension d'une copie signalée, compte suspendu puis rétabli, canaux, pages légales) ; exécution impossible : Docker arrêté (tenté : `ECONNREFUSED 127.0.0.1:5173`) |
+| 2026-10-29 | 6 | Test de restauration (`scripts/restaurer-plateforme.sh`), démarrage prod, Playwright `moderation.spec.ts`, captures `/admin/moderation` + `/legal/*` (3 tailles × 2 thèmes), axe, Lighthouse | **non faits** : Docker arrêté sur le poste (`/var/run/docker.sock` absent, `docker info` sans serveur, `sudo` interdit) ; parcours et scripts écrits et relus, à exécuter à son retour (voir Problèmes ouverts) |
+| 2026-10-29 | 6 | Relecture sécurité (sections 6-7 : Policies/middleware avant binding, anti-IDOR, argent hors navigateur, secrets jamais en clair, licences) | rien à corriger : cibles du signalement sur table fixe, suspensions avec motif et e-mail obligatoire, travaux moteur gardés, `DOMAINE` validé avant `sed`, secrets en volume ou `.env.prod` |
 
 ## Problèmes ouverts
 
@@ -207,7 +218,8 @@ Contrat : seule la description de `memoire_libre_mo` change (capacité utile, si
 - Le compte SasPay fourni affiche le nom marchand « Gentube » sur la page de paiement : un compte au nom de Souk.dev sera nécessaire avant le lancement.
 - 26 octobre : deux plateformes lancées sur le même dossier de copies (vérification à froid) se nettoient l'une l'autre ; une copie de test de la plateforme habituelle a été arrêtée. Sans conséquence (jeu de démo) ; à ne pas reproduire.
 - 28 octobre : Docker arrêté sur le poste pendant le backend intégré (démon inactif, `sudo` interdit pour le relancer). La vérification Docker (suite en conteneur, démarrage à froid, Playwright dont `backend-integre.spec.ts`, captures 3 tailles × 2 thèmes, axe, Lighthouse) reste à faire avant de clore la phase 5 ; le parcours est écrit et relu, pas exécuté. Les 7 autres constats de la revue sont corrigés et testés ; le constat Docker (élevé) est revérifié toujours bloqué le 28 octobre au soir.
-- 28 octobre : plusieurs serveurs livré sans Docker (même cause). Dette précise avant de clore la phase 5 : démarrer Docker, `docker compose up -d`, `docker compose --profile machines up -d dind`, vérifier la sonde du second démon dans `/admin/serveurs`, exécuter `npx playwright test e2e/machines.spec.ts` (3 tests : enregistrement + sonde, copie sur la plus libre et joignable, maintenance + retrait refusé), captures `/admin/serveurs` (`PAGES=/admin/serveurs npm run e2e:captures`, 3 tailles × 2 thèmes, à regarder et critiquer — avec les nouveaux états : vide illustré, libre sondé), axe (inclus dans le parcours) et Lighthouse. Limite assumée : routage direct v1 (voir `docs/machines.md`), bord par machine et TLS par machine à concevoir en phase 6 avant tout second VPS réel. Revérifié bloqué le 29 octobre (constat 5 de la revue des serveurs).
+- 28 octobre : plusieurs serveurs livré sans Docker (même cause). Dette précise avant de clore la phase 5 : démarrer Docker, `docker compose up -d`, `docker compose --profile machines up -d dind`, vérifier la sonde du second démon dans `/admin/serveurs`, exécuter `npx playwright test e2e/machines.spec.ts` (3 tests : enregistrement + sonde, copie sur la plus libre et joignable, maintenance + retrait refusé), captures `/admin/serveurs` (`PAGES=/admin/serveurs npm run e2e:captures`, 3 tailles × 2 thèmes, à regarder et critiquer — avec les nouveaux états : vide illustré, libre sondé), axe (inclus dans le parcours) et Lighthouse. Limite assumée : routage direct v1 (voir `docs/machines.md`), bord par machine et TLS par machine conçus en phase 6 (`docs/multi-vps.md`) avant tout second VPS réel. Revérifié bloqué le 29 octobre (constat 5 de la revue des serveurs).
+- 29 octobre : phase 6 livrée sans Docker (même cause : `/var/run/docker.sock` absent, `docker info` sans serveur, `sudo` interdit). Dette précise avant de clore la phase 6 : démarrer Docker, `docker compose up -d`, exécuter `npx playwright test e2e/moderation.spec.ts` (4 tests : copie signalée suspendue depuis l'admin, compte suspendu puis rétabli, canaux, pages légales), captures (`PAGES=/admin/moderation,/legal/cgu,/legal/cgv,/legal/confidentialite,/legal/abus npm run e2e:captures`, 3 tailles × 2 thèmes, à regarder et critiquer), axe (inclus dans le parcours) et Lighthouse ; puis côté production : `./scripts/sauvegarde-plateforme.sh` sur un jeu d'essai, `./scripts/restaurer-plateforme.sh` (doit finir par « RESTAURATION RÉUSSIE »), et `docker compose -f docker-compose.prod.yml up -d --build` avec un `DOMAINE` de test (front, API, Reverb, une copie HTTPS). Parcours et scripts écrits et relus, non exécutés.
 
 ## Dépenses et crédits
 

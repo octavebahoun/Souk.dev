@@ -423,3 +423,13 @@ Choix faits par l'agent en exécutant `BRIEF.md` (le brief passe avant ce fichie
   - le placement élit et réserve (`machine_id`) dans la même transaction, machines puis copies occupantes verrouillées par id : deux lancements simultanés ne prennent pas la même dernière place, même à plusieurs workers ;
   - sans capacité déclarée, le libre affiché et jaugé repose sur la mémoire sondée (« environ X libres (mémoire sondée) »), le contrat le dit ;
   - l'état vide des serveurs utilise `EtatVide` (illustration `vide-serveurs`, action vers le formulaire).
+
+### Exploitation (phase 6)
+
+- **2026-10-29 — Signalements** : tout membre signale (20 par heure, un ouvert par cible, sinon 409) ; seuls hameçonnage, minage et contenu illégal réveillent l'équipe par e-mail, le reste attend dans `/admin/moderation`. Le résumé de la cible est calculé à la lecture : une cible supprimée ne casse pas la liste.
+- **2026-10-29 — Suspension d'un compte** : plus de connexion (GitHub, lien magique, démo) ni d'API, sauf la lecture de son propre compte (son motif) et la déconnexion ; l'équipe ne suspend jamais son propre compte. E-mail toujours envoyé (type `suspension`, obligatoire), contestation en réponse.
+- **2026-10-29 — Suspension d'une copie pour abus** : comme l'impayé (conteneurs arrêtés par le moteur, page neutre, volumes gardés), mais sans toucher à la facturation : une copie doublement suspendue ne repart qu'au paiement ET à la levée de l'équipe. Seule une copie en ligne se suspend.
+- **2026-10-29 — Production** : `docker-compose.prod.yml` (HTTPS Traefik + Let's Encrypt, worker et planificateur séparés, volumes `db`, `stockage`, `routes`, `letsencrypt`, `secrets`), front statique nginx (`VITE_API_BASE` absolu, même chemins `/api`), routes Traefik de la plateforme générées au démarrage avec le domaine validé. Les copies passent en TLS dès que `MOTEUR_URL_COPIE` est en `https://`.
+- **2026-10-29 — Surveillance et nettoyage** : file bloquée, disque plein et machines injoignables alertés toutes les heures (une fois par heure au plus par sujet) ; images et caches inutilisés depuis 7 jours purgés le dimanche (les images des copies en ligne ne partent jamais) ; journaux JSON (canal `json`, Traefik JSON).
+- **2026-10-29 — Sauvegardes** : base (`pg_dump`) + volumes + sommes SHA-256 chaque nuit, test de restauration mensuel dans des volumes jetables (sommes, migrations, tables, solde du grand livre), jamais sur la production.
+- **2026-10-29 — Multi-VPS (conception seule, sans second VPS réel)** : frontal TLS + proxy en bordure par VPS, VPN WireGuard entre VPS, TLS Docker par machine (certificats déposés via l'API), routes des bordures poussées en SSH (clé par machine, utilisateur restreint). Voir `docs/multi-vps.md`.
