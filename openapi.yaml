@@ -2317,6 +2317,312 @@ paths:
         '404': { $ref: '#/components/responses/Introuvable' }
         '419': { $ref: '#/components/responses/CsrfInvalide' }
 
+  # ───────────── Modération ─────────────
+  /signalements:
+    post:
+      tags: [Administration]
+      operationId: createSignalement
+      summary: Signaler un contenu ou un comportement à l'équipe (20 par heure)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SignalementCreation' }
+      responses:
+        '201':
+          description: Signalement reçu
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Signalement' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+        '422': { $ref: '#/components/responses/Invalide' }
+        '429': { $ref: '#/components/responses/TropDeRequetes' }
+
+  /admin/signalements:
+    get:
+      tags: [Administration]
+      operationId: listSignalements
+      summary: Signalements reçus (admin), filtrables par statut
+      parameters:
+        - name: statut
+          in: query
+          schema: { $ref: '#/components/schemas/StatutSignalement' }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/ParPage'
+      responses:
+        '200':
+          description: Signalements
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Pagination'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Signalement' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+
+  /admin/signalements/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Administration]
+      operationId: lireSignalement
+      summary: Un signalement et sa cible (admin)
+      responses:
+        '200':
+          description: Signalement
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Signalement' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+
+  /admin/signalements/{id}/traiter:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [Administration]
+      operationId: traiterSignalement
+      summary: Marquer un signalement comme traité (admin), après avoir agi (suppression, suspension)
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SignalementDecision' }
+      responses:
+        '200':
+          description: Signalement traité
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Signalement' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '409': { $ref: '#/components/responses/Conflit' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+        '422': { $ref: '#/components/responses/Invalide' }
+
+  /admin/signalements/{id}/rejeter:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [Administration]
+      operationId: rejeterSignalement
+      summary: Rejeter un signalement non fondé (admin)
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SignalementDecision' }
+      responses:
+        '200':
+          description: Signalement rejeté
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Signalement' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '409': { $ref: '#/components/responses/Conflit' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+        '422': { $ref: '#/components/responses/Invalide' }
+
+  /admin/comptes:
+    get:
+      tags: [Administration]
+      operationId: listComptesAdmin
+      summary: Comptes inscrits (admin), cherchables, filtrables par suspension
+      parameters:
+        - name: recherche
+          in: query
+          description: Cherche dans le nom, le pseudo et l'e-mail
+          schema: { type: string }
+        - name: suspendus
+          in: query
+          description: Seulement les comptes suspendus
+          schema: { type: boolean }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/ParPage'
+      responses:
+        '200':
+          description: Comptes
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Pagination'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/CompteAdmin' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+
+  /admin/comptes/{username}/suspension:
+    parameters:
+      - name: username
+        in: path
+        required: true
+        schema: { type: string }
+    post:
+      tags: [Administration]
+      operationId: suspendreCompte
+      summary: 'Suspendre un compte (admin) : il ne peut plus se connecter ni appeler l’API. Jamais son propre compte.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SuspensionCreation' }
+      responses:
+        '200':
+          description: Compte suspendu
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CompteAdmin' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '409': { $ref: '#/components/responses/Conflit' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+        '422': { $ref: '#/components/responses/Invalide' }
+    delete:
+      tags: [Administration]
+      operationId: leverSuspensionCompte
+      summary: Lever la suspension d'un compte (admin)
+      responses:
+        '200':
+          description: Suspension levée
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CompteAdmin' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '409': { $ref: '#/components/responses/Conflit' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+
+  /admin/deployments:
+    get:
+      tags: [Administration]
+      operationId: listDeploymentsAdmin
+      summary: Toutes les copies (admin), filtrables par état ou suspension pour abus
+      parameters:
+        - name: etat
+          in: query
+          schema: { type: string }
+        - name: suspension_admin
+          in: query
+          description: Seulement les copies suspendues pour abus
+          schema: { type: boolean }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/ParPage'
+      responses:
+        '200':
+          description: Copies
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Pagination'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Deploiement' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+
+  /admin/deployments/{id}/suspension:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [Administration]
+      operationId: suspendreCopie
+      summary: 'Suspendre une copie pour abus (admin, ex. minage ou hameçonnage) : conteneurs arrêtés par le moteur, page neutre, volumes gardés'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SuspensionCreation' }
+      responses:
+        '200':
+          description: Copie suspendue
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Deploiement' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '409': { $ref: '#/components/responses/Conflit' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+        '422': { $ref: '#/components/responses/Invalide' }
+    delete:
+      tags: [Administration]
+      operationId: reactiverCopie
+      summary: 'Réactiver une copie suspendue pour abus (admin) : les conteneurs repartent avec leurs données'
+      responses:
+        '200':
+          description: Copie réactivée
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Deploiement' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '409': { $ref: '#/components/responses/Conflit' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+
+  /admin/canaux/{canal}:
+    parameters:
+      - name: canal
+        in: path
+        required: true
+        description: Slug du canal
+        schema: { type: string }
+    patch:
+      tags: [Administration]
+      operationId: modifierCanal
+      summary: Renommer ou décrire un canal (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CanalModification' }
+      responses:
+        '200':
+          description: Canal modifié
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Canal' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+        '422': { $ref: '#/components/responses/Invalide' }
+    delete:
+      tags: [Administration]
+      operationId: supprimerCanal
+      summary: Supprimer un canal vide (admin). Refusé tant que des discussions l'utilisent.
+      responses:
+        '204':
+          description: Canal supprimé
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '409': { $ref: '#/components/responses/Conflit' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+
 components:
   securitySchemes:
     session:
@@ -2512,11 +2818,13 @@ components:
         - $ref: '#/components/schemas/Dev'
         - $ref: '#/components/schemas/ProfilPublic'
         - type: object
-          required: [email, github_lie, est_admin]
+          required: [email, github_lie, est_admin, suspendu_le, suspension_motif]
           properties:
             email: { type: [string, 'null'], format: email }
             github_lie: { type: boolean, description: Obligatoire pour publier une appli ou proposer un correctif }
             est_admin: { type: boolean }
+            suspendu_le: { type: [string, 'null'], format: date-time, description: 'Suspension par l’équipe (modération) ; null si le compte est actif' }
+            suspension_motif: { type: [string, 'null'], description: 'Motif de la suspension, visible par le compte concerné' }
 
     LienMagiqueDemande:
       type: object
@@ -2844,7 +3152,7 @@ components:
     # ───────────── Déploiements ─────────────
     Deploiement:
       type: object
-      required: [id, app_id, app_nom, taille, type, etat, url, erreur, cree_le, abonnement, facture_a_payer, version, version_disponible, mise_a_jour, derniere_sauvegarde, machine_nom]
+      required: [id, app_id, app_nom, taille, type, etat, url, erreur, cree_le, abonnement, facture_a_payer, version, version_disponible, mise_a_jour, derniere_sauvegarde, machine_nom, suspension_admin_motif]
       properties:
         id: { type: integer }
         app_id: { type: [integer, 'null'], description: "null pour une copie de test lancée depuis le depot_url d'une discussion, sans appli publiée" }
@@ -2900,6 +3208,9 @@ components:
         machine_nom:
           type: [string, 'null']
           description: "Serveur qui héberge la copie ; null tant qu'elle attend son paiement (pas encore placée)"
+        suspension_admin_motif:
+          type: [string, 'null']
+          description: 'Motif de la suspension pour abus par l’équipe (minage, hameçonnage…) ; null si la copie n’est pas suspendue par l’équipe'
 
     Sauvegarde:
       type: object
@@ -3576,6 +3887,87 @@ components:
         hote_docker: { type: [string, 'null'], maxLength: 255 }
         capacite_mo: { type: [integer, 'null'], minimum: 512, maximum: 1048576 }
         etat: { $ref: '#/components/schemas/EtatMachine' }
+
+    # ───────────── Modération ─────────────
+    CibleSignalement:
+      type: string
+      enum: [discussion, message, appli, copie, compte, evenement]
+      description: 'Ce qui est signalé : une discussion, un message, une appli, une copie (déploiement), un compte ou un événement'
+
+    MotifSignalement:
+      type: string
+      enum: [spam, abus, hameconnage, minage, contenu_illegal, autre]
+      description: 'Motif du signalement : spam, abus (harcèlement, insulte), hameçonnage, minage de cryptomonnaie, contenu illégal, autre'
+
+    StatutSignalement:
+      type: string
+      enum: [ouvert, traite, rejete]
+      description: 'ouvert : en attente de l’équipe ; traite : fondé, action faite ; rejete : non fondé'
+
+    SignalementCreation:
+      type: object
+      required: [cible, cible_id, motif]
+      properties:
+        cible: { $ref: '#/components/schemas/CibleSignalement' }
+        cible_id: { type: integer, description: 'Identifiant de la cible (compte : identifiant du compte)' }
+        motif: { $ref: '#/components/schemas/MotifSignalement' }
+        details: { type: string, maxLength: 2000, description: 'Ce qui pose problème, avec des faits vérifiables' }
+
+    Signalement:
+      type: object
+      required: [id, cible, cible_id, cible_resume, motif, details, statut, signale_par, cree_le, traite_par, traite_le, note]
+      properties:
+        id: { type: integer }
+        cible: { $ref: '#/components/schemas/CibleSignalement' }
+        cible_id: { type: integer }
+        cible_resume: { type: string, description: 'Résumé lisible de la cible pour l’équipe (titre, nom, adresse…)' }
+        motif: { $ref: '#/components/schemas/MotifSignalement' }
+        details: { type: [string, 'null'] }
+        statut: { $ref: '#/components/schemas/StatutSignalement' }
+        signale_par: { $ref: '#/components/schemas/Dev' }
+        cree_le: { type: string, format: date-time }
+        traite_par:
+          oneOf:
+            - $ref: '#/components/schemas/Dev'
+            - type: 'null'
+        traite_le: { type: [string, 'null'], format: date-time }
+        note: { type: [string, 'null'], description: 'Note de l’équipe sur sa décision' }
+
+    SignalementDecision:
+      type: object
+      properties:
+        note: { type: string, maxLength: 2000, description: 'Ce qui a été fait (suppression, suspension…) ou pourquoi le signalement est rejeté' }
+
+    SuspensionCreation:
+      type: object
+      required: [motif]
+      properties:
+        motif: { type: string, maxLength: 500, description: 'Motif de la suspension, visible par le compte concerné' }
+
+    CompteAdmin:
+      type: object
+      description: Un compte vu par l’équipe (liste, suspension)
+      required: [id, nom, username, email, profil, est_admin, cree_le, suspendu_le, suspension_motif]
+      properties:
+        id: { type: integer }
+        nom: { type: [string, 'null'] }
+        username: { type: [string, 'null'] }
+        email: { type: [string, 'null'], format: email }
+        profil: { type: string, enum: [dev, client] }
+        est_admin: { type: boolean }
+        cree_le: { type: string, format: date-time }
+        suspendu_le: { type: [string, 'null'], format: date-time }
+        suspension_motif: { type: [string, 'null'] }
+
+    CanalModification:
+      type: object
+      properties:
+        nom: { type: string, maxLength: 50 }
+        description: { type: [string, 'null'], maxLength: 300 }
+        pays:
+          oneOf:
+            - $ref: '#/components/schemas/Pays'
+            - type: 'null'
 
     # ───────────── Événements ─────────────
     Evenement:

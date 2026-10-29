@@ -1445,6 +1445,192 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/signalements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Signaler un contenu ou un comportement à l'équipe (20 par heure) */
+        post: operations["createSignalement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/signalements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Signalements reçus (admin), filtrables par statut */
+        get: operations["listSignalements"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/signalements/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        /** Un signalement et sa cible (admin) */
+        get: operations["lireSignalement"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/signalements/{id}/traiter": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Marquer un signalement comme traité (admin), après avoir agi (suppression, suspension) */
+        post: operations["traiterSignalement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/signalements/{id}/rejeter": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Rejeter un signalement non fondé (admin) */
+        post: operations["rejeterSignalement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/comptes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Comptes inscrits (admin), cherchables, filtrables par suspension */
+        get: operations["listComptesAdmin"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/comptes/{username}/suspension": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                username: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Suspendre un compte (admin) : il ne peut plus se connecter ni appeler l’API. Jamais son propre compte. */
+        post: operations["suspendreCompte"];
+        /** Lever la suspension d'un compte (admin) */
+        delete: operations["leverSuspensionCompte"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/deployments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Toutes les copies (admin), filtrables par état ou suspension pour abus */
+        get: operations["listDeploymentsAdmin"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/deployments/{id}/suspension": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Suspendre une copie pour abus (admin, ex. minage ou hameçonnage) : conteneurs arrêtés par le moteur, page neutre, volumes gardés */
+        post: operations["suspendreCopie"];
+        /** Réactiver une copie suspendue pour abus (admin) : les conteneurs repartent avec leurs données */
+        delete: operations["reactiverCopie"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/canaux/{canal}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Slug du canal */
+                canal: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Supprimer un canal vide (admin). Refusé tant que des discussions l'utilisent. */
+        delete: operations["supprimerCanal"];
+        options?: never;
+        head?: never;
+        /** Renommer ou décrire un canal (admin) */
+        patch: operations["modifierCanal"];
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1516,6 +1702,13 @@ export interface components {
             /** @description Obligatoire pour publier une appli ou proposer un correctif */
             github_lie: boolean;
             est_admin: boolean;
+            /**
+             * Format: date-time
+             * @description Suspension par l’équipe (modération) ; null si le compte est actif
+             */
+            suspendu_le: string | null;
+            /** @description Motif de la suspension, visible par le compte concerné */
+            suspension_motif: string | null;
         };
         LienMagiqueDemande: {
             /** Format: email */
@@ -1808,6 +2001,8 @@ export interface components {
             derniere_sauvegarde: components["schemas"]["Sauvegarde"] | null;
             /** @description Serveur qui héberge la copie ; null tant qu'elle attend son paiement (pas encore placée) */
             machine_nom: string | null;
+            /** @description Motif de la suspension pour abus par l’équipe (minage, hameçonnage…) ; null si la copie n’est pas suspendue par l’équipe */
+            suspension_admin_motif: string | null;
         };
         Sauvegarde: {
             identifiant: string;
@@ -2424,6 +2619,76 @@ export interface components {
             hote_docker?: string | null;
             capacite_mo?: number | null;
             etat?: components["schemas"]["EtatMachine"];
+        };
+        /**
+         * @description Ce qui est signalé : une discussion, un message, une appli, une copie (déploiement), un compte ou un événement
+         * @enum {string}
+         */
+        CibleSignalement: "discussion" | "message" | "appli" | "copie" | "compte" | "evenement";
+        /**
+         * @description Motif du signalement : spam, abus (harcèlement, insulte), hameçonnage, minage de cryptomonnaie, contenu illégal, autre
+         * @enum {string}
+         */
+        MotifSignalement: "spam" | "abus" | "hameconnage" | "minage" | "contenu_illegal" | "autre";
+        /**
+         * @description ouvert : en attente de l’équipe ; traite : fondé, action faite ; rejete : non fondé
+         * @enum {string}
+         */
+        StatutSignalement: "ouvert" | "traite" | "rejete";
+        SignalementCreation: {
+            cible: components["schemas"]["CibleSignalement"];
+            /** @description Identifiant de la cible (compte : identifiant du compte) */
+            cible_id: number;
+            motif: components["schemas"]["MotifSignalement"];
+            /** @description Ce qui pose problème, avec des faits vérifiables */
+            details?: string;
+        };
+        Signalement: {
+            id: number;
+            cible: components["schemas"]["CibleSignalement"];
+            cible_id: number;
+            /** @description Résumé lisible de la cible pour l’équipe (titre, nom, adresse…) */
+            cible_resume: string;
+            motif: components["schemas"]["MotifSignalement"];
+            details: string | null;
+            statut: components["schemas"]["StatutSignalement"];
+            signale_par: components["schemas"]["Dev"];
+            /** Format: date-time */
+            cree_le: string;
+            traite_par: components["schemas"]["Dev"] | null;
+            /** Format: date-time */
+            traite_le: string | null;
+            /** @description Note de l’équipe sur sa décision */
+            note: string | null;
+        };
+        SignalementDecision: {
+            /** @description Ce qui a été fait (suppression, suspension…) ou pourquoi le signalement est rejeté */
+            note?: string;
+        };
+        SuspensionCreation: {
+            /** @description Motif de la suspension, visible par le compte concerné */
+            motif: string;
+        };
+        /** @description Un compte vu par l’équipe (liste, suspension) */
+        CompteAdmin: {
+            id: number;
+            nom: string | null;
+            username: string | null;
+            /** Format: email */
+            email: string | null;
+            /** @enum {string} */
+            profil: "dev" | "client";
+            est_admin: boolean;
+            /** Format: date-time */
+            cree_le: string;
+            /** Format: date-time */
+            suspendu_le: string | null;
+            suspension_motif: string | null;
+        };
+        CanalModification: {
+            nom?: string;
+            description?: string | null;
+            pays?: components["schemas"]["Pays"] | null;
         };
         Evenement: {
             id: number;
@@ -5631,6 +5896,395 @@ export interface operations {
             403: components["responses"]["Interdit"];
             404: components["responses"]["Introuvable"];
             419: components["responses"]["CsrfInvalide"];
+        };
+    };
+    createSignalement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignalementCreation"];
+            };
+        };
+        responses: {
+            /** @description Signalement reçu */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Signalement"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+            419: components["responses"]["CsrfInvalide"];
+            422: components["responses"]["Invalide"];
+            429: components["responses"]["TropDeRequetes"];
+        };
+    };
+    listSignalements: {
+        parameters: {
+            query?: {
+                statut?: components["schemas"]["StatutSignalement"];
+                /** @description Numéro de page (commence à 1) */
+                page?: components["parameters"]["Page"];
+                /** @description Éléments par page (50 maximum) */
+                per_page?: components["parameters"]["ParPage"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Signalements */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pagination"] & {
+                        data: components["schemas"]["Signalement"][];
+                    };
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+        };
+    };
+    lireSignalement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Signalement */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Signalement"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+            404: components["responses"]["Introuvable"];
+        };
+    };
+    traiterSignalement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["SignalementDecision"];
+            };
+        };
+        responses: {
+            /** @description Signalement traité */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Signalement"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+            404: components["responses"]["Introuvable"];
+            409: components["responses"]["Conflit"];
+            419: components["responses"]["CsrfInvalide"];
+            422: components["responses"]["Invalide"];
+        };
+    };
+    rejeterSignalement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["SignalementDecision"];
+            };
+        };
+        responses: {
+            /** @description Signalement rejeté */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Signalement"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+            404: components["responses"]["Introuvable"];
+            409: components["responses"]["Conflit"];
+            419: components["responses"]["CsrfInvalide"];
+            422: components["responses"]["Invalide"];
+        };
+    };
+    listComptesAdmin: {
+        parameters: {
+            query?: {
+                /** @description Cherche dans le nom, le pseudo et l'e-mail */
+                recherche?: string;
+                /** @description Seulement les comptes suspendus */
+                suspendus?: boolean;
+                /** @description Numéro de page (commence à 1) */
+                page?: components["parameters"]["Page"];
+                /** @description Éléments par page (50 maximum) */
+                per_page?: components["parameters"]["ParPage"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Comptes */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pagination"] & {
+                        data: components["schemas"]["CompteAdmin"][];
+                    };
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+        };
+    };
+    suspendreCompte: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                username: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SuspensionCreation"];
+            };
+        };
+        responses: {
+            /** @description Compte suspendu */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompteAdmin"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+            404: components["responses"]["Introuvable"];
+            409: components["responses"]["Conflit"];
+            419: components["responses"]["CsrfInvalide"];
+            422: components["responses"]["Invalide"];
+        };
+    };
+    leverSuspensionCompte: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                username: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Suspension levée */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompteAdmin"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+            404: components["responses"]["Introuvable"];
+            409: components["responses"]["Conflit"];
+            419: components["responses"]["CsrfInvalide"];
+        };
+    };
+    listDeploymentsAdmin: {
+        parameters: {
+            query?: {
+                etat?: string;
+                /** @description Seulement les copies suspendues pour abus */
+                suspension_admin?: boolean;
+                /** @description Numéro de page (commence à 1) */
+                page?: components["parameters"]["Page"];
+                /** @description Éléments par page (50 maximum) */
+                per_page?: components["parameters"]["ParPage"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Copies */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pagination"] & {
+                        data: components["schemas"]["Deploiement"][];
+                    };
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+        };
+    };
+    suspendreCopie: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SuspensionCreation"];
+            };
+        };
+        responses: {
+            /** @description Copie suspendue */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Deploiement"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+            404: components["responses"]["Introuvable"];
+            409: components["responses"]["Conflit"];
+            419: components["responses"]["CsrfInvalide"];
+            422: components["responses"]["Invalide"];
+        };
+    };
+    reactiverCopie: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Copie réactivée */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Deploiement"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+            404: components["responses"]["Introuvable"];
+            409: components["responses"]["Conflit"];
+            419: components["responses"]["CsrfInvalide"];
+        };
+    };
+    supprimerCanal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Slug du canal */
+                canal: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Canal supprimé */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+            404: components["responses"]["Introuvable"];
+            409: components["responses"]["Conflit"];
+            419: components["responses"]["CsrfInvalide"];
+        };
+    };
+    modifierCanal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Slug du canal */
+                canal: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CanalModification"];
+            };
+        };
+        responses: {
+            /** @description Canal modifié */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Canal"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+            404: components["responses"]["Introuvable"];
+            419: components["responses"]["CsrfInvalide"];
+            422: components["responses"]["Invalide"];
         };
     };
 }
