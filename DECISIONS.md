@@ -417,3 +417,9 @@ Choix faits par l'agent en exécutant `BRIEF.md` (le brief passe avant ce fichie
 - **2026-10-28 — Santé sondée par le moteur** (seul à parler à Docker) : toutes les 5 minutes et à la demande (`202`, état relu ensuite) ; l'API ne sonde jamais en direct (le conteneur API n'a pas le socket).
 - **2026-10-28 — Routage direct en v1** : Traefik central vise l'adresse du conteneur, donc les démons doivent partager l'espace réseau de l'hôte (vrai du DinD local) ; le bord par machine pour des VPS séparés se conçoit en phase 6, et `tcp://` sans TLS reste réservé au poste de développement.
 - **2026-10-28 — Second démon local en profil opt-in** (`docker compose --profile machines up -d dind`, réseau hôte, plages 10.200/10.201) : `docker compose up` seul ne lance pas de DinD privilégié.
+- **2026-10-29 — Après la revue des serveurs** (6 constats, 5 corrigés, captures en dette Docker) :
+  - un démon déjà enregistré est refusé en 422 (« Ce démon est déjà enregistré sur un autre serveur »), jamais en 500 ;
+  - en production, un `tcp://` distant sans TLS est refusé en 422 (seuls le démon local, `localhost`, `127.0.0.0/8` et `host.docker.internal` passent) ; le TLS par machine (`DOCKER_TLS_VERIFY`, certificats) se conçoit avec le bord par machine en phase 6 ;
+  - le placement élit et réserve (`machine_id`) dans la même transaction, machines puis copies occupantes verrouillées par id : deux lancements simultanés ne prennent pas la même dernière place, même à plusieurs workers ;
+  - sans capacité déclarée, le libre affiché et jaugé repose sur la mémoire sondée (« environ X libres (mémoire sondée) »), le contrat le dit ;
+  - l'état vide des serveurs utilise `EtatVide` (illustration `vide-serveurs`, action vers le formulaire).

@@ -32,7 +32,8 @@ courtes de la plateforme).
 ## Ajouter un serveur
 
 1. Préparer un hôte Docker joignable depuis le conteneur `moteur` (en production :
-   TLS obligatoire, `tcp://…` sans TLS refusé — voir Limites).
+   TLS obligatoire, un `tcp://…` distant sans TLS est refusé par l'API (422) —
+   voir Limites).
 2. Dans `/admin/serveurs`, « Ajouter un serveur » : nom, démon, capacité mémoire
    (mémoire réservée aux copies, plateforme déduite — ex. 13 Go sur un VPS de 16 Go).
 3. Vérifier que la version du démon apparaît (sonde réussie), puis lancer une copie :
@@ -57,8 +58,10 @@ qu'une copie part sur `aux` et y répond, bascule `aux` en maintenance, tente le
   les démons partagent l'espace réseau de l'hôte (démon local + DinD ci-dessus). Des VPS
   séparés exigeront un proxy en bordure par machine et la livraison de ses routes :
   à concevoir avec l'exploitation (phase 6), avant tout second VPS réel.
-- **`tcp://` sans TLS** : réservé au poste de développement (DinD ci-dessus). Un démon
-  distant sans TLS exposerait Docker sans authentification : ne jamais enregistrer un
-  `tcp://` de production sans TLS (prise en charge prévue avec le bord par machine).
+- **`tcp://` sans TLS** : réservé au poste de développement (DinD ci-dessus, `localhost`,
+  `127.0.0.0/8`, `host.docker.internal`). Un démon distant sans TLS exposerait Docker
+  sans authentification : refusé par l'API en production (422). Le TLS par machine
+  (`DOCKER_TLS_VERIFY` et certificats stockés par machine) se conçoit avec le bord par
+  machine (phase 6), avant tout second VPS réel.
 - **Pas de migration de copies** : la maintenance draine naturellement (les copies s'y
   terminent), elle ne les déplace pas.
