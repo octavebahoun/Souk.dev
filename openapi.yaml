@@ -2336,6 +2336,7 @@ paths:
               schema: { $ref: '#/components/schemas/Signalement' }
         '401': { $ref: '#/components/responses/NonConnecte' }
         '403': { $ref: '#/components/responses/Interdit' }
+        '409': { $ref: '#/components/responses/Conflit' }
         '419': { $ref: '#/components/responses/CsrfInvalide' }
         '422': { $ref: '#/components/responses/Invalide' }
         '429': { $ref: '#/components/responses/TropDeRequetes' }
@@ -2468,12 +2469,9 @@ paths:
         '401': { $ref: '#/components/responses/NonConnecte' }
         '403': { $ref: '#/components/responses/Interdit' }
 
-  /admin/comptes/{username}/suspension:
+  /admin/comptes/{id}/suspension:
     parameters:
-      - name: username
-        in: path
-        required: true
-        schema: { type: string }
+      - $ref: '#/components/parameters/Id'
     post:
       tags: [Administration]
       operationId: suspendreCompte

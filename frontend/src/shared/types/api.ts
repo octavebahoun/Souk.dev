@@ -1553,12 +1553,12 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/admin/comptes/{username}/suspension": {
+    "/admin/comptes/{id}/suspension": {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                username: string;
+                id: components["parameters"]["Id"];
             };
             cookie?: never;
         };
@@ -5922,6 +5922,7 @@ export interface operations {
             };
             401: components["responses"]["NonConnecte"];
             403: components["responses"]["Interdit"];
+            409: components["responses"]["Conflit"];
             419: components["responses"]["CsrfInvalide"];
             422: components["responses"]["Invalide"];
             429: components["responses"]["TropDeRequetes"];
@@ -6084,7 +6085,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                username: string;
+                id: components["parameters"]["Id"];
             };
             cookie?: never;
         };
@@ -6116,7 +6117,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                username: string;
+                id: components["parameters"]["Id"];
             };
             cookie?: never;
         };
