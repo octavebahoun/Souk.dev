@@ -1,4 +1,4 @@
-import { Bell, Briefcase, CalendarDays, CreditCard, Gauge, HardDrive, LayoutGrid, MessagesSquare, Package, Server, Settings, Shield, Users, Wallet, type LucideIcon } from 'lucide-react'
+import { Bell, Briefcase, CalendarDays, CreditCard, Flag, Gauge, HardDrive, LayoutGrid, MessagesSquare, Package, Server, Settings, Shield, Users, Wallet, type LucideIcon } from 'lucide-react'
 import type { components } from '../shared/types/api'
 import { t } from '../i18n'
 
@@ -35,6 +35,7 @@ export const liensEspace: LienNavigation[] = [
   { vers: '/notifications', libelle: t.navigation.notifications, icone: Bell, visible: connecte },
   { vers: '/admin/finances', libelle: t.navigation.finances, icone: Shield, visible: admin },
   { vers: '/admin/serveurs', libelle: t.navigation.serveurs, icone: HardDrive, visible: admin },
+  { vers: '/admin/moderation', libelle: t.navigation.moderation, icone: Flag, visible: admin },
 ]
 
 /** Écrans à venir dans l'espace, gardés ici pour l'ordre de la navigation. */

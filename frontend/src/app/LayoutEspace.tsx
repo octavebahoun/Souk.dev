@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router'
 import { t } from '../i18n'
-import { cx } from '../ui'
+import { Alerte, cx } from '../ui'
 import { useCompte } from './compte'
 import { liensEspace, liensVisibles } from './navigation'
 
@@ -45,7 +45,12 @@ export function LayoutEspace() {
           ))}
         </ul>
       </nav>
-      <div className="min-w-0">
+      <div className="flex min-w-0 flex-col gap-6">
+        {compte?.suspendu_le ? (
+          <Alerte ton="danger" titre="Votre compte est suspendu">
+            Motif : {compte.suspension_motif ?? 'non précisé'}. Vos données sont gardées. Pour contester, répondez à l’e-mail reçu.
+          </Alerte>
+        ) : null}
         <Outlet />
       </div>
     </div>

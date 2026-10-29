@@ -19,13 +19,22 @@ const colonnes = [
       { vers: '/evenements', libelle: t.navigation.evenements },
     ],
   },
+  {
+    titre: t.pied.legal,
+    liens: [
+      { vers: '/legal/cgu', libelle: t.pied.cgu },
+      { vers: '/legal/cgv', libelle: t.pied.cgv },
+      { vers: '/legal/confidentialite', libelle: t.pied.confidentialite },
+      { vers: '/legal/abus', libelle: t.pied.abus },
+    ],
+  },
 ]
 
 /** Pied des pages publiques (accueil, store, échange). L'espace connecté n'en a pas. */
 export function PiedDePage() {
   return (
     <footer className="border-t border-bordure bg-surface pb-[calc(var(--spacing-barre-onglets)+env(safe-area-inset-bottom))] tablette:pb-0">
-      <div className="mx-auto grid w-full max-w-site gap-10 px-4 py-12 tablette:grid-cols-[1.4fr_1fr_1fr] tablette:px-6 bureau:px-8">
+      <div className="mx-auto grid w-full max-w-site gap-10 px-4 py-12 tablette:grid-cols-[1.4fr_1fr_1fr_1fr] tablette:px-6 bureau:px-8">
         <div className="flex max-w-xs flex-col gap-3">
           <Logo />
           <p className="m-0 text-petit text-texte-doux">{t.marque.accroche}. Publiez, déployez en un clic, faites-vous aider par la communauté.</p>

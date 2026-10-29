@@ -9,6 +9,7 @@ import { FilMessages } from './FilMessages'
 import { ilYA, nomAuteur } from './texte'
 import { useDiscussionDirect } from './tempsReel'
 import { TexteMarkdown } from './TexteMarkdown'
+import { Signaler } from '../admin/Signaler'
 
 const boutonAccent =
   'rebond inline-flex min-h-cible items-center justify-center rounded-controle bg-accent px-4 font-semibold text-canvas hover:bg-accent-hover disabled:opacity-60'
@@ -105,6 +106,7 @@ export function PageDiscussion() {
         <DiscussionChargee
           discussion={discussion.data}
           auteur={moi.data?.id === discussion.data.auteur.id}
+          connecte={moi.data != null}
           pageMessages={lirePage(params, 'messages')}
           pageCorrectifs={lirePage(params, 'correctifs')}
           onPage={changerPage}
@@ -120,6 +122,7 @@ export function PageDiscussion() {
 function DiscussionChargee({
   discussion,
   auteur,
+  connecte,
   pageMessages,
   pageCorrectifs,
   onPage,
@@ -129,6 +132,7 @@ function DiscussionChargee({
 }: {
   discussion: Discussion
   auteur: boolean
+  connecte: boolean
   pageMessages: number
   pageCorrectifs: number
   onPage: (cle: 'messages' | 'correctifs', page: number) => void
@@ -182,6 +186,7 @@ function DiscussionChargee({
           </Badge>
         ))}
         {discussion.resolue ? <Badge ton="resolue">Résolue</Badge> : null}
+        {connecte && !auteur ? <Signaler cible="discussion" cibleId={discussion.id} etiquette="cette discussion" /> : null}
       </div>
 
       <div className="flex flex-col items-start gap-6 min-[761px]:flex-row">

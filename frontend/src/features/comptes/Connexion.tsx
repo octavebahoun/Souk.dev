@@ -28,9 +28,11 @@ export function Connexion() {
   const dev = profil === 'dev'
   const erreurOAuth = params.get('erreur') === 'github_non_configure'
     ? 'GitHub OAuth n’est pas configuré. Ajoutez le Client ID et le Client secret dans backend/.env, puis relancez Laravel.'
-    : params.has('erreur')
-      ? 'La connexion GitHub n’a pas abouti. Vérifiez l’application OAuth et son URL de rappel, puis réessayez.'
-      : null
+    : params.get('erreur') === 'compte_suspendu'
+      ? 'Votre compte est suspendu : la connexion est refusée. Le motif est dans l’e-mail reçu ; pour contester, répondez-y.'
+      : params.has('erreur')
+        ? 'La connexion GitHub n’a pas abouti. Vérifiez l’application OAuth et son URL de rappel, puis réessayez.'
+        : null
 
   async function envoyer(evenement: FormEvent) {
     evenement.preventDefault()

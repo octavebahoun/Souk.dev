@@ -45,6 +45,10 @@ export function creerRoutes(): RouteObject[] {
           // Écrans refaits avec le système de design (thème clair ou sombre).
           { path: '/store/:id/deployer', lazy: async () => ({ Component: (await import('../features/paiements/Commande')).Commande }) },
           { path: '/paiement/retour', lazy: async () => ({ Component: (await import('../features/paiements/RetourPaiement')).RetourPaiement }) },
+          { path: '/legal/cgu', lazy: async () => ({ Component: (await import('../features/legal/Legal')).Cgu }) },
+          { path: '/legal/cgv', lazy: async () => ({ Component: (await import('../features/legal/Legal')).Cgv }) },
+          { path: '/legal/confidentialite', lazy: async () => ({ Component: (await import('../features/legal/Legal')).Confidentialite }) },
+          { path: '/legal/abus', lazy: async () => ({ Component: (await import('../features/legal/Legal')).PolitiqueAbus }) },
           { path: '*', element: <PageIntrouvable /> },
         ],
       },
@@ -71,6 +75,7 @@ export function creerRoutes(): RouteObject[] {
               { path: '/notifications/reglages', lazy: async () => ({ Component: (await import('../features/notifications/ReglagesNotifications')).ReglagesNotifications }) },
               { path: '/admin/finances', lazy: async () => ({ Component: (await import('../features/admin/Finances')).Finances }) },
               { path: '/admin/serveurs', lazy: async () => ({ Component: (await import('../features/admin/Serveurs')).Serveurs }) },
+              { path: '/admin/moderation', lazy: async () => ({ Component: (await import('../features/admin/Moderation')).Moderation }) },
             ],
           },
         ],

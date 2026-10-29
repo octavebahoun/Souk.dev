@@ -11,6 +11,7 @@ import { RapportSecurite } from '../securite/RapportSecurite'
 import { AvisClients } from './AvisClients'
 import { VersionsAppli } from './VersionsAppli'
 import { Etoiles, formaterNote } from '../../ui'
+import { Signaler } from '../admin/Signaler'
 
 const hebergement = { petite: 3500, moyenne: 7000, grande: 13500 }
 const tailleNom = { petite: 'Petite, 512 Mo', moyenne: 'Moyenne, 1 Go', grande: 'Grande, 2 Go' }
@@ -193,6 +194,7 @@ export function Fiche() {
               </div>
             ) : null}
             <a href={fiche.depot_url} target="_blank" rel="noreferrer" className="text-sm">Dépôt GitHub ↗</a>
+            {compte.data && compte.data.id !== fiche.auteur.id ? <Signaler cible="appli" cibleId={fiche.id} etiquette="cette appli" /> : null}
           </aside>
         </div>
       </div>
