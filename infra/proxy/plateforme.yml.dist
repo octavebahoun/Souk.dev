@@ -1,0 +1,39 @@
+# Routes de la plateforme en production : front, API et Reverb derrière Traefik.
+# Modèle : le service « init » le copie dans le dossier des routes au démarrage, avec le
+# domaine rempli (__DOMAINE__ remplacé par DOMAINE). Les copies ont leurs propres fichiers
+# dans le même dossier, écrits par App\Moteur\RouteurCopies.
+http:
+  routers:
+    front:
+      rule: "Host(`__DOMAINE__`)"
+      entryPoints: [websecure]
+      service: front
+      tls:
+        certResolver: letsencrypt
+    api:
+      rule: "Host(`api.__DOMAINE__`)"
+      entryPoints: [websecure]
+      service: api
+      tls:
+        certResolver: letsencrypt
+    reverb:
+      rule: "Host(`reverb.__DOMAINE__`)"
+      entryPoints: [websecure]
+      service: reverb
+      tls:
+        certResolver: letsencrypt
+
+  services:
+    # Traefik est sur le réseau de l'hôte : il joint les ports publiés sur la boucle locale.
+    front:
+      loadBalancer:
+        servers:
+          - url: "http://127.0.0.1:8081"
+    api:
+      loadBalancer:
+        servers:
+          - url: "http://127.0.0.1:8000"
+    reverb:
+      loadBalancer:
+        servers:
+          - url: "http://127.0.0.1:8080"

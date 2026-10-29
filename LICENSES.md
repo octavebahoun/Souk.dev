@@ -57,6 +57,8 @@ Versions exactes déjà installées. Les autres lignes attendent leur installati
 | gitleaks (image zricethezav/gitleaks : secrets d'un dépôt avant publication, conteneur jetable) | v8.21.2 | MIT |
 | Trivy (image aquasec/trivy : failles connues des dépendances, conteneur jetable) | 0.58.1 | Apache 2.0 |
 | docker:dind (image Docker du second démon local, profil « machines » : test du placement sur deux machines, développement uniquement) | 28 | Apache 2.0 |
+| nginx (image nginx du front statique de production, `frontend/Dockerfile`) | 1.28 | BSD-2-Clause |
+| alpine (image des scripts de sauvegarde et de restauration, `scripts/`) | 3.21 | MIT |
 | resend/resend-php (envoi des emails) | 1.17.0 | MIT |
 | laravel/boost (outil de dev : règles et skills pour les agents) | 2.10.3 | MIT |
 | laravel/mcp (tiré par laravel/boost) | 1.1.1 | MIT |

@@ -31,6 +31,11 @@ if [ -z "$utilisateur" ]; then
     utilisateur=soukdev
 fi
 
+# En production, le stockage est un volume neuf (root) : il revient au propriétaire du code.
+if [ -d /app/storage ]; then
+    chown -R "$uid:$gid" /app/storage /app/bootstrap/cache 2>/dev/null || true
+fi
+
 if [ -S /var/run/docker.sock ]; then
     gid_docker=$(stat -c %g /var/run/docker.sock)
     groupe_docker=$(getent group "$gid_docker" | cut -d: -f1 || true)
