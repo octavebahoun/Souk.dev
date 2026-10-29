@@ -28,9 +28,9 @@ class MachineController extends Controller
     {
         $donnees = $request->validate([
             'nom' => ['required', 'string', 'max:64', 'unique:machines,nom'],
-            'hote_docker' => ['nullable', 'string', 'max:255', $this->regleHote()],
+            'hote_docker' => ['nullable', 'string', 'max:255', 'unique:machines,hote_docker', $this->regleHote()],
             'capacite_mo' => ['nullable', 'integer', 'min:512', 'max:1048576'],
-        ]);
+        ], $this->messages());
 
         $machine = Machine::query()->create($donnees);
         SonderMachine::dispatch($machine->id);
@@ -47,10 +47,10 @@ class MachineController extends Controller
     {
         $donnees = $request->validate([
             'nom' => ['sometimes', 'string', 'max:64', Rule::unique('machines', 'nom')->ignore($machine->id)],
-            'hote_docker' => ['sometimes', 'nullable', 'string', 'max:255', $this->regleHote()],
+            'hote_docker' => ['sometimes', 'nullable', 'string', 'max:255', Rule::unique('machines', 'hote_docker')->ignore($machine->id), $this->regleHote()],
             'capacite_mo' => ['sometimes', 'nullable', 'integer', 'min:512', 'max:1048576'],
             'etat' => ['sometimes', 'string', Rule::in(['active', 'maintenance'])],
-        ]);
+        ], $this->messages());
 
         // Changer de démon avec des copies dessus les abandonnerait (arrêts et sauvegardes
         // partiraient sur le mauvais démon) : elles se terminent d'abord, ou la machine reste.
@@ -94,9 +94,27 @@ class MachineController extends Controller
     private function regleHote(): \Closure
     {
         return function (string $attribut, mixed $valeur, \Closure $echec): void {
-            if (! MachineDocker::hoteValide(is_string($valeur) ? $valeur : null)) {
+            $hote = is_string($valeur) ? $valeur : null;
+
+            if (! MachineDocker::hoteValide($hote)) {
                 $echec('Le démon Docker doit être unix:///… ou tcp://hôte:port.');
+
+                return;
+            }
+
+            if (app()->environment('production') && ! MachineDocker::hoteLocal($hote)) {
+                $echec('En production, un démon distant exige TLS : seuls le démon local et ceux du poste de développement sont acceptés.');
             }
         };
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function messages(): array
+    {
+        return [
+            'hote_docker.unique' => 'Ce démon est déjà enregistré sur un autre serveur.',
+        ];
     }
 }

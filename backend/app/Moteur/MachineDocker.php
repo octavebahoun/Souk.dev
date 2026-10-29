@@ -23,6 +23,30 @@ final class MachineDocker implements MachineCible
         return $hote === null || preg_match('/^(unix:\/\/\/\S+|tcp:\/\/[A-Za-z0-9.-]+:\d{1,5})$/', $hote) === 1;
     }
 
+    /**
+     * Démon du poste de développement : le socket local, ou un tcp:// vers cette machine
+     * (localhost, 127.0.0.0/8, host.docker.internal). Tout autre tcp:// sans TLS exposerait
+     * Docker sans authentification : refusé en production, faute de TLS en v1.
+     */
+    public static function hoteLocal(?string $hote): bool
+    {
+        if ($hote === null || str_starts_with($hote, 'unix://')) {
+            return true;
+        }
+
+        if (preg_match('/^tcp:\/\/([^:]+):\d{1,5}$/', $hote, $correspondance) !== 1) {
+            return false;
+        }
+
+        $nom = strtolower($correspondance[1]);
+
+        if (in_array($nom, ['localhost', 'host.docker.internal', 'host.containers.internal'], true)) {
+            return true;
+        }
+
+        return preg_match('/^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/', $nom) === 1;
+    }
+
     public function environnement(): array
     {
         return $this->hoteDocker === null ? [] : ['DOCKER_HOST' => $this->hoteDocker];

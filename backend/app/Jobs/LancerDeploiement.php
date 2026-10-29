@@ -47,9 +47,9 @@ class LancerDeploiement implements ShouldQueue
                 return;
             }
 
-            // Placement : la machine active et joignable qui a le plus de mémoire libre.
-            $machine = app(PlacementMachines::class)->choisir((string) $deploiement->taille);
-            $deploiement->forceFill(['machine_id' => $machine->id])->save();
+            // Placement : la machine active et joignable qui a le plus de mémoire libre,
+            // réservée dans la même transaction que l'élection.
+            $machine = app(PlacementMachines::class)->choisir((string) $deploiement->taille, $deploiement);
             $cible = $machine->cible();
 
             // Clé publique de la copie : l'adresse de connexion de ses utilisateurs (backend intégré).

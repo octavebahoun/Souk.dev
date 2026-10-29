@@ -2,6 +2,7 @@
 
 namespace App\Moteur;
 
+use App\Models\Deploiement;
 use App\Models\Machine;
 use App\Moteur\Exceptions\LancementEchoue;
 use Illuminate\Support\Facades\DB;
@@ -13,15 +14,21 @@ use Illuminate\Support\Facades\DB;
  */
 class PlacementMachines
 {
-    public function choisir(string $taille): Machine
+    /**
+     * Élit une machine et, quand la copie est donnée, y inscrit sa réservation dans la même
+     * transaction : deux lancements simultanés ne prennent pas la même dernière place.
+     */
+    public function choisir(string $taille, ?Deploiement $deploiement = null): Machine
     {
         $plafond = LimitesTaille::plafondMo($taille);
 
-        return DB::transaction(function () use ($plafond): Machine {
+        return DB::transaction(function () use ($plafond, $deploiement): Machine {
             Machine::assurerLocale();
 
-            // Deux lancements simultanés ne prennent pas la même dernière place.
+            // Machines puis copies occupantes, toujours dans cet ordre et par id : le second
+            // placement attend le premier et voit sa réservation.
             $machines = Machine::query()->orderBy('id')->lockForUpdate()->get();
+            Deploiement::query()->whereIn('etat', Machine::ETATS_OCCUPES)->orderBy('id')->lockForUpdate()->get();
 
             $elue = null;
             $mieux = null;
@@ -48,6 +55,8 @@ class PlacementMachines
             if ($elue === null) {
                 throw new LancementEchoue('Aucune machine ne peut accueillir cette copie pour l’instant : toutes sont pleines, en maintenance ou injoignables.');
             }
+
+            $deploiement?->forceFill(['machine_id' => $elue->id])->save();
 
             return $elue;
         });

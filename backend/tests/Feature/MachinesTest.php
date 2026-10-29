@@ -254,6 +254,93 @@ class MachinesTest extends TestCase
         app(PlacementMachines::class)->choisir('petite');
     }
 
+    public function test_l_enregistrement_refuse_un_demon_deja_enregistre(): void
+    {
+        Queue::fake();
+        $admin = User::factory()->admin()->create();
+        $aux = Machine::factory()->create(['nom' => 'aux', 'hote_docker' => 'tcp://10.0.0.2:2375']);
+
+        $this->actingAs($admin)
+            ->postJson('/api/admin/machines', ['nom' => 'bis', 'hote_docker' => 'tcp://10.0.0.2:2375'])
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.hote_docker.0', 'Ce démon est déjà enregistré sur un autre serveur.');
+
+        $autre = Machine::factory()->create(['nom' => 'autre', 'hote_docker' => 'tcp://10.0.0.3:2375']);
+
+        // Reprendre le démon d'un autre serveur : 422, pas une erreur 500 de base.
+        $this->actingAs($admin)
+            ->patchJson('/api/admin/machines/'.$autre->id, ['hote_docker' => 'tcp://10.0.0.2:2375'])
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.hote_docker.0', 'Ce démon est déjà enregistré sur un autre serveur.');
+
+        // Garder son propre démon en modifiant autre chose reste accepté.
+        $this->actingAs($admin)
+            ->patchJson('/api/admin/machines/'.$aux->id, ['hote_docker' => 'tcp://10.0.0.2:2375', 'capacite_mo' => 4096])
+            ->assertOk();
+    }
+
+    public function test_un_demon_distant_sans_tls_est_refuse_en_production(): void
+    {
+        Queue::fake();
+        $this->app->detectEnvironment(fn () => 'production');
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)
+            ->postJson('/api/admin/machines', ['nom' => 'distant', 'hote_docker' => 'tcp://10.0.0.2:2375'])
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.hote_docker.0', 'En production, un démon distant exige TLS : seuls le démon local et ceux du poste de développement sont acceptés.');
+
+        $this->actingAs($admin)
+            ->postJson('/api/admin/machines', ['nom' => 'dev', 'hote_docker' => 'tcp://host.docker.internal:2376'])
+            ->assertCreated();
+
+        $this->actingAs($admin)
+            ->postJson('/api/admin/machines', ['nom' => 'dev-local'])
+            ->assertCreated();
+    }
+
+    public function test_le_demon_local_veut_dire_le_socket_ou_cette_machine(): void
+    {
+        $this->assertTrue(MachineDocker::hoteLocal(null));
+        $this->assertTrue(MachineDocker::hoteLocal('unix:///var/run/docker.sock'));
+        $this->assertTrue(MachineDocker::hoteLocal('tcp://localhost:2375'));
+        $this->assertTrue(MachineDocker::hoteLocal('tcp://127.0.0.1:2375'));
+        $this->assertTrue(MachineDocker::hoteLocal('tcp://host.docker.internal:2376'));
+        $this->assertFalse(MachineDocker::hoteLocal('tcp://10.0.0.2:2375'));
+        $this->assertFalse(MachineDocker::hoteLocal('tcp://docker.exemple.com:2376'));
+    }
+
+    public function test_le_placement_reserve_la_machine_dans_la_meme_transaction(): void
+    {
+        $locale = Machine::where('nom', 'locale')->firstOrFail();
+        $locale->forceFill(['capacite_mo' => 512])->save();
+        $premiere = Deploiement::factory()->create(['taille' => 'petite', 'etat' => 'en_file']);
+        $seconde = Deploiement::factory()->create(['taille' => 'petite', 'etat' => 'en_file']);
+
+        $this->assertSame($locale->id, app(PlacementMachines::class)->choisir('petite', $premiere)->id);
+        $this->assertSame($locale->id, $premiere->refresh()->machine_id);
+
+        // La place est prise : le placement suivant le voit et refuse, au lieu d'élire pareil.
+        try {
+            app(PlacementMachines::class)->choisir('petite', $seconde);
+            $this->fail('Le second placement devait refuser : la machine est pleine.');
+        } catch (LancementEchoue) {
+            $this->assertNull($seconde->refresh()->machine_id);
+        }
+    }
+
+    public function test_le_libre_repose_sur_la_memoire_sondee_sans_limite_declaree(): void
+    {
+        $machine = Machine::factory()->create(['nom' => 'aux', 'capacite_mo' => null]);
+        $machine->forceFill(['memoire_totale_mo' => 8192])->save();
+        Deploiement::factory()->create(['machine_id' => $machine->id, 'taille' => 'grande', 'etat' => 'en_ligne']);
+
+        $this->actingAs(User::factory()->admin()->create())
+            ->getJson('/api/admin/machines/'.$machine->id)
+            ->assertOk()
+            ->assertJsonPath('memoire_libre_mo', 6144);
+    }
+
     public function test_le_lancement_enregistre_la_machine_la_plus_libre(): void
     {
         $aux = Machine::factory()->create(['nom' => 'aux', 'capacite_mo' => 8192]);
