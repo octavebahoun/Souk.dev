@@ -14,7 +14,13 @@ mkdir -p "$dossier"
 compose="docker compose -f docker-compose.prod.yml"
 
 echo "== Base de données =="
-$compose exec -T db pg_dump -U soukdev --no-owner --no-acl soukdev | gzip > "$dossier/soukdev-$date.sql.gz"
+# Sans pipe : en sh, le code d'un pipe est celui de gzip, un pg_dump raté passerait
+# pour réussi. Le dump part dans un temporaire, contrôlé avant compression.
+tmp=$(mktemp)
+$compose exec -T db pg_dump -U soukdev --no-owner --no-acl soukdev > "$tmp"
+[ -s "$tmp" ] || { echo "ÉCHEC : le dump de la base est vide (pg_dump a échoué)." >&2; rm -f "$tmp"; exit 1; }
+gzip -c "$tmp" > "$dossier/soukdev-$date.sql.gz"
+rm -f "$tmp"
 
 echo "== Volumes =="
 for volume in stockage routes letsencrypt; do
