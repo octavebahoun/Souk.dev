@@ -38,7 +38,11 @@ describe('texteMemoire', () => {
   })
 
   it('dit quand aucune limite n’est déclarée', () => {
-    expect(texteMemoire(machine({ capacite_mo: null, memoire_libre_mo: null }))).toBe('Sans limite déclarée · 2 Go réservés')
+    expect(texteMemoire(machine({ capacite_mo: null, memoire_totale_mo: null, memoire_libre_mo: null }))).toBe('Sans limite déclarée · 2 Go réservés')
+  })
+
+  it('annonce le libre sondé sans limite déclarée', () => {
+    expect(texteMemoire(machine({ capacite_mo: null, memoire_totale_mo: 16384, memoire_libre_mo: 14336 }))).toBe('environ 14 Go libres (mémoire sondée)')
   })
 })
 
@@ -49,7 +53,11 @@ describe('partUtilisee', () => {
   })
 
   it('reste muette sans limite déclarée', () => {
-    expect(partUtilisee(machine({ capacite_mo: null, memoire_libre_mo: null }))).toBeNull()
+    expect(partUtilisee(machine({ capacite_mo: null, memoire_totale_mo: null, memoire_libre_mo: null }))).toBeNull()
+  })
+
+  it('jauge sur la mémoire sondée sans limite déclarée', () => {
+    expect(partUtilisee(machine({ capacite_mo: null, memoire_totale_mo: 8192, memoire_libre_mo: 6144 }))).toBeCloseTo(0.25, 5)
   })
 })
 

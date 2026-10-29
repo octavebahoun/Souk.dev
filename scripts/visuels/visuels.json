@@ -398,6 +398,26 @@
       "cible": "frontend/src/assets/illustrations/sombre/acces-refuse.webp",
       "prompt": "Illustration for access denied: a friendly closed padlock in front of a shield.",
       "recadrage": 0.74
+    },
+    {
+      "nom": "vide-serveurs",
+      "style": "illustration",
+      "format": "1:1",
+      "taille": "1K",
+      "largeur": 400,
+      "cible": "frontend/src/assets/illustrations/vide-serveurs.webp",
+      "prompt": "Empty state illustration for server fleet management: a single small server rack cabinet with one glowing slot, a soft dotted network arc above it waiting for more servers to join.",
+      "recadrage": 0.74
+    },
+    {
+      "nom": "vide-serveurs-sombre",
+      "style": "illustration-sombre",
+      "format": "1:1",
+      "taille": "1K",
+      "largeur": 400,
+      "cible": "frontend/src/assets/illustrations/sombre/vide-serveurs.webp",
+      "prompt": "Empty state illustration for server fleet management: a single small server rack cabinet with one glowing slot, a soft dotted network arc above it waiting for more servers to join.",
+      "recadrage": 0.74
     }
   ]
 }

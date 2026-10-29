@@ -12,6 +12,7 @@ export type NomIllustration =
   | 'vide-missions'
   | 'vide-evenements'
   | 'vide-recherche'
+  | 'vide-serveurs'
   | 'erreur-404'
   | 'hors-ligne'
   | 'acces-refuse'

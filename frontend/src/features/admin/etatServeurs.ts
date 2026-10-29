@@ -9,15 +9,19 @@ export function formaterMemoire(mo: number): string {
 }
 
 export function texteMemoire(machine: Machine): string {
-  if (machine.memoire_libre_mo === null || machine.capacite_mo === null) {
+  if (machine.memoire_libre_mo === null) {
     return `Sans limite déclarée · ${formaterMemoire(machine.memoire_reservee_mo)} réservés`
+  }
+  if (machine.capacite_mo === null) {
+    return `environ ${formaterMemoire(machine.memoire_libre_mo)} libres (mémoire sondée)`
   }
   return `${formaterMemoire(machine.memoire_libre_mo)} libres sur ${formaterMemoire(machine.capacite_mo)}`
 }
 
 export function partUtilisee(machine: Machine): number | null {
-  if (machine.memoire_libre_mo === null || machine.capacite_mo === null || machine.capacite_mo === 0) return null
-  return Math.min(1, Math.max(0, 1 - machine.memoire_libre_mo / machine.capacite_mo))
+  const capacite = machine.capacite_mo ?? machine.memoire_totale_mo
+  if (machine.memoire_libre_mo === null || capacite === null || capacite === 0) return null
+  return Math.min(1, Math.max(0, 1 - machine.memoire_libre_mo / capacite))
 }
 
 export function tonJauge(machine: Machine): 'succes' | 'alerte' | 'danger' | 'neutre' {

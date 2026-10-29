@@ -11,6 +11,7 @@ import {
   Champ,
   EnTetePage,
   EtatErreur,
+  EtatVide,
   LienBouton,
   Modale,
   PastilleEtat,
@@ -49,7 +50,12 @@ export function Serveurs() {
       ) : machines.isError || !machines.data ? (
         <EtatErreur onReessayer={() => void machines.refetch()} />
       ) : machines.data.length === 0 ? (
-        <p className="m-0 rounded-moyen border border-dashed border-bordure p-6 text-center text-texte-doux">Aucun serveur enregistré. La machine locale se recrée à la prochaine copie.</p>
+        <EtatVide
+          illustration="vide-serveurs"
+          titre="Aucun serveur enregistré"
+          description="La machine locale se recrée d’elle-même à la prochaine copie. Enregistrez un démon pour l’ajouter à la flotte."
+          action={<LienBouton to="#titre-ajout">Ajouter un serveur</LienBouton>}
+        />
       ) : (
         <ul aria-label="Serveurs" className="m-0 grid list-none gap-4 p-0 bureau:grid-cols-2">
           {machines.data.map((machine) => (
@@ -245,10 +251,10 @@ function ModifierServeur({ machine, onFermer }: { machine: Machine; onFermer: ()
     >
       <div className="flex flex-col gap-4">
         <Champ libelle="Nom" erreur={erreurs.nom}>{(liaison) => <Saisie {...liaison} value={nom} maxLength={64} onChange={(evenement) => setNom(evenement.target.value)} />}</Champ>
-        <Champ libelle="Démon Docker (DOCKER_HOST)" aide="Vide : démon local. Ne change pas tant que des copies tournent dessus." erreur={erreurs.hote_docker}>
+        <Champ libelle="Démon Docker (DOCKER_HOST)" aide="Vide : démon local. Un démon distant sans TLS est réservé au poste de développement. Ne change pas tant que des copies tournent dessus." erreur={erreurs.hote_docker}>
           {(liaison) => <Saisie {...liaison} value={hote} maxLength={255} placeholder="tcp://10.0.0.2:2375" onChange={(evenement) => setHote(evenement.target.value)} />}
         </Champ>
-        <Champ libelle="Capacité mémoire (Mo)" aide="Mémoire réservée aux copies. Vide : sans limite déclarée." erreur={erreurs.capacite_mo}>
+        <Champ libelle="Capacité mémoire (Mo)" aide="Mémoire réservée aux copies. Vide : la mémoire sondée sert de limite." erreur={erreurs.capacite_mo}>
           {(liaison) => <Saisie {...liaison} value={capacite} inputMode="numeric" placeholder="8192" onChange={(evenement) => setCapacite(evenement.target.value.replace(/\D/g, ''))} />}
         </Champ>
         {erreur && Object.keys(erreurs).length === 0 ? <Alerte ton="danger">{erreur}</Alerte> : null}
@@ -290,16 +296,16 @@ function AjouterServeur() {
 
   return (
     <section aria-labelledby="titre-ajout" className="flex flex-col gap-4">
-      <h2 id="titre-ajout" className="m-0 text-titre-2">
+      <h2 id="titre-ajout" tabIndex={-1} className="m-0 text-titre-2 focus:outline-none">
         Ajouter un serveur
       </h2>
       <Carte className="flex flex-col gap-4">
         <div className="grid gap-4 tablette:grid-cols-3">
           <Champ libelle="Nom" erreur={erreurs.nom}>{(liaison) => <Saisie {...liaison} value={nom} maxLength={64} placeholder="aux" onChange={(evenement) => setNom(evenement.target.value)} />}</Champ>
-          <Champ libelle="Démon Docker (DOCKER_HOST)" aide="Vide : démon local." erreur={erreurs.hote_docker}>
+          <Champ libelle="Démon Docker (DOCKER_HOST)" aide="Vide : démon local. Un démon distant sans TLS est réservé au poste de développement." erreur={erreurs.hote_docker}>
             {(liaison) => <Saisie {...liaison} value={hote} maxLength={255} placeholder="tcp://10.0.0.2:2375" onChange={(evenement) => setHote(evenement.target.value)} />}
           </Champ>
-          <Champ libelle="Capacité mémoire (Mo)" aide="Vide : sans limite déclarée." erreur={erreurs.capacite_mo}>
+          <Champ libelle="Capacité mémoire (Mo)" aide="Vide : la mémoire sondée sert de limite." erreur={erreurs.capacite_mo}>
             {(liaison) => <Saisie {...liaison} value={capacite} inputMode="numeric" placeholder="8192" onChange={(evenement) => setCapacite(evenement.target.value.replace(/\D/g, ''))} />}
           </Champ>
         </div>
