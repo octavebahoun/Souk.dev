@@ -3556,7 +3556,7 @@ components:
         memoire_totale_mo: { type: [integer, 'null'], description: "Mémoire du démon, lue par la sonde (Mo)" }
         capacite_mo: { type: [integer, 'null'], description: "Mémoire réservée aux copies (Mo), déclarée par l'équipe ; null = sans limite déclarée" }
         memoire_reservee_mo: { type: integer, description: "Plafonds des copies qui y tournent (Mo)" }
-        memoire_libre_mo: { type: [integer, 'null'], description: "Capacité moins réservée (Mo) ; null sans limite déclarée" }
+        memoire_libre_mo: { type: [integer, 'null'], description: "Capacité utile (déclarée, sinon sondée) moins réservée (Mo) ; null si aucune limite connue" }
         copies: { type: integer, description: "Copies hébergées (ni arrêtées, ni en échec)" }
         sonde_erreur: { type: [string, 'null'], description: "Raison courte de la dernière sonde ratée" }
         sondee_le: { type: [string, 'null'], format: date-time }

@@ -2403,7 +2403,7 @@ export interface components {
             capacite_mo: number | null;
             /** @description Plafonds des copies qui y tournent (Mo) */
             memoire_reservee_mo: number;
-            /** @description Capacité moins réservée (Mo) ; null sans limite déclarée */
+            /** @description Capacité utile (déclarée, sinon sondée) moins réservée (Mo) ; null si aucune limite connue */
             memoire_libre_mo: number | null;
             /** @description Copies hébergées (ni arrêtées, ni en échec) */
             copies: number;
