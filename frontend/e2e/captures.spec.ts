@@ -27,7 +27,7 @@ const lots: Lot[] = [
     pages: async (page) => {
       const appli = await idDe(page, '/apps?q=PharmaStock', (applis) => applis[0]?.id)
       const bug = await idDe(page, '/discussions?per_page=50', (discussions) => discussions.find((discussion) => String(discussion.titre).startsWith('Wave CI'))?.id)
-      return ['/', '/store', '/store?tri=note', `/store/${appli}`, '/echange', `/echange/${bug}`, '/devs', '/evenements', '/connexion', '/page-inconnue']
+      return ['/', '/store', '/store?tri=note', `/store/${appli}`, '/echange', `/echange/${bug}`, '/devs', '/evenements', '/connexion', '/legal/cgu', '/legal/cgv', '/legal/confidentialite', '/legal/abus', '/page-inconnue']
     },
   },
   { compte: 'soukdemo-awa', pages: async () => ['/tableau', '/copies', '/publier', '/missions', '/revenus', '/notifications', '/notifications/reglages'] },
@@ -39,7 +39,7 @@ const lots: Lot[] = [
       return ['/copies', '/paiements', `/paiements/${payee}`, `/store/${appli}`, `/store/${appli}/deployer`, `/paiement/retour?facture=${payee}`]
     },
   },
-  { compte: 'soukdemo-admin', pages: async () => ['/admin/finances', '/admin/serveurs'] },
+  { compte: 'soukdemo-admin', pages: async () => ['/admin/finances', '/admin/serveurs', '/admin/moderation'] },
   {
     compte: 'soukdemo-yao',
     pages: async (page) => [`/echange/${await idDe(page, '/discussions?per_page=50', (discussions) => discussions.find((discussion) => String(discussion.titre).startsWith('Wave CI'))?.id)}`],
