@@ -7,7 +7,8 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 
 /**
- * Sonde de santé des machines, sur le moteur (seul à parler à Docker) : chaque démon répond-il,
+ * Sonde de santé des machines, sur sa file « sondes » (un processus du moteur à part, qui parle à
+ * Docker) : une sonde n'attend jamais derrière une construction de copie. Chaque démon répond-il,
  * avec quelle mémoire et quelle version ? Toutes les cinq minutes, ou une seule à la demande
  * de l'équipe. Une sonde ratée marque la machine injoignable : le placement l'évite. Une sonde
  * ciblée (à l'enregistrement, à la demande) qui échoue se relance deux fois, à dix secondes
@@ -24,7 +25,7 @@ class SonderMachine implements ShouldQueue
 
     public function __construct(public ?int $machineId = null, public int $essai = 1)
     {
-        $this->onQueue('moteur');
+        $this->onQueue('sondes');
     }
 
     public function handle(): void

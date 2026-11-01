@@ -110,7 +110,8 @@ class MachinesTest extends TestCase
             ->json('id');
 
         $this->assertDatabaseHas('machines', ['id' => $id, 'hote_docker' => 'tcp://10.0.0.2:2375']);
-        Queue::assertPushed(SonderMachine::class, fn (SonderMachine $job) => $job->machineId === $id);
+        // Sur sa propre file : une sonde n'attend pas derrière une construction de copie.
+        Queue::assertPushed(SonderMachine::class, fn (SonderMachine $job) => $job->machineId === $id && $job->queue === 'sondes');
     }
 
     public function test_l_enregistrement_refuse_un_hote_ou_un_nom_invalide(): void

@@ -19,7 +19,8 @@ le plus de mémoire libre.
   reçoit plus aucune. Réversible à tout moment.
 - **Santé** : le moteur sonde chaque démon toutes les 5 minutes (`docker info` :
   joignable, mémoire totale, version) et à la demande (`POST /admin/machines/{id}/sonde`,
-  `202` : la sonde tourne sur le moteur, seul à parler à Docker). Une sonde ratée marque
+  `202` : la sonde tourne sur la file « sondes », un processus à part du moteur, pour ne
+  jamais attendre derrière une construction de copie). Une sonde ratée marque
   la machine injoignable : le placement l'évite, l'équipe la voit en rouge.
 - **Retrait** : refusé (`409`) tant que des copies y tournent, comme le changement de
   démon (les arrêts et sauvegardes partiraient sur le mauvais démon).

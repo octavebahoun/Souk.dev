@@ -57,7 +57,7 @@ export async function supprimerMachine(id: number): Promise<void> {
   await clientLocal.delete(cheminLaravel(`/admin/machines/${id}`))
 }
 
-/** La sonde tourne sur le moteur : 202 aussitôt, l'état se relit ensuite. */
+/** La sonde tourne sur la file « sondes » (à part du moteur) : 202 aussitôt, l'état se relit ensuite. */
 export async function sonderMachine(id: number): Promise<Machine> {
   await preparerCsrf()
   return objet(clientLocal.post<Machine>(cheminLaravel(`/admin/machines/${id}/sonde`)))

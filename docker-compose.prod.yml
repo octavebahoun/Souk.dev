@@ -151,6 +151,21 @@ services:
       timeout: 10s
       retries: 3
 
+  # Sondes des serveurs (docker info, quelques secondes) : file « sondes », à part du moteur, pour
+  # qu'une sonde demandée par l'équipe n'attende pas derrière une construction de copie.
+  sondes:
+    <<: *php
+    command: ["php", "artisan", "queue:work", "--queue=sondes", "--sleep=2", "--tries=1", "--timeout=60"]
+    volumes:
+      - stockage:/app/storage
+      - secrets:/run/soukdev:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test: ["CMD", "php", "docker/sante.php", "worker"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   # Sécurité avant publication (gitleaks, Trivy) dans des conteneurs jetables : file « analyse »,
   # à part du moteur, pour qu'une publication n'attende jamais derrière un déploiement.
   analyse:

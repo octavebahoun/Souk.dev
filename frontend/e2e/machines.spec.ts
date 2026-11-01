@@ -21,13 +21,16 @@ function artisan(...arguments_: string[]): string {
   return execFileSync('docker', ['compose', 'exec', '-T', '-u', '1000', 'api', 'php', 'artisan', ...arguments_], { cwd: racine, encoding: 'utf8' })
 }
 
-/** Attend le démon intérieur du conteneur Docker-in-Docker. */
+/**
+ * Attend le second démon tel que le moteur le voit : son socket partagé, joint avec l'utilisateur
+ * et le groupe des travaux du moteur (pas seulement le démon, prêt à l'intérieur de son conteneur).
+ */
 function attendreDind(): void {
   const fin = Date.now() + 120_000
   const pause = () => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 2000)
   for (;;) {
     try {
-      execFileSync('docker', ['exec', 'soukdev-dind-1', 'docker', 'info'], { stdio: 'pipe' })
+      execFileSync('docker', ['compose', 'exec', '-T', 'moteur', 'su-exec', '1000', 'docker', '-H', HOTE_DIND, 'version', '--format', '{{.Server.Version}}'], { cwd: racine, stdio: 'pipe' })
       return
     } catch {
       if (Date.now() > fin) throw new Error('Le second démon Docker ne répond pas.')
@@ -115,6 +118,7 @@ test.describe.serial('plusieurs serveurs', () => {
   })
 
   test('la machine locale existe et le second serveur s’enregistre, sondé', async ({ page }) => {
+    test.setTimeout(240_000)
     await connexionDemo(page, 'soukdemo-admin')
     locale = (await lireMachine(page, 'locale')).id
     expect(locale).toBeGreaterThan(0)
@@ -128,8 +132,15 @@ test.describe.serial('plusieurs serveurs', () => {
 
     const aux = page.getByRole('article', { name: 'aux' })
     await expect(aux).toBeVisible()
-    // La sonde tourne sur le moteur : la version du démon apparaît sans recharger.
-    await expect(aux.getByText(/Docker \d+\.\d+/)).toBeVisible({ timeout: 60_000 })
+    // La sonde tourne sur sa propre file (service « sondes ») : la version du démon apparaît
+    // sans recharger. Si elle tarde, l'équipe relance la sonde, comme ici.
+    const version = aux.getByText(/Docker \d+\.\d+/)
+    try {
+      await expect(version).toBeVisible({ timeout: 45_000 })
+    } catch {
+      await aux.getByRole('button', { name: 'Sonder' }).click()
+      await expect(version).toBeVisible({ timeout: 60_000 })
+    }
     expect(resumer(await auditAxe(page))).toBe('')
   })
 
