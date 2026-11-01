@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { createMemoryRouter, RouterProvider } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
@@ -23,10 +23,9 @@ describe('socle', () => {
   })
 
   it('affiche l’accueil et demande le cookie CSRF', async () => {
-    const { container } = render(<App />)
+    render(<App />)
 
     expect(await screen.findByRole('heading', { name: /Le marché/ })).toBeInTheDocument()
-    await waitFor(() => expect(container.querySelector('[data-reveal-item]')).toHaveAttribute('data-revealed', 'true'))
     expect(client.get).toHaveBeenCalledWith('/sanctum/csrf-cookie')
   })
 

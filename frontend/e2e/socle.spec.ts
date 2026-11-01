@@ -3,6 +3,10 @@ import { auditAxe, connexionDemo, resumer } from './outils'
 
 test.describe('socle', () => {
   test('un visiteur voit les applis du Store et peut revenir d’une page introuvable', async ({ page }) => {
+    await page.goto('/')
+    await expect(page.getByRole('heading', { level: 1, name: 'Le marché des devs africains.' })).toBeVisible()
+    expect(resumer(await auditAxe(page))).toBe('')
+
     await page.goto('/store')
     await expect(page.getByText('PharmaStock', { exact: true }).first()).toBeVisible()
     expect(resumer(await auditAxe(page))).toBe('')
