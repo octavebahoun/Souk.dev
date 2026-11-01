@@ -296,7 +296,7 @@ final class ModerationTest extends TestCase
         });
         $token = basename((string) parse_url((string) $url, PHP_URL_PATH));
 
-        $this->getJson('/auth/lien-magique/'.$token)
+        $this->postJson('/auth/lien-magique/'.$token)
             ->assertForbidden()
             ->assertJsonPath('message', 'Compte suspendu : Spam.');
         $this->assertGuest();

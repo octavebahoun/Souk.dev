@@ -19,8 +19,10 @@ Route::get('/', function () {
 Route::get('/auth/github', [GithubController::class, 'redirect'])->middleware('throttle:60,1');
 Route::get('/auth/github/callback', [GithubController::class, 'callback']);
 Route::post('/auth/lien-magique', [LienMagiqueController::class, 'demander'])->middleware('throttle:lien-magique');
-Route::get('/auth/lien-magique/{token}', [LienMagiqueController::class, 'utiliser'])
-    ->where('token', '[A-Za-z0-9]+');
+Route::get('/auth/lien-magique/{token}', [LienMagiqueController::class, 'afficher'])
+    ->where('token', '[A-Za-z0-9]+')->middleware('throttle:60,1');
+Route::post('/auth/lien-magique/{token}', [LienMagiqueController::class, 'utiliser'])
+    ->where('token', '[A-Za-z0-9]+')->middleware('throttle:60,1');
 Route::post('/logout', [LogoutController::class, 'destroy']);
 Route::post('/auth/demo', [DemoController::class, 'connecter'])->middleware('throttle:60,1');
 

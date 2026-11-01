@@ -111,21 +111,37 @@ paths:
 
   /auth/lien-magique/{token}:
     servers: [{ url: / }]
+    parameters:
+      - name: token
+        in: path
+        required: true
+        schema: { type: string }
     get:
       tags: [Comptes]
-      operationId: utiliserLienMagique
-      summary: Web. Lien reçu par email, à usage unique et limité dans le temps ; ouvre la session
+      operationId: afficherLienMagique
+      summary: "Web. Lien reçu par email : page de confirmation (bouton « Me connecter »), sans consommer le lien. Un analyseur de messagerie qui ouvre le lien ne le grille donc pas."
       security: []
-      parameters:
-        - name: token
-          in: path
-          required: true
-          schema: { type: string }
+      responses:
+        '200':
+          description: Page de confirmation (HTML), avec l'adresse du compte qui va s'ouvrir
+          content:
+            text/html:
+              schema: { type: string }
+        '410':
+          description: Lien expiré ou déjà utilisé (page HTML, ou JSON si demandé)
+    post:
+      tags: [Comptes]
+      operationId: utiliserLienMagique
+      summary: Web. Bouton de la page de confirmation ; consomme le lien (usage unique, limité dans le temps) et ouvre la session
+      security: []
       responses:
         '302':
           description: Session ouverte, redirection vers le front (Store pour un client)
+        '403':
+          description: Compte suspendu (page HTML, ou JSON si demandé)
         '410':
-          description: Lien expiré ou déjà utilisé
+          description: Lien expiré ou déjà utilisé (page HTML, ou JSON si demandé)
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
 
   /auth/demo:
     servers: [{ url: / }]

@@ -76,13 +76,16 @@ export interface paths {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
+            path: {
+                token: string;
+            };
             cookie?: never;
         };
-        /** Web. Lien reçu par email, à usage unique et limité dans le temps ; ouvre la session */
-        get: operations["utiliserLienMagique"];
+        /** Web. Lien reçu par email : page de confirmation (bouton « Me connecter »), sans consommer le lien. Un analyseur de messagerie qui ouvre le lien ne le grille donc pas. */
+        get: operations["afficherLienMagique"];
         put?: never;
-        post?: never;
+        /** Web. Bouton de la page de confirmation ; consomme le lien (usage unique, limité dans le temps) et ouvre la session */
+        post: operations["utiliserLienMagique"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2941,6 +2944,35 @@ export interface operations {
             429: components["responses"]["TropDeRequetes"];
         };
     };
+    afficherLienMagique: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Page de confirmation (HTML), avec l'adresse du compte qui va s'ouvrir */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/html": string;
+                };
+            };
+            /** @description Lien expiré ou déjà utilisé (page HTML, ou JSON si demandé) */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     utiliserLienMagique: {
         parameters: {
             query?: never;
@@ -2959,13 +2991,21 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Lien expiré ou déjà utilisé */
+            /** @description Compte suspendu (page HTML, ou JSON si demandé) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Lien expiré ou déjà utilisé (page HTML, ou JSON si demandé) */
             410: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            419: components["responses"]["CsrfInvalide"];
         };
     };
     connexionDemo: {

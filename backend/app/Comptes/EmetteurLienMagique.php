@@ -36,6 +36,21 @@ final class EmetteurLienMagique
         Mail::to($email)->send(new LienMagiqueMail($url));
     }
 
+    /**
+     * Adresse du compte qu'ouvrirait ce lien, s'il est encore valable : la page de confirmation
+     * l'affiche sans consommer le lien.
+     */
+    public function adresseSiValable(string $token): ?string
+    {
+        $email = LienMagique::query()
+            ->where('token_hash', hash('sha256', $token))
+            ->whereNull('utilise_le')
+            ->where('expire_le', '>', now())
+            ->value('email');
+
+        return is_string($email) ? $email : null;
+    }
+
     public function utiliser(string $token): ?User
     {
         $hash = hash('sha256', $token);
