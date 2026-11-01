@@ -149,6 +149,7 @@ test.describe.serial('notifications', () => {
     await panneau.getByRole('link', { name: new RegExp(texte.replace(/[().]/g, '\\$&')) }).click()
     await expect(page).toHaveURL(new RegExp(`/missions\\?mission=${mission!.id}$`))
     await expect(page.getByText(texte).first()).toBeVisible()
+    expect(resumer(await auditAxe(page))).toBe('')
     await expect(cloche).toHaveAccessibleName(nomCloche(avant))
 
     // Couper l'e-mail des messages de mission : le réglage survit au rechargement.

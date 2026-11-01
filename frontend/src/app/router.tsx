@@ -5,7 +5,6 @@ import { Layout } from './Layout'
 import { LayoutEspace } from './LayoutEspace'
 import { PageIntrouvable } from './PageIntrouvable'
 import { PageEnAttente } from './PageEnAttente'
-import { ThemeClairForce } from './ThemeClairForce'
 import { brancherComptes } from '../features/comptes/brancher'
 
 export function creerRoutes(): RouteObject[] {
@@ -47,13 +46,8 @@ export function creerRoutes(): RouteObject[] {
           {
             element: <LayoutEspace />,
             children: [
-              {
-                element: <ThemeClairForce />,
-                children: [
-              { path: '/missions', lazy: async () => ({ Component: (await import('../features/catalogue/Missions')).Missions }) },
-                ],
-              },
               { path: '/tableau', element: <PageEnAttente titre="Tableau de bord" /> },
+              { path: '/missions', lazy: async () => ({ Component: (await import('../features/catalogue/Missions')).Missions }) },
               { path: '/publier', lazy: async () => ({ Component: (await import('../features/catalogue/Publier')).Publier }) },
               { path: '/copies', lazy: async () => ({ Component: (await import('../features/deploiements/MesCopies')).MesCopies }) },
               { path: '/paiements', lazy: async () => ({ Component: (await import('../features/paiements/MesPaiements')).MesPaiements }) },

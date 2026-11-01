@@ -15,29 +15,11 @@ function lire(): ChoixTheme {
   }
 }
 
-/**
- * Applique un choix sur <html data-theme>. Un écran pas encore refait force le thème clair
- * (data-theme-force) : ses anciennes couleurs ne tiennent pas en sombre.
- */
+/** Applique un choix sur <html data-theme> (tous les écrans suivent le thème choisi). */
 function appliquer(choix: ChoixTheme): void {
   const racine = document.documentElement
-  if (racine.dataset.themeForce === 'clair') {
-    racine.dataset.theme = 'light'
-    return
-  }
   const sombre = choix === 'sombre' || (choix === 'systeme' && window.matchMedia?.('(prefers-color-scheme: dark)').matches)
   racine.dataset.theme = sombre ? 'dark' : 'light'
-}
-
-/** Force le thème clair tant que l'écran est affiché ; renvoie de quoi rendre le thème choisi. */
-export function forcerThemeClair(): () => void {
-  const racine = document.documentElement
-  racine.dataset.themeForce = 'clair'
-  appliquer(lire())
-  return () => {
-    delete racine.dataset.themeForce
-    appliquer(lire())
-  }
 }
 
 function abonner(rappel: () => void): () => void {
