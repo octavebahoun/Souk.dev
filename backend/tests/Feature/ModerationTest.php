@@ -11,13 +11,16 @@ use App\Models\Abonnement;
 use App\Models\Canal;
 use App\Models\Deploiement;
 use App\Models\Discussion;
+use App\Models\Message;
 use App\Models\Signalement;
 use App\Models\User;
 use App\Moteur\MoteurDeploiement;
 use App\Notifications\AlerteAdmin;
 use App\Notifications\CompteSuspendu;
 use App\Notifications\CopieSuspendueAbus;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
@@ -92,6 +95,63 @@ final class ModerationTest extends TestCase
         $this->actingAs($membre)->postJson('/api/signalements', [
             'cible' => 'discussion', 'cible_id' => $discussion->id, 'motif' => 'abus',
         ])->assertStatus(409);
+    }
+
+    public function test_la_base_refuse_deux_ouverts_pour_la_meme_cible_meme_en_course(): void
+    {
+        $membre = User::factory()->create();
+        $discussion = Discussion::factory()->create();
+        $attributs = ['user_id' => $membre->id, 'cible' => 'discussion', 'cible_id' => $discussion->id];
+
+        Signalement::factory()->create($attributs);
+
+        // Deux envois simultanés passent tous deux le contrôle applicatif : l'index tranche.
+        try {
+            Signalement::factory()->create($attributs);
+            $this->fail('Le second signalement ouvert aurait dû violer l’index unique.');
+        } catch (UniqueConstraintViolationException) {
+            $this->assertSame(1, Signalement::query()->count());
+        }
+
+        // Après décision, la cible est de nouveau signalable (index partiel).
+        Signalement::query()->update(['statut' => 'rejete']);
+        $this->actingAs($membre)->postJson('/api/signalements', [
+            'cible' => 'discussion', 'cible_id' => $discussion->id, 'motif' => 'abus',
+        ])->assertCreated();
+    }
+
+    public function test_le_signalement_mene_a_sa_cible_meme_message_copie_ou_compte(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $message = Message::factory()->create();
+        $copie = Deploiement::factory()->create(['etat' => 'en_ligne', 'url' => 'http://d12.localhost']);
+        $compte = User::factory()->github()->create();
+        $sansPage = Deploiement::factory()->create(['etat' => 'arrete', 'url' => null]);
+
+        $chemins = [
+            Signalement::factory()->create(['cible' => 'message', 'cible_id' => $message->id])->cibleChemin(),
+            Signalement::factory()->create(['cible' => 'copie', 'cible_id' => $copie->id])->cibleChemin(),
+            Signalement::factory()->create(['cible' => 'compte', 'cible_id' => $compte->id])->cibleChemin(),
+            Signalement::factory()->create(['cible' => 'copie', 'cible_id' => $sansPage->id])->cibleChemin(),
+            Signalement::factory()->create(['cible' => 'message', 'cible_id' => 999999])->cibleChemin(),
+        ];
+
+        $this->assertSame([
+            '/echange/'.$message->discussion_id,
+            'http://d12.localhost',
+            '/devs/'.$compte->username,
+            null,
+            null,
+        ], $chemins);
+
+        // La liste expose le champ (les plus récents d'abord : ordre inverse).
+        $this->actingAs($admin)->getJson('/api/admin/signalements')
+            ->assertOk()
+            ->assertJsonPath('data.4.cible_chemin', '/echange/'.$message->discussion_id)
+            ->assertJsonPath('data.3.cible_chemin', 'http://d12.localhost')
+            ->assertJsonPath('data.2.cible_chemin', '/devs/'.$compte->username)
+            ->assertJsonPath('data.1.cible_chemin', null)
+            ->assertJsonPath('data.0.cible_chemin', null);
     }
 
     public function test_signaler_est_bride_a_vingt_par_heure(): void
@@ -184,6 +244,26 @@ final class ModerationTest extends TestCase
             ->assertOk()
             ->assertJsonPath('suspendu_le', null);
         $this->actingAs($admin)->deleteJson('/api/admin/comptes/'.$membre->id.'/suspension')->assertStatus(409);
+    }
+
+    public function test_un_compte_suspendu_n_ecoute_plus_ses_canaux_prives(): void
+    {
+        Notification::fake();
+        $this->configurerReverb();
+        $admin = User::factory()->admin()->create();
+        $membre = User::factory()->create();
+
+        // Avant la suspension : son canal de factures lui répond.
+        $this->actingAs($membre)
+            ->post('/broadcasting/auth', ['channel_name' => 'private-utilisateur.'.$membre->id, 'socket_id' => '1234.5678'])
+            ->assertOk();
+
+        $this->actingAs($admin)->postJson('/api/admin/comptes/'.$membre->id.'/suspension', ['motif' => 'Spam.'])->assertOk();
+
+        // Suspendu : plus de temps réel, comme l'API répond 403.
+        $this->actingAs($membre->refresh())
+            ->post('/broadcasting/auth', ['channel_name' => 'private-utilisateur.'.$membre->id, 'socket_id' => '1234.5678'])
+            ->assertForbidden();
     }
 
     public function test_l_equipe_ne_suspend_pas_son_propre_compte(): void
@@ -387,5 +467,35 @@ final class ModerationTest extends TestCase
         // Le contrôle d'admin passe avant le 404 : un identifiant inconnu ne se révèle pas.
         $this->actingAs($membre)->getJson('/api/admin/signalements/999999')->assertForbidden();
         $this->actingAs($membre)->getJson('/api/admin/comptes?suspendus=1')->assertForbidden();
+    }
+
+    /** Même reconfiguration que DeploiementTest : signer l'auth des canaux en test. */
+    private function configurerReverb(): void
+    {
+        $canaux = Broadcast::getChannels();
+
+        config([
+            'broadcasting.default' => 'reverb',
+            'broadcasting.connections.reverb' => [
+                'driver' => 'reverb',
+                'key' => 'valeur-de-test',
+                'secret' => 'valeur-de-test',
+                'app_id' => 'soukdev',
+                'options' => ['host' => 'localhost', 'port' => 8080, 'scheme' => 'http', 'useTLS' => false],
+            ],
+        ]);
+
+        Broadcast::forgetDrivers();
+        Broadcast::setDefaultDriver('reverb');
+
+        if ($canaux->isEmpty()) {
+            require base_path('routes/channels.php');
+
+            return;
+        }
+
+        foreach ($canaux as $nom => $callback) {
+            Broadcast::channel($nom, $callback);
+        }
     }
 }

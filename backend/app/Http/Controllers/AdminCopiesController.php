@@ -13,6 +13,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
 /**
@@ -44,17 +45,24 @@ final class AdminCopiesController extends Controller
     {
         $donnees = $request->validate(['motif' => ['required', 'string', 'max:500']]);
 
-        $deploiement = Deploiement::query()->lockForUpdate()->findOrFail($deploiement->id);
+        // Le verrou ne tient que dans une transaction : deux suspensions concurrentes
+        // ne passent pas toutes deux le contrôle. Travail et e-mail après validation.
+        $deploiement = DB::transaction(function () use ($deploiement, $donnees): Deploiement {
+            $verrouille = Deploiement::query()->lockForUpdate()->findOrFail($deploiement->id);
 
-        if ($deploiement->suspension_admin_motif !== null) {
-            throw new ConflictHttpException('Cette copie est déjà suspendue pour abus.');
-        }
+            if ($verrouille->suspension_admin_motif !== null) {
+                throw new ConflictHttpException('Cette copie est déjà suspendue pour abus.');
+            }
 
-        if ($deploiement->etat !== 'en_ligne') {
-            throw new ConflictHttpException('Seule une copie en ligne peut être suspendue pour abus.');
-        }
+            if ($verrouille->etat !== 'en_ligne') {
+                throw new ConflictHttpException('Seule une copie en ligne peut être suspendue pour abus.');
+            }
 
-        $deploiement->forceFill(['suspension_admin_motif' => $donnees['motif']])->save();
+            $verrouille->forceFill(['suspension_admin_motif' => $donnees['motif']])->save();
+
+            return $verrouille;
+        });
+
         $deploiement->changerEtat('suspendu');
         SuspendreCopieAbus::dispatch($deploiement->id);
 
@@ -66,17 +74,22 @@ final class AdminCopiesController extends Controller
 
     public function reactiver(Deploiement $deploiement): JsonResponse
     {
-        $deploiement = Deploiement::query()->with('abonnement')->lockForUpdate()->findOrFail($deploiement->id);
+        $deploiement = DB::transaction(function () use ($deploiement): Deploiement {
+            $verrouille = Deploiement::query()->with('abonnement')->lockForUpdate()->findOrFail($deploiement->id);
 
-        if ($deploiement->suspension_admin_motif === null) {
-            throw new ConflictHttpException('Cette copie n’est pas suspendue pour abus.');
-        }
+            if ($verrouille->suspension_admin_motif === null) {
+                throw new ConflictHttpException('Cette copie n’est pas suspendue pour abus.');
+            }
 
-        if (in_array($deploiement->abonnement?->statut, ['suspendu', 'resilie'], true)) {
-            throw new ConflictHttpException('Cette copie est aussi suspendue pour impayé : elle repartira au paiement.');
-        }
+            if (in_array($verrouille->abonnement?->statut, ['suspendu', 'resilie'], true)) {
+                throw new ConflictHttpException('Cette copie est aussi suspendue pour impayé : elle repartira au paiement.');
+            }
 
-        $deploiement->forceFill(['suspension_admin_motif' => null])->save();
+            $verrouille->forceFill(['suspension_admin_motif' => null])->save();
+
+            return $verrouille;
+        });
+
         ReactiverCopieAbus::dispatch($deploiement->id);
 
         return response()->json($deploiement->refresh()->versApi());

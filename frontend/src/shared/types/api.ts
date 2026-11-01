@@ -2649,6 +2649,8 @@ export interface components {
             cible_id: number;
             /** @description Résumé lisible de la cible pour l’équipe (titre, nom, adresse…) */
             cible_resume: string;
+            /** @description Chemin du front vers la cible (ou adresse de la copie) ; null sans page (cible supprimée, copie sans adresse, compte sans GitHub) */
+            cible_chemin: string | null;
             motif: components["schemas"]["MotifSignalement"];
             details: string | null;
             statut: components["schemas"]["StatutSignalement"];

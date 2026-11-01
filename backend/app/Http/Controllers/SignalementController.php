@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Http\Pagination;
 use App\Models\Signalement;
 use App\Notifications\AlerteAdmin;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -60,7 +61,13 @@ final class SignalementController extends Controller
             throw new ConflictHttpException('Vous avez déjà signalé ce contenu : l’équipe l’examine.');
         }
 
-        $signalement = Signalement::query()->create([...$donnees, 'user_id' => $request->user()->id]);
+        // Le contrôle ci-dessus ne voit pas un doublon créé entre-temps (double-clic,
+        // deux onglets) : l'index unique partiel tranche, et sa violation rend le même 409.
+        try {
+            $signalement = Signalement::query()->create([...$donnees, 'user_id' => $request->user()->id]);
+        } catch (UniqueConstraintViolationException) {
+            throw new ConflictHttpException('Vous avez déjà signalé ce contenu : l’équipe l’examine.');
+        }
         $signalement->refresh();
 
         if (in_array($signalement->motif, self::MOTIFS_URGENTS, true)) {
@@ -96,18 +103,24 @@ final class SignalementController extends Controller
     {
         $donnees = $request->validate(['note' => ['nullable', 'string', 'max:2000']]);
 
-        $signalement = Signalement::query()->lockForUpdate()->findOrFail($signalement->id);
+        // Le verrou ne tient que dans une transaction : deux admins concurrents ne
+        // décident pas tous deux sur un signalement encore ouvert.
+        $signalement = DB::transaction(function () use ($signalement, $donnees, $request): Signalement {
+            $verrouille = Signalement::query()->lockForUpdate()->findOrFail($signalement->id);
 
-        if ($signalement->statut !== 'ouvert') {
-            throw new ConflictHttpException('Ce signalement est déjà '.$signalement->statut.'.');
-        }
+            if ($verrouille->statut !== 'ouvert') {
+                throw new ConflictHttpException('Ce signalement est déjà '.$verrouille->statut.'.');
+            }
 
-        $signalement->forceFill([
-            'statut' => 'traite',
-            'traite_par' => $request->user()->id,
-            'traite_le' => now(),
-            'note' => $donnees['note'] ?? null,
-        ])->save();
+            $verrouille->forceFill([
+                'statut' => 'traite',
+                'traite_par' => $request->user()->id,
+                'traite_le' => now(),
+                'note' => $donnees['note'] ?? null,
+            ])->save();
+
+            return $verrouille;
+        });
 
         return response()->json($signalement->versApi());
     }
@@ -116,18 +129,22 @@ final class SignalementController extends Controller
     {
         $donnees = $request->validate(['note' => ['nullable', 'string', 'max:2000']]);
 
-        $signalement = Signalement::query()->lockForUpdate()->findOrFail($signalement->id);
+        $signalement = DB::transaction(function () use ($signalement, $donnees, $request): Signalement {
+            $verrouille = Signalement::query()->lockForUpdate()->findOrFail($signalement->id);
 
-        if ($signalement->statut !== 'ouvert') {
-            throw new ConflictHttpException('Ce signalement est déjà '.$signalement->statut.'.');
-        }
+            if ($verrouille->statut !== 'ouvert') {
+                throw new ConflictHttpException('Ce signalement est déjà '.$verrouille->statut.'.');
+            }
 
-        $signalement->forceFill([
-            'statut' => 'rejete',
-            'traite_par' => $request->user()->id,
-            'traite_le' => now(),
-            'note' => $donnees['note'] ?? null,
-        ])->save();
+            $verrouille->forceFill([
+                'statut' => 'rejete',
+                'traite_par' => $request->user()->id,
+                'traite_le' => now(),
+                'note' => $donnees['note'] ?? null,
+            ])->save();
+
+            return $verrouille;
+        });
 
         return response()->json($signalement->versApi());
     }

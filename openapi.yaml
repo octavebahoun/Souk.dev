@@ -3913,12 +3913,13 @@ components:
 
     Signalement:
       type: object
-      required: [id, cible, cible_id, cible_resume, motif, details, statut, signale_par, cree_le, traite_par, traite_le, note]
+      required: [id, cible, cible_id, cible_resume, cible_chemin, motif, details, statut, signale_par, cree_le, traite_par, traite_le, note]
       properties:
         id: { type: integer }
         cible: { $ref: '#/components/schemas/CibleSignalement' }
         cible_id: { type: integer }
         cible_resume: { type: string, description: 'Résumé lisible de la cible pour l’équipe (titre, nom, adresse…)' }
+        cible_chemin: { type: [string, 'null'], description: 'Chemin du front vers la cible (ou adresse de la copie) ; null sans page (cible supprimée, copie sans adresse, compte sans GitHub)' }
         motif: { $ref: '#/components/schemas/MotifSignalement' }
         details: { type: [string, 'null'] }
         statut: { $ref: '#/components/schemas/StatutSignalement' }

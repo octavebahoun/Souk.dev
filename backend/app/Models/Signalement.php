@@ -62,6 +62,45 @@ class Signalement extends Model
         return $this->belongsTo(User::class, 'traite_par');
     }
 
+    /**
+     * Chemin du front (ou adresse de la copie) vers la cible, pour l'examiner avant de
+     * décider. Null quand la cible n'a pas de page (copie sans adresse, compte sans
+     * GitHub lié, cible supprimée).
+     */
+    public function cibleChemin(): ?string
+    {
+        return match ($this->cible) {
+            'discussion' => "/echange/{$this->cible_id}",
+            'message' => $this->cheminMessage(),
+            'appli' => "/store/{$this->cible_id}",
+            'copie' => $this->cheminCopie(),
+            'compte' => $this->cheminCompte(),
+            'evenement' => "/evenements#{$this->cible_id}",
+            default => null,
+        };
+    }
+
+    private function cheminMessage(): ?string
+    {
+        $discussionId = Message::query()->whereKey($this->cible_id)->value('discussion_id');
+
+        return $discussionId === null ? null : "/echange/{$discussionId}";
+    }
+
+    private function cheminCopie(): ?string
+    {
+        $url = Deploiement::query()->whereKey($this->cible_id)->value('url');
+
+        return is_string($url) && $url !== '' ? $url : null;
+    }
+
+    private function cheminCompte(): ?string
+    {
+        $username = User::query()->whereKey($this->cible_id)->value('username');
+
+        return is_string($username) && $username !== '' ? "/devs/{$username}" : null;
+    }
+
     /** Résumé lisible de la cible pour l'équipe (titre, nom, adresse…). */
     public function cibleResume(): string
     {
@@ -150,6 +189,7 @@ class Signalement extends Model
             'cible' => $this->cible,
             'cible_id' => $this->cible_id,
             'cible_resume' => $this->cibleResume(),
+            'cible_chemin' => $this->cibleChemin(),
             'motif' => $this->motif,
             'details' => $this->details,
             'statut' => $this->statut,
