@@ -208,7 +208,7 @@ function DiscussionChargee({
                 <div className="flex flex-wrap items-center gap-2">
                   <h3 className="m-0 mr-auto text-corps font-semibold text-titre">Fiche du bug</h3>
                   {bug.techno ? <Badge>{bug.techno}</Badge> : null}
-                  {bug.difficulte ? <Badge ton={tonDifficulte[bug.difficulte]}>Difficulté : {libelleDifficulte[bug.difficulte].toLowerCase()}</Badge> : null}
+                  {bug.difficulte ? <Badge ton={tonDifficulte[bug.difficulte]}>Difficulté : {libelleDifficulte[bug.difficulte].toLowerCase()}</Badge> : null}
                 </div>
                 <dl className="m-0 grid gap-3 tablette:grid-cols-2">
                   <div className="flex flex-col gap-1 rounded-moyen border border-bordure-danger bg-fond-danger p-3">

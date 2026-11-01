@@ -6,6 +6,7 @@ import { useTitrePage } from '../../app/titre'
 import { lireMoi, messageAction } from '../echange/api'
 import { nomPays } from '../echange/texte'
 import { CarteAppli } from '../catalogue/CarteAppli'
+import { ModaleConnexion } from '../../app/ModaleConnexion'
 import { lireProfil, proposerMission, type ProfilDev } from './api'
 import {
   Alerte,
@@ -75,6 +76,8 @@ export function Profil() {
   })
   const moi = useQuery({ queryKey: ['moi'], queryFn: lireMoi })
   const [mission, setMission] = useState(false)
+  const [ouvertures, setOuvertures] = useState(0)
+  const [connexion, setConnexion] = useState(false)
   useTitrePage(profil.data?.nom || profil.data?.username || 'Profil')
 
   if (profil.isPending) {
@@ -137,7 +140,17 @@ export function Profil() {
               {moiMeme ? (
                 <LienBouton to="/tableau">Mon tableau de bord</LienBouton>
               ) : (
-                <Bouton icone={<Send aria-hidden="true" className="size-4" />} onClick={() => setMission(true)}>
+                <Bouton
+                  icone={<Send aria-hidden="true" className="size-4" />}
+                  onClick={() => {
+                    if (!moi.data) {
+                      setConnexion(true)
+                      return
+                    }
+                    setOuvertures((nombre) => nombre + 1)
+                    setMission(true)
+                  }}
+                >
                   Proposer une mission
                 </Bouton>
               )}
@@ -206,7 +219,7 @@ export function Profil() {
                   <span className="flex flex-col">
                     <span className={cx('text-petit font-medium', obtenu ? 'text-titre' : 'text-texte-doux')}>
                       {badge.nom}
-                      <span className="pour-lecteur">{obtenu ? ' : obtenu' : ' : pas encore obtenu'}</span>
+                      <span className="pour-lecteur">{obtenu ? ' : obtenu' : ' : pas encore obtenu'}</span>
                     </span>
                     <span className="text-micro text-texte-doux">{badge.regle}</span>
                   </span>
@@ -226,7 +239,7 @@ export function Profil() {
           <ul className="m-0 grid list-none gap-5 p-0 tablette:grid-cols-2 bureau:grid-cols-3">
             {dev.applis.map((appli) => (
               <li key={appli.id} className="flex">
-                <CarteAppli appli={appli} />
+                <CarteAppli appli={appli} niveau={3} />
               </li>
             ))}
           </ul>
@@ -259,7 +272,8 @@ export function Profil() {
         ) : null}
       </section>
 
-      {!moiMeme ? <DemandeMission username={username} nom={nom} ouverte={mission} onFermer={() => setMission(false)} /> : null}
+      {!moiMeme ? <DemandeMission key={ouvertures} username={username} nom={nom} ouverte={mission} onFermer={() => setMission(false)} /> : null}
+      <ModaleConnexion ouverte={connexion} onFermer={() => setConnexion(false)} action="proposer une mission" />
     </div>
   )
 }
@@ -297,7 +311,7 @@ function DemandeMission({ username, nom, ouverte, onFermer }: { username: string
         budget: budget ? Number(budget.replace(/\s/g, '')) : undefined,
         delai: delai || undefined,
       })
-      toast.succes('Demande envoyée : elle apparaît dans Missions.')
+      toast.succes('Demande envoyée : elle apparaît dans Missions.')
       setMessage('')
       setBudget('')
       setDelai('')
@@ -314,7 +328,7 @@ function DemandeMission({ username, nom, ouverte, onFermer }: { username: string
       ouverte={ouverte}
       onFermer={onFermer}
       titre={`Proposer une mission à ${nom}`}
-      description="Privé : visible par vous et ce dev. Contacter un dev est gratuit."
+      description="Privé : visible par vous et ce dev. Contacter un dev est gratuit."
       pied={
         <>
           <Bouton variante="contour" onClick={onFermer}>

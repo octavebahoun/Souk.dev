@@ -17,8 +17,9 @@ test.describe('socle', () => {
     await page.getByRole('button', { name: 'Paiement MoMo' }).click()
     await expect(page.getByText(/classés par correspondance/)).toBeVisible()
     expect(resumer(await auditAxe(page))).toBe('')
+    // Un visiteur apprend qu'il faut un compte avant de remplir le formulaire.
     await page.getByRole('button', { name: 'Proposer une mission' }).first().click()
-    await expect(page.getByRole('dialog', { name: /Proposer une mission à/ })).toBeVisible()
+    await expect(page.getByRole('dialog', { name: 'Connectez-vous pour proposer une mission' })).toBeVisible()
     expect(resumer(await auditAxe(page, '[role="dialog"]'))).toBe('')
     await page.keyboard.press('Escape')
 
@@ -34,7 +35,7 @@ test.describe('socle', () => {
     // La connexion : GitHub pour les devs, lien par e-mail pour les autres.
     await page.goto('/connexion')
     await expect(page.getByRole('link', { name: 'Continuer avec GitHub' })).toBeVisible()
-    await page.getByRole('button', { name: 'Entreprise ou particulier' }).click()
+    await page.getByRole('radio', { name: 'Entreprise ou particulier' }).click()
     await page.getByRole('button', { name: 'Recevoir mon lien' }).click()
     await expect(page.getByText('Cette adresse ne semble pas valide')).toBeVisible()
     expect(resumer(await auditAxe(page))).toBe('')
@@ -63,10 +64,10 @@ test.describe('socle', () => {
     await expect(page.getByRole('heading', { level: 2, name: 'Par appli' })).toBeVisible()
     expect(resumer(await auditAxe(page))).toBe('')
 
-    // Publier une appli : les étapes, puis le refus clair d'un formulaire incomplet.
+    // Publier une appli : le bouton attend que les quatre étapes soient complètes.
     await page.goto('/publier')
-    await page.getByRole('button', { name: 'Publier l’appli' }).click()
-    await expect(page.getByRole('alert')).toContainText('Renseignez la catégorie')
+    await expect(page.getByRole('button', { name: 'Publier l’appli' })).toBeDisabled()
+    await expect(page.getByText('Complétez les quatre étapes pour publier')).toBeVisible()
     expect(resumer(await auditAxe(page))).toBe('')
 
     // L'Échange et son formulaire de discussion, fiche du bug dépliée.

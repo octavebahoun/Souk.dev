@@ -5,7 +5,7 @@ import { ArrowRight, CircleCheck, GitBranch, Mail } from 'lucide-react'
 import { useTitrePage } from '../../app/titre'
 import { demanderLien } from './api'
 import { lireErreurHttp, messageAction } from '../echange/api'
-import { Alerte, Bouton, Carte, Champ, Saisie, classesBouton, cx } from '../../ui'
+import { Alerte, Bouton, Carte, ChoixPastilles, Champ, Saisie, classesBouton, cx } from '../../ui'
 import hero from '../../assets/accueil/hero.webp'
 
 type ProfilChoix = 'dev' | 'client'
@@ -30,9 +30,9 @@ export function Connexion() {
   const dev = profil === 'dev'
   const erreurOAuth =
     params.get('erreur') === 'github_non_configure'
-      ? 'GitHub OAuth n’est pas configuré. Ajoutez le Client ID et le Client secret dans backend/.env, puis relancez Laravel.'
+      ? 'La connexion avec GitHub n’est pas encore disponible. Réessayez plus tard, ou écrivez à l’équipe de Souk.dev.'
       : params.get('erreur') === 'compte_suspendu'
-        ? 'Votre compte est suspendu : la connexion est refusée. Le motif est dans l’e-mail reçu ; pour contester, répondez-y.'
+        ? 'Votre compte est suspendu : la connexion est refusée. Le motif est dans l’e-mail reçu ; pour contester, répondez-y.'
         : params.has('erreur')
           ? 'La connexion GitHub n’a pas abouti. Vérifiez l’application OAuth et son URL de rappel, puis réessayez.'
           : null
@@ -40,7 +40,7 @@ export function Connexion() {
   async function envoyer(evenement: FormEvent) {
     evenement.preventDefault()
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) {
-      setErreur('Cette adresse ne semble pas valide : vérifiez le @ et le domaine.')
+      setErreur('Cette adresse ne semble pas valide : vérifiez le @ et le domaine.')
       return
     }
     setEnvoi(true)
@@ -74,8 +74,8 @@ export function Connexion() {
           <p className="m-0 text-titre-1 text-sur-couleur">Le marché des devs africains, en un seul compte.</p>
           <p className="m-0 text-corps-l text-sur-couleur/85">Les devs échangent et publient leurs applis. Les entreprises trouvent l’outil, ou le dev, qu’il leur faut.</p>
           <ul className="m-0 flex list-none flex-col gap-2 p-0 text-corps text-sur-couleur/85">
-            <li className="flex items-center gap-2"><CircleCheck aria-hidden="true" className="size-4 text-vert-marque" />Dev : vous arrivez sur l’Échange</li>
-            <li className="flex items-center gap-2"><CircleCheck aria-hidden="true" className="size-4 text-vert-marque" />Entreprise : vous arrivez sur le Store</li>
+            <li className="flex items-center gap-2"><CircleCheck aria-hidden="true" className="size-4 text-vert-marque" />Dev : vous arrivez sur l’Échange</li>
+            <li className="flex items-center gap-2"><CircleCheck aria-hidden="true" className="size-4 text-vert-marque" />Entreprise : vous arrivez sur le Store</li>
           </ul>
         </div>
       </section>
@@ -84,28 +84,22 @@ export function Connexion() {
         <Carte marge="large" className="flex w-full max-w-md flex-col gap-6">
           <div className="flex flex-col gap-1">
             <h1 className="m-0 text-titre-1 text-titre">Se connecter</h1>
-            <p className="m-0 text-corps text-texte-doux">Ou créer votre compte : c’est la même porte.</p>
+            <p className="m-0 text-corps text-texte-doux">Ou créer votre compte : c’est la même porte.</p>
           </div>
 
-          <div role="group" aria-label="Votre profil" className="grid grid-cols-2 gap-1 rounded-moyen border border-bordure bg-surface-douce p-1">
-            {profils.map((choix) => (
-              <button
-                key={choix.valeur}
-                type="button"
-                aria-pressed={profil === choix.valeur}
-                onClick={() => {
-                  setProfil(choix.valeur)
-                  setErreur(null)
-                }}
-                className={cx(
-                  'min-h-11 rounded-petit px-2 text-petit font-medium transition-colors duration-150',
-                  profil === choix.valeur ? 'bg-primaire-doux text-sur-primaire-doux shadow-1' : 'text-texte-doux hover:text-titre',
-                )}
-              >
-                {choix.libelle}
-              </button>
-            ))}
-          </div>
+          <ChoixPastilles
+            libelle="Votre profil"
+            valeur={profil}
+            onChange={(valeur) => {
+              setProfil(valeur)
+              setErreur(null)
+            }}
+            options={profils}
+            className="grid grid-cols-2 gap-1 rounded-moyen border border-bordure bg-surface-douce p-1"
+            classeOption={(choisie) =>
+              cx('min-h-11 rounded-petit px-2 text-petit font-medium transition-colors duration-150', choisie ? 'bg-primaire text-sur-couleur shadow-1' : 'text-texte-doux hover:text-titre')
+            }
+          />
 
           {dev ? (
             <div className="flex flex-col gap-3">
@@ -114,7 +108,7 @@ export function Connexion() {
                 <GitBranch aria-hidden="true" className="size-4" />
                 Continuer avec GitHub
               </a>
-              <p className="m-0 text-petit text-texte-doux">Dépôts publics uniquement : on ne demande jamais l’accès à vos dépôts privés.</p>
+              <p className="m-0 text-petit text-texte-doux">Dépôts publics uniquement : on ne demande jamais l’accès à vos dépôts privés.</p>
             </div>
           ) : envoye ? (
             <Alerte
@@ -152,9 +146,9 @@ export function Connexion() {
           )}
 
           <p className="m-0 flex items-center gap-1.5 border-t border-bordure pt-4 text-petit text-texte-doux">
-            Pas encore décidé ?
+            Pas encore décidé ?
             <Link to="/store" className="inline-flex items-center gap-1 font-medium">
-              Parcourir le Store <ArrowRight aria-hidden="true" className="size-3.5" />
+              <span className="underline underline-offset-2">Parcourir le Store</span> <ArrowRight aria-hidden="true" className="size-3.5" />
             </Link>
           </p>
         </Carte>

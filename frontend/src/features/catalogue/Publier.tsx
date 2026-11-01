@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router'
 import { Check, ImagePlus, ShieldCheck } from 'lucide-react'
 import type { components } from '../../shared/types/api'
 import { useTitrePage } from '../../app/titre'
-import { messageAction } from '../echange/api'
+import { lireErreurHttp, messageAction } from '../echange/api'
 import { formules } from '../paiements/formules'
 import { categories, fcfa, publierAppli, verifierDepot, type Categorie } from './api'
 import { Alerte, Bouton, Carte, Champ, ChoixCartes, EnTetePage, Liste, PuceFiltre, Saisie, SaisieMontant, ZoneTexte, cx } from '../../ui'
@@ -34,6 +34,8 @@ export function Publier() {
   const [erreurDepot, setErreurDepot] = useState<string | null>(null)
   const [verification, setVerification] = useState(false)
   const [erreur, setErreur] = useState<string | null>(null)
+  // Erreurs par champ : vérifiées ici avant l'envoi, ou renvoyées par le serveur (422).
+  const [champs, setChamps] = useState<Record<string, string>>({})
   const [envoi, setEnvoi] = useState(false)
 
   const prixNombre = prix === '' ? null : Number(prix.replace(/\s/g, ''))
@@ -43,13 +45,14 @@ export function Publier() {
     prix: prixNombre !== null && typePrix !== null && taille !== null,
     medias: captures.length >= 1 && stack.length > 0,
   }
+  const complet = etapes.depot && etapes.infos && etapes.prix && etapes.medias
 
   async function verifier() {
     setErreurDepot(null)
     setVerification(true)
     try {
       const recu = await verifierDepot(depot.trim())
-      setVerif(`Dépôt valide : service web « ${recu.service_web.nom} », backend ${recu.backend}.`)
+      setVerif(`Dépôt valide : service web « ${recu.service_web.nom} », backend ${recu.backend}.`)
     } catch (erreurHttp) {
       setVerif(null)
       setErreurDepot(messageAction(erreurHttp, 'Le dépôt n’a pas passé la vérification.'))
@@ -61,8 +64,20 @@ export function Publier() {
   async function envoyer(evenement: FormEvent) {
     evenement.preventDefault()
     setErreur(null)
-    if (!categorie || prixNombre === null || !typePrix || !taille || stack.length === 0) {
-      setErreur('Renseignez la catégorie, le prix, le type de paiement, la taille d’hébergement et au moins une technologie.')
+    const manquants: Record<string, string> = {}
+    if (!depot.trim()) manquants.depot_url = 'Indiquez l’adresse du dépôt GitHub public.'
+    if (!nom.trim()) manquants.nom = 'Donnez un nom à l’appli.'
+    if (!description.trim()) manquants.description = 'Décrivez ce que fait l’appli, pour qui.'
+    if (!/^https:\/\/\S+\.\S+/.test(demo.trim())) manquants.demo_url = 'Indiquez l’adresse de la démo, en https://.'
+    if (!categorie) manquants.categorie = 'Choisissez une catégorie.'
+    if (prixNombre === null || Number.isNaN(prixNombre)) manquants.prix = 'Indiquez le prix, 0 si l’appli est gratuite.'
+    setChamps(manquants)
+    if (Object.keys(manquants).length > 0 || !categorie || prixNombre === null) {
+      setErreur('Il manque des informations : corrigez les champs signalés.')
+      return
+    }
+    if (!typePrix || !taille || stack.length === 0) {
+      setErreur('Choisissez le paiement, la taille d’hébergement et au moins une technologie.')
       return
     }
     if (captures.length < 1 || captures.length > 5) {
@@ -85,6 +100,8 @@ export function Publier() {
       })
       void naviguer(`/store/${creee.id}`)
     } catch (erreurHttp) {
+      // Les erreurs de champ du serveur (422) vont sous leur champ.
+      setChamps(lireErreurHttp(erreurHttp).champs)
       setErreur(messageAction(erreurHttp, 'La publication a échoué.'))
     } finally {
       setEnvoi(false)
@@ -93,13 +110,13 @@ export function Publier() {
 
   return (
     <div className="flex flex-col gap-6">
-      <EnTetePage titre="Publier une appli" description="Publier est gratuit et ne lance aucun serveur : votre appli tournera seulement quand un client la déploiera." />
+      <EnTetePage titre="Publier une appli" description="Publier est gratuit et ne lance aucun serveur : votre appli tournera seulement quand un client la déploiera." />
 
       <div className="grid gap-6 bureau:grid-cols-[minmax(0,1fr)_18rem] bureau:items-start">
         <form onSubmit={(evenement) => void envoyer(evenement)} className="flex min-w-0 flex-col gap-5" noValidate>
           <Etape numero={1} titre="Le dépôt GitHub" fait={etapes.depot} description="Un dépôt public, avec un docker-compose.yml et un soukdev.json à la racine.">
             <div className="flex flex-col gap-3 tablette:flex-row tablette:items-end">
-              <Champ libelle="Adresse du dépôt" erreur={erreurDepot} className="flex-1">
+              <Champ libelle="Adresse du dépôt" erreur={erreurDepot ?? champs.depot_url} className="flex-1">
                 {(liaison) => (
                   <Saisie
                     {...liaison}
@@ -125,22 +142,22 @@ export function Publier() {
             ) : null}
             <p className="m-0 flex gap-2 text-petit text-texte-doux">
               <ShieldCheck aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-              La vérification contrôle l’accès, le docker-compose et les secrets. L’analyse des dépendances démarre après la publication ; le badge apparaît alors sur la fiche.
+              La vérification contrôle l’accès, le docker-compose et les secrets. L’analyse des dépendances démarre après la publication ; le badge apparaît alors sur la fiche.
             </p>
           </Etape>
 
           <Etape numero={2} titre="Les infos" fait={etapes.infos}>
-            <Champ libelle="Nom">
+            <Champ libelle="Nom" erreur={champs.nom}>
               {(liaison) => <Saisie {...liaison} value={nom} onChange={(evenement) => setNom(evenement.target.value)} required maxLength={80} />}
             </Champ>
-            <Champ libelle="Description" aide="Ce que fait l’appli, pour qui : c’est ce que lit un client dans le Store.">
+            <Champ libelle="Description" erreur={champs.description} aide="Ce que fait l’appli, pour qui : c’est ce que lit un client dans le Store.">
               {(liaison) => <ZoneTexte {...liaison} value={description} onChange={(evenement) => setDescription(evenement.target.value)} required rows={4} />}
             </Champ>
             <div className="grid gap-4 tablette:grid-cols-2">
-              <Champ libelle="URL de l’application en ligne" aide="Sa démo, en HTTPS.">
+              <Champ libelle="URL de l’application en ligne" erreur={champs.demo_url} aide="Sa démo, en HTTPS.">
                 {(liaison) => <Saisie {...liaison} value={demo} onChange={(evenement) => setDemo(evenement.target.value)} required type="url" placeholder="https://votre-domaine.bj" />}
               </Champ>
-              <Champ libelle="Catégorie">
+              <Champ libelle="Catégorie" erreur={champs.categorie}>
                 {(liaison) => (
                   <Liste {...liaison} required value={categorie} onChange={(evenement) => setCategorie(evenement.target.value as Categorie | '')}>
                     <option value="">Choisir une catégorie</option>
@@ -155,9 +172,9 @@ export function Publier() {
             </div>
           </Etape>
 
-          <Etape numero={3} titre="Prix et hébergement" fait={etapes.prix} description="Le prix vous revient en entier ; le client paie en plus l’hébergement de sa copie.">
+          <Etape numero={3} titre="Prix et hébergement" fait={etapes.prix} description="Le prix vous revient en entier ; le client paie en plus l’hébergement de sa copie.">
             <div className="grid gap-4 tablette:grid-cols-[14rem_minmax(0,1fr)] tablette:items-start">
-              <Champ libelle="Prix de l’appli" aide="0 si elle est gratuite.">
+              <Champ libelle="Prix de l’appli" erreur={champs.prix} aide="0 si elle est gratuite.">
                 {(liaison) => <SaisieMontant {...liaison} value={prix} onChange={(evenement) => setPrix(evenement.target.value.replace(/[^\d ]/g, ''))} required placeholder="15 000" />}
               </Champ>
               <ChoixCartes
@@ -240,9 +257,16 @@ export function Publier() {
               {erreur}
             </Alerte>
           ) : null}
-          <Bouton type="submit" taille="lg" chargement={envoi} className="self-stretch tablette:self-end">
-            Publier l’appli
-          </Bouton>
+          <div className="flex flex-col items-stretch gap-2 tablette:items-end">
+            <Bouton type="submit" taille="lg" chargement={envoi} disabled={!complet} aria-describedby={complet ? undefined : 'publier-incomplet'}>
+              Publier l’appli
+            </Bouton>
+            {complet ? null : (
+              <p id="publier-incomplet" className="m-0 text-petit text-texte-doux">
+                Complétez les quatre étapes pour publier : le récapitulatif dit ce qui manque.
+              </p>
+            )}
+          </div>
         </form>
 
         <aside aria-labelledby="titre-recap" className="bureau:sticky bureau:top-24">
@@ -265,7 +289,7 @@ export function Publier() {
                   </span>
                   <span className={fait ? 'text-titre' : 'text-texte-doux'}>
                     {libelle}
-                    <span className="pour-lecteur">{fait ? ' : fait' : ' : à faire'}</span>
+                    <span className="pour-lecteur">{fait ? ' : fait' : ' : à faire'}</span>
                   </span>
                 </li>
               ))}

@@ -4,7 +4,8 @@ import { BadgeSecurite } from './BadgeSecurite'
 import { Badge, Etoiles, formaterNote } from '../../ui'
 
 /** Une appli : capture, nom (seul lien, qui couvre la carte), auteur, note, description, prix. */
-export function CarteAppli({ appli }: { appli: Appli }) {
+export function CarteAppli({ appli, niveau = 2 }: { appli: Appli; niveau?: 2 | 3 }) {
+  const Titre = niveau === 2 ? 'h2' : 'h3'
   const prix = appli.prix === 0 ? 'Gratuit' : fcfa(appli.prix)
   return (
     <article className="group relative flex w-full flex-col overflow-hidden rounded-moyen border border-bordure bg-surface shadow-1 transition-[box-shadow,border-color,transform] duration-200 ease-souk hover:-translate-y-0.5 hover:border-bordure-champ hover:shadow-3 has-[a:focus-visible]:outline-3 has-[a:focus-visible]:outline-offset-2 has-[a:focus-visible]:outline-lien">
@@ -26,11 +27,11 @@ export function CarteAppli({ appli }: { appli: Appli }) {
           <BadgeSecurite statut={appli.securite.statut} />
         </div>
         <div className="flex flex-col gap-0.5">
-          <h2 className="m-0 text-titre-3">
+          <Titre className="m-0 text-titre-3">
             <Link to={`/store/${appli.id}`} className="text-titre no-underline after:absolute after:inset-0 after:content-[''] focus-visible:outline-none">
               {appli.nom}
             </Link>
-          </h2>
+          </Titre>
           <p className="m-0 text-petit text-texte-doux">par {appli.auteur.nom || appli.auteur.username || 'un dev'}</p>
         </div>
         <p className="m-0 line-clamp-3 flex-1 text-corps text-texte">{appli.description}</p>

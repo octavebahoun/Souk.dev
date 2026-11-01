@@ -2,6 +2,7 @@ import { useCallback, useState, type FormEvent } from 'react'
 import { Link } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ExternalLink, GitPullRequestArrow } from 'lucide-react'
+import { ModaleConnexion } from '../../app/ModaleConnexion'
 import { Alerte, Avatar, Badge, Bouton, Carte, Champ, EtatErreur, Modale, Pagination, Saisie, Squelette, ZoneTexte, classesBouton, cx } from '../../ui'
 import {
   accepterCorrectif,
@@ -36,6 +37,7 @@ type ColonneCorrectifsProps = {
 export function ColonneCorrectifs({ discussion, auteur, page, onPage }: ColonneCorrectifsProps) {
   const client = useQueryClient()
   const [proposer, setProposer] = useState(false)
+  const [connexion, setConnexion] = useState(false)
   const [aAccepter, setAAccepter] = useState<Correctif | null>(null)
   const [depot, setDepot] = useState('')
   const [description, setDescription] = useState('')
@@ -128,7 +130,7 @@ export function ColonneCorrectifs({ discussion, auteur, page, onPage }: ColonneC
           <Squelette className="h-28 rounded-moyen" />
         </div>
       ) : null}
-      {correctifs.isError ? <EtatErreur description="Les correctifs n’ont pas pu être chargés." onReessayer={() => void correctifs.refetch()} /> : null}
+      {correctifs.isError ? <EtatErreur niveau={3} description="Les correctifs n’ont pas pu être chargés." onReessayer={() => void correctifs.refetch()} /> : null}
       {correctifs.isSuccess && correctifs.data.data.length === 0 ? (
         <p className="m-0 rounded-moyen border border-dashed border-bordure bg-surface p-4 text-petit text-texte-doux">Aucun correctif pour l’instant. Le premier qui propose sa branche aide l’auteur.</p>
       ) : null}
@@ -143,10 +145,10 @@ export function ColonneCorrectifs({ discussion, auteur, page, onPage }: ColonneC
         />
       ))}
 
-      {correctifs.data ? <Pagination page={page} dernierePage={correctifs.data.meta.last_page} onChange={onPage} /> : null}
+      {correctifs.data ? <Pagination libelle="Pages des correctifs" page={page} dernierePage={correctifs.data.meta.last_page} onChange={onPage} /> : null}
 
       <div className="flex flex-col gap-2">
-        <Bouton variante="secondaire" pleineLargeur icone={<GitPullRequestArrow aria-hidden="true" className="size-4" />} onClick={() => setProposer(true)}>
+        <Bouton variante="secondaire" pleineLargeur icone={<GitPullRequestArrow aria-hidden="true" className="size-4" />} onClick={() => (moi.data ? setProposer(true) : setConnexion(true))}>
           Proposer un correctif
         </Bouton>
         <p className="m-0 text-petit text-texte-doux">Un correctif, c’est l’URL de votre branche. Un seul correctif peut être accepté par discussion.</p>
@@ -154,6 +156,8 @@ export function ColonneCorrectifs({ discussion, auteur, page, onPage }: ColonneC
 
       {bug ? <AnalyseSoukAi discussionId={discussion.id} analyse={analyse} auteur={auteur} /> : null}
       {erreur && !proposer && !aAccepter ? <Alerte ton="danger">{erreur}</Alerte> : null}
+
+      <ModaleConnexion ouverte={connexion} onFermer={() => setConnexion(false)} action="proposer un correctif" />
 
       <Modale
         ouverte={proposer}
@@ -189,8 +193,8 @@ export function ColonneCorrectifs({ discussion, auteur, page, onPage }: ColonneC
         ouverte={aAccepter !== null}
         onFermer={fermerAcceptation}
         taille="petite"
-        titre="Accepter ce correctif ?"
-        description={aAccepter ? `Vous allez accepter le correctif de ${nomAuteur(aAccepter.auteur.nom, aAccepter.auteur.username)}. La discussion passe en résolue ; Souk.dev ne fusionne rien sur GitHub.` : undefined}
+        titre="Accepter ce correctif ?"
+        description={aAccepter ? `Vous allez accepter le correctif de ${nomAuteur(aAccepter.auteur.nom, aAccepter.auteur.username)}. La discussion passe en résolue ; Souk.dev ne fusionne rien sur GitHub.` : undefined}
         pied={
           <>
             <Bouton variante="contour" onClick={fermerAcceptation}>
@@ -273,6 +277,7 @@ function CorrectifCarte({
           <a href={correctif.demo_url} target="_blank" rel="noreferrer" className={classesBouton('contour', 'sm')}>
             Voir la démo corrigée
             <ExternalLink aria-hidden="true" className="size-3.5" />
+            <span className="pour-lecteur"> (nouvel onglet)</span>
           </a>
         ) : (
           <span className="text-petit text-texte-doux">Pas de démo</span>
@@ -291,12 +296,14 @@ function CorrectifCarte({
       {erreurLancement ? <Alerte ton="danger">{erreurLancement}</Alerte> : null}
       {deploiement ? (
         <p className="m-0 text-petit text-texte">
-          Version corrigée : {etatCopie[deploiement.etat]}
+          Version corrigée : {etatCopie[deploiement.etat]}
           {deploiement.etat === 'echec' && deploiement.erreur ? ` — ${deploiement.erreur}` : null}
           {deploiement.url ? (
             <>
               {' '}
-              <a href={deploiement.url}>{deploiement.url}</a>
+              <a href={deploiement.url} className="underline underline-offset-2">
+                {deploiement.url}
+              </a>
             </>
           ) : null}
         </p>
@@ -306,6 +313,7 @@ function CorrectifCarte({
           <a href={correctif.depot_url} target="_blank" rel="noreferrer" className={classesBouton('primaire', 'md', true)}>
             Fusionner sur GitHub
             <ExternalLink aria-hidden="true" className="size-4" />
+            <span className="pour-lecteur"> (nouvel onglet)</span>
           </a>
           <span className="text-petit text-texte-doux">Ouvre la branche sur GitHub. Souk.dev ne fusionne rien à votre place.</span>
         </div>

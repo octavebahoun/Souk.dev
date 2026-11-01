@@ -13,6 +13,7 @@ import { RapportSecurite } from '../securite/RapportSecurite'
 import { AvisClients } from './AvisClients'
 import { VersionsAppli } from './VersionsAppli'
 import { Signaler } from '../admin/Signaler'
+import { ModaleConnexion } from '../../app/ModaleConnexion'
 import {
   Alerte,
   Avatar,
@@ -59,6 +60,9 @@ export function Fiche() {
   })
   const [ecran, setEcran] = useState(0)
   const [mission, setMission] = useState(false)
+  // Chaque ouverture repart d'un formulaire vierge (une erreur passée ne revient pas).
+  const [ouvertures, setOuvertures] = useState(0)
+  const [connexion, setConnexion] = useState(false)
   useTitrePage(appli.data?.nom ?? 'Fiche')
 
   const conteneur = 'mx-auto flex w-full max-w-site flex-col gap-6 px-4 py-8 tablette:px-6 bureau:px-8'
@@ -120,7 +124,7 @@ export function Fiche() {
             <span className="flex items-center gap-2">
               <Avatar nom={auteur} taille="sm" />
               <span>
-                par {fiche.auteur.username ? <Link to={`/devs/${fiche.auteur.username}`} className="font-medium">{auteur}</Link> : auteur}
+                par {fiche.auteur.username ? <Link to={`/devs/${fiche.auteur.username}`} className="font-medium underline underline-offset-2">{auteur}</Link> : auteur}
                 {fiche.auteur.pays ? ` · ${nomPays(fiche.auteur.pays)}` : ''}
               </span>
             </span>
@@ -176,7 +180,18 @@ export function Fiche() {
                   <span className="pour-lecteur"> (nouvel onglet)</span>
                 </a>
               ) : null}
-              <Bouton variante="fantome" pleineLargeur onClick={() => setMission(true)}>
+              <Bouton
+                variante="fantome"
+                pleineLargeur
+                onClick={() => {
+                  if (!compte.data) {
+                    setConnexion(true)
+                    return
+                  }
+                  setOuvertures((nombre) => nombre + 1)
+                  setMission(true)
+                }}
+              >
                 Demander une version sur mesure
               </Bouton>
             </div>
@@ -185,7 +200,7 @@ export function Fiche() {
               Votre copie tourne à part, avec ses propres données. Paiement par Mobile Money, en FCFA.
             </p>
             {fiche.variables_client.length > 0 ? (
-              <Alerte titre="Au déploiement, vous remplirez :">
+              <Alerte titre="Au déploiement, vous remplirez :">
                 <ul className="m-0 list-disc pl-4">
                   {fiche.variables_client.map((variable) => (
                     <li key={variable.nom}>{variable.libelle}</li>
@@ -217,7 +232,7 @@ export function Fiche() {
                       <button
                         key={capture.url}
                         type="button"
-                        aria-pressed={index === numero}
+                        aria-current={index === numero ? 'true' : undefined}
                         aria-label={`Capture ${numero + 1} sur ${captures.length}`}
                         onClick={() => setEcran(numero)}
                         className={cx('w-28 shrink-0 overflow-hidden rounded-petit border-2', index === numero ? 'border-primaire' : 'border-bordure hover:border-bordure-champ')}
@@ -260,9 +275,17 @@ export function Fiche() {
                   Discussions{discussions.isSuccess ? <span className="ml-2 text-corps font-normal text-texte-doux">{discussions.data.data.length}</span> : null}
                 </span>
               }
-              description="Ouvertes à tous : clients et devs. Un dev peut y proposer un correctif."
+              description="Ouvertes à tous : clients et devs. Un dev peut y proposer un correctif."
             />
             {discussions.isPending ? <Squelette className="h-12 w-full" /> : null}
+            {discussions.isError ? (
+              <p className="m-0 flex flex-wrap items-center gap-2 text-corps text-texte-doux">
+                Les discussions n’ont pas pu être chargées.
+                <Bouton variante="fantome" taille="sm" onClick={() => void discussions.refetch()}>
+                  Réessayer
+                </Bouton>
+              </p>
+            ) : null}
             {discussions.isSuccess && discussions.data.data.length === 0 ? <p className="m-0 text-corps text-texte-doux">Aucune discussion sur cette appli pour le moment.</p> : null}
             {discussions.isSuccess && discussions.data.data.length > 0 ? (
               <ul className="m-0 flex list-none flex-col p-0">
@@ -288,7 +311,8 @@ export function Fiche() {
           </Carte>
         </div>
       </div>
-      <DemandeSurMesure id={fiche.id} ouverte={mission} onFermer={() => setMission(false)} />
+      <DemandeSurMesure key={ouvertures} id={fiche.id} ouverte={mission} onFermer={() => setMission(false)} />
+      <ModaleConnexion ouverte={connexion} onFermer={() => setConnexion(false)} action="demander une version sur mesure" />
     </div>
   )
 }
@@ -311,7 +335,7 @@ function DemandeSurMesure({ id, ouverte, onFermer }: { id: number; ouverte: bool
         budget: budget ? Number(budget) : undefined,
         delai: String(donnees.get('delai') ?? '') || undefined,
       })
-      toast.succes('Demande envoyée : elle apparaît dans Missions.')
+      toast.succes('Demande envoyée : elle apparaît dans Missions.')
       onFermer()
     } catch (erreurHttp) {
       setErreur(messageAction(erreurHttp, 'La demande n’a pas pu partir. Réessayez dans un moment.'))

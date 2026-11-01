@@ -2,7 +2,7 @@ import { useState, type KeyboardEvent } from 'react'
 import { Link } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Send } from 'lucide-react'
-import { Alerte, Avatar, Badge, Bouton, Carte, Champ, EnTeteCarte, EtatErreur, Pagination, SqueletteLignes, ZoneTexte } from '../../ui'
+import { Alerte, Avatar, Badge, Bouton, Carte, Champ, EnTeteCarte, EtatErreur, LienBouton, Pagination, SqueletteLignes, ZoneTexte } from '../../ui'
 import { creerMessage, listerMessages, lireErreurHttp, messageAction } from './api'
 import { Signaler } from '../admin/Signaler'
 import { ilYA, nomAuteur } from './texte'
@@ -74,7 +74,7 @@ export function FilMessages({ discussionId, auteurId, page, onPage, connecteId }
           <SqueletteLignes lignes={3} />
         </div>
       ) : null}
-      {messages.isError ? <EtatErreur description="Les messages n’ont pas pu être chargés." onReessayer={() => void messages.refetch()} /> : null}
+      {messages.isError ? <EtatErreur niveau={3} description="Les messages n’ont pas pu être chargés." onReessayer={() => void messages.refetch()} /> : null}
       {messages.isSuccess && messages.data.data.length === 0 ? <p className="m-0 text-corps text-texte-doux">Aucun message pour l’instant.</p> : null}
       {messages.isSuccess && messages.data.data.length > 0 ? (
         <ol className="m-0 flex list-none flex-col p-0">
@@ -108,8 +108,13 @@ export function FilMessages({ discussionId, auteurId, page, onPage, connecteId }
         </ol>
       ) : null}
 
-      {messages.data ? <Pagination page={page} dernierePage={messages.data.meta.last_page} onChange={onPage} /> : null}
+      {messages.data ? <Pagination libelle="Pages des messages" page={page} dernierePage={messages.data.meta.last_page} onChange={onPage} /> : null}
 
+      {connecteId === null ? (
+        <Alerte titre="Connectez-vous pour répondre" action={<LienBouton to="/connexion" taille="sm">Se connecter</LienBouton>}>
+          Répondre, proposer une piste ou un correctif demande un compte.
+        </Alerte>
+      ) : (
       <form onSubmit={soumettre} className="flex flex-col gap-3 border-t border-bordure pt-4">
         <Champ libelle="Votre réponse" erreur={erreurLocale} aide="Markdown accepté. Entrée envoie, Maj+Entrée passe une ligne.">
           {(liaison) => (
@@ -128,6 +133,7 @@ export function FilMessages({ discussionId, auteurId, page, onPage, connecteId }
           Envoyer
         </Bouton>
       </form>
+      )}
     </Carte>
   )
 }

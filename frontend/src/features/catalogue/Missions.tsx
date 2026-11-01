@@ -13,9 +13,11 @@ import {
   Bouton,
   Carte,
   Champ,
+  ChoixPastilles,
   EnTetePage,
   EtatErreur,
   EtatVide,
+  Etoiles,
   LienBouton,
   Modale,
   Saisie,
@@ -49,9 +51,8 @@ export function Missions() {
   useTitrePage('Missions')
   const missions = useQuery({ queryKey: ['missions'], queryFn: listerMissions })
   const moi = useQuery({ queryKey: ['moi'], queryFn: lireMoi })
-  const [parametres, setParametres] = useSearchParams()
+  const [parametres] = useSearchParams()
   const choisie = Number(parametres.get('mission')) || null
-  const choisir = (id: number) => setParametres({ mission: String(id) }, { replace: true })
   const [nouvelle, setNouvelle] = useState(false)
   const [maintenant] = useState(() => Date.now())
   const liste = missions.data?.data ?? []
@@ -61,7 +62,7 @@ export function Missions() {
     <div className="flex flex-col gap-6">
       <EnTetePage
         titre="Missions"
-        description="Personnaliser une appli avec son auteur, ou recruter un dev directement : des missions privées, sans enchères, payées à la livraison."
+        description="Personnaliser une appli avec son auteur, ou recruter un dev directement : des missions privées, sans enchères, payées à la livraison."
         actions={
           <Bouton icone={<Plus aria-hidden="true" className="size-4" />} onClick={() => setNouvelle(true)}>
             Nouvelle mission
@@ -98,12 +99,12 @@ export function Missions() {
               const actif = item.id === mission?.id
               const autre = moi.data?.id === item.client.id ? item.auteur : item.client
               return (
-                <button
+                <Link
                   key={item.id}
-                  type="button"
+                  to={`?mission=${item.id}`}
+                  replace
                   aria-current={actif ? 'true' : undefined}
-                  onClick={() => choisir(item.id)}
-                  className={cx('flex items-start gap-3 rounded-petit p-3 text-left transition-colors duration-150', actif ? 'bg-surface-accent' : 'hover:bg-surface-douce')}
+                  className={cx('flex items-start gap-3 rounded-petit p-3 text-left no-underline transition-colors duration-150', actif ? 'bg-surface-accent' : 'hover:bg-surface-douce')}
                 >
                   <Avatar nom={nom(autre)} taille="sm" />
                   <span className="flex min-w-0 flex-1 flex-col gap-1">
@@ -113,7 +114,7 @@ export function Missions() {
                     </span>
                     <Etiquettes mission={item} moiId={moi.data?.id} />
                   </span>
-                </button>
+                </Link>
               )
             })}
           </nav>
@@ -121,7 +122,7 @@ export function Missions() {
         </div>
       ) : null}
 
-      <Modale ouverte={nouvelle} onFermer={() => setNouvelle(false)} titre="Nouvelle mission" description="Que voulez-vous faire ?" taille="petite">
+      <Modale ouverte={nouvelle} onFermer={() => setNouvelle(false)} titre="Nouvelle mission" description="Que voulez-vous faire ?" taille="petite">
         <div className="flex flex-col gap-2">
           <Choix to="/store" titre="Personnaliser une appli" texte="Choisissez une appli du Store et demandez des changements à son auteur." />
           <Choix to="/devs" titre="Recruter un dev" texte="Trouvez un dev par compétence et proposez-lui votre projet." />
@@ -184,10 +185,10 @@ function Detail({ mission, moiId, maintenant }: { mission: Mission; moiId: numbe
         <p className="m-0 text-petit text-texte-doux">
           {mission.app_id ? (
             <>
-              Personnalisation d’une appli du Store : <Link to={`/store/${mission.app_id}`} className="underline underline-offset-2">voir sa fiche</Link>.{' '}
+              Personnalisation d’une appli du Store : <Link to={`/store/${mission.app_id}`} className="underline underline-offset-2">voir sa fiche</Link>.{' '}
             </>
           ) : (
-            'Recrutement direct : le client a trouvé le dev dans « Trouver un dev ». '
+            'Recrutement direct : le client a trouvé le dev dans « Trouver un dev ». '
           )}
           Visible uniquement par le client et le dev.
         </p>
@@ -199,7 +200,18 @@ function Detail({ mission, moiId, maintenant }: { mission: Mission; moiId: numbe
           <span className="text-etiquette text-alerte uppercase">Le besoin</span>
           <span className="text-corps whitespace-pre-wrap text-titre">{mission.message}</span>
         </li>
-        {messages.isPending ? <SqueletteLignes lignes={2} /> : null}
+        {messages.isPending ? (
+          <li>
+            <SqueletteLignes lignes={2} />
+          </li>
+        ) : null}
+        {messages.isError ? (
+          <li>
+            <Alerte ton="danger" action={<Bouton variante="fantome" taille="sm" onClick={() => void messages.refetch()}>Réessayer</Bouton>}>
+              Les messages n’ont pas pu être chargés.
+            </Alerte>
+          </li>
+        ) : null}
         {messages.data?.data.map((message) => {
           const mien = message.auteur.id === moiId
           return (
@@ -270,7 +282,7 @@ function Noter({ mission, ouverte, onFermer }: { mission: Mission; ouverte: bool
       ouverte={ouverte}
       onFermer={onFermer}
       titre="Terminer et noter la mission"
-      description={`Comment s’est passée la mission avec ${nom(mission.auteur)} ? Une seule fois : la note compte dans sa réputation et son Souk Score.`}
+      description={`Comment s’est passée la mission avec ${nom(mission.auteur)} ? Une seule fois : la note compte dans sa réputation et son Souk Score.`}
       pied={
         <>
           <Bouton variante="contour" onClick={onFermer}>
@@ -283,26 +295,26 @@ function Noter({ mission, ouverte, onFermer }: { mission: Mission; ouverte: bool
       }
     >
       <form id="noter-mission" onSubmit={(evenement) => void envoyer(evenement)} className="flex flex-col gap-4">
-        <fieldset className="m-0 border-0 p-0">
-          <legend className="mb-2 text-petit font-medium text-titre">Votre note</legend>
-          <div className="flex flex-wrap items-center gap-1">
-            {[1, 2, 3, 4, 5].map((valeur) => (
-              <button
-                key={valeur}
-                type="button"
-                aria-label={`${valeur} sur 5`}
-                aria-pressed={note === valeur}
-                onClick={() => {
-                  setNote(valeur)
-                  setErreur(null)
-                }}
-                className="grid size-11 place-items-center rounded-moyen hover:bg-surface-douce"
-              >
-                <Star aria-hidden="true" className={cx('size-6 text-alerte', valeur <= note && 'fill-current')} />
-              </button>
-            ))}
-          </div>
-        </fieldset>
+        <div className="flex flex-col gap-2">
+          <span aria-hidden="true" className="text-petit font-medium text-titre">
+            Votre note
+          </span>
+          <ChoixPastilles
+            libelle="Votre note"
+            valeur={String(note)}
+            onChange={(valeur) => {
+              setNote(Number(valeur))
+              setErreur(null)
+            }}
+            className="gap-1"
+            classeOption={() => 'grid size-11 place-items-center rounded-moyen hover:bg-surface-douce'}
+            options={['1', '2', '3', '4', '5'].map((valeur) => ({
+              valeur,
+              libelleAccessible: `${valeur} sur 5`,
+              libelle: <Star aria-hidden="true" className={cx('size-6 text-etoile', Number(valeur) <= note && 'fill-current')} />,
+            }))}
+          />
+        </div>
         <Champ libelle="Commentaire" facultatif>
           {(liaison) => <ZoneTexte {...liaison} value={commentaire} onChange={(evenement) => setCommentaire(evenement.target.value)} rows={3} placeholder="Ce qui vous a plu, ce qui peut être amélioré…" />}
         </Champ>
@@ -330,14 +342,10 @@ function NoteBloc({ note, commentaire, mienne }: { note: number; commentaire: st
     <div className="flex flex-col gap-1 rounded-moyen border border-bordure bg-surface-douce p-3">
       <div className="flex flex-wrap items-center gap-2 text-petit">
         <span className="font-medium text-texte">{mienne ? 'Votre note' : 'Note du client'}</span>
-        <span role="img" aria-label={`${note} étoiles sur 5`} className="flex">
-          {[1, 2, 3, 4, 5].map((valeur) => (
-            <Star key={valeur} aria-hidden="true" className={cx('size-4 text-alerte', valeur <= note && 'fill-current')} />
-          ))}
-        </span>
+        <Etoiles note={note} taille="sm" />
         <strong className="chiffres text-titre">{note} / 5</strong>
       </div>
-      {commentaire ? <p className="m-0 text-petit text-texte">« {commentaire} »</p> : null}
+      {commentaire ? <p className="m-0 text-petit text-texte">« {commentaire} »</p> : null}
     </div>
   )
 }

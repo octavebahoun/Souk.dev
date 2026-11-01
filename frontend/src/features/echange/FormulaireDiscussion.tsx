@@ -128,7 +128,7 @@ export function FormulaireDiscussion({
 
   const alerte =
     serveur?.statut === 429
-      ? 'Limite atteinte : 10 discussions par heure. Réessayez plus tard.'
+      ? 'Limite atteinte : 10 discussions par heure. Réessayez plus tard.'
       : serveur?.statut === 401
         ? 'Il faut être connecté pour publier.'
         : serveur?.statut === 419
@@ -153,7 +153,7 @@ export function FormulaireDiscussion({
 
       <Champ libelle="Titre" erreur={erreurDe('titre', locaux.titre)}>
         {(liaison) => (
-          <Saisie {...liaison} value={titre} onChange={(evenement) => setTitre(evenement.target.value)} placeholder="Ex. : Le webhook Wave ne déclenche rien en production" data-autofocus />
+          <Saisie {...liaison} value={titre} onChange={(evenement) => setTitre(evenement.target.value)} placeholder="Ex. : Le webhook Wave ne déclenche rien en production" data-autofocus />
         )}
       </Champ>
 

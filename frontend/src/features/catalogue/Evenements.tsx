@@ -18,10 +18,11 @@ import {
   LienBouton,
   Liste,
   Modale,
-  PuceFiltre,
+  ChoixPastilles,
   Saisie,
   SqueletteListe,
   ZoneTexte,
+  formaterNote,
   useToast,
 } from '../../ui'
 
@@ -45,10 +46,17 @@ export function Evenements() {
   const toast = useToast()
   const [filtre, setFiltre] = useState<Filtre>('tous')
   const [ouvert, setOuvert] = useState(false)
+  // Chaque ouverture repart d'un formulaire vierge (format, erreur).
+  const [ouvertures, setOuvertures] = useState(0)
   const [maintenant] = useState(() => Date.now())
   const liste = (query.data?.data ?? []).filter((item) => filtre === 'tous' || item.type === filtre)
   const aVenir = liste.filter((item) => new Date(item.date).getTime() >= maintenant)
   const passes = liste.filter((item) => new Date(item.date).getTime() < maintenant)
+
+  function ouvrir() {
+    setOuvertures((nombre) => nombre + 1)
+    setOuvert(true)
+  }
 
   async function basculer(item: Evenement) {
     try {
@@ -67,19 +75,13 @@ export function Evenements() {
         titre="Événements"
         description="Ateliers en ligne et rencontres près de chez vous, organisés par les devs de la communauté."
         actions={
-          <Bouton icone={<CalendarPlus aria-hidden="true" className="size-4" />} onClick={() => setOuvert(true)}>
+          <Bouton icone={<CalendarPlus aria-hidden="true" className="size-4" />} onClick={ouvrir}>
             Créer un événement
           </Bouton>
         }
       />
 
-      <div role="group" aria-label="Type d’événement" className="flex flex-wrap gap-2">
-        {filtres.map((item) => (
-          <PuceFiltre key={item.valeur} presse={filtre === item.valeur} onClick={() => setFiltre(item.valeur)}>
-            {item.libelle}
-          </PuceFiltre>
-        ))}
-      </div>
+      <ChoixPastilles libelle="Type d’événement" valeur={filtre} onChange={setFiltre} options={filtres} />
 
       {query.isPending ? <SqueletteListe nombre={3} /> : null}
       {query.isError ? <EtatErreur description={messageAction(query.error, 'Les événements n’ont pas pu être chargés.')} onReessayer={() => void query.refetch()} /> : null}
@@ -87,8 +89,8 @@ export function Evenements() {
         <EtatVide
           illustration="vide-evenements"
           titre="Aucun événement de ce type pour l’instant"
-          description="Un atelier, une rencontre, une revue de code : pourquoi pas le vôtre ?"
-          action={<Bouton onClick={() => setOuvert(true)}>Créer un événement</Bouton>}
+          description="Un atelier, une rencontre, une revue de code : pourquoi pas le vôtre ?"
+          action={<Bouton onClick={ouvrir}>Créer un événement</Bouton>}
         />
       ) : null}
 
@@ -118,7 +120,7 @@ export function Evenements() {
         </section>
       ) : null}
 
-      <Formulaire ouvert={ouvert} onFermer={() => setOuvert(false)} />
+      <Formulaire key={ouvertures} ouvert={ouvert} onFermer={() => setOuvert(false)} />
     </div>
   )
 }
@@ -149,7 +151,7 @@ function CarteEvenement({ item, passe = false, onBasculer, connecteId }: { item:
           {item.organisateur.username ? (
             <>
               {' · par '}
-              <Link to={`/devs/${item.organisateur.username}`} className="font-medium">
+              <Link to={`/devs/${item.organisateur.username}`} className="font-medium underline underline-offset-2">
                 {item.organisateur.nom || item.organisateur.username}
               </Link>
             </>
@@ -157,14 +159,14 @@ function CarteEvenement({ item, passe = false, onBasculer, connecteId }: { item:
         </p>
         {item.lien ? (
           <p className="m-0 text-petit">
-            Lien : <a href={item.lien} className="font-mono break-all">{item.lien}</a>
+            Lien : <a href={item.lien} className="font-mono break-all underline underline-offset-2">{item.lien}</a>
           </p>
         ) : null}
         {item.type === 'en_ligne' && !item.lien && !passe ? <p className="m-0 text-petit text-texte-doux">Le lien apparaît une fois inscrit.</p> : null}
         {item.note_moyenne != null ? (
           <p className="m-0 flex items-center gap-1 text-petit font-medium text-titre">
-            <Star aria-hidden="true" className="size-4 fill-current text-alerte" />
-            {item.note_moyenne} <span className="font-normal text-texte-doux">/ 5</span>
+            <Star aria-hidden="true" className="size-4 fill-current text-etoile" />
+            {formaterNote(item.note_moyenne)} <span className="font-normal text-texte-doux">/ 5</span>
           </p>
         ) : null}
         {/* Seuls les participants inscrits donnent leur avis, une fois l'événement passé. */}
@@ -172,7 +174,7 @@ function CarteEvenement({ item, passe = false, onBasculer, connecteId }: { item:
       </div>
       <div className="flex shrink-0 flex-row items-center justify-between gap-2 border-t border-bordure pt-3 tablette:flex-col tablette:items-end tablette:justify-start tablette:border-t-0 tablette:pt-0">
         {!passe && onBasculer ? (
-          <Bouton variante={item.inscrit ? 'contour' : 'primaire'} aria-pressed={item.inscrit} onClick={onBasculer}>
+          <Bouton variante={item.inscrit ? 'contour' : 'primaire'} onClick={onBasculer}>
             {item.inscrit ? 'Se désinscrire' : 'S’inscrire'}
           </Bouton>
         ) : null}
@@ -305,7 +307,7 @@ function Formulaire({ ouvert, onFermer }: { ouvert: boolean; onFermer: () => voi
       ouverte={ouvert}
       onFermer={onFermer}
       titre="Créer un événement"
-      description="Il apparaît tout de suite dans la liste ; vous pourrez le modifier ou l’annuler ensuite."
+      description="Il apparaît tout de suite dans la liste ; vous pourrez le modifier ou l’annuler ensuite."
       pied={
         <>
           <Bouton variante="contour" onClick={onFermer}>
@@ -319,7 +321,7 @@ function Formulaire({ ouvert, onFermer }: { ouvert: boolean; onFermer: () => voi
     >
       <form id="creer-evenement" onSubmit={(evenement) => void envoyer(evenement)} className="flex flex-col gap-4">
         <Champ libelle="Titre">
-          {(liaison) => <Saisie {...liaison} name="titre" required maxLength={200} placeholder="Ex. : Atelier Laravel à Cotonou" data-autofocus />}
+          {(liaison) => <Saisie {...liaison} name="titre" required maxLength={200} placeholder="Ex. : Atelier Laravel à Cotonou" data-autofocus />}
         </Champ>
         <Champ libelle="Description">
           {(liaison) => <ZoneTexte {...liaison} name="description" required maxLength={10000} rows={3} placeholder="Le sujet, et ce que les participants vont apprendre…" />}
@@ -343,7 +345,7 @@ function Formulaire({ ouvert, onFermer }: { ouvert: boolean; onFermer: () => voi
         />
         {type === 'presentiel' ? (
           <Champ libelle="Lieu">
-            {(liaison) => <Saisie {...liaison} name="lieu" required maxLength={200} placeholder="Ex. : Cotonou, Haie Vive" />}
+            {(liaison) => <Saisie {...liaison} name="lieu" required maxLength={200} placeholder="Ex. : Cotonou, Haie Vive" />}
           </Champ>
         ) : null}
         {type === 'en_ligne' ? (

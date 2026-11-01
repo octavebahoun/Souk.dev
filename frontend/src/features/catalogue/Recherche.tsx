@@ -5,6 +5,8 @@ import { Search, Sparkles } from 'lucide-react'
 import { useTitrePage } from '../../app/titre'
 import { listerDevs, proposerMissionDev, type DevResume, type Specialite } from './api'
 import { messageAction } from '../echange/api'
+import { useCompte } from '../../app/compte'
+import { ModaleConnexion } from '../../app/ModaleConnexion'
 import { nomPays } from '../echange/texte'
 import {
   Alerte,
@@ -24,6 +26,7 @@ import {
   SaisieMontant,
   SqueletteCartes,
   ZoneTexte,
+  formaterNote,
   useToast,
 } from '../../ui'
 
@@ -93,7 +96,9 @@ export function Recherche() {
   useTitrePage('Trouver un dev')
   const [params, setParams] = useSearchParams()
   const [besoin, setBesoin] = useState('')
+  const compte = useCompte()
   const [cible, setCible] = useState<DevResume | null>(null)
+  const [connexion, setConnexion] = useState(false)
   const filtres = {
     pays: params.get('pays') ?? '',
     competence: params.get('competence') ?? '',
@@ -125,14 +130,14 @@ export function Recherche() {
 
   return (
     <div className="mx-auto flex w-full max-w-site flex-col gap-6 px-4 py-8 tablette:px-6 bureau:px-8">
-      <EnTetePage titre="Trouver un dev" description="Classés par Souk Score : la qualité et l’activité récente, validées par d’autres. Contacter un dev est gratuit." />
+      <EnTetePage titre="Trouver un dev" description="Classés par Souk Score : la qualité et l’activité récente, validées par d’autres. Contacter un dev est gratuit." />
 
       <section aria-label="Votre besoin et filtres" className="flex flex-col gap-4 rounded-moyen border border-bordure bg-surface p-4 tablette:p-5">
         <Champ libelle="Votre besoin" aide="Les devs dont le profil correspond le mieux passent en tête.">
           {(liaison) => (
             <div className="relative">
               <Search aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-texte-indice" />
-              <Saisie {...liaison} type="search" value={besoin} onChange={(evenement) => setBesoin(evenement.target.value)} placeholder="Ex. : paiement MoMo, appli mobile, API" className="pl-9" />
+              <Saisie {...liaison} type="search" value={besoin} onChange={(evenement) => setBesoin(evenement.target.value)} placeholder="Ex. : paiement MoMo, appli mobile, API" className="pl-9" />
             </div>
           )}
         </Champ>
@@ -218,12 +223,13 @@ export function Recherche() {
         <ul className="m-0 grid list-none gap-5 p-0 tablette:grid-cols-2 bureau:grid-cols-3">
           {liste.map((dev) => (
             <li key={dev.id} className="flex">
-              <CarteDev dev={dev} correspondance={avecBesoin ? scoreCorrespondance(dev, besoin) : null} onMission={() => setCible(dev)} />
+              <CarteDev dev={dev} correspondance={avecBesoin ? scoreCorrespondance(dev, besoin) : null} onMission={() => (compte.data ? setCible(dev) : setConnexion(true))} />
             </li>
           ))}
         </ul>
       ) : null}
-      <MissionDev dev={cible} onFermer={() => setCible(null)} />
+      <MissionDev key={cible?.id ?? 'aucun'} dev={cible} onFermer={() => setCible(null)} />
+      <ModaleConnexion ouverte={connexion} onFermer={() => setConnexion(false)} action="proposer une mission" />
     </div>
   )
 }
@@ -271,7 +277,7 @@ function CarteDev({ dev, correspondance, onMission }: { dev: DevResume; correspo
       <p className="m-0 text-corps text-texte">{dev.competences.join(' · ') || 'Compétences non renseignées'}</p>
       <p className="m-0 text-petit text-texte-doux">
         {pluriel(dev.stats.bugs_resolus, 'bug résolu', 'bugs résolus')} · {pluriel(dev.stats.missions_terminees, 'mission', 'missions')} ·{' '}
-        {dev.stats.note_moyenne == null ? 'pas encore noté' : `${dev.stats.note_moyenne} / 5`}
+        {dev.stats.note_moyenne == null ? 'pas encore noté' : `${formaterNote(dev.stats.note_moyenne)} / 5`}
       </p>
       <div className="mt-auto flex gap-2 border-t border-bordure pt-4">
         {dev.username ? (
@@ -279,7 +285,7 @@ function CarteDev({ dev, correspondance, onMission }: { dev: DevResume; correspo
             Voir le profil
           </LienBouton>
         ) : null}
-        <Bouton className="flex-1" disabled={!dev.username} onClick={onMission}>
+        <Bouton variante="secondaire" className="flex-1" disabled={!dev.username} onClick={onMission}>
           Proposer une mission
         </Bouton>
       </div>
@@ -306,7 +312,7 @@ function MissionDev({ dev, onFermer }: { dev: DevResume | null; onFermer: () => 
         budget: budget ? Number(budget) : undefined,
         delai: String(donnees.get('delai') ?? '') || undefined,
       })
-      toast.succes('Demande envoyée : elle apparaît dans Missions.')
+      toast.succes('Demande envoyée : elle apparaît dans Missions.')
       onFermer()
     } catch (erreurHttp) {
       setErreur(messageAction(erreurHttp, 'La demande n’a pas été envoyée.'))
@@ -320,7 +326,7 @@ function MissionDev({ dev, onFermer }: { dev: DevResume | null; onFermer: () => 
       ouverte={dev !== null}
       onFermer={onFermer}
       titre={`Proposer une mission à ${dev?.nom || dev?.username || 'ce dev'}`}
-      description="Privé : visible par vous et ce dev. Contacter un dev est gratuit."
+      description="Privé : visible par vous et ce dev. Contacter un dev est gratuit."
       pied={
         <>
           <Bouton variante="contour" onClick={onFermer}>
@@ -333,9 +339,9 @@ function MissionDev({ dev, onFermer }: { dev: DevResume | null; onFermer: () => 
       }
     >
       <form id="mission-dev" onSubmit={(evenement) => void envoyer(evenement)} className="flex flex-col gap-4">
-        {dev && !dev.disponible ? <Alerte ton="alerte">Ce dev s’est marqué indisponible : il peut quand même répondre.</Alerte> : null}
+        {dev && !dev.disponible ? <Alerte ton="alerte">Ce dev s’est marqué indisponible : il peut quand même répondre.</Alerte> : null}
         <Champ libelle="Votre besoin">
-          {(liaison) => <ZoneTexte {...liaison} name="message" required rows={4} placeholder="Ex. : ajouter le paiement MoMo à ma boutique en ligne" data-autofocus />}
+          {(liaison) => <ZoneTexte {...liaison} name="message" required rows={4} placeholder="Ex. : ajouter le paiement MoMo à ma boutique en ligne" data-autofocus />}
         </Champ>
         <div className="grid gap-4 tablette:grid-cols-2">
           <Champ libelle="Budget" facultatif>

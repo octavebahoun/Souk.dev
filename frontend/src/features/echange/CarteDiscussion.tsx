@@ -40,7 +40,7 @@ export function CarteDiscussion({ discussion, nouvelle = false, onPartager }: Ca
     >
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-petit text-texte-doux">
         {auteur.username ? (
-          <Link to={`/devs/${auteur.username}`} className="relative z-[1] inline-flex items-center gap-2 font-medium text-titre no-underline hover:underline">
+          <Link to={`/devs/${auteur.username}`} className="relative z-[1] inline-flex min-h-11 items-center gap-2 font-medium text-titre no-underline hover:underline tablette:min-h-0">
             <Avatar nom={nom} url={auteur.avatar_url} taille="xs" />
             <span className="break-all">{nom}</span>
           </Link>
@@ -54,7 +54,7 @@ export function CarteDiscussion({ discussion, nouvelle = false, onPartager }: Ca
         {discussion.canal ? (
           <span className="font-mono break-all">#{discussion.canal}</span>
         ) : discussion.app_id ? (
-          <Link to={`/store/${discussion.app_id}`} className="relative z-[1]">
+          <Link to={`/store/${discussion.app_id}`} className="relative z-[1] inline-flex min-h-11 items-center underline underline-offset-2 tablette:min-h-0">
             Sur une appli
           </Link>
         ) : (
@@ -69,11 +69,11 @@ export function CarteDiscussion({ discussion, nouvelle = false, onPartager }: Ca
         </span>
       </div>
       <div className="flex flex-col gap-1">
-        <h2 className="m-0 text-titre-3 break-words">
+        <h3 className="m-0 text-titre-3 break-words">
           <Link to={`/echange/${discussion.id}`} className="text-titre no-underline after:absolute after:inset-0 after:content-[''] focus-visible:outline-none">
             {discussion.titre}
           </Link>
-        </h2>
+        </h3>
         <p className="m-0 line-clamp-2 text-corps break-words text-texte">{apercu(discussion.texte)}</p>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -85,7 +85,7 @@ export function CarteDiscussion({ discussion, nouvelle = false, onPartager }: Ca
           ))}
           {difficulte ? (
             <Badge ton={tonDifficulte[difficulte]}>
-              <span className="pour-lecteur">Difficulté : </span>
+              <span className="pour-lecteur">Difficulté : </span>
               {libelleDifficulte[difficulte]}
             </Badge>
           ) : null}

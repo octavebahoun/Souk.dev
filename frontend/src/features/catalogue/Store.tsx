@@ -18,7 +18,7 @@ import {
   LienBouton,
   Liste,
   Saisie,
-  PuceFiltre,
+  ChoixPastilles,
   SqueletteCartes,
 } from '../../ui'
 
@@ -86,7 +86,7 @@ export function Store() {
     <div className="mx-auto flex w-full max-w-site flex-col gap-6 px-4 py-8 tablette:px-6 bureau:px-8">
       <EnTetePage
         titre="Store"
-        description="Des applis publiées par des devs africains, prêtes à tourner pour vous : chaque client a sa copie isolée, payée en FCFA."
+        description="Des applis publiées par des devs africains, prêtes à tourner pour vous : chaque client a sa copie isolée, payée en FCFA."
       />
 
       <section aria-label="Recherche et filtres" className="flex flex-col gap-4">
@@ -127,13 +127,13 @@ export function Store() {
           </Bouton>
         </div>
 
-        <div role="group" aria-label="Catégorie" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 tablette:mx-0 tablette:flex-wrap tablette:px-0">
-          {[{ valeur: '', libelle: 'Toutes' }, ...categories].map((item) => (
-            <PuceFiltre key={item.valeur || 'toutes'} presse={filtres.categorie === item.valeur} onClick={() => changer('categorie', item.valeur)}>
-              {item.libelle}
-            </PuceFiltre>
-          ))}
-        </div>
+        <ChoixPastilles
+          libelle="Catégorie"
+          valeur={filtres.categorie}
+          onChange={(categorie) => changer('categorie', categorie)}
+          options={[{ valeur: '', libelle: 'Toutes' }, ...categories]}
+          className="-mx-4 flex-nowrap overflow-x-auto px-4 pb-1 tablette:mx-0 tablette:flex-wrap tablette:px-0"
+        />
 
         {ouverts ? (
           <div id="filtres-avances" className="grid gap-4 rounded-moyen border border-bordure bg-surface p-4 tablette:grid-cols-3 tablette:p-5">
@@ -231,9 +231,9 @@ export function Store() {
 
       <section className="mt-4 flex flex-col gap-4 rounded-moyen bg-surface-accent p-5 tablette:flex-row tablette:items-center tablette:justify-between tablette:p-7">
         <div className="flex max-w-prose flex-col gap-1">
-          <h2 className="m-0 text-titre-3 text-titre">Vous êtes dev ? Publiez votre appli</h2>
+          <h2 className="m-0 text-titre-3 text-titre">Vous êtes dev ? Publiez votre appli</h2>
           <p className="m-0 text-texte">
-            Liez votre dépôt, ajoutez un soukdev.json et fixez votre prix. Publier ne coûte rien, et Souk.dev ne prend aucune commission. Besoin d’une version sur mesure ? <Link to="/devs" className="underline underline-offset-2">Trouvez un dev</Link>.
+            Liez votre dépôt, ajoutez un soukdev.json et fixez votre prix. Publier ne coûte rien, et Souk.dev ne prend aucune commission. Besoin d’une version sur mesure ? <Link to="/devs" className="underline underline-offset-2">Trouvez un dev</Link>.
           </p>
         </div>
         <LienBouton to="/publier" variante="contour" className="shrink-0">

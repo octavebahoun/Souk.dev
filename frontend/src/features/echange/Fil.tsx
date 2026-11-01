@@ -10,7 +10,9 @@ import { FormulaireDiscussion } from './FormulaireDiscussion'
 import { correspond, ecrireFiltres, filtresActifs, lireFiltres, type FiltresFil } from './filtres'
 import { libelleDifficulte } from './presentation'
 import { useBandeau } from './tempsReel'
-import { Bouton, Champ, EnTetePage, EtatErreur, EtatVide, Liste, Modale, Pagination, PuceFiltre, SqueletteListe, cx, useToast } from '../../ui'
+import { useCompte } from '../../app/compte'
+import { ModaleConnexion } from '../../app/ModaleConnexion'
+import { AvisDonneesPartielles, Bouton, Champ, ChoixPastilles, EnTetePage, EtatErreur, EtatVide, Liste, Modale, Pagination, PuceFiltre, SqueletteListe, cx, useToast } from '../../ui'
 
 function phraseCompte(total: number, filtres: boolean): string {
   const mot = total > 1 ? 'discussions' : 'discussion'
@@ -29,7 +31,9 @@ export function Fil() {
   const filtres = lireFiltres(params)
   const actifs = filtresActifs(filtres)
   const queryClient = useQueryClient()
+  const compte = useCompte()
   const [ouverte, setOuverte] = useState(false)
+  const [connexion, setConnexion] = useState(false)
   const [epinglees, setEpinglees] = useState<Discussion[]>([])
   const bandeau = useBandeau(filtres)
   const fermer = useCallback(() => setOuverte(false), [])
@@ -40,6 +44,12 @@ export function Fil() {
     queryKey: ['discussions', filtres],
     queryFn: () => listerDiscussions(filtres),
   })
+
+  // Publier une discussion demande un compte : un visiteur l'apprend avant de remplir le formulaire.
+  function nouvelle() {
+    if (compte.data) setOuverte(true)
+    else setConnexion(true)
+  }
 
   function changer(partiel: Partial<FiltresFil>) {
     setParams(ecrireFiltres({ ...filtres, ...partiel, page: 1 }))
@@ -82,9 +92,9 @@ export function Fil() {
     <div className="mx-auto flex w-full max-w-site flex-col gap-6 px-4 py-8 tablette:px-6 bureau:px-8">
       <EnTetePage
         titre="Échange"
-        description="Posez votre problème avec votre dépôt : d’autres devs le voient, le corrigent et vous proposent leur branche."
+        description="Posez votre problème avec votre dépôt : d’autres devs le voient, le corrigent et vous proposent leur branche."
         actions={
-          <Bouton icone={<Plus aria-hidden="true" className="size-4" />} onClick={() => setOuverte(true)}>
+          <Bouton icone={<Plus aria-hidden="true" className="size-4" />} onClick={nouvelle}>
             Nouvelle discussion
           </Bouton>
         }
@@ -106,26 +116,16 @@ export function Fil() {
                   </PuceFiltre>
                 ))}
               </div>
-              <div role="group" aria-label="Statut" className="inline-flex rounded-moyen border border-bordure bg-surface-douce p-1">
-                {([
-                  [undefined, 'Toutes'],
-                  ['ouvertes', 'Ouvertes'],
-                  ['resolues', 'Résolues'],
-                ] as const).map(([statut, libelle]) => (
-                  <button
-                    key={libelle}
-                    type="button"
-                    aria-pressed={filtres.statut === statut}
-                    onClick={() => changer({ statut })}
-                    className={cx(
-                      'inline-flex h-11 items-center rounded-petit px-3 text-petit font-medium transition-colors duration-150 tablette:h-8',
-                      filtres.statut === statut ? 'bg-primaire-doux text-sur-primaire-doux shadow-1' : 'text-texte-doux hover:text-titre',
-                    )}
-                  >
-                    {libelle}
-                  </button>
-                ))}
-              </div>
+              <ChoixPastilles
+                libelle="Statut"
+                valeur={filtres.statut ?? 'toutes'}
+                onChange={(statut) => changer({ statut: statut === 'toutes' ? undefined : statut })}
+                options={[
+                  { valeur: 'toutes', libelle: 'Toutes' },
+                  { valeur: 'ouvertes', libelle: 'Ouvertes' },
+                  { valeur: 'resolues', libelle: 'Résolues' },
+                ]}
+              />
             </div>
             {filtres.etiquette === 'bug' || filtres.difficulte ? (
             <div role="group" aria-labelledby="t-difficulte" className="flex flex-wrap items-center gap-2 border-t border-bordure pt-3">
@@ -140,6 +140,10 @@ export function Fil() {
             </div>
             ) : null}
           </div>
+
+          {canaux.isError || etiquettes.isError ? (
+            <AvisDonneesPartielles>Les canaux ou les étiquettes n’ont pas pu être chargés : les filtres sont incomplets, les discussions restent lisibles.</AvisDonneesPartielles>
+          ) : null}
 
           {bandeau.nombre > 0 ? (
             <Bouton variante="secondaire" pleineLargeur onClick={montrerNouvelles}>
@@ -173,7 +177,7 @@ export function Fil() {
                     Effacer les filtres
                   </Bouton>
                 ) : (
-                  <Bouton onClick={() => setOuverte(true)}>Nouvelle discussion</Bouton>
+                  <Bouton onClick={nouvelle}>Nouvelle discussion</Bouton>
                 )
               }
             />
@@ -191,14 +195,15 @@ export function Fil() {
             </ol>
           ) : null}
           {liste ? (
-            <Pagination page={liste.meta.current_page} dernierePage={liste.meta.last_page} onChange={(page) => setParams(ecrireFiltres({ ...filtres, page }))} />
+            <Pagination libelle="Pages des discussions" page={liste.meta.current_page} dernierePage={liste.meta.last_page} onChange={(page) => setParams(ecrireFiltres({ ...filtres, page }))} />
           ) : null}
         </section>
       </div>
 
-      <Modale ouverte={ouverte} onFermer={fermer} titre="Nouvelle discussion" description="Un bug, une question, un tuto : avec votre dépôt, d’autres devs peuvent proposer un correctif." taille="grande">
+      <Modale ouverte={ouverte} onFermer={fermer} titre="Nouvelle discussion" description="Un bug, une question, un tuto : avec votre dépôt, d’autres devs peuvent proposer un correctif." taille="grande">
         <FormulaireDiscussion canaux={canaux.data ?? []} canalInitial={filtres.canal} onAnnuler={fermer} onPubliee={publiee} />
       </Modale>
+      <ModaleConnexion ouverte={connexion} onFermer={() => setConnexion(false)} action="publier une discussion" />
     </div>
   )
 }
@@ -218,7 +223,7 @@ function Canaux({
 }) {
   return (
     <div className="w-full min-w-0 tablette:sticky tablette:top-24 tablette:w-56 tablette:shrink-0">
-      <nav aria-label="Canaux" className="hidden flex-col gap-0.5 rounded-moyen border border-bordure bg-surface p-2 tablette:flex">
+      <div role="group" aria-label="Canaux" className="hidden flex-col gap-0.5 rounded-moyen border border-bordure bg-surface p-2 tablette:flex">
         <BoutonCanal actif={!canalActif} onClick={() => onChoisir(undefined)}>
           Tous les canaux
         </BoutonCanal>
@@ -237,7 +242,7 @@ function Canaux({
             </span>
           </BoutonCanal>
         ))}
-      </nav>
+      </div>
       <div className="tablette:hidden">
         <Champ libelle="Canal">
           {(liaison) => (
@@ -269,7 +274,7 @@ function BoutonCanal({ actif, onClick, children }: { actif: boolean; onClick: ()
   return (
     <button
       type="button"
-      aria-pressed={actif}
+      aria-current={actif ? 'true' : undefined}
       onClick={onClick}
       className={cx(
         'flex min-h-11 items-center rounded-petit px-2.5 text-left text-corps break-all transition-colors duration-150 tablette:min-h-9',

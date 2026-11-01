@@ -129,7 +129,7 @@ export function Tableau() {
           <EtatVide
             illustration="vide-store"
             titre="Aucune appli publiée"
-            description="Publiez votre première appli : ses vues, ses copies et ses revenus apparaîtront ici."
+            description="Publiez votre première appli : ses vues, ses copies et ses revenus apparaîtront ici."
             action={<LienBouton to="/publier">Publier une appli</LienBouton>}
           />
         ) : (

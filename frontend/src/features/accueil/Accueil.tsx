@@ -7,7 +7,7 @@ import { listerApplis } from '../catalogue/api'
 import { CarteAppli } from '../catalogue/CarteAppli'
 import { listerDiscussions } from '../echange/api'
 import { formules } from '../paiements/formules'
-import { Badge, Carte, EtatErreur, EtatVide, LienBouton, SqueletteCartes, SqueletteLignes, classesBouton, cx, formaterFcfa } from '../../ui'
+import { Badge, Carte, Chargement, EtatErreur, EtatVide, LienBouton, SqueletteCartes, SqueletteLignes, cx, formaterFcfa } from '../../ui'
 import hero from '../../assets/accueil/hero.webp'
 import etapePublier from '../../assets/accueil/etape-publier.webp'
 import etapeDeployer from '../../assets/accueil/etape-deployer.webp'
@@ -24,7 +24,7 @@ const etapes = [
   {
     image: etapeDeployer,
     titre: 'Un client la déploie en un clic',
-    texte: 'Une pharmacie, une association : chacune a sa copie, isolée, avec ses propres données. Sans serveur à gérer.',
+    texte: 'Une pharmacie, une association : chacune a sa copie, isolée, avec ses propres données. Sans serveur à gérer.',
   },
   {
     image: etapeEncaisser,
@@ -118,7 +118,7 @@ export function Accueil() {
             </LienBouton>
           </div>
           {applis.isPending ? <SqueletteCartes nombre={4} /> : null}
-          {applis.isError ? <EtatErreur description="Le Store n’a pas pu charger les applis." onReessayer={() => void applis.refetch()} /> : null}
+          {applis.isError ? <EtatErreur niveau={3} description="Le Store n’a pas pu charger les applis." onReessayer={() => void applis.refetch()} /> : null}
           {applis.isSuccess && vitrine.length === 0 ? (
             <EtatVide
               illustration="vide-store"
@@ -132,7 +132,7 @@ export function Accueil() {
             <ul className="m-0 grid list-none gap-5 p-0 tablette:grid-cols-2 bureau:grid-cols-4">
               {vitrine.map((appli) => (
                 <li key={appli.id} className="flex">
-                  <CarteAppli appli={appli} />
+                  <CarteAppli appli={appli} niveau={3} />
                 </li>
               ))}
             </ul>
@@ -143,7 +143,7 @@ export function Accueil() {
       <section aria-labelledby="titre-echange" className={cx(conteneur, 'grid gap-8 py-16 bureau:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] bureau:items-start')}>
         <div className="flex flex-col gap-4">
           <p className="m-0 text-etiquette text-lien uppercase">L’Échange</p>
-          <h2 id="titre-echange" className="m-0 text-titre-1 text-titre">Un bug ? Un autre dev le corrige</h2>
+          <h2 id="titre-echange" className="m-0 text-titre-1 text-titre">Un bug ? Un autre dev le corrige</h2>
           <p className="m-0 text-corps-l text-texte">
             Posez le problème avec votre dépôt. Un dev propose sa branche, vous l’essayez sur une copie de test, puis vous acceptez. C’est gratuit, et ça construit votre réputation.
           </p>
@@ -152,8 +152,12 @@ export function Accueil() {
           </LienBouton>
         </div>
         <Carte marge="aucune" className="overflow-hidden">
-          {discussions.isPending ? <div className="p-5"><SqueletteLignes lignes={4} /></div> : null}
-          {discussions.isError ? <EtatErreur className="p-5" description="L’Échange n’a pas pu charger les discussions." onReessayer={() => void discussions.refetch()} /> : null}
+          {discussions.isPending ? (
+            <Chargement className="p-5">
+              <SqueletteLignes lignes={4} />
+            </Chargement>
+          ) : null}
+          {discussions.isError ? <EtatErreur niveau={3} className="p-5" description="L’Échange n’a pas pu charger les discussions." onReessayer={() => void discussions.refetch()} /> : null}
           {discussions.isSuccess && fil.length === 0 ? <p className="m-0 p-5 text-corps text-texte-doux">Aucune discussion publique publiée pour le moment.</p> : null}
           {fil.length > 0 ? (
             <ul className="m-0 flex list-none flex-col p-0">
@@ -178,17 +182,17 @@ export function Accueil() {
         <div className={cx(conteneur, 'flex flex-col gap-8 py-16')}>
           <div className="flex max-w-prose flex-col gap-2">
             <p className="m-0 text-etiquette text-lien uppercase">Transparent</p>
-            <h2 id="titre-prix" className="m-0 text-titre-1 text-titre">Qui paie quoi ?</h2>
+            <h2 id="titre-prix" className="m-0 text-titre-1 text-titre">Qui paie quoi ?</h2>
           </div>
           <ul className="m-0 grid list-none gap-5 p-0 tablette:grid-cols-3">
             <Regle icone={<BadgeCheck aria-hidden="true" className="size-5" />} ton="bg-fond-succes text-succes" titre="Gratuit">
-              Poster un problème, aider, corriger, publier son appli : rien de tout ça ne lance de serveur.
+              Poster un problème, aider, corriger, publier son appli : rien de tout ça ne lance de serveur.
             </Regle>
             <Regle icone={<HandCoins aria-hidden="true" className="size-5" />} ton="bg-fond-alerte text-alerte" titre="Le prix de l’appli">
               Fixé par le dev, versé au dev. Souk.dev ne prend aucune commission.
             </Regle>
             <Regle icone={<Server aria-hidden="true" className="size-5" />} ton="bg-primaire-doux text-sur-primaire-doux" titre="L’hébergement">
-              Seulement quand une copie tourne : dès {formaterFcfa(formules.petite.prix)} par mois, selon la taille choisie.
+              Seulement quand une copie tourne : dès {formaterFcfa(formules.petite.prix)} par mois, selon la taille choisie.
             </Regle>
           </ul>
         </div>
@@ -204,9 +208,9 @@ export function Accueil() {
             <LienBouton to="/connexion" taille="lg">
               Je suis dev
             </LienBouton>
-            <Link to="/store" className={classesBouton('contour', 'lg')}>
+            <LienBouton to="/store" taille="lg" variante="contour">
               Je cherche une appli
-            </Link>
+            </LienBouton>
           </div>
         </div>
       </section>

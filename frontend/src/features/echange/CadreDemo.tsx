@@ -61,6 +61,7 @@ type CadreDemoProps = {
 export function CadreDemo({ discussion, auteur }: CadreDemoProps) {
   const client = useQueryClient()
   const [confirmer, setConfirmer] = useState(false)
+  const [confirmerArret, setConfirmerArret] = useState(false)
   const [erreur, setErreur] = useState<string | null>(null)
   const fermer = useCallback(() => setConfirmer(false), [])
   const copie = discussion.copie_test
@@ -86,6 +87,7 @@ export function CadreDemo({ discussion, auteur }: CadreDemoProps) {
     mutationFn: () => arreterDeploiement(copie?.id ?? 0),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: ['discussion', discussion.id] })
+      setConfirmerArret(false)
       setErreur(null)
     },
     onError: (recue) => setErreur(messageAction(recue, '3 copies de test par heure.')),
@@ -128,6 +130,7 @@ export function CadreDemo({ discussion, auteur }: CadreDemoProps) {
             <a href={cadre} target="_blank" rel="noreferrer" className={classesBouton('contour', 'md')}>
               Ouvrir dans un onglet
               <ExternalLink aria-hidden="true" className="size-4" />
+              <span className="pour-lecteur"> (nouvel onglet)</span>
             </a>
           ) : null}
           {peutLancer ? (
@@ -148,10 +151,11 @@ export function CadreDemo({ discussion, auteur }: CadreDemoProps) {
               <a href={copie.url} target="_blank" rel="noreferrer" className={classesBouton('primaire', 'md')}>
                 Ouvrir la copie
                 <ExternalLink aria-hidden="true" className="size-4" />
+                <span className="pour-lecteur"> (nouvel onglet)</span>
               </a>
             ) : null}
             {peutArreter ? (
-              <Bouton variante="contour" className="text-danger" icone={<Square aria-hidden="true" className="size-4" />} chargement={arreter.isPending} onClick={() => arreter.mutate()}>
+              <Bouton variante="contour" className="text-danger" icone={<Square aria-hidden="true" className="size-4" />} onClick={() => setConfirmerArret(true)}>
                 Arrêter la copie
               </Bouton>
             ) : null}
@@ -162,11 +166,31 @@ export function CadreDemo({ discussion, auteur }: CadreDemoProps) {
       {erreur ? <Alerte ton="danger">{erreur}</Alerte> : null}
 
       <Modale
+        ouverte={confirmerArret}
+        onFermer={() => setConfirmerArret(false)}
+        taille="petite"
+        titre="Arrêter la copie de test ?"
+        description="Ses conteneurs s’arrêtent et ses données sont supprimées. Vous pourrez en relancer une autre."
+        pied={
+          <>
+            <Bouton variante="contour" onClick={() => setConfirmerArret(false)}>
+              Annuler
+            </Bouton>
+            <Bouton variante="danger" chargement={arreter.isPending} onClick={() => arreter.mutate()}>
+              Arrêter la copie
+            </Bouton>
+          </>
+        }
+      >
+        {null}
+      </Modale>
+
+      <Modale
         ouverte={confirmer}
         onFermer={fermer}
         taille="petite"
-        titre="Lancer une copie de test ?"
-        description="Souk.dev lance une copie à partir du dépôt ou de l’appli jointe. Rien ne part tout seul : 3 copies par heure."
+        titre="Lancer une copie de test ?"
+        description="Souk.dev lance une copie à partir du dépôt ou de l’appli jointe. Rien ne part tout seul : 3 copies par heure."
         pied={
           <>
             <Bouton variante="contour" onClick={fermer}>
