@@ -1,7 +1,7 @@
 # Système de design — Souk.dev
 
 Référence de l'interface : principes, tokens, composants et règles d'écran. Les tokens vivent dans
-`frontend/src/index.css` ; les composants dans `frontend/src/shared/ui/`. Un écran n'utilise que
+`frontend/src/index.css` ; les composants dans `frontend/src/ui/`. Un écran n'utilise que
 ces tokens et ces composants : aucune couleur, aucune taille, aucune ombre codée en dur.
 
 Identité proche du design system de Systalink (bleu `#1265DD`, rayons de 8 px, police Outfit), sans
@@ -88,13 +88,14 @@ paiement. Durées 150 ms (survol, petits états), 200 ms (apparitions), 300 ms (
 courbe `cubic-bezier(0.2, 0.7, 0.2, 1)`, seulement sur `transform` et `opacity`. Avec
 `prefers-reduced-motion`, plus de déplacement : un simple fondu, ou rien.
 
-## 6. Composants (`frontend/src/shared/ui/`)
+## 6. Composants (`frontend/src/ui/`)
 
 | Composant | Rôle et règles |
 |---|---|
 | `Bouton`, `LienBouton` | Variantes `primaire`, `secondaire`, `fantome`, `danger` ; tailles `sm` (32 px), `md` (40 px, 44 px sur mobile), `lg` (48 px). État `chargement` (indicateur + `aria-busy`), désactivé tant qu'un formulaire est incomplet. Une icône à gauche au plus. |
 | `Champ` | Étiquette toujours visible, aide sous le champ, erreur reliée par `aria-describedby` et `aria-invalid`, texte qui dit quoi faire. Variantes texte, zone de texte, liste, prix (FCFA). |
 | `CaseACocher`, `Interrupteur`, `ChoixCartes` | Choix binaires et choix parmi peu d'options (formule d'hébergement, réseau Mobile Money). |
+| `PuceFiltre` | Filtre à bascule en pastille (catégorie, étiquette, difficulté, stack), `aria-pressed`, 44 px sur mobile. |
 | `Carte` | Surface bordée ; en-tête, contenu, pied. `CarteLien` : toute la carte est cliquable, avec un seul lien. |
 | `Badge`, `PastilleEtat` | Badge : catégorie, techno, statut neutre. Pastille d'état : point coloré + libellé, annoncée aux lecteurs d'écran. Un état = une couleur, partout (voir § 8). |
 | `Onglets` | Rôles ARIA `tablist`/`tab`/`tabpanel`, flèches du clavier. |
