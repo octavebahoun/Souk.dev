@@ -35,6 +35,13 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Traefik (production) joint l'API par son port publié sur 127.0.0.1 : la requête arrive de
+        // la passerelle Docker. Sans cette confiance, tous les visiteurs auraient la même adresse
+        // (une seule limite de débit pour tous) et les liens signés seraient lus en http://.
+        $middleware->trustProxies(
+            at: ['127.0.0.1', '::1', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16'],
+            headers: Request::HEADER_X_FORWARDED_FOR | Request::HEADER_X_FORWARDED_HOST | Request::HEADER_X_FORWARDED_PORT | Request::HEADER_X_FORWARDED_PROTO,
+        );
         // La connexion des utilisateurs d'une appli (/api/copies/*) a sa propre règle d'origine,
         // sans cookies : le CORS de l'API (avec cookies, origines listées) ne s'y applique pas.
         HandleCors::skipWhen(fn (Request $request) => $request->is('api/copies/*'));
