@@ -210,6 +210,10 @@ YAML);
             'network_mode bridge partagé' => ["services:\n  web:\n    image: nginx\n    network_mode: bridge\n", 'network_mode'],
             'réseau réservé à la racine' => ["services:\n  web:\n    image: nginx\nnetworks:\n  soukdev-copie:\n    driver: bridge\n", 'réservé'],
             'réseau réservé dans un service' => ["services:\n  web:\n    image: nginx\n    networks:\n      - soukdev-copie\n", 'réservé'],
+            'réplicas' => ["services:\n  web:\n    image: nginx\n    deploy:\n      replicas: 20\n", 'deploy.replicas'],
+            'réservations (cartes graphiques)' => ["services:\n  web:\n    image: nginx\n    deploy:\n      resources:\n        reservations:\n          devices:\n            - capabilities: [gpu]\n", 'deploy.resources.reservations'],
+            'journaux réglés par le dépôt' => ["services:\n  web:\n    image: nginx\n    logging:\n      driver: none\n", 'logging'],
+            'sept services' => ["services:\n".implode('', array_map(fn (int $i) => "  s{$i}:\n    image: nginx\n", range(1, 7))), '6 au plus'],
         ];
     }
 
@@ -275,6 +279,7 @@ YAML);
             $this->assertStringContainsString('cap_drop: ALL', $exception->getMessage());
             $this->assertStringContainsString('no-new-privileges', $exception->getMessage());
             $this->assertStringContainsString('réseau de la copie', $exception->getMessage());
+            $this->assertStringContainsString('plafond de journaux', $exception->getMessage());
         }
     }
 
@@ -290,6 +295,8 @@ YAML);
                     'cap_add' => ['CHOWN', 'SETUID'],
                     'security_opt' => ['no-new-privileges:true'],
                     'networks' => ['soukdev-copie' => null],
+                    'logging' => ['driver' => 'local', 'options' => ['max-size' => '10m', 'max-file' => '3']],
+                    'deploy' => ['resources' => ['limits' => ['cpus' => '0.5', 'memory' => '512M', 'pids' => 256]]],
                 ],
             ],
             'networks' => ['soukdev-copie' => ['driver' => 'bridge']],

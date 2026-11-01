@@ -30,6 +30,15 @@ final class VerificateurCompose
         'attach', 'shm_size', 'cap_add', 'security_opt', 'pids_limit',
     ];
 
+    /**
+     * Au plus six services par copie : les limites de la formule s'appliquent à chaque conteneur,
+     * un dépôt ne doit pas les multiplier pour prendre la machine.
+     */
+    public const MAX_SERVICES = 6;
+
+    /** Journaux de chaque conteneur, plafonnés par la plateforme (le disque est partagé). */
+    public const JOURNAUX = ['driver' => 'local', 'max-size' => '10m', 'max-file' => '3'];
+
     /** Clés acceptées dans la forme longue de build. */
     private const CLES_BUILD = ['context', 'dockerfile', 'args', 'target', 'labels'];
 
@@ -64,6 +73,10 @@ final class VerificateurCompose
 
         $erreurs = [];
 
+        if (count($services) > self::MAX_SERVICES) {
+            $erreurs[] = 'docker-compose.yml déclare '.count($services).' services : '.self::MAX_SERVICES.' au plus par copie.';
+        }
+
         foreach ($services as $nom => $service) {
             $nom = (string) $nom;
 
@@ -76,6 +89,11 @@ final class VerificateurCompose
             }
 
             foreach (array_keys($service) as $cle) {
+                // Les journaux sont réglés par la plateforme, jamais par le dépôt.
+                if ($cle === 'logging' && $taille !== null) {
+                    continue;
+                }
+
                 if (! $this->cleAutorisee((string) $cle, self::CLES_SERVICE)) {
                     $erreurs[] = "Le service « {$nom} » utilise « {$cle} », qui n'est pas autorisé.";
                 }
@@ -90,6 +108,7 @@ final class VerificateurCompose
             $this->verifierCapacites($nom, $service, $erreurs);
             $this->verifierSecurite($nom, $service, $erreurs);
             $this->verifierPids($nom, $service, $erreurs);
+            $this->verifierDeploy($nom, $service, $erreurs);
 
             if ($taille === null) {
                 $this->verifierReseauReserveService($nom, $service, $erreurs);
@@ -459,6 +478,53 @@ final class VerificateurCompose
 
         if (! $this->contientCle($service['networks'] ?? null, Durcissement::RESEAU)) {
             $erreurs[] = "Le service « {$nom} » n'est pas sur le réseau de la copie.";
+        }
+
+        $journaux = is_array($service['logging'] ?? null) ? $service['logging'] : [];
+        $options = is_array($journaux['options'] ?? null) ? $journaux['options'] : [];
+
+        if (($journaux['driver'] ?? null) !== self::JOURNAUX['driver']
+            || (string) ($options['max-size'] ?? '') !== self::JOURNAUX['max-size']
+            || (string) ($options['max-file'] ?? '') !== self::JOURNAUX['max-file']) {
+            $erreurs[] = "Le service « {$nom} » n'a pas le plafond de journaux de la copie.";
+        }
+    }
+
+    /**
+     * deploy ne sert qu'aux limites (deploy.resources.limits) : ni réplicas, qui multiplieraient
+     * la formule, ni réservations (dont l'accès aux cartes graphiques).
+     *
+     * @param  array<string, mixed>  $service
+     * @param  list<string>  $erreurs
+     */
+    private function verifierDeploy(string $nom, array $service, array &$erreurs): void
+    {
+        if (! array_key_exists('deploy', $service) || $service['deploy'] === null) {
+            return;
+        }
+
+        $deploy = $service['deploy'];
+
+        if (! is_array($deploy) || ($deploy !== [] && array_is_list($deploy))) {
+            throw new LancementEchoue('docker-compose.yml ne peut pas être vérifié.');
+        }
+
+        foreach ($deploy as $cle => $valeur) {
+            if ($cle !== 'resources') {
+                $erreurs[] = "Le service « {$nom} » utilise deploy.{$cle}, qui n'est pas autorisé.";
+
+                continue;
+            }
+
+            if (! is_array($valeur)) {
+                throw new LancementEchoue('docker-compose.yml ne peut pas être vérifié.');
+            }
+
+            foreach (array_keys($valeur) as $sousCle) {
+                if ($sousCle !== 'limits') {
+                    $erreurs[] = "Le service « {$nom} » utilise deploy.resources.{$sousCle}, qui n'est pas autorisé.";
+                }
+            }
         }
     }
 

@@ -65,6 +65,7 @@ final class LimitesTaille
         $formule = self::FORMULES[$taille];
         $pids = Durcissement::pids($taille);
         $capacites = Durcissement::capacites();
+        $journaux = VerificateurCompose::JOURNAUX;
         $lignes = ['services:'];
 
         foreach ($services as $service) {
@@ -97,6 +98,11 @@ final class LimitesTaille
                 }
             }
 
+            $lignes[] = '    logging:';
+            $lignes[] = "      driver: {$journaux['driver']}";
+            $lignes[] = '      options:';
+            $lignes[] = "        max-size: {$journaux['max-size']}";
+            $lignes[] = "        max-file: \"{$journaux['max-file']}\"";
             $lignes[] = '    security_opt:';
             $lignes[] = '      - "'.Durcissement::SECURITE.'"';
             $lignes[] = '    networks:';

@@ -39,6 +39,11 @@ services:
       - NET_BIND_SERVICE
       - SETGID
       - SETUID
+    logging:
+      driver: local
+      options:
+        max-size: 10m
+        max-file: "3"
     security_opt:
       - "no-new-privileges:true"
     networks:
@@ -65,6 +70,11 @@ services:
       - NET_BIND_SERVICE
       - SETGID
       - SETUID
+    logging:
+      driver: local
+      options:
+        max-size: 10m
+        max-file: "3"
     security_opt:
       - "no-new-privileges:true"
     networks:
