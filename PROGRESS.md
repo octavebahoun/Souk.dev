@@ -6,8 +6,8 @@ Journal de l'agent, tenu à jour en continu (voir `BRIEF.md`, section 1).
 ## Où on en est
 
 - **Branche** : `saas-complet`, partie de `main` (la PR #28 `fin-mvp` y est fusionnée).
-- **Phase en cours** : 7 — Refonte du design. Phases 5 et 6 vérifiées sous Docker le 1er novembre (24 parcours sur 24, essai de production et restauration réels).
-- **Tâche suivante** : phase 7, en commençant par les écrans d'avant la refonte (accueil, connexion, fiche, publier), avec captures avant et après.
+- **Phase en cours** : 8 — Release. Phase 7 close le 1er novembre : douze écrans redessinés, ancien style supprimé, revue indépendante corrigée (15 constats), 25 parcours sur 25.
+- **Tâche suivante** : phase 8, audit (sécurité, performance mobile, accessibilité), README, docs/ et RELEASE_NOTES.md.
 
 ## Étape 0 (25 octobre)
 
@@ -146,7 +146,7 @@ Contrat : seule la description de `memoire_libre_mo` change (capacité utile, si
 Contrat : seul le schéma `Signalement` gagne `cible_chemin` ; types régénérés.
 
 ### Phase 7 — Refonte du design
-- [ ] Chaque page redessinée, captures critiquées (3 tailles, 2 thèmes), zéro violation axe sérieuse
+- [x] Chaque page redessinée, captures critiquées (3 tailles, 2 thèmes), zéro violation axe sérieuse (1er novembre)
   - [x] Store (1er novembre) : grille alignée sur l'en-tête, cartes du système (capture, badges, prix, note), recherche + tri + catégories visibles, filtres avancés repliés, bandeau dev unique ; thème sombre ; axe sans violation (lien du bandeau souligné). Avant : fond beige hors palette, 5 filtres ouverts, libellé anglais, double « Publier », cartes invisibles avant défilement
   - [x] Fiche (1er novembre) : panneau de commande fixe sur bureau, sous le titre sur mobile (prix détaillé, « Déployer ma copie » en primaire, démo en contour, sur mesure en retrait, rassurance, dépôt et signalement), captures avec vignettes, README, sécurité, avis, versions et discussions en cartes du système ; demande sur mesure dans la modale du système ; thème sombre. Avant : action principale en noir, démo en bleu primaire, couleurs codées en dur
   - [x] Accueil (1er novembre) : dans la coquille commune (en-tête et pied du site), bandeau bleu nuit avec le visuel généré, trois étapes illustrées, quatre applis du Store, l'Échange, qui paie quoi, appel final ; thème sombre ; axe sans violation. Avant : palette beige, en-tête et logo propres, débordement horizontal (1520 px), sections vides avant défilement, photos Unsplash chargées depuis leur CDN
@@ -161,6 +161,24 @@ Contrat : seul le schéma `Signalement` gagne `cible_chemin` ; types régénér�
   - [x] Missions (1er novembre) : en-tête avec « Nouvelle mission », liste et mission ouverte (« Mission avec … », étiquettes, budget, délai, lien vers la fiche), besoin en encart, fil en bulles du système, note en étoiles dans la modale du système, état vide qui mène au Store ou à « Trouver un dev » ; thème sombre ; axe sans violation (parcours des notifications). Avant : bandeau marketing de 680 px avec photos Unsplash chargées depuis leur CDN, missions invisibles avant défilement, titre « Appli 365 »
   - [x] Plus aucun écran en thème clair forcé : `ThemeClairForce` et `forcerThemeClair` supprimés. Parcours complet : 25/25 (la sonde d'un second démon tout juste démarré échouait une fois : une sonde ciblée ratée se relance désormais deux fois à dix secondes)
   - [x] Ancien style supprimé : `styles/ancien.css` (714 lignes de classes et d'alias), `shared/ui` (anciens Badge, Avatar, Champ, Modal, EmptyState), `MenuCompte` (mort), le système d'apparition au défilement (les contenus invisibles avant défilement) ; `PageEnAttente` passe au système ; `docs/design.md` pointe vers `frontend/src/ui/` et décrit `PuceFiltre`
+- [x] Revue indépendante de la phase 7 (sous-agent neuf) : 15 constats, tous corrigés (voir ci-dessous)
+
+**Revue indépendante de la phase 7** (15 constats, tous fondés ; aucun réfuté) :
+1. Élevé : erreurs et succès plus annoncés (Alerte sans rôle, erreurs de champ sans rôle) → `Alerte` porte `role="alert"` pour une erreur et `role="status"` pour un succès, l'erreur d'un `Champ` porte `role="alert"`.
+2. Élevé : liens dans le texte distingués par la seule couleur (WCAG 1.4.1) → soulignés (auteur de la fiche, organisateur et lien d'un événement, « Sur une appli », adresse d'une version corrigée, « Parcourir le Store »).
+3. Élevé : Publier sans validation côté navigateur, erreurs du serveur en anglais et non reliées → erreurs par champ (vérifiées avant l'envoi, ou rendues par le serveur sous leur champ), bouton désactivé tant que les quatre étapes ne sont pas complètes avec la raison affichée ; côté serveur, `lang/fr/validation.php` (les 52 validations sans message propre répondaient en anglais).
+4. Moyen : chargement plus annoncé → `SqueletteCartes` et `SqueletteListe` portent `role="status"` et un libellé lu, l'accueil enveloppe ses lignes dans `Chargement` ; le squelette des missions passe dans un `<li>`.
+5. Moyen : `aria-pressed` sur des choix exclusifs → nouveau composant `ChoixPastilles` (groupe radio ARIA, flèches, une seule tabulation) pour la catégorie du Store, le format des événements, le statut du fil, le profil de connexion et la note d'une mission ; `aria-current` pour les vignettes de la fiche et les canaux ; plus d'`aria-pressed` sur S'inscrire.
+6. Moyen : état sélectionné peu visible (1,03:1) → les choix exclusifs sélectionnés passent en bleu plein.
+7. Moyen : visiteur non connecté face à des formulaires réservés → `ModaleConnexion` (« Connectez-vous pour … », lien vers la connexion) avant la mission, la version sur mesure, la discussion et le correctif ; la réponse à une discussion devient une invitation à se connecter.
+8. Moyen : données partielles ignorées → avis dans le fil (canaux ou étiquettes absents), message et Réessayer pour les discussions de la fiche et les messages d'une mission.
+9. Moyen : typographie française absente des écrans refaits → espaces insécables posées par un outil qui ne touche que les chaînes et le texte JSX (analyseur TypeScript), 62 corrections.
+10. Faible : état d'une modale gardé après fermeture → chaque ouverture remonte un formulaire vierge (mission, sur mesure, événement).
+11. Faible : titres et repères → `CarteAppli` prend un niveau (h3 sous une section), `CarteDiscussion` en h3, `EtatErreur` prend un niveau, deux paginations nommées différemment, la liste des missions devient une navigation de liens, les canaux un groupe.
+12. Faible : écarts au système → `Etoiles` pour la note d'une mission, token `etoile`, `LienBouton` à l'accueil.
+13. Faible : textes → notes à la française (`formaterNote`), message d'erreur GitHub sans jargon de développeur.
+14. Faible : cibles tactiles → `CaseACocher` haute de 44 px sur mobile, liens d'en-tête de carte de discussion aussi.
+15. Faible : hiérarchie et détails → « Proposer une mission » secondaire sur chaque carte, arrêt d'une copie de test confirmé, « (nouvel onglet) » lu sur les liens externes restants ; la `Modale` ferme sur Échap même quand le focus a quitté le panneau.
 
 ### Phase 8 — Release
 - [ ] Audit sécurité, performance, accessibilité ; documentation ; `RELEASE_NOTES.md`
@@ -263,6 +281,7 @@ Contrat : seul le schéma `Signalement` gagne `cible_chemin` ; types régénér�
 | 2026-11-01 | 7 | Captures de toutes les pages (32 pages × 3 tailles × 2 thèmes = 192), revues en planches | ensemble cohérent : même en-tête, même navigation, mêmes composants ; plus aucun écran dans l'ancien style |
 | 2026-11-01 | 7 | Lighthouse 12, build de production, pages publiques à froid (accueil, Store, fiche) | bureau : 100/100/96, 99/100/96, 99/100/96 ; mobile simulé : performance 86, 81, 75 (accessibilité 100). Les 96 viennent du 401 attendu de `/api/me` pour un visiteur, compté comme erreur de console |
 | 2026-11-01 | 7 | Lighthouse 12, pages connectées (commande, « Mes copies ») via un Chromium où la session de démo est ouverte (`--port`, `--disable-storage-reset`) | bureau : 97/100/100 et 100/100/100 ; mobile : 95 et 98, mais cache chaud (profil conservé) : chiffres optimistes. La première tentative avec un en-tête Cookie mesurait en fait la page déconnectée (401), écartée |
+| 2026-11-01 | 7 | Parcours E2E après la revue de la phase 7 | 25/25 (confiance relancé seul après un premier chargement de Vite trop lent juste après des modifications : 3/3). « Deux machines » échouait dans la suite complète : la sonde attendait derrière les constructions de copies dans la file `moteur` et ne tournait qu'après le nettoyage du test (« socket introuvable ») → file et service `sondes` à part, en dev comme en production |
 
 ## Problèmes ouverts
 
