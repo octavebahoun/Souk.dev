@@ -31,7 +31,7 @@ final class ModifierDiscussionRequest extends FormRequest
             'titre' => ['sometimes', 'string', 'max:200'],
             'texte' => ['sometimes', 'string'],
             'depot_url' => ['sometimes', 'nullable', 'string', new DepotGithub],
-            'demo_url' => ['sometimes', 'nullable', 'url'],
+            'demo_url' => ['sometimes', 'nullable', 'url:http,https'],
             'etiquettes' => ['sometimes', 'array'],
             'etiquettes.*' => ['string', Rule::enum(Etiquette::class)],
             'resolue' => ['sometimes', 'boolean'],

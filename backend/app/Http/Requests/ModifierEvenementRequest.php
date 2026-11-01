@@ -29,7 +29,7 @@ final class ModifierEvenementRequest extends FormRequest
             'date' => ['sometimes', 'date', 'after:now'],
             'type' => ['sometimes', Rule::in(['en_ligne', 'presentiel'])],
             'lieu' => ['sometimes', 'nullable', 'string', 'max:200'],
-            'lien' => ['sometimes', 'nullable', 'url', 'max:2048'],
+            'lien' => ['sometimes', 'nullable', 'url:http,https', 'max:2048'],
         ];
     }
 

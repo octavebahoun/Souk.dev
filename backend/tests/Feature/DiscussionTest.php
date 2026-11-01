@@ -92,6 +92,22 @@ final class DiscussionTest extends TestCase
         ])->assertStatus(422)->assertJsonPath('errors.bug.0', 'La fiche du bug est obligatoire pour cette étiquette.');
     }
 
+    public function test_la_demo_d_une_discussion_est_une_adresse_web(): void
+    {
+        $auteur = User::factory()->create();
+        Canal::factory()->create(['slug' => 'laravel', 'nom' => 'Laravel']);
+
+        foreach (['file://serveur/partage/index.html', 'ftp://exemple.com/demo'] as $adresse) {
+            $this->actingAs($auteur)->postJson('/api/discussions', [
+                'titre' => 'Question',
+                'texte' => 'Voici ma démo.',
+                'canal' => 'laravel',
+                'etiquettes' => ['question'],
+                'demo_url' => $adresse,
+            ])->assertStatus(422)->assertJsonValidationErrors('demo_url');
+        }
+    }
+
     public function test_seul_l_auteur_modifie_et_un_admin_peut_supprimer(): void
     {
         $auteur = User::factory()->create();

@@ -26,7 +26,7 @@ final class CreerEvenementRequest extends FormRequest
             'date' => ['required', 'date', 'after:now'],
             'type' => ['required', Rule::in(['en_ligne', 'presentiel'])],
             'lieu' => ['required_if:type,presentiel', 'nullable', 'string', 'max:200'],
-            'lien' => ['required_if:type,en_ligne', 'nullable', 'url', 'max:2048'],
+            'lien' => ['required_if:type,en_ligne', 'nullable', 'url:http,https', 'max:2048'],
         ];
     }
 

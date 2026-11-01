@@ -158,7 +158,7 @@ class AppliController extends Controller
         Gate::authorize('lierUnDepot');
 
         $donnees = $request->validate([
-            'depot_url' => ['required', 'string', 'url', 'max:500'],
+            'depot_url' => ['required', 'string', 'url:http,https', 'max:500'],
         ]);
 
         $manifeste = $this->manifeste($donnees['depot_url'], $depot);
@@ -231,8 +231,8 @@ class AppliController extends Controller
             'nom' => ['required', 'string', 'max:100', 'not_regex:/[\r\n]/'],
             'description' => ['required', 'string', 'max:1000'],
             'categorie' => ['required', Rule::in(Appli::CATEGORIES)],
-            'depot_url' => ['required', 'string', 'url', 'max:500'],
-            'demo_url' => ['required', 'string', 'url', 'max:500'],
+            'depot_url' => ['required', 'string', 'url:http,https', 'max:500'],
+            'demo_url' => ['required', 'string', 'url:http,https', 'max:500'],
             'prix' => ['required', 'integer', 'min:0'],
             'type_prix' => ['required', Rule::in(['mensuel', 'unique'])],
             'taille' => ['required', Rule::in(['petite', 'moyenne', 'grande'])],
@@ -271,7 +271,7 @@ class AppliController extends Controller
             // Le nom part dans des sujets d'e-mail : un retour à la ligne y est une injection d'en-tête.
             'nom' => ['sometimes', 'string', 'max:100', 'not_regex:/[\r\n]/'],
             'description' => ['sometimes', 'string', 'max:1000'],
-            'demo_url' => ['sometimes', 'string', 'url', 'max:500'],
+            'demo_url' => ['sometimes', 'string', 'url:http,https', 'max:500'],
             'categorie' => ['sometimes', Rule::in(Appli::CATEGORIES)],
             'prix' => ['sometimes', 'integer', 'min:0'],
             'type_prix' => ['sometimes', Rule::in(['mensuel', 'unique'])],
