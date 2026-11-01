@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { fcfa, listerApplis, type Appli } from '../catalogue/api'
 import { teintes } from '../catalogue/teintes'
 import { listerDiscussions, messageAction, type Discussion } from '../echange/api'
+import { t } from '../../i18n'
 import './accueil.css'
 
 const bloc = 'accueil-bloc mx-auto box-border max-w-[1320px]'
@@ -209,6 +210,12 @@ export function Accueil() {
       <footer className="border-t border-[#EEF2F9]">
         <div className="mx-auto flex max-w-[1200px] flex-wrap justify-between gap-3 px-6 py-7 text-sm text-texte">
           <span><strong className="text-ink">Souk.dev</strong> · Excellence Team · CADEV 2026</span>
+          <nav aria-label={t.pied.legal} className="flex flex-wrap gap-x-4 gap-y-2">
+            <Link to="/legal/cgu" className="text-texte">{t.pied.cgu}</Link>
+            <Link to="/legal/cgv" className="text-texte">{t.pied.cgv}</Link>
+            <Link to="/legal/confidentialite" className="text-texte">{t.pied.confidentialite}</Link>
+            <Link to="/legal/abus" className="text-texte">{t.pied.abus}</Link>
+          </nav>
           <span>Hébergé sur Datacloud</span>
         </div>
       </footer>
