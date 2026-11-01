@@ -63,6 +63,12 @@ test.describe('socle', () => {
     await expect(page.getByRole('heading', { level: 2, name: 'Par appli' })).toBeVisible()
     expect(resumer(await auditAxe(page))).toBe('')
 
+    // Publier une appli : les étapes, puis le refus clair d'un formulaire incomplet.
+    await page.goto('/publier')
+    await page.getByRole('button', { name: 'Publier l’appli' }).click()
+    await expect(page.getByRole('alert')).toContainText('Renseignez la catégorie')
+    expect(resumer(await auditAxe(page))).toBe('')
+
     // L'Échange et son formulaire de discussion, fiche du bug dépliée.
     await page.goto('/echange')
     await expect(page.getByRole('heading', { level: 1, name: 'Échange' })).toBeVisible()

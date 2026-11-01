@@ -1,60 +1,83 @@
-import { useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { useState, type FormEvent, type ReactNode } from 'react'
+import { useNavigate } from 'react-router'
+import { Check, ImagePlus, ShieldCheck } from 'lucide-react'
 import type { components } from '../../shared/types/api'
+import { useTitrePage } from '../../app/titre'
 import { messageAction } from '../echange/api'
+import { formules } from '../paiements/formules'
 import { categories, fcfa, publierAppli, verifierDepot, type Categorie } from './api'
+import { Alerte, Bouton, Carte, Champ, ChoixCartes, EnTetePage, Liste, PuceFiltre, Saisie, SaisieMontant, ZoneTexte, cx } from '../../ui'
 
 type Techno = components['schemas']['Techno']
+type Taille = 'petite' | 'moyenne' | 'grande'
 
 const technos: Techno[] = ['laravel', 'php', 'react', 'vue', 'node', 'mysql', 'postgresql', 'autre']
 
+/**
+ * Publier une appli : quatre étapes (dépôt vérifié, infos, prix et hébergement, captures et stack)
+ * et un récapitulatif qui dit ce qui manque. Publier ne lance aucun serveur.
+ */
 export function Publier() {
+  useTitrePage('Publier une appli')
   const naviguer = useNavigate()
   const [depot, setDepot] = useState('')
   const [nom, setNom] = useState('')
   const [description, setDescription] = useState('')
   const [categorie, setCategorie] = useState<Categorie | ''>('')
   const [prix, setPrix] = useState('')
-  const [typePrix, setTypePrix] = useState<'mensuel' | 'unique' | ''>('')
-  const [taille, setTaille] = useState<'petite' | 'moyenne' | 'grande' | ''>('')
+  const [typePrix, setTypePrix] = useState<'mensuel' | 'unique' | null>(null)
+  const [taille, setTaille] = useState<Taille | null>(null)
   const [stack, setStack] = useState<Techno[]>([])
   const [captures, setCaptures] = useState<File[]>([])
   const [demo, setDemo] = useState('')
   const [verif, setVerif] = useState<string | null>(null)
+  const [erreurDepot, setErreurDepot] = useState<string | null>(null)
+  const [verification, setVerification] = useState(false)
   const [erreur, setErreur] = useState<string | null>(null)
   const [envoi, setEnvoi] = useState(false)
 
+  const prixNombre = prix === '' ? null : Number(prix.replace(/\s/g, ''))
+  const etapes = {
+    depot: verif !== null,
+    infos: nom.trim() !== '' && description.trim() !== '' && demo.trim() !== '' && categorie !== '',
+    prix: prixNombre !== null && typePrix !== null && taille !== null,
+    medias: captures.length >= 1 && stack.length > 0,
+  }
+
   async function verifier() {
-    setErreur(null)
+    setErreurDepot(null)
+    setVerification(true)
     try {
       const recu = await verifierDepot(depot.trim())
-      setVerif(`Dépôt valide. Service ${recu.service_web.nom}, backend ${recu.backend}.`)
+      setVerif(`Dépôt valide : service web « ${recu.service_web.nom} », backend ${recu.backend}.`)
     } catch (erreurHttp) {
       setVerif(null)
-      setErreur(messageAction(erreurHttp, 'Le dépôt n’a pas passé la vérification.'))
+      setErreurDepot(messageAction(erreurHttp, 'Le dépôt n’a pas passé la vérification.'))
+    } finally {
+      setVerification(false)
     }
   }
 
   async function envoyer(evenement: FormEvent) {
     evenement.preventDefault()
-    setEnvoi(true)
     setErreur(null)
+    if (!categorie || prixNombre === null || !typePrix || !taille || stack.length === 0) {
+      setErreur('Renseignez la catégorie, le prix, le type de paiement, la taille d’hébergement et au moins une technologie.')
+      return
+    }
+    if (captures.length < 1 || captures.length > 5) {
+      setErreur('Ajoutez entre 1 et 5 images (PNG, JPEG ou WebP).')
+      return
+    }
+    setEnvoi(true)
     try {
-      if (!categorie || prix === '' || !typePrix || !taille || stack.length === 0) {
-        setErreur('Renseignez la catégorie, le prix, le type de paiement, la taille d’hébergement et au moins une technologie.')
-        return
-      }
-      if (captures.length < 1 || captures.length > 5) {
-        setErreur('Ajoutez entre 1 et 5 images (PNG, JPEG ou WebP).')
-        return
-      }
       const creee = await publierAppli({
         nom: nom.trim(),
         description: description.trim(),
         depot_url: depot.trim(),
         demo_url: demo.trim(),
         categorie,
-        prix: Number(prix),
+        prix: prixNombre,
         type_prix: typePrix,
         taille,
         stack,
@@ -69,125 +92,222 @@ export function Publier() {
   }
 
   return (
-    <div className="mx-auto grid max-w-[1320px] items-start gap-6 px-4 py-8 min-[761px]:px-9 min-[961px]:grid-cols-[minmax(0,1fr)_320px]">
-      <form onSubmit={(evenement) => void envoyer(evenement)} className="flex flex-col gap-4">
-        <nav aria-label="Fil d'Ariane" className="text-sm text-muted"><Link to="/store" className="text-muted">Store</Link> <span aria-hidden="true">/</span> Publier</nav>
-        <h1 className="m-0 text-[30px] font-bold tracking-tight">Publier une appli</h1>
-        <p className="m-0 text-muted">Publier est gratuit et ne lance aucun serveur. Votre appli tournera seulement quand un client la déploiera.</p>
-        <section className="verre flex flex-col gap-3 rounded-[18px] p-6">
-          <div className="flex items-center gap-2.5">
-            <Etape numero="1" fait={Boolean(verif)} />
-            <h2 className="m-0 text-lg">Le dépôt GitHub</h2>
-          </div>
-          <p className="m-0 text-sm text-muted">Un dépôt public, avec un docker-compose.yml et un soukdev.json à la racine.</p>
-        <label className="flex flex-col gap-1 font-semibold">Adresse du dépôt
-          <input value={depot} onChange={(e) => setDepot(e.target.value)} required className="min-h-cible w-full rounded-controle border border-line bg-canvas px-3 font-normal" placeholder="https://github.com/orga/appli" />
-        </label>
-        <button type="button" onClick={() => void verifier()} className="min-h-cible w-fit rounded-controle border border-line bg-page px-4 font-semibold">Vérifier le dépôt</button>
-        {verif ? <p role="status" className="m-0 text-[#166534]">{verif}</p> : null}
-        </section>
-        <section className="verre flex flex-col gap-3 rounded-[18px] p-6">
-          <div className="flex items-center gap-2.5">
-            <Etape numero="2" fait={false} />
-            <h2 className="m-0 text-lg">Analyse de sécurité</h2>
-          </div>
-          <p className="m-0 text-sm text-muted">La vérification du dépôt contrôle l’accès, le docker-compose et les secrets. L’analyse des dépendances démarre après la publication, et le badge apparaît alors sur la fiche.</p>
-        </section>
-        <section className="verre flex flex-col gap-3 rounded-[18px] p-6">
-          <div className="flex items-center gap-2.5">
-            <Etape numero="3" fait={nom.trim().length > 0 && description.trim().length > 0} />
-            <h2 className="m-0 text-lg">Les infos</h2>
-          </div>
-        <label className="flex flex-col gap-1 font-semibold">Nom
-          <input value={nom} onChange={(e) => setNom(e.target.value)} required className="min-h-cible w-full rounded-controle border border-line bg-canvas px-3 font-normal" />
-        </label>
-        <label className="flex flex-col gap-1 font-semibold">Description
-          <textarea value={description} onChange={(e) => setDescription(e.target.value)} required rows={4} className="w-full rounded-controle border border-line bg-canvas p-3 font-normal" />
-        </label>
-        <label className="flex flex-col gap-1 font-semibold">URL de l’application en ligne
-          <input value={demo} onChange={(e) => setDemo(e.target.value)} required type="url" placeholder="https://votre-domaine.bj" className="min-h-cible w-full rounded-controle border border-line bg-canvas px-3 font-normal" />
-        </label>
-        <label className="flex flex-col gap-1 font-semibold">Catégorie
-          <select required value={categorie} onChange={(e) => setCategorie(e.target.value as Categorie | '')} className="champ-select mt-1 w-full">
-            <option value="">Choisir une catégorie</option>
-            {categories.map((item) => <option key={item.valeur} value={item.valeur}>{item.libelle}</option>)}
-          </select>
-        </label>
-        <div className="grid gap-3 min-[761px]:grid-cols-2">
-          <label className="flex flex-col gap-1 font-semibold">Prix (FCFA)
-            <input value={prix} onChange={(e) => setPrix(e.target.value)} type="number" min="0" step="1" required inputMode="numeric" placeholder="0 si l’application est gratuite" className="min-h-cible w-full rounded-controle border border-line bg-canvas px-3 font-normal" />
-          </label>
-          <label className="flex flex-col gap-1 font-semibold">Type
-            <select required value={typePrix} onChange={(e) => setTypePrix(e.target.value as 'mensuel' | 'unique' | '')} className="champ-select mt-1 w-full">
-              <option value="">Choisir le paiement</option>
-              <option value="mensuel">Mensuel</option>
-              <option value="unique">Paiement unique</option>
-            </select>
-          </label>
-        </div>
-        <div role="group" aria-label="Taille d’hébergement" className="font-semibold">Taille d’hébergement
-          {!taille ? <span className="block text-sm font-normal text-muted">Choisissez une formule avant de publier.</span> : null}
-          <span className="mt-1 grid grid-cols-3 gap-2 font-normal">
-            {([
-              ['petite', 'Petite', '3 500 F'],
-              ['moyenne', 'Moyenne', '7 000 F'],
-              ['grande', 'Grande', '13 500 F'],
-            ] as const).map(([valeur, libelle, montant]) => (
-              <button key={valeur} type="button" aria-pressed={taille === valeur} onClick={() => setTaille(valeur)} className={`min-h-cible rounded-controle border px-2 text-sm ${taille === valeur ? 'border-accent bg-nav font-semibold text-accent' : 'border-line bg-canvas'}`}>
-                {libelle}<br />{montant}
-              </button>
-            ))}
-          </span>
-        </div>
-        <div className="font-semibold">Les captures
-          <input
-            type="file"
-            accept="image/png,image/jpeg,image/webp"
-            multiple
-            className="mt-1 block w-full text-sm font-normal"
-            onChange={(e) => setCaptures([...(e.target.files ?? [])].slice(0, 5))}
-          />
-          <span className="mt-1 block text-sm font-normal text-muted">{captures.length === 0 ? '1 à 5 images. La première est la couverture.' : captures.map((fichier) => fichier.name).join(', ')}</span>
-        </div>
-        <fieldset className="m-0 border-0 p-0">
-          <legend className="font-semibold">La stack</legend>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {technos.map((techno) => (
-              <label key={techno} className="inline-flex min-h-cible items-center gap-2 rounded-full border border-line bg-canvas px-3">
+    <div className="flex flex-col gap-6">
+      <EnTetePage titre="Publier une appli" description="Publier est gratuit et ne lance aucun serveur : votre appli tournera seulement quand un client la déploiera." />
+
+      <div className="grid gap-6 bureau:grid-cols-[minmax(0,1fr)_18rem] bureau:items-start">
+        <form onSubmit={(evenement) => void envoyer(evenement)} className="flex min-w-0 flex-col gap-5" noValidate>
+          <Etape numero={1} titre="Le dépôt GitHub" fait={etapes.depot} description="Un dépôt public, avec un docker-compose.yml et un soukdev.json à la racine.">
+            <div className="flex flex-col gap-3 tablette:flex-row tablette:items-end">
+              <Champ libelle="Adresse du dépôt" erreur={erreurDepot} className="flex-1">
+                {(liaison) => (
+                  <Saisie
+                    {...liaison}
+                    value={depot}
+                    onChange={(evenement) => {
+                      setDepot(evenement.target.value)
+                      setVerif(null)
+                    }}
+                    required
+                    className="font-mono text-petit"
+                    placeholder="https://github.com/orga/appli"
+                  />
+                )}
+              </Champ>
+              <Bouton variante="secondaire" chargement={verification} disabled={depot.trim() === ''} onClick={() => void verifier()}>
+                Vérifier le dépôt
+              </Bouton>
+            </div>
+            {verif ? (
+              <Alerte ton="succes" titre="Dépôt vérifié">
+                {verif}
+              </Alerte>
+            ) : null}
+            <p className="m-0 flex gap-2 text-petit text-texte-doux">
+              <ShieldCheck aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+              La vérification contrôle l’accès, le docker-compose et les secrets. L’analyse des dépendances démarre après la publication ; le badge apparaît alors sur la fiche.
+            </p>
+          </Etape>
+
+          <Etape numero={2} titre="Les infos" fait={etapes.infos}>
+            <Champ libelle="Nom">
+              {(liaison) => <Saisie {...liaison} value={nom} onChange={(evenement) => setNom(evenement.target.value)} required maxLength={80} />}
+            </Champ>
+            <Champ libelle="Description" aide="Ce que fait l’appli, pour qui : c’est ce que lit un client dans le Store.">
+              {(liaison) => <ZoneTexte {...liaison} value={description} onChange={(evenement) => setDescription(evenement.target.value)} required rows={4} />}
+            </Champ>
+            <div className="grid gap-4 tablette:grid-cols-2">
+              <Champ libelle="URL de l’application en ligne" aide="Sa démo, en HTTPS.">
+                {(liaison) => <Saisie {...liaison} value={demo} onChange={(evenement) => setDemo(evenement.target.value)} required type="url" placeholder="https://votre-domaine.bj" />}
+              </Champ>
+              <Champ libelle="Catégorie">
+                {(liaison) => (
+                  <Liste {...liaison} required value={categorie} onChange={(evenement) => setCategorie(evenement.target.value as Categorie | '')}>
+                    <option value="">Choisir une catégorie</option>
+                    {categories.map((item) => (
+                      <option key={item.valeur} value={item.valeur}>
+                        {item.libelle}
+                      </option>
+                    ))}
+                  </Liste>
+                )}
+              </Champ>
+            </div>
+          </Etape>
+
+          <Etape numero={3} titre="Prix et hébergement" fait={etapes.prix} description="Le prix vous revient en entier ; le client paie en plus l’hébergement de sa copie.">
+            <div className="grid gap-4 tablette:grid-cols-[14rem_minmax(0,1fr)] tablette:items-start">
+              <Champ libelle="Prix de l’appli" aide="0 si elle est gratuite.">
+                {(liaison) => <SaisieMontant {...liaison} value={prix} onChange={(evenement) => setPrix(evenement.target.value.replace(/[^\d ]/g, ''))} required placeholder="15 000" />}
+              </Champ>
+              <ChoixCartes
+                nom="type-prix"
+                legende="Paiement"
+                colonnes={2}
+                valeur={typePrix}
+                onChange={setTypePrix}
+                options={[
+                  { valeur: 'mensuel', libelle: 'Mensuel' },
+                  { valeur: 'unique', libelle: 'Une fois' },
+                ]}
+              />
+            </div>
+            <ChoixCartes
+              nom="taille"
+              legende="Taille d’hébergement recommandée"
+              colonnes={1}
+              valeur={taille}
+              onChange={setTaille}
+              options={(Object.keys(formules) as Taille[]).map((cle) => ({
+                valeur: cle,
+                libelle: formules[cle].nom,
+                description: `${formules[cle].memoire} · ${formules[cle].coeurs}`,
+                complement: `${fcfa(formules[cle].prix)} / mois`,
+              }))}
+            />
+          </Etape>
+
+          <Etape numero={4} titre="Captures et stack" fait={etapes.medias}>
+            <div className="flex flex-col gap-2">
+              <span className="text-petit font-medium text-titre">Captures</span>
+              <div className="flex flex-wrap items-center gap-3">
                 <input
-                  type="checkbox"
-                  checked={stack.includes(techno)}
-                  onChange={() => setStack((liste) => (liste.includes(techno) ? liste.filter((item) => item !== techno) : [...liste, techno]))}
+                  id="captures-appli"
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  multiple
+                  aria-describedby="captures-aide"
+                  className="peer pour-lecteur"
+                  onChange={(evenement) => setCaptures([...(evenement.target.files ?? [])].slice(0, 5))}
                 />
-                {techno}
-              </label>
-            ))}
-          </div>
-        </fieldset>
-        </section>
-        {erreur ? <p role="alert" className="m-0 text-danger">{erreur}</p> : null}
-        <button type="submit" disabled={envoi} className="min-h-[52px] rounded-controle bg-accent font-bold text-canvas">Publier</button>
-      </form>
-      <aside className="flex flex-col gap-3 rounded-2xl border border-line bg-canvas p-5">
-        <h2 className="m-0 text-lg font-bold">Récapitulatif de publication</h2>
-        <dl className="m-0 grid grid-cols-[auto_1fr] gap-x-3 gap-y-2 text-sm">
-          <dt className="text-muted">Appli</dt><dd className="m-0 font-semibold">{nom || 'À renseigner'}</dd>
-          <dt className="text-muted">Catégorie</dt><dd className="m-0">{categories.find((item) => item.valeur === categorie)?.libelle ?? 'À choisir'}</dd>
-          <dt className="text-muted">Prix</dt><dd className="m-0">{prix === '' ? 'À renseigner' : `${fcfa(Number(prix))}${typePrix === 'mensuel' ? '/mois' : typePrix === 'unique' ? ' · paiement unique' : ''}`}</dd>
-          <dt className="text-muted">Hébergement</dt><dd className="m-0">{taille ? `${taille} · ${taille === 'petite' ? '3 500' : taille === 'moyenne' ? '7 000' : '13 500'} F/mois` : 'À choisir'}</dd>
-          <dt className="text-muted">Dépôt</dt><dd className="m-0 break-all">{depot || 'URL GitHub publique requise'}</dd>
-          <dt className="text-muted">Application en ligne</dt><dd className="m-0 break-all">{demo || 'URL HTTPS requise'}</dd>
-          <dt className="text-muted">Captures</dt><dd className="m-0">{captures.length}/5{captures[0] ? ` · couverture : ${captures[0].name}` : ' · au moins une requise'}</dd>
-        </dl>
-      </aside>
+                <label
+                  htmlFor="captures-appli"
+                  className="inline-flex h-11 cursor-pointer items-center gap-2 rounded-moyen border border-bordure-champ bg-surface px-4 text-corps font-medium text-titre shadow-1 hover:bg-surface-douce peer-focus-visible:outline-3 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-lien tablette:h-10"
+                >
+                  <ImagePlus aria-hidden="true" className="size-4" />
+                  Choisir des images
+                </label>
+                <span className="text-petit text-texte">{captures.length === 0 ? 'Aucune image choisie' : `${captures.length} image${captures.length > 1 ? 's' : ''} choisie${captures.length > 1 ? 's' : ''}`}</span>
+              </div>
+              <p id="captures-aide" className="m-0 text-petit text-texte-doux">
+                1 à 5 images (PNG, JPEG ou WebP). La première sert de couverture.
+              </p>
+              {captures.length > 0 ? (
+                <ol className="m-0 flex list-decimal flex-col gap-0.5 pl-5 text-petit text-texte">
+                  {captures.map((fichier, index) => (
+                    <li key={`${fichier.name}-${index}`} className="break-all">
+                      {fichier.name}
+                      {index === 0 ? <span className="text-texte-doux"> (couverture)</span> : null}
+                    </li>
+                  ))}
+                </ol>
+              ) : null}
+            </div>
+            <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
+              <legend className="mb-2 text-petit font-medium text-titre">La stack</legend>
+              <div className="flex flex-wrap gap-2">
+                {technos.map((techno) => (
+                  <PuceFiltre key={techno} presse={stack.includes(techno)} onClick={() => setStack((liste) => (liste.includes(techno) ? liste.filter((item) => item !== techno) : [...liste, techno]))}>
+                    {techno}
+                  </PuceFiltre>
+                ))}
+              </div>
+            </fieldset>
+          </Etape>
+
+          {erreur ? (
+            <Alerte ton="danger" urgente>
+              {erreur}
+            </Alerte>
+          ) : null}
+          <Bouton type="submit" taille="lg" chargement={envoi} className="self-stretch tablette:self-end">
+            Publier l’appli
+          </Bouton>
+        </form>
+
+        <aside aria-labelledby="titre-recap" className="bureau:sticky bureau:top-24">
+          <Carte className="flex flex-col gap-4">
+            <h2 id="titre-recap" className="m-0 text-titre-3 text-titre">
+              Récapitulatif
+            </h2>
+            <ol className="m-0 flex list-none flex-col gap-2 p-0 text-petit">
+              {(
+                [
+                  ['Dépôt vérifié', etapes.depot],
+                  ['Infos complètes', etapes.infos],
+                  ['Prix et hébergement', etapes.prix],
+                  ['Captures et stack', etapes.medias],
+                ] as const
+              ).map(([libelle, fait]) => (
+                <li key={libelle} className="flex items-center gap-2">
+                  <span aria-hidden="true" className={cx('grid size-5 place-items-center rounded-pastille', fait ? 'bg-succes-plein text-sur-couleur' : 'border border-bordure-champ')}>
+                    {fait ? <Check className="size-3.5" /> : null}
+                  </span>
+                  <span className={fait ? 'text-titre' : 'text-texte-doux'}>
+                    {libelle}
+                    <span className="pour-lecteur">{fait ? ' : fait' : ' : à faire'}</span>
+                  </span>
+                </li>
+              ))}
+            </ol>
+            <dl className="m-0 flex flex-col gap-2 border-t border-bordure pt-4 text-petit">
+              <Ligne terme="Appli" valeur={nom || 'À renseigner'} />
+              <Ligne terme="Catégorie" valeur={categories.find((item) => item.valeur === categorie)?.libelle ?? 'À choisir'} />
+              <Ligne terme="Prix" valeur={prixNombre === null ? 'À renseigner' : `${prixNombre === 0 ? 'Gratuit' : fcfa(prixNombre)}${prixNombre > 0 && typePrix === 'mensuel' ? ' / mois' : prixNombre > 0 && typePrix === 'unique' ? ' une fois' : ''}`} />
+              <Ligne terme="Hébergement" valeur={taille ? `${formules[taille].nom}, ${fcfa(formules[taille].prix)} / mois` : 'À choisir'} />
+              <Ligne terme="Captures" valeur={`${captures.length} sur 5`} />
+            </dl>
+          </Carte>
+        </aside>
+      </div>
     </div>
   )
 }
 
-function Etape({ numero, fait }: { numero: string; fait: boolean }) {
+function Etape({ numero, titre, description, fait, children }: { numero: number; titre: string; description?: string; fait: boolean; children: ReactNode }) {
   return (
-    <span aria-hidden="true" className={`grid size-7 place-items-center rounded-full text-sm font-bold ${fait ? 'bg-success text-canvas' : 'bg-nav text-accent'}`}>
-      {fait ? '✓' : numero}
-    </span>
+    <Carte as="section" aria-labelledby={`etape-${numero}`} className="flex flex-col gap-4">
+      <div className="flex items-start gap-3">
+        <span aria-hidden="true" className={cx('chiffres grid size-7 shrink-0 place-items-center rounded-pastille text-petit font-semibold', fait ? 'bg-succes-plein text-sur-couleur' : 'bg-primaire-doux text-sur-primaire-doux')}>
+          {fait ? <Check className="size-4" /> : numero}
+        </span>
+        <div className="flex flex-col gap-0.5">
+          <h2 id={`etape-${numero}`} className="m-0 text-titre-3 text-titre">
+            {titre}
+          </h2>
+          {description ? <p className="m-0 text-petit text-texte-doux">{description}</p> : null}
+        </div>
+      </div>
+      {children}
+    </Carte>
+  )
+}
+
+function Ligne({ terme, valeur }: { terme: string; valeur: string }) {
+  return (
+    <div className="flex justify-between gap-3">
+      <dt className="text-texte-doux">{terme}</dt>
+      <dd className="m-0 text-right font-medium break-all text-titre">{valeur}</dd>
+    </div>
   )
 }

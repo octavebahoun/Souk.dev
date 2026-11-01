@@ -50,11 +50,11 @@ export function creerRoutes(): RouteObject[] {
               {
                 element: <ThemeClairForce />,
                 children: [
-              { path: '/publier', lazy: async () => ({ Component: (await import('../features/catalogue/Publier')).Publier }) },
               { path: '/missions', lazy: async () => ({ Component: (await import('../features/catalogue/Missions')).Missions }) },
                 ],
               },
               { path: '/tableau', element: <PageEnAttente titre="Tableau de bord" /> },
+              { path: '/publier', lazy: async () => ({ Component: (await import('../features/catalogue/Publier')).Publier }) },
               { path: '/copies', lazy: async () => ({ Component: (await import('../features/deploiements/MesCopies')).MesCopies }) },
               { path: '/paiements', lazy: async () => ({ Component: (await import('../features/paiements/MesPaiements')).MesPaiements }) },
               { path: '/paiements/:id', lazy: async () => ({ Component: (await import('../features/paiements/FacturePage')).FacturePage }) },

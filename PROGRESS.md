@@ -157,6 +157,7 @@ Contrat : seul le schéma `Signalement` gagne `cible_chemin` ; types régénér�
   - [x] Événements (1er novembre) : en-tête du système avec « Créer un événement », filtres en pastilles, cartes avec la date en vignette, le format, l'organisateur et S'inscrire ; passés avec l'avis réservé aux inscrits ; création et invitation à se connecter dans la modale du système (format en cartes de choix) ; thème sombre ; axe sans violation. Avant : titre géant sombre sur bleu nuit (contraste insuffisant), cubes flottants, bouton jaune, cubes roses 3D, bascule liste/grille superflue, formulaire d'avis ouvert aux visiteurs
   - [x] Profil d'un dev (1er novembre) : en-tête du système (avatar, métier, bio, disponibilité, compétences, « Proposer une mission »), Souk Score en encart, statistiques, détail du score en barres accessibles, badges obtenus ou non, applis en cartes du Store, dépôts ; mission dans la modale du système ; thème sombre ; axe sans violation, y compris en sombre (le parcours socle audite désormais le thème sombre). Avant : « orbite » décorative, bio en double, tuiles redondantes, couleurs codées en dur. Toutes les pages publiques suivent maintenant le thème choisi
   - [x] Tableau de bord (1er novembre) : en-tête avec « Publier une appli », résumé du profil (Souk Score, niveau, lien vers le profil public), quatre tuiles (l'encaissé du mois mis en avant), tableau du système par appli (cartes sur mobile) ; thème sombre ; axe sans violation. Avant : cartes en dégradé, et un bandeau faux (« revenus estimés tant que le paiement n'est pas en place ») alors que les montants viennent du grand livre. Montants : `formaterFcfa` remplace l'espace fine U+202F par une insécable (Outfit l'affichait presque nulle en grand corps : « 30000 F »)
+  - [x] Publier (1er novembre) : quatre étapes en cartes (dépôt vérifié, infos, prix et hébergement en cartes de choix, captures et stack), sélecteur d'images en français relié à son libellé, stack en pastilles, récapitulatif fixe avec l'état de chaque étape ; thème sombre ; axe sans violation. Avant : sélecteur de fichiers natif en anglais (« Choose Files »), libellé « Les captures » relié à rien, étape « sécurité » réduite à un paragraphe
 
 ### Phase 8 — Release
 - [ ] Audit sécurité, performance, accessibilité ; documentation ; `RELEASE_NOTES.md`
@@ -185,6 +186,7 @@ Contrat : seul le schéma `Signalement` gagne `cible_chemin` ; types régénér�
 | Événements (`/evenements`) | Trouver un atelier ou une rencontre, en proposer un | S'inscrire (ou Créer un événement) | La date, le titre, le format (en ligne ou présentiel) et le bouton S'inscrire |
 | Profil d'un dev (`/devs/{username}`) | Juger si ce dev est le bon | Proposer une mission | Le nom, le métier, la disponibilité et le Souk Score ; puis la preuve : statistiques, badges, applis |
 | Tableau de bord (`/tableau`) | Voir ce que rapportent ses applis | Publier une appli | L'argent encaissé ce mois-ci (mis en avant), les vues et les copies, puis le détail par appli |
+| Publier (`/publier`) | Mettre son appli dans le Store | Publier l'appli | Les quatre étapes et leur état, puis le récapitulatif qui dit ce qui manque |
 
 ## Vérifications
 
