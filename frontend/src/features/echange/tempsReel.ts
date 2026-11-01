@@ -1,53 +1,46 @@
 import { useEffect, useRef, useState } from 'react'
 import { useQueryClient, type QueryClient } from '@tanstack/react-query'
-import Echo from 'laravel-echo'
-import Pusher from 'pusher-js'
+import { ouvrirReverb, reverbConfigure, type ConnexionReverb } from '../../app/reverb'
 import { listerDiscussions, type Discussion } from './api'
 import { correspond, type FiltresFil } from './filtres'
 
-function echoOuNull(): Echo<'reverb'> | null {
-  const hote = import.meta.env.VITE_REVERB_HOST
-  const port = import.meta.env.VITE_REVERB_PORT
-  const cle = import.meta.env.VITE_REVERB_KEY
-  const schema = import.meta.env.VITE_REVERB_SCHEME
-  const portNombre = Number(port)
-
-  if (!hote || !cle || (schema !== 'http' && schema !== 'https') || !Number.isInteger(portNombre)) {
-    return null
-  }
-
-  try {
-    const echo = new Echo({
-      broadcaster: 'reverb',
-      key: cle,
-      wsHost: hote,
-      wsPort: portNombre,
-      wssPort: portNombre,
-      forceTLS: schema === 'https',
-      enabledTransports: ['ws', 'wss'],
-      disableStats: true,
-      Pusher,
-    })
-    echo.connector.pusher.connection.bind('error', () => undefined)
-    return echo
-  } catch {
-    return null
+/**
+ * Ouvre une connexion le temps qu'un écran est affiché : brancher la reçoit une fois ouverte,
+ * la fonction rendue la ferme (même si elle s'ouvre après le départ de l'écran).
+ */
+function pendantLAffichage(brancher: (echo: ConnexionReverb) => () => void): () => void {
+  let actif = true
+  let debrancher: (() => void) | undefined
+  void ouvrirReverb().then((echo) => {
+    if (!echo) return
+    if (!actif) {
+      echo.disconnect()
+      return
+    }
+    const quitter = brancher(echo)
+    debrancher = () => {
+      quitter()
+      echo.disconnect()
+    }
+  })
+  return () => {
+    actif = false
+    debrancher?.()
   }
 }
 
 export function ecouterNouvellesDiscussions(recevoir: (discussion: Discussion) => void): () => void {
-  const echo = echoOuNull()
-  if (!echo) return () => undefined
-  echo.channel('discussions').listen('.discussion.creee', recevoir)
-  return () => {
-    echo.leave('discussions')
-    echo.disconnect()
-  }
+  return pendantLAffichage((echo) => {
+    echo.channel('discussions').listen('.discussion.creee', recevoir)
+    return () => echo.leave('discussions')
+  })
 }
 
 function ecouterUneDiscussion(id: number, client: QueryClient, onSupprimee: () => void): () => void {
-  const echo = echoOuNull()
-  if (!echo) return () => undefined
+  return pendantLAffichage((echo) => brancherDiscussion(echo, id, client, onSupprimee))
+}
+
+function brancherDiscussion(echo: ConnexionReverb, id: number, client: QueryClient, onSupprimee: () => void): () => void {
   const canal = echo.channel(`discussion.${id}`)
   const relireDiscussion = () => {
     void client.invalidateQueries({ queryKey: ['discussion', id] })
@@ -81,10 +74,7 @@ function ecouterUneDiscussion(id: number, client: QueryClient, onSupprimee: () =
     relireDiscussion()
   })
 
-  return () => {
-    echo.leave(`discussion.${id}`)
-    echo.disconnect()
-  }
+  return () => echo.leave(`discussion.${id}`)
 }
 
 export function useDiscussionDirect(id: number, actif: boolean): boolean {
@@ -115,7 +105,7 @@ export function useBandeau(filtres: FiltresFil) {
   }, [])
 
   useEffect(() => {
-    if (echoOuNull()) return
+    if (reverbConfigure()) return
     let ignore = false
     const connus = new Set<number>()
     let premier = true

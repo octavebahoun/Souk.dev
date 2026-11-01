@@ -1,6 +1,7 @@
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { defineConfig } from 'vitest/config'
+import { prechargerRoutes } from './vite.precharger.ts'
 
 // Laravel sur la machine (php artisan serve) ou le conteneur « api » (docker-compose.yml).
 // Toujours localhost, jamais 127.0.0.1 : mélanger les deux casse la session.
@@ -11,7 +12,7 @@ const versLaravel = { target: cible, changeOrigin: false }
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), prechargerRoutes()],
   server: {
     proxy: {
       '/api': versLaravel,
