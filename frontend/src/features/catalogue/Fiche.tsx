@@ -1,21 +1,46 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useParams } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
+import { ExternalLink, Lock } from 'lucide-react'
+import { useTitrePage } from '../../app/titre'
+import { useCompte } from '../../app/compte'
 import { fcfa, libelleCategorie, lireAppli, listerDiscussionsAppli, proposerMissionAppli } from './api'
-import { teintes } from './teintes'
+import { BadgeSecurite } from './BadgeSecurite'
 import { messageAction } from '../echange/api'
 import { nomPays } from '../echange/texte'
-import { Modal } from '../../shared/ui/Modal'
-import { useCompte } from '../../app/compte'
+import { formules } from '../paiements/formules'
 import { RapportSecurite } from '../securite/RapportSecurite'
 import { AvisClients } from './AvisClients'
 import { VersionsAppli } from './VersionsAppli'
-import { Etoiles, formaterNote } from '../../ui'
 import { Signaler } from '../admin/Signaler'
+import {
+  Alerte,
+  Avatar,
+  Badge,
+  Bouton,
+  Carte,
+  Champ,
+  EnTeteCarte,
+  EtatErreur,
+  Etoiles,
+  FilAriane,
+  LienBouton,
+  Modale,
+  Saisie,
+  SaisieMontant,
+  Squelette,
+  ZoneTexte,
+  classesBouton,
+  cx,
+  formaterNote,
+  useToast,
+} from '../../ui'
 
-const hebergement = { petite: 3500, moyenne: 7000, grande: 13500 }
-const tailleNom = { petite: 'Petite, 512 Mo', moyenne: 'Moyenne, 1 Go', grande: 'Grande, 2 Go' }
-
+/**
+ * Fiche d'une appli : décider de la commander. Le prix détaillé et « Déployer ma copie » sont
+ * dans un panneau fixe sur bureau, juste sous le titre sur mobile ; captures, README, sécurité,
+ * avis, versions et discussions suivent.
+ */
 export function Fiche() {
   const compte = useCompte()
   const { id = '' } = useParams()
@@ -34,212 +59,298 @@ export function Fiche() {
   })
   const [ecran, setEcran] = useState(0)
   const [mission, setMission] = useState(false)
+  useTitrePage(appli.data?.nom ?? 'Fiche')
+
+  const conteneur = 'mx-auto flex w-full max-w-site flex-col gap-6 px-4 py-8 tablette:px-6 bureau:px-8'
 
   // Le squelette tient toute la hauteur de l'écran : le pied de page ne remonte pas puis ne saute pas.
   if (appli.isPending) {
     return (
-      <div role="status" aria-label="Chargement de la fiche" className="mx-auto min-h-dvh max-w-[1440px] px-4 py-7 min-[761px]:px-9">
-        <div className="squelette h-80 rounded-[18px]" />
+      <div role="status" aria-label="Chargement de la fiche" className={cx(conteneur, 'min-h-dvh')}>
+        <Squelette className="h-4 w-40" />
+        <Squelette className="h-10 w-2/3" />
+        <div className="grid gap-6 bureau:grid-cols-[minmax(0,1fr)_22rem]">
+          <Squelette className="aspect-video w-full rounded-moyen" />
+          <Squelette className="h-80 rounded-moyen" />
+        </div>
       </div>
     )
   }
   if (appli.isError || !appli.data) {
     return (
-      <div className="mx-auto max-w-[1440px] px-4 py-10 min-[761px]:px-9">
-        <p role="alert">{messageAction(appli.error, 'Cette appli est introuvable, ou le chargement a échoué.')}</p>
-        <Link to="/store" className="inline-flex min-h-cible items-center font-semibold">Retour au Store</Link>
-        <button type="button" onClick={() => appli.refetch()} className="min-h-cible rounded-controle bg-accent px-4 font-semibold text-canvas">Réessayer</button>
+      <div className={conteneur}>
+        <EtatErreur
+          titre="Fiche indisponible"
+          description={messageAction(appli.error, 'Cette appli est introuvable, ou le chargement a échoué.')}
+          onReessayer={() => void appli.refetch()}
+        />
+        <LienBouton to="/store" variante="fantome" className="self-center">
+          Retour au Store
+        </LienBouton>
       </div>
     )
   }
 
   const fiche = appli.data
-  const teinte = teintes[fiche.categorie]
-  const host = hebergement[fiche.taille]
+  const formule = formules[fiche.taille]
   const prix = fiche.prix === 0 ? 'Gratuit' : fcfa(fiche.prix)
+  const mensuel = fiche.prix > 0 && fiche.type_prix === 'mensuel'
   const captures = fiche.captures
   const index = captures.length === 0 ? 0 : Math.min(ecran, captures.length - 1)
   const auteur = fiche.auteur.nom || fiche.auteur.username || 'un dev'
   const depotCourt = fiche.depot_url.split('/').pop()
+  const estAuteur = compte.data?.id === fiche.auteur.id
 
   return (
-    <div>
-      <div className="mx-auto flex max-w-[1440px] flex-col gap-7 px-4 py-7 min-[761px]:px-9">
-        <nav aria-label="Fil d'Ariane" className="text-sm text-muted">
-          <Link to="/store" className="text-muted">Store</Link> <span aria-hidden="true">/</span> <span className="font-semibold text-ink">{fiche.nom}</span>
-        </nav>
-        <div className="grid items-start gap-8 min-[961px]:grid-cols-[minmax(0,1fr)_340px]">
-          <div className="flex min-w-0 flex-col gap-12">
-            <header className="flex max-w-[820px] flex-col gap-3.5">
-              <p className="m-0 text-[12.5px] font-bold tracking-[0.08em] text-warning uppercase">{libelleCategorie(fiche.categorie)}{fiche.stack.length ? ` · ${fiche.stack.slice(0, 3).join(' · ')}` : ''}</p>
-              <h1 className="m-0 text-5xl leading-none font-extrabold tracking-tight min-[761px]:text-6xl">{fiche.nom}</h1>
-              <p className="m-0 max-w-[52ch] text-xl text-subtle">{fiche.description}</p>
-              <p className="m-0 text-sm text-muted">
-                par {fiche.auteur.username ? <Link to={`/devs/${fiche.auteur.username}`} className="font-semibold">{auteur}</Link> : auteur}
+    <div className={conteneur}>
+      <FilAriane miettes={[{ libelle: 'Store', vers: '/store' }, { libelle: fiche.nom }]} />
+
+      <div className="flex flex-col gap-8 bureau:grid bureau:grid-cols-[minmax(0,1fr)_22rem] bureau:items-start bureau:gap-x-10">
+        <header className="flex flex-col gap-4 bureau:col-start-1 bureau:row-start-1">
+          <div className="flex flex-wrap gap-1.5">
+            <Badge ton="marque">{libelleCategorie(fiche.categorie)}</Badge>
+            <BadgeSecurite statut={fiche.securite.statut} />
+            {fiche.stack.map((techno) => (
+              <Badge key={techno}>{techno}</Badge>
+            ))}
+          </div>
+          <h1 className="m-0 text-titre-1 text-titre tablette:text-affiche">{fiche.nom}</h1>
+          <p className="m-0 max-w-prose text-corps-l text-texte">{fiche.description}</p>
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-petit text-texte-doux">
+            <span className="flex items-center gap-2">
+              <Avatar nom={auteur} taille="sm" />
+              <span>
+                par {fiche.auteur.username ? <Link to={`/devs/${fiche.auteur.username}`} className="font-medium">{auteur}</Link> : auteur}
                 {fiche.auteur.pays ? ` · ${nomPays(fiche.auteur.pays)}` : ''}
+              </span>
+            </span>
+            {fiche.note_moyenne !== null ? (
+              <a href="#titre-avis" className="inline-flex min-h-11 items-center gap-2 text-titre no-underline tablette:min-h-0">
+                <Etoiles note={fiche.note_moyenne} taille="sm" />
+                <span>
+                  <span aria-hidden="true" className="font-medium">{formaterNote(fiche.note_moyenne)} · </span>
+                  {fiche.nb_avis} avis
+                </span>
+              </a>
+            ) : (
+              <span>Pas encore d’avis</span>
+            )}
+          </div>
+        </header>
+
+        <aside aria-label="Commander cette appli" className="bureau:sticky bureau:top-24 bureau:col-start-2 bureau:row-span-2 bureau:row-start-1">
+          <Carte marge="large" className="flex flex-col gap-5">
+            <div className="flex flex-col gap-1">
+              <p className="m-0 flex items-baseline gap-1.5">
+                <span className="chiffres text-titre-1 text-titre">{prix}</span>
+                {mensuel ? <span className="text-texte-doux">/ mois</span> : null}
               </p>
-              {fiche.note_moyenne !== null ? (
-                <a href="#titre-avis" className="inline-flex min-h-cible items-center gap-2 self-start text-sm font-semibold text-ink no-underline">
-                  <Etoiles note={fiche.note_moyenne} taille="sm" />
-                  <span><span aria-hidden="true">{formaterNote(fiche.note_moyenne)} · </span>{fiche.nb_avis} avis</span>
+              <p className="m-0 text-petit text-texte-doux">{fiche.type_prix === 'unique' && fiche.prix > 0 ? 'Payé une fois à l’auteur, plus l’hébergement chaque mois.' : 'Plus l’hébergement de votre copie, chaque mois.'}</p>
+            </div>
+            <dl className="m-0 flex flex-col gap-2 border-y border-bordure py-4 text-petit">
+              <div className="flex justify-between gap-3">
+                <dt className="text-texte">Appli, versée à {auteur}</dt>
+                <dd className="chiffres m-0 font-medium text-titre">{prix}</dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-texte">Hébergement {formule.nom} ({formule.memoire})</dt>
+                <dd className="chiffres m-0 font-medium text-titre">{fcfa(formule.prix)} / mois</dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-texte">Commission Souk.dev</dt>
+                <dd className="chiffres m-0 font-medium text-succes">0 F</dd>
+              </div>
+              <div className="flex justify-between gap-3 border-t border-bordure pt-2 text-corps font-semibold text-titre">
+                <dt>{fiche.type_prix === 'unique' && fiche.prix > 0 ? 'Premier mois' : 'Total par mois'}</dt>
+                <dd className="chiffres m-0">{fcfa(fiche.prix + formule.prix)}</dd>
+              </div>
+            </dl>
+            <div className="flex flex-col gap-2">
+              <LienBouton to={`/store/${fiche.id}/deployer`} pleineLargeur taille="lg">
+                Déployer ma copie
+              </LienBouton>
+              {fiche.demo_url ? (
+                <a href={fiche.demo_url} target="_blank" rel="noreferrer" className={classesBouton('contour', 'md', true)}>
+                  Essayer la démo
+                  <ExternalLink aria-hidden="true" className="size-4" />
+                  <span className="pour-lecteur"> (nouvel onglet)</span>
                 </a>
               ) : null}
-            </header>
-
-            <section aria-label="Captures de l'application" className="flex flex-col gap-3.5">
-              {captures.length > 0 ? (
-                <div role="tablist" aria-label="Captures" className="flex flex-wrap gap-2">
-                  {captures.map((capture, numero) => (
-                    <button key={capture.url} type="button" role="tab" aria-selected={index === numero} onClick={() => setEcran(numero)} className={`min-h-10 rounded-full px-3 text-sm font-semibold ${index === numero ? 'bg-ink text-canvas' : 'bg-canvas text-subtle'}`}>
-                      Capture {numero + 1}
-                    </button>
+              <Bouton variante="fantome" pleineLargeur onClick={() => setMission(true)}>
+                Demander une version sur mesure
+              </Bouton>
+            </div>
+            <p className="m-0 flex gap-2 text-petit text-texte-doux">
+              <Lock aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+              Votre copie tourne à part, avec ses propres données. Paiement par Mobile Money, en FCFA.
+            </p>
+            {fiche.variables_client.length > 0 ? (
+              <Alerte titre="Au déploiement, vous remplirez :">
+                <ul className="m-0 list-disc pl-4">
+                  {fiche.variables_client.map((variable) => (
+                    <li key={variable.nom}>{variable.libelle}</li>
                   ))}
+                </ul>
+              </Alerte>
+            ) : null}
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-bordure pt-4 text-petit">
+              <a href={fiche.depot_url} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-1.5 tablette:min-h-0">
+                Dépôt GitHub
+                <ExternalLink aria-hidden="true" className="size-3.5" />
+                <span className="pour-lecteur"> (nouvel onglet)</span>
+              </a>
+              {compte.data && !estAuteur ? <Signaler cible="appli" cibleId={fiche.id} etiquette="cette appli" /> : null}
+            </div>
+          </Carte>
+        </aside>
+
+        <div className="flex min-w-0 flex-col gap-8 bureau:col-start-1 bureau:row-start-2">
+          <section aria-label="Captures de l’application" className="flex flex-col gap-3">
+            {captures.length > 0 ? (
+              <>
+                <div className="overflow-hidden rounded-moyen border border-bordure bg-surface-douce shadow-1">
+                  <img src={captures[index].url} alt={`Capture ${index + 1} de ${fiche.nom}`} width={1280} height={720} className="aspect-video w-full object-contain" />
                 </div>
-              ) : null}
-              {captures.length > 0 ? (
-                <div className="overflow-hidden rounded-[22px] p-7 pb-0" style={{ background: teinte.fond }}>
-                  <div className="flex h-full flex-col overflow-hidden rounded-t-[10px] bg-canvas shadow-[0_20px_50px_rgba(120,80,30,0.22)]">
-                    <div className="flex items-center gap-1.5 border-b border-[#E7E2D8] bg-[#F4F1EB] px-3 py-2">
-                      <i className="size-2.5 rounded-full bg-[#F87171]" /><i className="size-2.5 rounded-full bg-[#FBBF24]" /><i className="size-2.5 rounded-full bg-[#34D399]" />
-                      <span className="mx-auto rounded-full bg-canvas px-3.5 py-0.5 font-mono text-[11.5px] text-muted">capture {index + 1}</span>
-                    </div>
-                    <img src={captures[index].url} alt={`Capture ${index + 1} de ${fiche.nom}`} width={1280} height={720} className="aspect-video max-h-[420px] w-full object-contain" />
+                {captures.length > 1 ? (
+                  <div className="flex gap-2 overflow-x-auto pb-1">
+                    {captures.map((capture, numero) => (
+                      <button
+                        key={capture.url}
+                        type="button"
+                        aria-pressed={index === numero}
+                        aria-label={`Capture ${numero + 1} sur ${captures.length}`}
+                        onClick={() => setEcran(numero)}
+                        className={cx('w-28 shrink-0 overflow-hidden rounded-petit border-2', index === numero ? 'border-primaire' : 'border-bordure hover:border-bordure-champ')}
+                      >
+                        <img src={capture.url} alt="" className="aspect-video w-full object-cover" />
+                      </button>
+                    ))}
                   </div>
-                </div>
-              ) : (
-                <div className="grid min-h-[280px] place-items-center rounded-[22px] border border-dashed border-line px-6 py-12 text-center" style={{ background: teinte.fond, color: teinte.texte }}>
-                  <p className="m-0"><strong className="block text-lg">Aucune capture publiée</strong><span className="mt-1 block text-sm">L’auteur n’a pas fourni d’image pour cette application.</span></p>
-                </div>
-              )}
-            </section>
-
-            <section aria-labelledby="titre-readme" className="flex flex-col gap-3.5">
-              <div className="flex items-center gap-2.5">
-                <h2 id="titre-readme" className="m-0 text-[26px] font-bold tracking-tight">À propos</h2>
-                <span className="ml-auto font-mono text-[12.5px] text-muted">README.md</span>
+                ) : null}
+              </>
+            ) : (
+              <div className="grid aspect-video place-items-center rounded-moyen border border-dashed border-bordure bg-surface-accent p-6 text-center">
+                <p className="m-0 flex flex-col gap-1">
+                  <strong className="text-titre-3 text-titre">Aucune capture publiée</strong>
+                  <span className="text-petit text-texte-doux">L’auteur n’a pas fourni d’image pour cette application.</span>
+                </p>
               </div>
-              <p className="m-0 whitespace-pre-wrap text-nav-texte">{fiche.readme || fiche.description}</p>
-              <h3 className="m-0 text-base">Lancer en local</h3>
-              <pre className="m-0 overflow-x-auto rounded-[10px] bg-ink p-3.5 font-mono text-[13px] leading-relaxed text-[#E2E8F0]">{`git clone ${fiche.depot_url}\ncd ${depotCourt}`}</pre>
-              <p className="m-0 text-[13.5px] text-muted">Affiché depuis le README du dépôt.</p>
-            </section>
+            )}
+          </section>
 
-            <RapportSecurite appId={fiche.id} securite={fiche.securite} estAuteur={compte.data?.id === fiche.auteur.id} />
+          <Carte as="section" aria-labelledby="titre-readme" className="flex flex-col gap-4">
+            <EnTeteCarte titre={<span id="titre-readme">À propos</span>} description="Affiché depuis le README du dépôt." />
+            <p className="m-0 whitespace-pre-wrap text-corps text-texte">{fiche.readme || fiche.description}</p>
+            <div className="flex flex-col gap-2">
+              <h3 className="m-0 text-corps font-semibold text-titre">Lancer en local</h3>
+              <pre className="m-0 overflow-x-auto rounded-moyen border border-bordure bg-surface-douce p-3 font-mono text-petit text-titre">{`git clone ${fiche.depot_url}\ncd ${depotCourt}`}</pre>
+            </div>
+          </Carte>
 
-            <AvisClients appId={fiche.id} noteMoyenne={fiche.note_moyenne} nbAvis={fiche.nb_avis} />
+          <RapportSecurite appId={fiche.id} securite={fiche.securite} estAuteur={estAuteur} />
 
-            <VersionsAppli appId={fiche.id} estAuteur={compte.data?.id === fiche.auteur.id} />
+          <AvisClients appId={fiche.id} noteMoyenne={fiche.note_moyenne} nbAvis={fiche.nb_avis} />
 
-            <section aria-labelledby="titre-discussions" className="flex flex-col gap-3">
-              <div className="flex items-center gap-2.5">
-                <h2 id="titre-discussions" className="m-0 text-[26px] font-bold tracking-tight">Discussions</h2>
-                {discussions.isSuccess ? <span className="text-[13px] text-muted">{discussions.data.data.length}</span> : null}
-              </div>
-              {discussions.isPending ? <p className="text-muted">Chargement…</p> : null}
-              {discussions.isSuccess && discussions.data.data.length === 0 ? <p className="text-muted">Aucune discussion sur cette appli.</p> : null}
+          <VersionsAppli appId={fiche.id} estAuteur={estAuteur} />
+
+          <Carte as="section" aria-labelledby="titre-discussions" className="flex flex-col gap-4">
+            <EnTeteCarte
+              titre={
+                <span id="titre-discussions">
+                  Discussions{discussions.isSuccess ? <span className="ml-2 text-corps font-normal text-texte-doux">{discussions.data.data.length}</span> : null}
+                </span>
+              }
+              description="Ouvertes à tous : clients et devs. Un dev peut y proposer un correctif."
+            />
+            {discussions.isPending ? <Squelette className="h-12 w-full" /> : null}
+            {discussions.isSuccess && discussions.data.data.length === 0 ? <p className="m-0 text-corps text-texte-doux">Aucune discussion sur cette appli pour le moment.</p> : null}
+            {discussions.isSuccess && discussions.data.data.length > 0 ? (
               <ul className="m-0 flex list-none flex-col p-0">
-                {discussions.data?.data.map((discussion) => (
-                  <li key={discussion.id} className="flex flex-col gap-1 border-t border-ink/10 py-3">
-                    <Link to={`/echange/${discussion.id}`} className="font-semibold text-ink no-underline">{discussion.titre}</Link>
-                    <span className="flex flex-wrap items-center gap-2.5 text-[13px] text-muted">
-                      <span className={`rounded-full px-2 font-semibold ${discussion.resolue ? 'bg-success-bg text-success' : 'bg-nav text-accent'}`}>{discussion.resolue ? 'Résolue' : 'Ouverte'}</span>
+                {discussions.data.data.map((discussion) => (
+                  <li key={discussion.id} className="flex flex-col gap-1 border-t border-bordure py-3 first:border-t-0 first:pt-0">
+                    <Link to={`/echange/${discussion.id}`} className="font-medium text-titre no-underline hover:underline">
+                      {discussion.titre}
+                    </Link>
+                    <span className="flex flex-wrap items-center gap-2.5 text-petit text-texte-doux">
+                      <Badge ton={discussion.resolue ? 'succes' : 'marque'}>{discussion.resolue ? 'Résolue' : 'Ouverte'}</Badge>
                       <span>{discussion.auteur.nom || discussion.auteur.username}</span>
-                      <span>{discussion.nb_messages} messages</span>
+                      <span>
+                        {discussion.nb_messages} message{discussion.nb_messages > 1 ? 's' : ''}
+                      </span>
                     </span>
                   </li>
                 ))}
               </ul>
-              <Link to="/echange" className="inline-flex min-h-cible items-center justify-center rounded-controle border border-line font-semibold text-accent no-underline">Poser une question sur cette appli</Link>
-              <p className="m-0 text-[13px] text-muted">Ouvert à tous : clients et devs. Un dev peut y proposer un correctif.</p>
-            </section>
-          </div>
-
-          <aside aria-label="Déployer cette appli" className="flex flex-col gap-4 rounded-[22px] border border-line bg-canvas p-6 min-[961px]:sticky min-[961px]:top-6">
-            <div className="flex items-center gap-3.5">
-              <span aria-hidden="true" className="grid size-14 shrink-0 place-items-center rounded-[14px] text-lg font-bold" style={{ background: teinte.fond, color: teinte.texte }}>{fiche.nom.slice(0, 2).toUpperCase()}</span>
-              <div className="min-w-0">
-                <p className="m-0 text-[19px] leading-tight font-bold">{fiche.nom}</p>
-                <span className="text-sm text-muted">par {auteur}{fiche.auteur.pays ? ` · ${nomPays(fiche.auteur.pays)}` : ''}</span>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <span className="rounded-full bg-chip px-3 py-1 text-[13px] font-semibold text-nav-texte">{libelleCategorie(fiche.categorie)}</span>
-              {fiche.securite.statut === 'verifie' ? <span className="rounded-full bg-success-bg px-3 py-1 text-[13px] font-bold text-success">Security Checked</span> : null}
-              {fiche.securite.statut === 'problemes' ? <span className="rounded-full bg-[#FFEDD5] px-3 py-1 text-[13px] font-bold text-[#9A3412]">Problèmes détectés</span> : null}
-              {fiche.securite.statut === 'en_cours' ? <span className="rounded-full bg-page px-3 py-1 text-[13px] font-semibold text-subtle">Analyse en cours</span> : null}
-              {fiche.securite.statut === 'echec' ? <span className="rounded-full bg-page px-3 py-1 text-[13px] font-semibold text-subtle">Analyse impossible</span> : null}
-            </div>
-            <ul aria-label="Stack" className="m-0 flex list-none flex-wrap gap-1.5 p-0">
-              {fiche.stack.map((techno) => <li key={techno} className="rounded-full bg-chip px-2.5 py-0.5 text-[13px] font-semibold text-nav-texte">{techno}</li>)}
-            </ul>
-            <div className="flex items-baseline gap-1.5 border-t border-[#EEF2F9] pt-3.5">
-              <span className="text-[30px] font-bold tracking-tight tabular-nums">{prix}</span>
-              {fiche.prix > 0 && fiche.type_prix === 'mensuel' ? <span className="text-muted">/ mois</span> : null}
-            </div>
-            <dl className="m-0 flex flex-col gap-2 text-sm">
-              <div className="flex justify-between gap-3"><dt className="text-subtle">Appli, versée à {auteur}</dt><dd className="m-0 font-semibold">{prix}</dd></div>
-              <div className="flex justify-between gap-3"><dt className="text-subtle">Hébergement, {tailleNom[fiche.taille]}</dt><dd className="m-0 font-semibold">{fcfa(host)}/mois</dd></div>
-              <div className="flex justify-between gap-3"><dt className="text-subtle">Commission Souk.dev</dt><dd className="m-0 font-semibold text-success">0 F</dd></div>
-              <div className="flex justify-between gap-3 border-t border-[#EEF2F9] pt-2 font-bold"><dt>Total affiché</dt><dd className="m-0">{fcfa(fiche.prix + host)}</dd></div>
-            </dl>
-            {fiche.demo_url ? <a href={fiche.demo_url} target="_blank" rel="noreferrer" className="inline-flex min-h-12 items-center justify-center rounded-xl bg-accent font-semibold text-canvas no-underline">Ouvrir l’application publiée ↗</a> : <p className="m-0 text-sm text-muted">L’auteur n’a pas renseigné d’URL publique pour cette application.</p>}
-            <Link to={`/store/${fiche.id}/deployer`} className="inline-flex min-h-cible items-center justify-center rounded-controle bg-ink font-semibold text-canvas no-underline">Déployer ma copie</Link>
-            <button type="button" onClick={() => setMission(true)} className="min-h-cible rounded-controle border border-line bg-canvas font-semibold">Demander une version sur mesure</button>
-            {fiche.variables_client.length > 0 ? (
-              <div className="rounded-xl bg-page px-3.5 py-3">
-                <p className="m-0 text-[13.5px] font-semibold">Au déploiement, vous remplirez :</p>
-                <ul className="m-0 mt-1 list-disc pl-4 text-[13.5px] text-subtle">
-                  {fiche.variables_client.map((variable) => <li key={variable.nom}>{variable.libelle}</li>)}
-                </ul>
-              </div>
             ) : null}
-            <a href={fiche.depot_url} target="_blank" rel="noreferrer" className="text-sm">Dépôt GitHub ↗</a>
-            {compte.data && compte.data.id !== fiche.auteur.id ? <Signaler cible="appli" cibleId={fiche.id} etiquette="cette appli" /> : null}
-          </aside>
+            <LienBouton to="/echange" variante="secondaire" className="self-start">
+              Poser une question sur cette appli
+            </LienBouton>
+          </Carte>
         </div>
       </div>
-      {mission ? <FormMission id={fiche.id} onFerme={() => setMission(false)} /> : null}
+      <DemandeSurMesure id={fiche.id} ouverte={mission} onFermer={() => setMission(false)} />
     </div>
   )
 }
 
-function FormMission({ id, onFerme }: { id: number; onFerme: () => void }) {
+/** Demande de version sur mesure à l'auteur : une mission privée, suivie dans « Missions ». */
+function DemandeSurMesure({ id, ouverte, onFermer }: { id: number; ouverte: boolean; onFermer: () => void }) {
+  const toast = useToast()
   const [erreur, setErreur] = useState<string | null>(null)
-  const [ok, setOk] = useState(false)
+  const [envoi, setEnvoi] = useState(false)
 
   async function envoyer(evenement: FormEvent<HTMLFormElement>) {
     evenement.preventDefault()
     const donnees = new FormData(evenement.currentTarget)
-    const budget = String(donnees.get('budget') ?? '')
+    const budget = String(donnees.get('budget') ?? '').replace(/\s/g, '')
+    setEnvoi(true)
+    setErreur(null)
     try {
       await proposerMissionAppli(id, {
         message: String(donnees.get('message') ?? ''),
         budget: budget ? Number(budget) : undefined,
         delai: String(donnees.get('delai') ?? '') || undefined,
       })
-      setOk(true)
+      toast.succes('Demande envoyée : elle apparaît dans Missions.')
+      onFermer()
     } catch (erreurHttp) {
-      setErreur(messageAction(erreurHttp, 'Trop de missions. Réessayez plus tard.'))
+      setErreur(messageAction(erreurHttp, 'La demande n’a pas pu partir. Réessayez dans un moment.'))
+    } finally {
+      setEnvoi(false)
     }
   }
 
   return (
-    <Modal titre="Demander une version sur mesure" onFermer={onFerme}>
-      {ok ? <p role="status">Demande envoyée. Elle apparaît dans Missions.</p> : (
-        <form onSubmit={(e) => void envoyer(e)} className="flex flex-col gap-3">
-          <label className="font-semibold">Besoin
-            <textarea name="message" required rows={4} className="mt-1 w-full rounded-controle border border-line bg-canvas p-3 font-normal" />
-          </label>
-          <label className="font-semibold">Budget (FCFA)
-            <input name="budget" inputMode="numeric" className="mt-1 min-h-cible w-full rounded-controle border border-line bg-canvas px-3 font-normal" />
-          </label>
-          <label className="font-semibold">Délai
-            <input name="delai" type="date" className="mt-1 min-h-cible w-full rounded-controle border border-line bg-canvas px-3 font-normal" />
-          </label>
-          {erreur ? <p role="alert" className="m-0 text-danger">{erreur}</p> : null}
-          <button type="submit" className="min-h-cible rounded-controle bg-accent font-semibold text-canvas">Envoyer</button>
-        </form>
-      )}
-    </Modal>
+    <Modale
+      ouverte={ouverte}
+      onFermer={onFermer}
+      titre="Demander une version sur mesure"
+      description="L’auteur reçoit votre besoin en privé et vous répond dans Missions."
+      pied={
+        <>
+          <Bouton variante="contour" onClick={onFermer}>
+            Annuler
+          </Bouton>
+          <Bouton type="submit" form="demande-sur-mesure" chargement={envoi}>
+            Envoyer la demande
+          </Bouton>
+        </>
+      }
+    >
+      <form id="demande-sur-mesure" onSubmit={(evenement) => void envoyer(evenement)} className="flex flex-col gap-4">
+        <Champ libelle="Votre besoin" aide="Ce que l’appli doit faire en plus, ou autrement.">
+          {(liaison) => <ZoneTexte {...liaison} name="message" required rows={4} data-autofocus />}
+        </Champ>
+        <div className="grid gap-4 tablette:grid-cols-2">
+          <Champ libelle="Budget" facultatif>
+            {(liaison) => <SaisieMontant {...liaison} name="budget" />}
+          </Champ>
+          <Champ libelle="Délai souhaité" facultatif>
+            {(liaison) => <Saisie {...liaison} name="delai" type="date" />}
+          </Champ>
+        </div>
+        {erreur ? <Alerte ton="danger">{erreur}</Alerte> : null}
+      </form>
+    </Modale>
   )
 }

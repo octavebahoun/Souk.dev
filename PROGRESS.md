@@ -148,6 +148,7 @@ Contrat : seul le schéma `Signalement` gagne `cible_chemin` ; types régénér�
 ### Phase 7 — Refonte du design
 - [ ] Chaque page redessinée, captures critiquées (3 tailles, 2 thèmes), zéro violation axe sérieuse
   - [x] Store (1er novembre) : grille alignée sur l'en-tête, cartes du système (capture, badges, prix, note), recherche + tri + catégories visibles, filtres avancés repliés, bandeau dev unique ; thème sombre ; axe sans violation (lien du bandeau souligné). Avant : fond beige hors palette, 5 filtres ouverts, libellé anglais, double « Publier », cartes invisibles avant défilement
+  - [x] Fiche (1er novembre) : panneau de commande fixe sur bureau, sous le titre sur mobile (prix détaillé, « Déployer ma copie » en primaire, démo en contour, sur mesure en retrait, rassurance, dépôt et signalement), captures avec vignettes, README, sécurité, avis, versions et discussions en cartes du système ; demande sur mesure dans la modale du système ; thème sombre. Avant : action principale en noir, démo en bleu primaire, couleurs codées en dur
 
 ### Phase 8 — Release
 - [ ] Audit sécurité, performance, accessibilité ; documentation ; `RELEASE_NOTES.md`
@@ -167,6 +168,7 @@ Contrat : seul le schéma `Signalement` gagne `cible_chemin` ; types régénér�
 | Modération (`/admin/moderation`) | Examiner et décider vite | Traiter un signalement (ou suspendre) | Les motifs graves en rouge, puis les copies et comptes suspendus |
 | Pages légales (`/legal/*`) | Lire les règles et ses droits | Comprendre (aucune action) | Le bandeau « brouillon à faire valider par un juriste », puis le plan en 4-5 articles |
 | Store (`/store`) | Trouver l'appli qui fera tourner son activité | Ouvrir la fiche d'une appli | Les captures et les noms, le prix par mois, le badge de sécurité ; la recherche et les catégories en haut, les filtres avancés repliés |
+| Fiche (`/store/{id}`) | Décider de commander l'appli | Déployer ma copie | Le prix par mois détaillé (appli, hébergement, 0 F de commission) et le bouton bleu, puis les captures, la sécurité et les avis |
 
 ## Vérifications
 

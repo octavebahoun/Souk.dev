@@ -35,7 +35,6 @@ export function creerRoutes(): RouteObject[] {
             children: [
           { path: '/echange', lazy: async () => ({ Component: (await import('../features/echange/Fil')).Fil }) },
           { path: '/echange/:id', lazy: async () => ({ Component: (await import('../features/echange/PageDiscussion')).PageDiscussion }) },
-          { path: '/store/:id', lazy: async () => ({ Component: (await import('../features/catalogue/Fiche')).Fiche }) },
           { path: '/devs', lazy: async () => ({ Component: (await import('../features/catalogue/Recherche')).Recherche }) },
           { path: '/evenements', lazy: async () => ({ Component: (await import('../features/catalogue/Evenements')).Evenements }) },
           { path: '/devs/:username', element: <PageEnAttente titre="Profil" /> },
@@ -43,6 +42,7 @@ export function creerRoutes(): RouteObject[] {
           },
           // Écrans refaits avec le système de design (thème clair ou sombre).
           { path: '/store', lazy: async () => ({ Component: (await import('../features/catalogue/Store')).Store }) },
+          { path: '/store/:id', lazy: async () => ({ Component: (await import('../features/catalogue/Fiche')).Fiche }) },
           { path: '/store/:id/deployer', lazy: async () => ({ Component: (await import('../features/paiements/Commande')).Commande }) },
           { path: '/paiement/retour', lazy: async () => ({ Component: (await import('../features/paiements/RetourPaiement')).RetourPaiement }) },
           { path: '/legal/cgu', lazy: async () => ({ Component: (await import('../features/legal/Legal')).Cgu }) },

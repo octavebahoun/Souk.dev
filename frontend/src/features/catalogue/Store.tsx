@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { useInfiniteQuery } from '@tanstack/react-query'
-import { Search, ShieldAlert, ShieldCheck, SlidersHorizontal } from 'lucide-react'
+import { Search, SlidersHorizontal } from 'lucide-react'
 import { useTitrePage } from '../../app/titre'
 import { categories, fcfa, libelleCategorie, listerApplis, type Appli } from './api'
+import { BadgeSecurite } from './BadgeSecurite'
 import { nomPays } from '../echange/texte'
 import { messageAction } from '../echange/api'
 import {
@@ -256,16 +257,6 @@ export function Store() {
       </section>
     </div>
   )
-}
-
-function BadgeSecurite({ statut }: { statut: Appli['securite']['statut'] }) {
-  if (statut === 'verifie') {
-    return <Badge ton="succes" icone={<ShieldCheck aria-hidden="true" className="size-3.5" />}>Security Checked</Badge>
-  }
-  if (statut === 'problemes') {
-    return <Badge ton="alerte" icone={<ShieldAlert aria-hidden="true" className="size-3.5" />}>Problèmes détectés</Badge>
-  }
-  return <Badge>{statut === 'en_cours' ? 'Analyse en cours' : 'Analyse impossible'}</Badge>
 }
 
 /** Une appli : capture, nom (seul lien, qui couvre la carte), auteur, note, description, prix. */
