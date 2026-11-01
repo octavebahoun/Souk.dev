@@ -212,7 +212,8 @@ final class Encaissement
      */
     private function appliquerVerificationReussie(Paiement $paiement, VerificationPaiement $verification): Paiement
     {
-        $devise = $verification->devise ?? 'XOF';
+        // « xof » ou « XOF  » restent des francs CFA : le montant est toujours comparé.
+        $devise = strtoupper(trim($verification->devise ?? '')) ?: 'XOF';
         $fraisRetenus = 0;
 
         if ($devise === 'XOF' && $verification->montantDemande !== $paiement->montant) {

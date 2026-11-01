@@ -92,6 +92,18 @@ class VerificationPaiementTest extends TestCase
         $this->assertAlerte('montant à vérifier');
     }
 
+    public function test_une_devise_ecrite_en_minuscules_n_echappe_pas_a_la_comparaison_du_montant(): void
+    {
+        [$facture, $paiement] = $this->sessionOuverte();
+        $this->passerelle->session = new StatutSession('PAID', 'f3b1c2d4-0000-4000-8000-000000000009', 'SUCCESS');
+        $this->passerelle->transaction = new VerificationPaiement('SUCCESS', 100, 4, 104, 100, 'TXN-MINUSCULES', ' xof');
+
+        app(Encaissement::class)->verifier($paiement);
+
+        $this->assertSame('a_payer', $facture->refresh()->statut);
+        $this->assertAlerte('montant à vérifier');
+    }
+
     public function test_des_frais_retenus_par_saspay_sont_une_charge_de_souk_dev(): void
     {
         [$facture, $paiement] = $this->sessionOuverte();
