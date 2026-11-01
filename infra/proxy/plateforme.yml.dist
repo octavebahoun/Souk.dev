@@ -8,20 +8,40 @@ http:
       rule: "Host(`__DOMAINE__`)"
       entryPoints: [websecure]
       service: front
+      # La CSP du front, qui autorise ses scripts par empreinte, vient de nginx (frontend/nginx.conf).
+      middlewares: [securite]
       tls:
         certResolver: letsencrypt
     api:
       rule: "Host(`api.__DOMAINE__`)"
       entryPoints: [websecure]
       service: api
+      middlewares: [securite, csp-api]
       tls:
         certResolver: letsencrypt
     reverb:
       rule: "Host(`reverb.__DOMAINE__`)"
       entryPoints: [websecure]
       service: reverb
+      middlewares: [securite]
       tls:
         certResolver: letsencrypt
+
+  middlewares:
+    # HTTPS imposé un an (sous-domaines compris : api, reverb), pas de devinette de type, jamais
+    # affiché dans le cadre d'un autre site (détournement de clic sur « Recevoir mon solde »…).
+    securite:
+      headers:
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
+        contentTypeNosniff: true
+        frameDeny: true
+        referrerPolicy: strict-origin-when-cross-origin
+        permissionsPolicy: "camera=(), microphone=(), geolocation=(), payment=()"
+    # L'API ne sert que du JSON et quelques pages sans script (confirmation d'un numéro…).
+    csp-api:
+      headers:
+        contentSecurityPolicy: "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"
 
   services:
     # Traefik est sur le réseau de l'hôte : il joint les ports publiés sur la boucle locale.

@@ -21,9 +21,10 @@ ARG VITE_REVERB_SCHEME=https
 ARG VITE_REVERB_KEY
 
 RUN test -n "$VITE_REVERB_KEY" || { echo "VITE_REVERB_KEY manquant : lire la clé publique de Reverb dans le volume « secrets » (docs/exploitation.md)." >&2; exit 1; }
-RUN npm run build
+RUN npm run build && node scripts/csp-nginx.mjs dist/index.html /app/csp.conf
 
 FROM nginx:1.28-alpine
 
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /app/csp.conf /etc/nginx/snippets/csp.conf
 COPY --from=build /app/dist /usr/share/nginx/html
