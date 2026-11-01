@@ -1,16 +1,12 @@
 import { useState, type KeyboardEvent } from 'react'
 import { Link } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Avatar } from '../../shared/ui/Avatar'
-import { Badge } from '../../shared/ui/Badge'
-import { EmptyState } from '../../shared/ui/EmptyState'
+import { Send } from 'lucide-react'
+import { Alerte, Avatar, Badge, Bouton, Carte, Champ, EnTeteCarte, EtatErreur, Pagination, SqueletteLignes, ZoneTexte } from '../../ui'
 import { creerMessage, listerMessages, lireErreurHttp, messageAction } from './api'
 import { Signaler } from '../admin/Signaler'
 import { ilYA, nomAuteur } from './texte'
 import { TexteMarkdown } from './TexteMarkdown'
-
-const boutonAccent =
-  'inline-flex min-h-cible items-center justify-center rounded-controle bg-accent px-5 font-semibold text-canvas disabled:opacity-60'
 
 type FilMessagesProps = {
   discussionId: number
@@ -64,92 +60,74 @@ export function FilMessages({ discussionId, auteurId, page, onPage, connecteId }
   const total = messages.data ? Math.max(messages.data.meta.total, messages.data.data.length) : 0
 
   return (
-    <section aria-labelledby="titre-messages" className="verre flex flex-col gap-3 rounded-carte px-5 pb-5">
-      <h2 id="titre-messages" className="m-0 mt-4 text-[17px] font-bold">
-        Messages <span className="text-[15px] font-medium text-muted">{messages.isSuccess ? total : ''}</span>
-      </h2>
+    <Carte as="section" aria-labelledby="titre-messages" className="flex flex-col gap-4">
+      <EnTeteCarte
+        titre={
+          <span id="titre-messages">
+            Messages{messages.isSuccess ? <span className="ml-2 text-corps font-normal text-texte-doux">{total}</span> : null}
+          </span>
+        }
+      />
 
       {messages.isPending ? (
-        <div role="status" aria-label="Chargement des messages" className="squelette h-24 rounded-carte" />
+        <div role="status" aria-label="Chargement des messages">
+          <SqueletteLignes lignes={3} />
+        </div>
       ) : null}
-      {messages.isError ? (
-        <button type="button" onClick={() => messages.refetch()} className={boutonAccent}>
-          Réessayer
-        </button>
-      ) : null}
-      {messages.isSuccess && messages.data.data.length === 0 ? <EmptyState message="Aucun message pour l’instant." /> : null}
+      {messages.isError ? <EtatErreur description="Les messages n’ont pas pu être chargés." onReessayer={() => void messages.refetch()} /> : null}
+      {messages.isSuccess && messages.data.data.length === 0 ? <p className="m-0 text-corps text-texte-doux">Aucun message pour l’instant.</p> : null}
       {messages.isSuccess && messages.data.data.length > 0 ? (
         <ol className="m-0 flex list-none flex-col p-0">
-          {messages.data.data.map((message) => (
-            <li key={message.id} className="grid grid-cols-[36px_minmax(0,1fr)] gap-3 border-t border-[#EEF2F9] py-4">
-              <Avatar nom={message.auteur.nom} username={message.auteur.username} avatarUrl={message.auteur.avatar_url} taille="moyen" />
-              <div className="flex min-w-0 flex-col gap-1">
-                <div className="flex flex-wrap items-center gap-2 text-sm">
-                  {message.auteur.username ? (
-                    <Link to={`/devs/${message.auteur.username}`} className="font-semibold text-ink no-underline">
-                      {nomAuteur(message.auteur.nom, message.auteur.username)}
-                    </Link>
-                  ) : (
-                    <span className="font-semibold">{nomAuteur(message.auteur.nom, message.auteur.username)}</span>
-                  )}
-                  {message.auteur.id === auteurId ? <Badge ton="question">auteur</Badge> : null}
-                  <time dateTime={message.cree_le} className="text-muted">
-                    {ilYA(message.cree_le)}
-                  </time>
-                  {connecteId != null && connecteId !== message.auteur.id ? (
-                    <Signaler cible="message" cibleId={message.id} etiquette="ce message" />
-                  ) : null}
+          {messages.data.data.map((message) => {
+            const nom = nomAuteur(message.auteur.nom, message.auteur.username)
+            return (
+              <li key={message.id} className="grid grid-cols-[2.5rem_minmax(0,1fr)] gap-3 border-t border-bordure py-4 first:border-t-0 first:pt-0">
+                <Avatar nom={nom} url={message.auteur.avatar_url} />
+                <div className="flex min-w-0 flex-col gap-1.5">
+                  <div className="flex flex-wrap items-center gap-2 text-petit text-texte-doux">
+                    {message.auteur.username ? (
+                      <Link to={`/devs/${message.auteur.username}`} className="font-medium text-titre no-underline hover:underline">
+                        {nom}
+                      </Link>
+                    ) : (
+                      <span className="font-medium text-titre">{nom}</span>
+                    )}
+                    {message.auteur.id === auteurId ? <Badge ton="marque">auteur</Badge> : null}
+                    <time dateTime={message.cree_le}>{ilYA(message.cree_le)}</time>
+                    {connecteId != null && connecteId !== message.auteur.id ? (
+                      <span className="ml-auto">
+                        <Signaler cible="message" cibleId={message.id} etiquette="ce message" />
+                      </span>
+                    ) : null}
+                  </div>
+                  <TexteMarkdown texte={message.texte} />
                 </div>
-                <TexteMarkdown texte={message.texte} className="text-ink" />
-              </div>
-            </li>
-          ))}
+              </li>
+            )
+          })}
         </ol>
       ) : null}
 
-      {messages.data && messages.data.meta.last_page > 1 ? (
-        <div className="flex flex-wrap gap-2">
-          <button type="button" disabled={page <= 1} onClick={() => onPage(page - 1)} className={boutonAccent}>
-            Messages précédents
-          </button>
-          <button type="button" disabled={page >= messages.data.meta.last_page} onClick={() => onPage(page + 1)} className={boutonAccent}>
-            Messages suivants
-          </button>
-        </div>
-      ) : null}
+      {messages.data ? <Pagination page={page} dernierePage={messages.data.meta.last_page} onChange={onPage} /> : null}
 
-      <form onSubmit={soumettre} className="flex flex-col gap-2.5 border-t border-[#EEF2F9] pt-4">
-        <label htmlFor="reponse" className="text-sm font-semibold">
-          Votre réponse
-        </label>
-        <textarea
-          id="reponse"
-          rows={4}
-          value={texte}
-          onChange={(evenement) => setTexte(evenement.target.value)}
-          onKeyDown={entree}
-          aria-invalid={erreurLocale ? true : undefined}
-          aria-describedby={erreurLocale ? 'reponse-erreur' : undefined}
-          placeholder="Expliquez, collez du code entre ``` ou proposez une piste…"
-          className="min-h-24 resize-y rounded-controle border border-line bg-page px-3 py-2.5 text-ink"
-        />
-        {erreurLocale ? (
-          <p id="reponse-erreur" role="alert" className="m-0 text-[13.5px] text-danger">
-            {erreurLocale}
-          </p>
-        ) : null}
-        {erreurServeur ? (
-          <p role="alert" className="m-0 text-[13.5px] text-danger">
-            {erreurServeur}
-          </p>
-        ) : null}
-        <div className="flex flex-wrap items-center justify-between gap-2.5">
-          <span className="text-[13px] text-muted">Markdown accepté. Entrée envoie, Maj+Entrée passe une ligne.</span>
-          <button type="submit" disabled={envoyer.isPending} className={boutonAccent}>
-            Envoyer
-          </button>
-        </div>
+      <form onSubmit={soumettre} className="flex flex-col gap-3 border-t border-bordure pt-4">
+        <Champ libelle="Votre réponse" erreur={erreurLocale} aide="Markdown accepté. Entrée envoie, Maj+Entrée passe une ligne.">
+          {(liaison) => (
+            <ZoneTexte
+              {...liaison}
+              rows={4}
+              value={texte}
+              onChange={(evenement) => setTexte(evenement.target.value)}
+              onKeyDown={entree}
+              placeholder="Expliquez, collez du code entre ``` ou proposez une piste…"
+            />
+          )}
+        </Champ>
+        {erreurServeur ? <Alerte ton="danger">{erreurServeur}</Alerte> : null}
+        <Bouton type="submit" className="self-end" chargement={envoyer.isPending} icone={<Send aria-hidden="true" className="size-4" />}>
+          Envoyer
+        </Bouton>
       </form>
-    </section>
+    </Carte>
   )
 }

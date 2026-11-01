@@ -152,6 +152,7 @@ Contrat : seul le schéma `Signalement` gagne `cible_chemin` ; types régénér�
   - [x] Accueil (1er novembre) : dans la coquille commune (en-tête et pied du site), bandeau bleu nuit avec le visuel généré, trois étapes illustrées, quatre applis du Store, l'Échange, qui paie quoi, appel final ; thème sombre ; axe sans violation. Avant : palette beige, en-tête et logo propres, débordement horizontal (1520 px), sections vides avant défilement, photos Unsplash chargées depuis leur CDN
   - [x] Connexion (1er novembre) : dans la coquille commune, panneau bleu nuit (bureau) et carte du système, profil « Développeur » ou « Entreprise ou particulier », GitHub en primaire, lien par e-mail avec erreur reliée au champ ; thème sombre ; axe sans violation. Avant : personnage 3D sans licence connue (image retirée), icônes néon, `role="dialog"` sur une carte qui n'en est pas une
   - [x] Échange, fil (1er novembre) : canaux en panneau (liste sur mobile), filtres d'étiquette et de statut en pastilles du système, difficulté seulement pour les bugs, cartes du système (auteur, canal, aperçu sans Markdown, badges, messages, partage), formulaire de discussion dans la modale du système, toasts du système, pagination du système ; thème sombre ; axe sans violation (fil et formulaire). Avant : cartes beiges, onglet unique « Pour toi », couleurs codées en dur, discussions invisibles avant défilement. L'audit axe attend désormais la fin des transitions (une puce mesurée en pleine transition donnait un faux défaut de contraste)
+  - [x] Discussion (1er novembre) : fil d'Ariane, en-tête (auteur, état, étiquettes, signalement), problème et fiche du bug en carte, projet et copie de test avec les étapes du système, messages et réponse en champs du système, correctifs en colonne fixe sur bureau avec propositions et acceptation dans la modale du système, analyse IA ; thème sombre ; axe sans violation (parcours Souk AI). Avant : conteneur décalé, boutons et badges de l'ancien style, couleurs codées en dur
 
 ### Phase 8 — Release
 - [ ] Audit sécurité, performance, accessibilité ; documentation ; `RELEASE_NOTES.md`
@@ -175,6 +176,7 @@ Contrat : seul le schéma `Signalement` gagne `cible_chemin` ; types régénér�
 | Accueil (`/`) | Comprendre Souk.dev en dix secondes et choisir sa porte | Je suis dev (ou Je cherche une appli) | La promesse sur le bandeau bleu nuit et les deux boutons ; puis 0 % de commission, Mobile Money, analyse avant publication |
 | Connexion (`/connexion`) | Entrer, ou créer son compte, sans friction | Continuer avec GitHub (dev) ou Recevoir mon lien (entreprise) | Le choix du profil, puis un seul bouton ; la promesse « dépôts publics uniquement » |
 | Échange (`/echange`) | Trouver un problème à résoudre, ou poser le sien | Nouvelle discussion | Les titres et leur état (ouverte, résolue, étiquettes), le canal ; les filtres d'étiquette et de statut |
+| Discussion (`/echange/{id}`) | Comprendre le problème et le régler | Proposer un correctif (l'auteur : accepter, marquer résolue) | Le titre et son état, la fiche du bug (erreur, attendu, code), puis les correctifs à droite |
 
 ## Vérifications
 

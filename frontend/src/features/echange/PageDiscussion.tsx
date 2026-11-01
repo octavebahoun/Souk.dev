@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useParams, useSearchParams } from 'react-router'
-import { Avatar } from '../../shared/ui/Avatar'
-import { Badge } from '../../shared/ui/Badge'
+import { CircleCheck, RotateCcw } from 'lucide-react'
+import { useTitrePage } from '../../app/titre'
+import { Alerte, Avatar, Badge, Bouton, Carte, EnTeteCarte, EtatErreur, EtatVide, FilAriane, LienBouton, Squelette } from '../../ui'
 import { modifierDiscussion, estIntrouvable, lireDiscussion, lireMoi, messageAction, type Discussion } from './api'
 import { CadreDemo } from './CadreDemo'
 import { ColonneCorrectifs } from './ColonneCorrectifs'
@@ -10,11 +11,9 @@ import { ilYA, nomAuteur } from './texte'
 import { useDiscussionDirect } from './tempsReel'
 import { TexteMarkdown } from './TexteMarkdown'
 import { Signaler } from '../admin/Signaler'
+import { libelleDifficulte, tonDifficulte, tonEtiquette } from './presentation'
 
-const boutonAccent =
-  'rebond inline-flex min-h-cible items-center justify-center rounded-controle bg-accent px-4 font-semibold text-canvas hover:bg-accent-hover disabled:opacity-60'
-const boutonSecond =
-  'inline-flex min-h-cible items-center justify-center rounded-controle border border-line bg-canvas px-4 font-semibold text-ink'
+const conteneur = 'mx-auto flex w-full max-w-site flex-col gap-6 px-4 py-8 tablette:px-6 bureau:px-8'
 
 function lirePage(params: URLSearchParams, cle: string): number {
   const valeur = Number(params.get(cle))
@@ -54,54 +53,47 @@ export function PageDiscussion() {
     setParams(suivant)
   }
 
-  if (!valide) {
+  useTitrePage(discussion.data?.titre ?? 'Discussion')
+
+  if (!valide || (discussion.isError && estIntrouvable(discussion.error))) {
     return (
-      <div className="mx-auto max-w-[1440px] px-4 py-7 min-[761px]:px-9">
-        <p>Cette discussion n’existe pas.</p>
-        <Link to="/echange" className={boutonSecond}>
-          Retour à l’échange
-        </Link>
+      <div className={conteneur}>
+        <EtatVide
+          illustration="erreur-404"
+          niveau={1}
+          titre="Cette discussion n’existe pas"
+          description="Elle a peut-être été supprimée, ou le lien est incomplet."
+          action={<LienBouton to="/echange">Retour à l’Échange</LienBouton>}
+        />
       </div>
     )
   }
 
   if (supprimee) {
     return (
-      <div className="mx-auto max-w-[1440px] px-4 py-7 min-[761px]:px-9">
-        <p role="status">Cette discussion a été supprimée.</p>
-        <Link to="/echange">Retour à l’échange</Link>
+      <div className={conteneur}>
+        <EtatVide
+          illustration="vide-discussions"
+          niveau={1}
+          titre="Cette discussion a été supprimée"
+          description="Son auteur ou l’équipe de modération l’a retirée."
+          action={<LienBouton to="/echange">Retour à l’Échange</LienBouton>}
+        />
       </div>
     )
   }
 
   return (
-    <div className="mx-auto flex max-w-[1440px] flex-col gap-6 overflow-x-clip px-4 py-7 min-[761px]:px-9">
+    <div className={conteneur}>
       {discussion.isPending ? (
         <div role="status" aria-label="Chargement de la discussion" className="flex flex-col gap-4">
-          <div className="squelette h-10 w-2/3 max-w-xl rounded-controle" />
-          <div className="squelette h-64 rounded-carte" />
-          <div className="squelette h-40 rounded-carte" />
+          <Squelette className="h-4 w-40" />
+          <Squelette className="h-10 w-2/3 max-w-xl" />
+          <Squelette className="h-64 rounded-moyen" />
+          <Squelette className="h-40 rounded-moyen" />
         </div>
       ) : null}
-      {discussion.isError ? (
-        estIntrouvable(discussion.error) ? (
-          <div className="flex flex-col gap-3">
-            <p className="m-0">Cette discussion n’existe pas.</p>
-            <Link to="/echange" className={boutonSecond}>
-              Retour à l’échange
-            </Link>
-          </div>
-        ) : (
-          <div className="flex flex-col items-start gap-3">
-            <p role="alert" className="m-0">
-              La discussion n’a pas pu être chargée.
-            </p>
-            <button type="button" onClick={() => discussion.refetch()} className={boutonAccent}>
-              Réessayer
-            </button>
-          </div>
-        )
-      ) : null}
+      {discussion.isError ? <EtatErreur description="La discussion n’a pas pu être chargée." onReessayer={() => void discussion.refetch()} /> : null}
       {discussion.isSuccess ? (
         <DiscussionChargee
           discussion={discussion.data}
@@ -143,88 +135,100 @@ function DiscussionChargee({
   erreur: string | null
   onResolue: (resolue: boolean) => void
 }) {
-  const lieu = discussion.canal ? `#${discussion.canal}` : discussion.app_id ? `appli ${discussion.app_id}` : 'Échange'
+  const nom = nomAuteur(discussion.auteur.nom, discussion.auteur.username)
+  const bug = discussion.bug
 
   return (
     <>
-      <p className="m-0 text-sm text-muted">
-        <Link to="/echange" className="text-accent underline underline-offset-2">
-          Échange
-        </Link>
-        <span aria-hidden="true"> · </span>
-        {lieu}
-      </p>
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <h1 className="m-0 max-w-[40rem] text-[30px] leading-[1.2] font-bold tracking-tight break-words">{discussion.titre}</h1>
-        {auteur && !discussion.resolue ? (
-          <button type="button" onClick={() => onResolue(true)} disabled={enCours} className={`${boutonSecond} rebond`}>
-            Marquer comme résolue
-          </button>
-        ) : null}
-        {auteur && discussion.resolue ? (
-          <button type="button" onClick={() => onResolue(false)} disabled={enCours} className={boutonSecond}>
-            Rouvrir
-          </button>
-        ) : null}
-      </div>
-      {erreur ? (
-        <p role="alert" className="m-0 text-sm text-danger">
-          {erreur}
-        </p>
-      ) : null}
-      <div className="flex flex-wrap items-center gap-2 text-sm">
-        <Avatar nom={discussion.auteur.nom} username={discussion.auteur.username} avatarUrl={discussion.auteur.avatar_url} taille="moyen" />
-        {discussion.auteur.username ? (
-          <Link to={`/devs/${discussion.auteur.username}`} className="font-semibold text-ink no-underline">
-            {nomAuteur(discussion.auteur.nom, discussion.auteur.username)}
-          </Link>
-        ) : (
-          <span className="font-semibold">{nomAuteur(discussion.auteur.nom, discussion.auteur.username)}</span>
-        )}
-        <time dateTime={discussion.cree_le}>{ilYA(discussion.cree_le)}</time>
-        <span className="text-muted">{discussion.nb_messages} messages</span>
-        {discussion.etiquettes.map((etiquette) => (
-          <Badge key={etiquette} ton={etiquette}>
-            {etiquette}
-          </Badge>
-        ))}
-        {discussion.resolue ? <Badge ton="resolue">Résolue</Badge> : null}
-        {connecte && !auteur ? <Signaler cible="discussion" cibleId={discussion.id} etiquette="cette discussion" /> : null}
-      </div>
+      <FilAriane
+        miettes={[
+          { libelle: 'Échange', vers: '/echange' },
+          discussion.canal
+            ? { libelle: `#${discussion.canal}`, vers: `/echange?canal=${discussion.canal}` }
+            : discussion.app_id
+              ? { libelle: 'Fiche de l’appli', vers: `/store/${discussion.app_id}` }
+              : { libelle: 'Sans canal' },
+          { libelle: discussion.titre },
+        ]}
+      />
+      <header className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4 tablette:flex-row tablette:items-start tablette:justify-between">
+          <h1 className="m-0 max-w-3xl text-titre-1 break-words text-titre">{discussion.titre}</h1>
+          {auteur ? (
+            discussion.resolue ? (
+              <Bouton variante="contour" className="shrink-0" icone={<RotateCcw aria-hidden="true" className="size-4" />} chargement={enCours} onClick={() => onResolue(false)}>
+                Rouvrir
+              </Bouton>
+            ) : (
+              <Bouton variante="contour" className="shrink-0" icone={<CircleCheck aria-hidden="true" className="size-4" />} chargement={enCours} onClick={() => onResolue(true)}>
+                Marquer comme résolue
+              </Bouton>
+            )
+          ) : null}
+        </div>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-petit text-texte-doux">
+          <span className="flex items-center gap-2">
+            <Avatar nom={nom} url={discussion.auteur.avatar_url} taille="sm" />
+            {discussion.auteur.username ? (
+              <Link to={`/devs/${discussion.auteur.username}`} className="font-medium text-titre no-underline hover:underline">
+                {nom}
+              </Link>
+            ) : (
+              <span className="font-medium text-titre">{nom}</span>
+            )}
+          </span>
+          <time dateTime={discussion.cree_le}>{ilYA(discussion.cree_le)}</time>
+          <span>
+            {discussion.nb_messages} message{discussion.nb_messages > 1 ? 's' : ''}
+          </span>
+          <span className="flex flex-wrap gap-1.5">
+            {discussion.etiquettes.map((etiquette) => (
+              <Badge key={etiquette} ton={tonEtiquette[etiquette]}>
+                {etiquette}
+              </Badge>
+            ))}
+            {discussion.resolue ? <Badge ton="succes">Résolue</Badge> : null}
+          </span>
+          {connecte && !auteur ? (
+            <span className="ml-auto">
+              <Signaler cible="discussion" cibleId={discussion.id} etiquette="cette discussion" />
+            </span>
+          ) : null}
+        </div>
+        {erreur ? <Alerte ton="danger">{erreur}</Alerte> : null}
+      </header>
 
-      <div className="flex flex-col items-start gap-6 min-[761px]:flex-row">
-        <div className="flex w-full min-w-0 flex-col gap-6 min-[761px]:w-auto min-[761px]:flex-[999] min-[761px]:basis-[560px]">
-          <CadreDemo discussion={discussion} auteur={auteur} />
-          <section aria-labelledby="titre-probleme" className="flex flex-col gap-3.5">
-            <h2 id="titre-probleme" className="m-0 text-[17px] font-bold">
-              Le problème
-            </h2>
-            <TexteMarkdown texte={discussion.texte} className="text-ink" />
-            {discussion.bug ? (
-              <div className="verre flex flex-col gap-3.5 rounded-carte p-5">
+      <div className="flex flex-col gap-6 bureau:grid bureau:grid-cols-[minmax(0,1fr)_22rem] bureau:items-start bureau:gap-8">
+        <div className="flex min-w-0 flex-col gap-6">
+          <Carte as="section" aria-labelledby="titre-probleme" className="flex flex-col gap-4">
+            <EnTeteCarte titre={<span id="titre-probleme">Le problème</span>} />
+            <TexteMarkdown texte={discussion.texte} />
+            {bug ? (
+              <div className="flex flex-col gap-3 border-t border-bordure pt-4">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="m-0 mr-auto text-[15px] font-bold">Fiche du bug</h3>
-                  {discussion.bug.techno ? <Badge ton="entraide">{discussion.bug.techno}</Badge> : null}
-                  {discussion.bug.difficulte ? <Badge ton={discussion.bug.difficulte}>Difficulté : {discussion.bug.difficulte}</Badge> : null}
+                  <h3 className="m-0 mr-auto text-corps font-semibold text-titre">Fiche du bug</h3>
+                  {bug.techno ? <Badge>{bug.techno}</Badge> : null}
+                  {bug.difficulte ? <Badge ton={tonDifficulte[bug.difficulte]}>Difficulté : {libelleDifficulte[bug.difficulte].toLowerCase()}</Badge> : null}
                 </div>
-                <dl className="m-0 grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-controle bg-danger-bg p-3">
-                    <dt className="text-[12.5px] font-bold tracking-wide text-danger uppercase">Erreur obtenue</dt>
-                    <dd className="m-0 text-sm">{discussion.bug.erreur_obtenue}</dd>
+                <dl className="m-0 grid gap-3 tablette:grid-cols-2">
+                  <div className="flex flex-col gap-1 rounded-moyen border border-bordure-danger bg-fond-danger p-3">
+                    <dt className="text-etiquette text-danger uppercase">Erreur obtenue</dt>
+                    <dd className="m-0 font-mono text-petit break-words text-titre">{bug.erreur_obtenue}</dd>
                   </div>
-                  <div className="rounded-controle bg-success-bg p-3">
-                    <dt className="text-[12.5px] font-bold tracking-wide text-success uppercase">Comportement attendu</dt>
-                    <dd className="m-0 text-sm">{discussion.bug.comportement_attendu}</dd>
+                  <div className="flex flex-col gap-1 rounded-moyen border border-bordure-succes bg-fond-succes p-3">
+                    <dt className="text-etiquette text-succes uppercase">Comportement attendu</dt>
+                    <dd className="m-0 text-petit break-words text-titre">{bug.comportement_attendu}</dd>
                   </div>
                 </dl>
-                {discussion.bug.code ? (
-                  <pre className="m-0 overflow-x-auto rounded-controle bg-ink p-3.5 font-mono text-[13px] leading-relaxed text-[#E2E8F0]">
-                    {discussion.bug.code}
+                {bug.code ? (
+                  <pre tabIndex={0} className="m-0 overflow-x-auto rounded-moyen bg-nuit-profonde p-3 font-mono text-petit leading-relaxed text-sur-couleur">
+                    {bug.code}
                   </pre>
                 ) : null}
               </div>
             ) : null}
-          </section>
+          </Carte>
+          <CadreDemo discussion={discussion} auteur={auteur} />
           <FilMessages
             discussionId={discussion.id}
             auteurId={discussion.auteur.id}
