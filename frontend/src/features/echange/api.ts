@@ -1,6 +1,6 @@
 import axios from 'axios'
 import type { components, operations } from '../../shared/types/api'
-import { cheminApi, cheminLaravel, client, clientLocal } from '../../shared/client'
+import { cheminLaravel, clientLocal } from '../../shared/client'
 import type { FiltresFil } from './filtres'
 import { preparerCsrf } from '../../app/preparerCsrf'
 
@@ -111,7 +111,7 @@ export async function creerMessage(id: number, corps: MessageCreation): Promise<
 }
 
 export async function lancerCopieTest(id: number): Promise<Deploiement> {
-  const { data } = await client.post<Deploiement>(cheminApi(`/discussions/${id}/copie-test`))
+  const { data } = await clientLocal.post<Deploiement>(cheminLaravel(`/discussions/${id}/copie-test`))
   if (!data || typeof data.id !== 'number') throw new Error('Réponse vide')
   return data
 }
@@ -142,7 +142,7 @@ export async function creerCorrectif(id: number, corps: CorrectifCreation): Prom
 }
 
 export async function deployerCorrectif(id: number): Promise<Deploiement> {
-  const { data } = await client.post<Deploiement>(cheminApi(`/correctifs/${id}/deploiement`))
+  const { data } = await clientLocal.post<Deploiement>(cheminLaravel(`/correctifs/${id}/deploiement`))
   if (!data || typeof data.id !== 'number') throw new Error('Réponse vide')
   return data
 }

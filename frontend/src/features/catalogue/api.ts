@@ -1,5 +1,5 @@
 import type { components } from '../../shared/types/api'
-import { cheminApi, cheminLaravel, client, clientLocal } from '../../shared/client'
+import { cheminLaravel, clientLocal } from '../../shared/client'
 import { preparerCsrf } from '../../app/preparerCsrf'
 
 type Page<T> = components['schemas']['Pagination'] & { data: T[] }
@@ -138,7 +138,7 @@ export async function arreterCopie(id: number): Promise<void> {
 }
 
 export function listerDevs(params: Record<string, string | boolean | undefined>) {
-  return page<DevResume>(client.get(cheminApi('/devs'), { params }))
+  return page<DevResume>(clientLocal.get(cheminLaravel('/devs'), { params }))
 }
 
 export async function verifierDepot(depotUrl: string): Promise<VerificationDepot> {

@@ -11,6 +11,17 @@ test.describe('socle', () => {
     await expect(page.getByText('PharmaStock', { exact: true }).first()).toBeVisible()
     expect(resumer(await auditAxe(page))).toBe('')
 
+    // Trouver un dev, et la proposition de mission.
+    await page.goto('/devs')
+    await expect(page.getByRole('heading', { level: 2, name: 'Awa Dossou' })).toBeVisible()
+    await page.getByRole('button', { name: 'Paiement MoMo' }).click()
+    await expect(page.getByText(/classés par correspondance/)).toBeVisible()
+    expect(resumer(await auditAxe(page))).toBe('')
+    await page.getByRole('button', { name: 'Proposer une mission' }).first().click()
+    await expect(page.getByRole('dialog', { name: /Proposer une mission à/ })).toBeVisible()
+    expect(resumer(await auditAxe(page, '[role="dialog"]'))).toBe('')
+    await page.keyboard.press('Escape')
+
     // La connexion : GitHub pour les devs, lien par e-mail pour les autres.
     await page.goto('/connexion')
     await expect(page.getByRole('link', { name: 'Continuer avec GitHub' })).toBeVisible()
