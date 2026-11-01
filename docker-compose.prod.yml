@@ -4,7 +4,8 @@
 #   Front      https://$DOMAINE            (nginx, build Vite statique)
 #   API        https://api.$DOMAINE
 #   Reverb     wss://reverb.$DOMAINE
-#   Copies     https://{copie}.$DOMAINE    (Traefik, un sous-domaine par copie)
+#   Copies     https://{copie}.$DOMAINE_COPIES (Traefik, un sous-domaine par copie, sur un domaine
+#              à part : le cookie de session de .$DOMAINE ne doit jamais leur parvenir)
 #
 # Avant le premier démarrage : copier backend/.env.prod.example en backend/.env.prod
 # (jamais commité) et le remplir — voir docs/exploitation.md. Les secrets internes
@@ -55,7 +56,7 @@ x-php: &php
     LOG_CHANNEL: json
     LOG_LEVEL: info
     MOTEUR_PROXY_ROUTES: /app/storage/app/private/proxy
-    MOTEUR_URL_COPIE: https://{copie}.${DOMAINE:?DOMAINE manquant dans backend/.env.prod}
+    MOTEUR_URL_COPIE: https://{copie}.${DOMAINE_COPIES:?DOMAINE_COPIES manquant dans backend/.env.prod}
     MOTEUR_PAGE_SUSPENDUE: http://127.0.0.1:8000
     MOTEUR_DELAI_PROXY: "3"
     DEMO_CONNEXION: "false"

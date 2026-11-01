@@ -60,6 +60,8 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
+use App\Securite\IsolementCopies;
+use RuntimeException;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -116,6 +118,19 @@ class AppServiceProvider extends ServiceProvider
         // Les textes des membres (messages de mission, correctifs, titres, noms) entrent dans des
         // e-mails : ils restent du texte, jamais des liens ni des images Markdown.
         Markdown::withSecuredEncoding();
+
+        // En production, une copie servie sous le domaine de la session la recevrait : refus de démarrer.
+        if ($this->app->isProduction()) {
+            $probleme = IsolementCopies::probleme(
+                (string) config('moteur.url_copie'),
+                config('session.domain'),
+                [(string) config('app.url'), (string) config('app.frontend_url')],
+            );
+
+            if ($probleme !== null) {
+                throw new RuntimeException($probleme);
+            }
+        }
 
         // Les liens absolus (simulateur de paiement, lien de paiement signé, confirmation d'un numéro)
         // visent toujours l'API (APP_URL), même quand la requête arrive par le proxy du front.
