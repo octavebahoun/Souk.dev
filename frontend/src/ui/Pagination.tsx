@@ -3,6 +3,8 @@ import { formater, t } from '../i18n'
 import { cx } from './cx'
 
 type PaginationProps = {
+  /** Nom de la navigation (deux listes paginées sur la même page ne peuvent pas porter le même). */
+  libelle?: string
   page: number
   dernierePage: number
   onChange: (page: number) => void
@@ -21,11 +23,11 @@ function pages(courante: number, derniere: number): Array<number | 'ellipse'> {
   return resultat
 }
 
-export function Pagination({ page, dernierePage, onChange, className }: PaginationProps) {
+export function Pagination({ page, dernierePage, onChange, libelle = t.commun.pagination, className }: PaginationProps) {
   if (dernierePage <= 1) return null
   const classe = 'grid h-11 min-w-11 place-items-center rounded-moyen px-2 text-corps chiffres transition-colors duration-150 tablette:h-9 tablette:min-w-9'
   return (
-    <nav aria-label={t.commun.pagination} className={cx('flex items-center justify-center gap-1', className)}>
+    <nav aria-label={libelle} className={cx('flex items-center justify-center gap-1', className)}>
       <button
         type="button"
         onClick={() => onChange(page - 1)}

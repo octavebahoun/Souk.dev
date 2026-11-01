@@ -42,13 +42,16 @@ type EtatErreurProps = {
   titre?: ReactNode
   description?: ReactNode
   onReessayer?: () => void
+  /** Niveau du titre, sous le titre de la section qui l'accueille. */
+  niveau?: 1 | 2 | 3
   className?: string
 }
 
-export function EtatErreur({ titre = t.etats.erreurTitre, description = t.etats.erreurTexte, onReessayer, className }: EtatErreurProps) {
+export function EtatErreur({ titre = t.etats.erreurTitre, description = t.etats.erreurTexte, onReessayer, niveau = 2, className }: EtatErreurProps) {
   return (
     <div role="alert" className={className}>
       <EtatVide
+        niveau={niveau}
         illustration="hors-ligne"
         titre={titre}
         description={description}
@@ -91,7 +94,8 @@ type AlerteProps = {
 /** Encadré d'information dans le flux de la page (pas un toast). */
 export function Alerte({ ton = 'info', titre, children, action, urgente = false, className }: AlerteProps) {
   return (
-    <div role={urgente ? 'alert' : undefined} className={cx('flex items-start gap-3 rounded-moyen border px-4 py-3', alertes[ton].classe, className)}>
+    // Une erreur s'annonce tout de suite, un succès poliment : le focus est souvent ailleurs.
+    <div role={urgente || ton === 'danger' ? 'alert' : ton === 'succes' ? 'status' : undefined} className={cx('flex items-start gap-3 rounded-moyen border px-4 py-3', alertes[ton].classe, className)}>
       <span className="mt-0.5 shrink-0">{alertes[ton].icone}</span>
       <div className="flex min-w-0 flex-1 flex-col gap-1 text-texte">
         {titre ? <p className="m-0 font-medium text-titre">{titre}</p> : null}

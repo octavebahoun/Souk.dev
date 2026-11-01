@@ -48,6 +48,16 @@ export function Modale({ ouverte, onFermer, titre, description, pied, taille = '
     }
   }, [ouverte])
 
+  // Échap ferme même quand le focus a quitté le panneau (bouton désactivé pendant un envoi).
+  useEffect(() => {
+    if (!ouverte) return
+    function echap(evenement: globalThis.KeyboardEvent) {
+      if (evenement.key === 'Escape' && !panneau.current?.contains(document.activeElement)) onFermer()
+    }
+    document.addEventListener('keydown', echap)
+    return () => document.removeEventListener('keydown', echap)
+  }, [ouverte, onFermer])
+
   function clavier(evenement: KeyboardEvent<HTMLDivElement>) {
     if (evenement.key === 'Escape') {
       evenement.stopPropagation()

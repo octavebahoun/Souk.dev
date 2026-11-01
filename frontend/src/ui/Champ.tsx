@@ -45,7 +45,7 @@ export function Champ({ libelle, aide, erreur, facultatif, libelleCache, classNa
       </label>
       {children({ id, 'aria-describedby': decrit, 'aria-invalid': erreur ? true : undefined })}
       {erreur ? (
-        <p id={idErreur} className="m-0 text-petit text-danger">
+        <p id={idErreur} role="alert" className="m-0 text-petit text-danger">
           {erreur}
         </p>
       ) : null}

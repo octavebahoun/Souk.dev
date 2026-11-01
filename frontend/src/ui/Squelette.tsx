@@ -37,7 +37,8 @@ export function SqueletteLignes({ lignes = 3, className }: { lignes?: number; cl
 /** Grille de cartes en chargement (Store, recherche de devs). */
 export function SqueletteCartes({ nombre = 6, avecMedia = true }: { nombre?: number; avecMedia?: boolean }) {
   return (
-    <div className="grid gap-4 tablette:grid-cols-2 bureau:grid-cols-3">
+    <div role="status" className="grid gap-4 tablette:grid-cols-2 bureau:grid-cols-3">
+      <span className="pour-lecteur">{t.commun.chargement}</span>
       {Array.from({ length: nombre }, (_, index) => (
         <div key={index} className="overflow-hidden rounded-moyen border border-bordure bg-surface">
           {avecMedia ? <Squelette className="aspect-[16/10] w-full rounded-none" /> : null}
@@ -58,7 +59,8 @@ export function SqueletteCartes({ nombre = 6, avecMedia = true }: { nombre?: num
 /** Liste dense en chargement (fil de l'Échange, copies, factures). */
 export function SqueletteListe({ nombre = 5 }: { nombre?: number }) {
   return (
-    <div className="divide-y divide-bordure overflow-hidden rounded-moyen border border-bordure bg-surface">
+    <div role="status" className="divide-y divide-bordure overflow-hidden rounded-moyen border border-bordure bg-surface">
+      <span className="pour-lecteur">{t.commun.chargement}</span>
       {Array.from({ length: nombre }, (_, index) => (
         <div key={index} className="flex items-center gap-4 px-4 py-4">
           <Squelette className="size-9 shrink-0 rounded-pastille" />

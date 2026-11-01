@@ -11,7 +11,7 @@ export function CaseACocher({ libelle, aide, className, id, ...reste }: CaseACoc
   const genere = useId()
   const identifiant = id ?? genere
   return (
-    <div className={cx('flex items-start gap-3', className)}>
+    <div className={cx('flex min-h-11 items-center gap-3 tablette:min-h-0 tablette:items-start', className)}>
       <input
         id={identifiant}
         type="checkbox"
