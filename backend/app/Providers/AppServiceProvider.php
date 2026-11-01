@@ -119,8 +119,9 @@ class AppServiceProvider extends ServiceProvider
         // e-mails : ils restent du texte, jamais des liens ni des images Markdown.
         Markdown::withSecuredEncoding();
 
-        // En production, une copie servie sous le domaine de la session la recevrait : refus de démarrer.
-        if ($this->app->isProduction()) {
+        // En production, une copie servie sous le domaine de la session la recevrait : l'API refuse de
+        // servir. Pas en console : composer install (CI, image Docker) démarre Laravel sans .env.
+        if ($this->app->isProduction() && ! $this->app->runningInConsole()) {
             $probleme = IsolementCopies::probleme(
                 (string) config('moteur.url_copie'),
                 config('session.domain'),
