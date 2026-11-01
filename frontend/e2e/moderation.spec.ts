@@ -63,8 +63,10 @@ test('une copie signalée est suspendue depuis l’admin', async ({ browser }) =
 
   // L'équipe le traite depuis la page de modération.
   await admin.goto('/admin/moderation')
-  await expect(admin.getByText(signalement?.cible_resume ?? 'Discussion')).toBeVisible()
-  await admin.getByRole('button', { name: 'Traiter' }).first().click()
+  // Le tableau a aussi sa version mobile (cartes) : on vise sa ligne dans le tableau.
+  const ligneSignalement = admin.getByRole('table').getByRole('row').filter({ hasText: signalement?.cible_resume ?? 'Discussion' })
+  await expect(ligneSignalement).toBeVisible()
+  await ligneSignalement.getByRole('button', { name: 'Traiter' }).click()
   await admin.getByLabel('Note de l’équipe').fill('Contenu vérifié, sans suite.')
   await admin.getByRole('button', { name: 'Marquer traité' }).click()
   await expect(admin.getByText('Signalement traité.')).toBeVisible()
@@ -76,7 +78,7 @@ test('une copie signalée est suspendue depuis l’admin', async ({ browser }) =
   await expect(ligne).toBeVisible()
   await ligne.getByRole('button', { name: 'Suspendre' }).click()
   await admin.getByLabel('Motif').fill('Minage détecté (parcours de bout en bout).')
-  await admin.getByRole('button', { name: 'Suspendre', exact: true }).click()
+  await admin.getByRole('dialog').getByRole('button', { name: 'Suspendre', exact: true }).click()
   await expect(admin.getByText('Copie suspendue : ses conteneurs s’arrêtent, ses données sont gardées.')).toBeVisible()
   await expect(admin.locator('tr', { hasText: `#${copie}` }).getByText('Minage détecté (parcours de bout en bout).')).toBeVisible()
   await admin.locator('tr', { hasText: `#${copie}` }).getByRole('button', { name: 'Réactiver' }).click()
@@ -146,7 +148,7 @@ test('l’admin renomme et supprime un canal', async ({ browser }) => {
   await expect(admin.getByText('Canal modifié.')).toBeVisible()
 
   await admin.locator('tr', { hasText: `#${canal.slug}` }).getByRole('button', { name: 'Supprimer' }).click()
-  await admin.getByRole('button', { name: 'Supprimer', exact: true }).click()
+  await admin.getByRole('dialog').getByRole('button', { name: 'Supprimer', exact: true }).click()
   await expect(admin.getByText('Canal supprimé.')).toBeVisible()
   await expect(admin.locator('tr', { hasText: `#${canal.slug}` })).toHaveCount(0)
 

@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test'
@@ -10,6 +11,12 @@ import { auditAxe, connexionDemo, resumer } from './outils'
  */
 
 const racine = fileURLToPath(new URL('../../', import.meta.url))
+
+// Jeu de démo neuf pour tout le fichier : avis, réglages et notifications d'un parcours
+// interrompu ne doivent pas fausser le suivant.
+test.beforeAll(() => {
+  execFileSync('docker', ['compose', 'exec', '-T', '-u', '1000', 'api', 'php', 'artisan', 'db:seed', '--class=DemoSeeder', '--force'], { cwd: racine })
+})
 
 type OptionsRequete = Pick<NonNullable<Parameters<APIRequestContext['post']>[1]>, 'data' | 'multipart'>
 
@@ -155,7 +162,7 @@ test.describe.serial('notifications', () => {
     expect((await enregistre).status()).toBe(200)
     await page.reload()
     await expect(page.getByRole('group', { name: 'Missions' }).getByRole('switch', { name: 'Par e-mail' })).not.toBeChecked()
-    await expect(page.getByRole('group', { name: 'Suspension d’une copie' }).getByText('Toujours envoyé')).toBeVisible()
+    await expect(page.getByRole('group', { name: 'Suspensions' }).getByText('Toujours envoyé')).toBeVisible()
     expect(resumer(await auditAxe(page))).toBe('')
     const retabli = page.waitForResponse((reponse) => reponse.url().endsWith('/api/me/preferences-notifications') && reponse.request().method() === 'PUT')
     await page.getByRole('group', { name: 'Missions' }).getByRole('switch', { name: 'Par e-mail' }).click()
