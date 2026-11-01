@@ -47,6 +47,27 @@ final class MachineDocker implements MachineCible
         return preg_match('/^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/', $nom) === 1;
     }
 
+    /** « Le démon Docker ne répond pas : socket introuvable (démon arrêté ?). » */
+    public static function cause(string $erreur): string
+    {
+        $causes = [
+            'permission denied' => 'accès refusé au socket du démon',
+            'no such file or directory' => 'socket introuvable (démon arrêté ?)',
+            'connection refused' => 'le démon refuse la connexion',
+            'timeout' => 'délai dépassé',
+            'no such host' => 'adresse inconnue',
+            'certificate' => 'certificat TLS refusé',
+        ];
+        foreach ($causes as $motif => $cause) {
+            if (stripos($erreur, $motif) !== false) {
+                return "Le démon Docker ne répond pas\u{00A0}: {$cause}.";
+            }
+        }
+        $derniere = trim((string) last(preg_split('/\R/', $erreur) ?: ['']));
+
+        return $derniere === '' ? 'Le démon Docker ne répond pas.' : mb_substr("Le démon Docker ne répond pas\u{00A0}: {$derniere}", 0, 200);
+    }
+
     public function environnement(): array
     {
         return $this->hoteDocker === null ? [] : ['DOCKER_HOST' => $this->hoteDocker];
@@ -59,11 +80,9 @@ final class MachineDocker implements MachineCible
         ]);
 
         if ($resultat->failed()) {
-            $detail = trim($resultat->errorOutput().' '.$resultat->output());
-
-            return SanteMachine::injoignable(
-                $detail === '' ? 'Le démon Docker ne répond pas.' : mb_substr('Le démon Docker ne répond pas : '.$detail, 0, 200)
-            );
+            // docker info écrit son JSON client sur la sortie même quand le démon ne répond pas :
+            // seule l'erreur compte, traduite quand la cause est connue.
+            return SanteMachine::injoignable(self::cause(trim($resultat->errorOutput())));
         }
 
         $infos = json_decode($resultat->output(), true);

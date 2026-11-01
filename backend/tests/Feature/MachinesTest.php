@@ -234,6 +234,17 @@ class MachinesTest extends TestCase
         $this->assertNotNull($machine->sondee_le);
     }
 
+    public function test_la_cause_d_une_sonde_ratee_est_dite_en_francais_sans_le_json_du_client(): void
+    {
+        Process::fake(fn () => Process::result('{"ID":"","Containers":0}', 'failed to connect to the docker API at unix:///run/dind/docker.sock; check if the path is correct and if the daemon is running: dial unix /run/dind/docker.sock: connect: permission denied', 1));
+        $machine = Machine::factory()->create(['nom' => 'aux', 'hote_docker' => 'unix:///run/dind/docker.sock']);
+
+        (new SonderMachine($machine->id))->handle();
+
+        $this->assertSame("Le démon Docker ne répond pas\u{00A0}: accès refusé au socket du démon.", $machine->refresh()->sonde_erreur);
+        $this->assertSame('Le démon Docker ne répond pas.', MachineDocker::cause(''));
+    }
+
     public function test_une_sonde_ciblee_ratee_se_relance_deux_fois_puis_attend_le_passage_planifie(): void
     {
         Queue::fake();
