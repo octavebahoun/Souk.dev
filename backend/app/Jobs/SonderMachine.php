@@ -9,7 +9,9 @@ use Illuminate\Foundation\Queue\Queueable;
 /**
  * Sonde de santé des machines, sur le moteur (seul à parler à Docker) : chaque démon répond-il,
  * avec quelle mémoire et quelle version ? Toutes les cinq minutes, ou une seule à la demande
- * de l'équipe. Une sonde ratée marque la machine injoignable : le placement l'évite.
+ * de l'équipe. Une sonde ratée marque la machine injoignable : le placement l'évite. Une sonde
+ * ciblée (à l'enregistrement, à la demande) qui échoue se relance deux fois, à dix secondes
+ * d'écart : une machine qui démarre ne reste pas « injoignable » jusqu'au passage suivant.
  */
 class SonderMachine implements ShouldQueue
 {
@@ -17,7 +19,10 @@ class SonderMachine implements ShouldQueue
 
     public int $tries = 1;
 
-    public function __construct(public ?int $machineId = null)
+    /** Essais d'une sonde ciblée, celui-ci compris, avant d'attendre le passage planifié. */
+    public const ESSAIS = 3;
+
+    public function __construct(public ?int $machineId = null, public int $essai = 1)
     {
         $this->onQueue('moteur');
     }
@@ -45,6 +50,10 @@ class SonderMachine implements ShouldQueue
                     'sonde_erreur' => $sante->erreur,
                     'sondee_le' => now(),
                 ])->save();
+
+                if ($this->machineId !== null && $this->essai < self::ESSAIS) {
+                    self::dispatch($machine->id, $this->essai + 1)->delay(now()->addSeconds(10));
+                }
             }
         }
     }

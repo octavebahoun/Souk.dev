@@ -234,6 +234,23 @@ class MachinesTest extends TestCase
         $this->assertNotNull($machine->sondee_le);
     }
 
+    public function test_une_sonde_ciblee_ratee_se_relance_deux_fois_puis_attend_le_passage_planifie(): void
+    {
+        Queue::fake();
+        Process::fake(fn () => Process::result('', 'dial unix /run/dind/docker.sock: connect: connection refused', 1));
+        $machine = Machine::factory()->create(['nom' => 'aux', 'hote_docker' => 'unix:///run/dind/docker.sock']);
+
+        (new SonderMachine($machine->id))->handle();
+        Queue::assertPushed(SonderMachine::class, fn (SonderMachine $job) => $job->machineId === $machine->id && $job->essai === 2 && $job->delay !== null);
+
+        (new SonderMachine($machine->id, SonderMachine::ESSAIS))->handle();
+        Queue::assertPushed(SonderMachine::class, 1);
+
+        // Le passage planifié (toutes les machines) ne se relance pas : il revient dans cinq minutes.
+        (new SonderMachine)->handle();
+        Queue::assertPushed(SonderMachine::class, 1);
+    }
+
     public function test_le_placement_choisit_la_machine_la_plus_libre(): void
     {
         $locale = Machine::where('nom', 'locale')->firstOrFail();
