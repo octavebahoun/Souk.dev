@@ -1,5 +1,6 @@
 import type { components } from '../../shared/types/api'
 import { cheminLaravel, clientLocal } from '../../shared/client'
+import { formaterFcfa } from '../../ui/format'
 import { preparerCsrf } from '../../app/preparerCsrf'
 
 type Page<T> = components['schemas']['Pagination'] & { data: T[] }
@@ -38,8 +39,9 @@ export function libelleCategorie(valeur: Categorie): string {
   return categories.find((item) => item.valeur === valeur)?.libelle ?? valeur
 }
 
+/** Montant FCFA du catalogue : la mise en forme commune (espace insécable lisible en grand corps). */
 export function fcfa(valeur: number): string {
-  return `${new Intl.NumberFormat('fr-FR').format(valeur)} F`
+  return formaterFcfa(valeur)
 }
 
 async function page<T>(promesse: Promise<{ data: Page<T> }>): Promise<Page<T>> {

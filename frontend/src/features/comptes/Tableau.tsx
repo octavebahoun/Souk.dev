@@ -1,8 +1,22 @@
-import { Link } from 'react-router'
+import type { ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { isAxiosError } from 'axios'
+import { Award, Eye, Plus, Server, Wallet } from 'lucide-react'
+import { useTitrePage } from '../../app/titre'
 import { lireMoi, messageAction } from '../echange/api'
 import { lireTableau, type Compte } from './api'
+import {
+  AccesRefuse,
+  Avatar,
+  Badge,
+  Carte,
+  EnTetePage,
+  EtatErreur,
+  EtatVide,
+  LienBouton,
+  Squelette,
+  Tableau as TableauDonnees,
+  formaterFcfa,
+} from '../../ui'
 
 const niveaux: Record<Compte['reputation']['niveau'], string> = {
   debutant: 'Débutant',
@@ -11,201 +25,168 @@ const niveaux: Record<Compte['reputation']['niveau'], string> = {
   expert: 'Expert',
 }
 
-function fcfa(valeur: number): string {
-  return `${new Intl.NumberFormat('fr-FR').format(valeur)} F`
-}
+type LigneAppli = NonNullable<Awaited<ReturnType<typeof lireTableau>>>['applis'][number]
 
-function lettres(nom: string | null, username: string | null): string {
-  const source = (nom || username || '?').trim()
-  const mots = source.split(/\s+/).filter(Boolean)
-  if (mots.length >= 2 && mots[0][0] && mots[1][0]) return `${mots[0][0]}${mots[1][0]}`.toUpperCase()
-  return source.slice(0, 2).toUpperCase()
-}
-
+/**
+ * Tableau de bord du dev : ce que rapportent ses applis (vues, copies, argent encaissé, tiré du
+ * grand livre), sa réputation, et l'action principale : publier une appli.
+ */
 export function Tableau() {
+  useTitrePage('Tableau de bord')
   const moi = useQuery({ queryKey: ['moi'], queryFn: lireMoi })
-  const tableau = useQuery({
-    queryKey: ['tableau'],
-    queryFn: lireTableau,
-    enabled: Boolean(moi.data),
-  })
+  const tableau = useQuery({ queryKey: ['tableau'], queryFn: lireTableau, enabled: Boolean(moi.data) })
   const compte = moi.data
 
+  const entete = (
+    <EnTetePage
+      titre="Tableau de bord"
+      description="Vos applis, leurs visiteurs, leurs copies et ce qu’elles vous rapportent."
+      actions={
+        compte ? (
+          <LienBouton to="/publier" icone={<Plus aria-hidden="true" className="size-4" />}>
+            Publier une appli
+          </LienBouton>
+        ) : undefined
+      }
+    />
+  )
+
   if (moi.isPending || (compte && tableau.isPending)) {
-    return <div role="status" aria-label="Chargement du tableau" className="squelette mx-auto mt-8 h-64 max-w-[1440px] rounded-[18px]" />
+    return (
+      <div role="status" aria-label="Chargement du tableau de bord" className="flex flex-col gap-6">
+        {entete}
+        <Squelette className="h-24 rounded-moyen" />
+        <div className="grid gap-3 tablette:grid-cols-2 bureau:grid-cols-4">
+          {[0, 1, 2, 3].map((indice) => (
+            <Squelette key={indice} className="h-28 rounded-moyen" />
+          ))}
+        </div>
+        <Squelette className="h-48 rounded-moyen" />
+      </div>
+    )
   }
 
   if (moi.isError) {
     return (
-      <div className="reseau bg-page px-4 py-10">
-        <div className="mx-auto max-w-[1440px] px-4 min-[761px]:px-9">
-          <h1 className="m-0 text-[30px] font-extrabold tracking-tight">Tableau de bord</h1>
-          <p role="alert" className="m-0 text-muted">{messageAction(moi.error, 'Impossible de vérifier la connexion au compte.')}</p>
-          <button type="button" onClick={() => void moi.refetch()} className="mt-3 inline-flex min-h-cible items-center rounded-controle border border-line bg-canvas px-4 font-semibold">Réessayer</button>
-        </div>
+      <div className="flex flex-col gap-6">
+        {entete}
+        <EtatErreur description={messageAction(moi.error, 'Impossible de vérifier la connexion au compte.')} onReessayer={() => void moi.refetch()} />
       </div>
     )
   }
 
   if (!compte) {
     return (
-      <div className="reseau bg-page px-4 py-10">
-        <div className="mx-auto max-w-[1440px] px-4 min-[761px]:px-9">
-          <h1 className="m-0 text-[30px] font-extrabold tracking-tight">Tableau de bord</h1>
-          <p className="m-0 text-muted">Connectez-vous pour voir vos applis.</p>
-          <Link to="/connexion" className="inline-flex min-h-cible items-center font-semibold">Connexion</Link>
-        </div>
+      <div className="flex flex-col gap-6">
+        {entete}
+        <AccesRefuse description="Connectez-vous pour voir vos applis et ce qu’elles rapportent." action={<LienBouton to="/connexion">Se connecter</LienBouton>} />
       </div>
     )
   }
 
   const totaux = tableau.data?.totaux
+  const nom = compte.nom || compte.username || 'Mon compte'
 
   return (
-    <div className="reseau relative overflow-hidden bg-page">
-      <Reseau />
-      <div className="relative mx-auto flex max-w-[1440px] flex-col gap-6 px-4 py-7 min-[761px]:px-9">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h1 className="m-0 text-[30px] leading-tight font-extrabold tracking-[-0.015em]">Tableau de bord</h1>
-            <p className="m-0 text-muted">Vos applis, leurs visiteurs, leurs copies et ce qu’elles rapportent.</p>
-          </div>
-          <div className="flex flex-wrap gap-2.5">
-            {compte.username ? (
-              <Link to={`/devs/${compte.username}`} className="inline-flex min-h-cible items-center rounded-controle border border-line bg-canvas px-4 font-semibold text-ink no-underline">
-                Mon profil public
-              </Link>
-            ) : null}
-            <Link to="/publier" className="inline-flex min-h-cible items-center rounded-controle bg-accent px-[18px] font-semibold text-canvas no-underline">
-              Publier une appli
-            </Link>
-          </div>
-        </div>
+    <div className="flex flex-col gap-6">
+      {entete}
 
-        {compte.username ? (
-          <Link
-            to={`/devs/${compte.username}`}
-            className="flex max-w-[560px] flex-wrap items-center gap-x-5 gap-y-3 rounded-[14px] border border-line bg-canvas px-[18px] py-3.5 text-ink no-underline"
-          >
-            <span className="grid size-11 place-items-center rounded-full bg-accent text-[15px] font-bold text-canvas">
-              {lettres(compte.nom, compte.username)}
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-[12.5px] font-semibold tracking-wide text-muted uppercase">Mon profil</span>
-              <strong className="text-base">{compte.nom || compte.username}</strong>
-            </span>
-            <span className="text-right">
-              <strong className="block text-[22px] text-accent tabular-nums">{compte.souk_score.total}</strong>
-              <span className="text-[11.5px] text-muted">Souk Score</span>
-            </span>
-            <span>
-              <span className="inline-flex rounded-full bg-[#FFEDD5] px-2.5 py-0.5 text-[12.5px] font-semibold text-[#9A3412]">
-                {niveaux[compte.reputation.niveau]}
+      <Carte className="flex flex-col gap-4 tablette:flex-row tablette:items-center">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <Avatar nom={nom} url={compte.avatar_url} taille="lg" />
+          <div className="min-w-0">
+            <p className="m-0 text-titre-3 text-titre">{nom}</p>
+            <p className="m-0 flex flex-wrap items-center gap-2 text-petit text-texte-doux">
+              <span>
+                Souk Score <strong className="chiffres font-semibold text-titre">{compte.souk_score.total}</strong> / 1000
               </span>
-              <span className="mt-1 block text-xs text-muted tabular-nums">{compte.reputation.xp.toLocaleString('fr-FR')} XP</span>
-            </span>
-            <span aria-hidden="true" className="text-muted">›</span>
-          </Link>
-        ) : null}
-
-        <div role="note" className="flex items-start gap-2.5 rounded-xl border border-[#FED7AA] bg-[#FFF7ED] px-4 py-3 text-sm text-[#7C2D12]">
-          <span aria-hidden="true" className="mt-0.5">ⓘ</span>
-          <span>
-            <strong>Revenus estimés</strong>, pas encore encaissés : ils sont calculés à partir des copies et des prix, tant que le paiement via Datacloud n’est pas en place.
-          </span>
-        </div>
-
-        {tableau.isError ? (
-          <div className="flex flex-col gap-2">
-            <p role="alert" className="m-0">
-              {messageAction(tableau.error, 'Le tableau n’a pas pu être chargé.')}
+              <Badge ton="alerte" icone={<Award aria-hidden="true" className="size-3.5" />}>
+                {niveaux[compte.reputation.niveau]} · {compte.reputation.xp.toLocaleString('fr-FR')} XP
+              </Badge>
             </p>
-            {isAxiosError(tableau.error) && tableau.error.response?.status === 401 ? <Link to="/connexion" className="inline-flex min-h-cible items-center font-semibold">Se connecter</Link> : null}
-            <button type="button" onClick={() => tableau.refetch()} className="min-h-cible w-fit rounded-controle bg-accent px-4 font-semibold text-canvas">
-              Réessayer
-            </button>
           </div>
+        </div>
+        {compte.username ? (
+          <LienBouton to={`/devs/${compte.username}`} variante="contour" className="shrink-0">
+            Voir mon profil public
+          </LienBouton>
         ) : null}
+      </Carte>
 
-        {totaux ? (
-          <section aria-label="Totaux" className="grid gap-3.5 min-[761px]:grid-cols-2 min-[1100px]:grid-cols-4">
-            <CarteBleue reveler titre="Vues" valeur={totaux.vues.toLocaleString('fr-FR')} detail="un visiteur compté une fois par jour" />
-            <CarteBleue reveler titre="Copies actives" valeur={String(totaux.copies_actives)} detail="en ligne chez des clients" />
-            <CarteBleue reveler titre="Revenus du mois" valeur={fcfa(totaux.revenus_mois)} detail="factures payées ce mois-ci" />
-            <CarteBleue reveler titre="Revenus depuis le début" valeur={fcfa(totaux.revenus_total)} detail="votre part, sans commission" />
-          </section>
-        ) : null}
+      {tableau.isError ? <EtatErreur description={messageAction(tableau.error, 'Le tableau de bord n’a pas pu être chargé.')} onReessayer={() => void tableau.refetch()} /> : null}
 
-        {tableau.data ? (
-          <section className="overflow-hidden rounded-[14px] border border-line bg-canvas">
-            <h2 className="m-0 px-5 pt-[18px] pb-2 text-[19px]">Par appli</h2>
-            {tableau.data.applis.length === 0 ? <p className="px-5 text-muted">Aucune appli publiée.</p> : null}
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-left text-[14.5px]">
-                <thead>
-                  <tr className="text-[12.5px] font-bold tracking-wide text-subtle uppercase">
-                    <th className="px-4 py-2.5 text-left">Appli</th>
-                    <th className="px-4 py-2.5 text-right">Vues</th>
-                    <th className="px-4 py-2.5 text-right">Copies actives</th>
-                    <th className="px-4 py-2.5 text-right">Déploiements</th>
-                    <th className="px-4 py-2.5 text-right">Revenus du mois</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {tableau.data.applis.map((appli) => (
-                    <tr key={appli.app_id} className="border-t border-[#EEF2F9]">
-                      <td className="px-4 py-3.5">
-                        <div className="font-semibold">{appli.nom}</div>
-                        <div className="text-[13px] text-muted">
-                          {appli.prix === 0 ? 'Gratuit' : `${fcfa(appli.prix)}${appli.type_prix === 'mensuel' ? '/mois' : ' · paiement unique'}`}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3.5 text-right tabular-nums">{appli.vues.toLocaleString('fr-FR')}</td>
-                      <td className="px-4 py-3.5 text-right tabular-nums">{appli.copies_actives}</td>
-                      <td className="px-4 py-3.5 text-right tabular-nums">{appli.deploiements_total}</td>
-                      <td className="px-4 py-3.5 text-right font-bold tabular-nums">
-                        {fcfa(appli.revenu_mois)}
-                        <div className="text-[13px] font-normal text-muted">{fcfa(appli.revenu_total)} au total</div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        ) : null}
-      </div>
+      {totaux ? (
+        <section aria-label="Totaux" className="grid gap-3 tablette:grid-cols-2 bureau:grid-cols-4">
+          <Tuile icone={<Eye aria-hidden="true" className="size-4" />} titre="Vues" valeur={totaux.vues.toLocaleString('fr-FR')} detail="un visiteur compté une fois par jour" />
+          <Tuile icone={<Server aria-hidden="true" className="size-4" />} titre="Copies actives" valeur={String(totaux.copies_actives)} detail="en ligne chez des clients" />
+          <Tuile icone={<Wallet aria-hidden="true" className="size-4" />} titre="Encaissé ce mois-ci" valeur={formaterFcfa(totaux.revenus_mois)} detail="factures payées, votre part entière" mise />
+          <Tuile icone={<Wallet aria-hidden="true" className="size-4" />} titre="Encaissé depuis le début" valeur={formaterFcfa(totaux.revenus_total)} detail="sans aucune commission" />
+        </section>
+      ) : null}
+
+      {tableau.data ? (
+        tableau.data.applis.length === 0 ? (
+          <EtatVide
+            illustration="vide-store"
+            titre="Aucune appli publiée"
+            description="Publiez votre première appli : ses vues, ses copies et ses revenus apparaîtront ici."
+            action={<LienBouton to="/publier">Publier une appli</LienBouton>}
+          />
+        ) : (
+          <Carte as="section" marge="aucune" aria-labelledby="titre-par-appli" className="overflow-hidden">
+            <h2 id="titre-par-appli" className="m-0 px-5 pt-5 pb-3 text-titre-3 text-titre">
+              Par appli
+            </h2>
+            <TableauDonnees<LigneAppli>
+              legende="Vues, copies et revenus de chaque appli"
+              lignes={tableau.data.applis}
+              cleLigne={(appli) => appli.app_id}
+              colonnes={[
+                {
+                  cle: 'appli',
+                  entete: 'Appli',
+                  principale: true,
+                  rendu: (appli) => (
+                    <span className="flex flex-col">
+                      <span className="font-medium text-titre">{appli.nom}</span>
+                      <span className="text-petit text-texte-doux">
+                        {appli.prix === 0 ? 'Gratuit' : `${formaterFcfa(appli.prix)}${appli.type_prix === 'mensuel' ? ' / mois' : ' · paiement unique'}`}
+                      </span>
+                    </span>
+                  ),
+                },
+                { cle: 'vues', entete: 'Vues', alignement: 'droite', rendu: (appli) => <span className="chiffres">{appli.vues.toLocaleString('fr-FR')}</span> },
+                { cle: 'copies', entete: 'Copies actives', alignement: 'droite', rendu: (appli) => <span className="chiffres">{appli.copies_actives}</span> },
+                { cle: 'deploiements', entete: 'Déploiements', alignement: 'droite', rendu: (appli) => <span className="chiffres">{appli.deploiements_total}</span> },
+                {
+                  cle: 'revenus',
+                  entete: 'Encaissé ce mois-ci',
+                  alignement: 'droite',
+                  rendu: (appli) => (
+                    <span className="flex flex-col items-end">
+                      <span className="chiffres font-medium text-titre">{formaterFcfa(appli.revenu_mois)}</span>
+                      <span className="chiffres text-petit text-texte-doux">{formaterFcfa(appli.revenu_total)} au total</span>
+                    </span>
+                  ),
+                },
+              ]}
+            />
+          </Carte>
+        )
+      ) : null}
     </div>
   )
 }
 
-function CarteBleue({ titre, valeur, detail, reveler = false }: { titre: string; valeur: string; detail: string; reveler?: boolean }) {
+function Tuile({ icone, titre, valeur, detail, mise = false }: { icone: ReactNode; titre: string; valeur: string; detail: string; mise?: boolean }) {
   return (
-    <article data-reveal-item={reveler ? '' : undefined} className="carte-bleue flex min-h-[148px] flex-col justify-end gap-1 rounded-[18px] px-5 py-5 text-canvas shadow-[0_12px_28px_rgba(31,79,224,0.18)]">
-      <span className="text-[13.5px] text-white/80">{titre}</span>
-      <strong className="text-[30px] leading-none tracking-tight">{valeur}</strong>
-      <span className="text-[12.5px] text-white/75">{detail}</span>
-    </article>
-  )
-}
-
-function Reseau() {
-  return (
-    <svg aria-hidden="true" className="pointer-events-none absolute bottom-0 left-0 w-full text-accent/30" viewBox="0 0 1200 420" fill="none">
-      <g stroke="currentColor" strokeWidth="1.2">
-        <path d="M80 360 220 250 360 300 520 160 700 240 860 120 1040 220" />
-        <path d="M220 250 300 140M520 160 480 80M700 240 760 320M860 120 980 80" />
-      </g>
-      <g fill="currentColor">
-        <circle cx="80" cy="360" r="4" />
-        <circle cx="220" cy="250" r="5" />
-        <circle cx="360" cy="300" r="4" />
-        <circle cx="520" cy="160" r="6" />
-        <circle cx="700" cy="240" r="4" />
-        <circle cx="860" cy="120" r="5" />
-        <circle cx="1040" cy="220" r="4" />
-      </g>
-      <circle cx="180" cy="300" r="54" fill="#cbd5e1" opacity="0.55" />
-    </svg>
+    <div className={mise ? 'flex flex-col gap-1 rounded-moyen border border-primaire bg-surface-accent p-4' : 'flex flex-col gap-1 rounded-moyen border border-bordure bg-surface p-4'}>
+      <p className="m-0 flex items-center gap-2 text-petit font-medium text-texte">
+        <span className="text-sur-primaire-doux">{icone}</span>
+        {titre}
+      </p>
+      <p className="chiffres m-0 text-titre-1 text-titre">{valeur}</p>
+      <p className="m-0 text-petit text-texte-doux">{detail}</p>
+    </div>
   )
 }

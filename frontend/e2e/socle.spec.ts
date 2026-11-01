@@ -58,6 +58,11 @@ test.describe('socle', () => {
     await page.keyboard.press('Escape')
     await expect(page.getByRole('menu')).toHaveCount(0)
 
+    // Le tableau de bord : ce que rapportent les applis, tiré du grand livre.
+    await page.goto('/tableau')
+    await expect(page.getByRole('heading', { level: 2, name: 'Par appli' })).toBeVisible()
+    expect(resumer(await auditAxe(page))).toBe('')
+
     // L'Échange et son formulaire de discussion, fiche du bug dépliée.
     await page.goto('/echange')
     await expect(page.getByRole('heading', { level: 1, name: 'Échange' })).toBeVisible()

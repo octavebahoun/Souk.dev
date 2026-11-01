@@ -16,7 +16,7 @@ describe('formats', () => {
   })
 
   it('écrit les montants en francs CFA entiers', () => {
-    expect(formaterFcfa(22000)).toBe('22 000 F')
+    expect(formaterFcfa(22000)).toBe('22 000 F')
   })
 
   it('lit une date seule comme un jour du calendrier et écrit « 1er »', () => {

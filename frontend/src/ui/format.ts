@@ -11,7 +11,9 @@ const format = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 })
 
 /** 15000 → « 15 000 F » (entiers FCFA, jamais de flottant). */
 export function formaterFcfa(valeur: number): string {
-  return `${format.format(Math.round(valeur))} F`
+  // Intl sépare les milliers par une espace fine (U+202F) qu'Outfit rend presque nulle en grand
+  // corps (« 30000 F ») : une espace insécable ordinaire garde « 30 000 F » lisible partout.
+  return `${format.format(Math.round(valeur)).replace(/\u202f/g, '\u00a0')} F`
 }
 
 const jours = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
