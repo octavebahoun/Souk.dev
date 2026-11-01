@@ -11,7 +11,7 @@ dossier=${1:-./sauvegardes}
 date=$(date +%Y%m%d-%H%M%S)
 mkdir -p "$dossier"
 
-compose="docker compose -f docker-compose.prod.yml"
+compose="./scripts/prod.sh"
 # Projet Compose : « soukdev » (name: de docker-compose.prod.yml), ou COMPOSE_PROJECT_NAME pour un
 # essai à côté d'une autre plateforme. Ses volumes s'appellent <projet>_<volume>.
 projet=${COMPOSE_PROJECT_NAME:-soukdev}
@@ -27,10 +27,11 @@ rm -f "$tmp"
 
 echo "== Volumes =="
 for volume in stockage routes letsencrypt; do
+    # Lu en root (fichiers de tous les propriétaires), rendu à qui lance la sauvegarde.
     docker run --rm \
         -v "${projet}_${volume}:/donnees:ro" \
         -v "$(pwd)/$dossier:/sortie" \
-        alpine:3.21 tar czf "/sortie/${volume}-$date.tar.gz" -C /donnees .
+        alpine:3.21 sh -c 'tar czf "$1" -C /donnees . && chown "$2" "$1"' _ "/sortie/${volume}-$date.tar.gz" "$(id -u):$(id -g)"
 done
 
 echo "== Sommes de contrôle =="

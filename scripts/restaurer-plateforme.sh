@@ -60,7 +60,8 @@ done
 docker exec "$prefixe-db" pg_isready -U soukdev -d "$base"
 
 echo "== Restauration de la base =="
-gunzip -c "$dossier/soukdev-$date.sql.gz" | docker exec -i "$prefixe-db" psql -U soukdev -d "$base" -v ON_ERROR_STOP=1 -q
+# Les résultats des SELECT du dump (setval…) sont tus ; les erreurs arrêtent tout (stderr).
+gunzip -c "$dossier/soukdev-$date.sql.gz" | docker exec -i "$prefixe-db" psql -U soukdev -d "$base" -v ON_ERROR_STOP=1 -q -o /dev/null
 
 echo "== Vérifications =="
 requete() {
