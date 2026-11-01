@@ -124,14 +124,13 @@ services:
   moteur:
     <<: *php
     command: ["php", "artisan", "queue:work", "--queue=moteur", "--sleep=2", "--tries=1", "--timeout=1200"]
-    # Joint le second démon local (profil « machines ») par tcp://host.docker.internal:2376.
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     volumes:
       - ./backend:/app
       - ./openapi.yaml:/openapi.yaml:ro
       - secrets:/run/soukdev:ro
       - /var/run/docker.sock:/var/run/docker.sock
+      # Socket du second démon local (profil « machines ») : unix:///run/dind/docker.sock.
+      - dind-socket:/run/dind
     healthcheck:
       test: ["CMD", "php", "docker/sante.php", "worker"]
       interval: 30s
@@ -257,15 +256,19 @@ services:
         condition: service_started
 
   # Second démon Docker local, pour tester le placement sur deux machines
-  # (docs/machines.md) : `docker compose --profile machines up -d dind`, puis enregistrer
-  # tcp://host.docker.internal:2376 dans /admin/serveurs. Profil opt-in : `docker compose up`
-  # seul ne le lance pas. Développement uniquement : sans TLS, jamais en production.
+  # (docs/machines.md) : `docker compose --profile machines up -d dind route-dind`, puis enregistrer
+  # unix:///run/dind/docker.sock dans /admin/serveurs. Profil opt-in : `docker compose up`
+  # seul ne le lance pas. Développement uniquement, jamais en production.
   dind:
     image: docker:28-dind
     profiles: [machines]
-    # Réseau de l'hôte : les conteneurs intérieurs y sont joignables, donc Traefik les sert
-    # comme ceux du démon local. Plages intérieures hors des ponts habituels (172.17/172.18…).
-    network_mode: host
+    # Jamais network_mode: host : deux démons dans le même espace réseau se disputent docker0
+    # et les chaînes iptables (le 1er novembre, le second a effacé les règles du démon de
+    # l'hôte et coupé la sortie réseau de tous ses conteneurs). Il garde son propre réseau,
+    # à adresse fixe : l'hôte (donc Traefik) route le sous-réseau des copies vers lui.
+    networks:
+      machines:
+        ipv4_address: 10.199.0.2
     privileged: true
     restart: "no"
     environment:
@@ -273,21 +276,49 @@ services:
     command:
       - dockerd
       - --host=unix:///var/run/docker.sock
-      - --host=tcp://0.0.0.0:2376
+      # Aucun port tcp : sans TLS, quiconque le joint a la main sur l'hôte. Le moteur passe par
+      # ce socket, partagé dans un volume.
+      - --host=unix:///run/dind/docker.sock
+      # Groupe du socket, rejoint par le moteur (backend/docker/entrypoint.sh).
+      - --group=2376
       - --bip=10.200.1.1/24
       - --fixed-cidr=10.200.1.0/24
       - --default-address-pool=base=10.201.0.0/16,size=24
+      # Traefik vise l'adresse du conteneur de la copie, comme sur la machine locale : les
+      # réseaux des copies acceptent ce trafic routé (pas de port publié sur ce démon).
+      - --default-network-opt=bridge=com.docker.network.bridge.gateway_mode_ipv4=nat-unprotected
     volumes:
       - dind:/var/lib/docker
+      - dind-socket:/run/dind
     healthcheck:
       test: ["CMD", "docker", "info"]
       interval: 10s
       timeout: 5s
       retries: 12
 
+  # Route de l'hôte vers les copies du second démon (10.201.0.0/16 via 10.199.0.2), comme le
+  # VPN route les sous-réseaux des VPS en production (docs/multi-vps.md). Une seule route,
+  # posée puis le conteneur s'arrête ; elle disparaît avec le réseau « machines ».
+  route-dind:
+    image: alpine:3.20
+    profiles: [machines]
+    network_mode: host
+    cap_drop: [ALL]
+    cap_add: [NET_ADMIN]
+    restart: "no"
+    command: ["ip", "route", "replace", "10.201.0.0/16", "via", "10.199.0.2"]
+    depends_on:
+      dind:
+        condition: service_healthy
+
 networks:
   interne:
   web:
+  # Second démon de développement (profil « machines ») : sous-réseau fixe, hors du LAN.
+  machines:
+    ipam:
+      config:
+        - subnet: 10.199.0.0/24
 
 volumes:
   db:
@@ -295,3 +326,4 @@ volumes:
   secrets_publics:
   front_node_modules:
   dind:
+  dind-socket:

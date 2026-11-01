@@ -42,24 +42,36 @@ courtes de la plateforme).
 ## Tester avec deux machines en local
 
 ```sh
-docker compose --profile machines up -d dind
+docker compose --profile machines up -d dind route-dind
 ```
 
-Ce profil opt-in lance un second démon (Docker-in-Docker, sans TLS, développement
-uniquement) sur le réseau de l'hôte : ses conteneurs y sont joignables, donc Traefik
-les sert comme ceux du démon local. Enregistrer `tcp://host.docker.internal:2376` dans
-`/admin/serveurs`, vérifier la sonde, puis jouer avec les capacités. Parcours complet :
-`npx playwright test e2e/machines.spec.ts` (enregistre `aux`, remplit `locale`, vérifie
-qu'une copie part sur `aux` et y répond, bascule `aux` en maintenance, tente le retrait).
+Ce profil opt-in lance un second démon (Docker-in-Docker, développement uniquement) dans
+son propre espace réseau, à l'adresse fixe `10.199.0.2` (réseau `machines`). Le conteneur
+ponctuel `route-dind` pose sur l'hôte une seule route, `10.201.0.0/16 via 10.199.0.2` :
+Traefik (réseau de l'hôte) joint ainsi les copies du second démon comme celles du démon
+local, à la manière du VPN qui route les sous-réseaux des VPS en production. Le démon
+n'ouvre aucun port tcp (sans TLS, quiconque le joindrait aurait la main sur le poste) : le
+moteur passe par son socket, partagé dans le volume `dind-socket` (groupe 2376).
+
+**Jamais `network_mode: host` pour ce démon** : deux démons dans le même espace réseau se
+disputent `docker0` et les chaînes iptables. Le 1er novembre, le second a effacé les règles
+du démon de l'hôte : plus aucun conteneur ne sortait sur Internet jusqu'à
+`sudo systemctl restart docker`.
+
+Enregistrer `unix:///run/dind/docker.sock` dans `/admin/serveurs`, vérifier la sonde, puis
+jouer avec les capacités. Parcours complet : `npx playwright test e2e/machines.spec.ts`
+(enregistre `aux`, réduit `locale` à 512 Mo, vérifie qu'une copie part sur `aux`, la plus
+libre, et y répond, bascule `aux` en maintenance, tente le retrait).
 
 ## Limites connues
 
 - **Routage direct (v1)** : Traefik central vise l'adresse du conteneur. Ça marche quand
-  les démons partagent l'espace réseau de l'hôte (démon local + DinD ci-dessus). Des VPS
+  le sous-réseau des copies de chaque démon est routé jusqu'à Traefik (démon local, DinD
+  ci-dessus avec sa route). Des VPS
   séparés exigeront un proxy en bordure par machine et la livraison de ses routes :
   conçu en phase 6, voir `docs/multi-vps.md`, avant tout second VPS réel.
-- **`tcp://` sans TLS** : réservé au poste de développement (DinD ci-dessus, `localhost`,
-  `127.0.0.0/8`, `host.docker.internal`). Un démon distant sans TLS exposerait Docker
+- **`tcp://` sans TLS** : réservé au poste de développement (`localhost`, `127.0.0.0/8`,
+  `host.docker.internal` ; le DinD ci-dessus passe par un socket, sans tcp). Un démon distant sans TLS exposerait Docker
   sans authentification : refusé par l'API en production (422). Le TLS par machine
   (`DOCKER_TLS_VERIFY` et certificats stockés par machine) est conçu avec le bord par
   machine en phase 6, voir `docs/multi-vps.md`, avant tout second VPS réel.

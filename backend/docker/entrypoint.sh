@@ -3,7 +3,8 @@
 #
 # 1. Quitte root : le processus prend l'UID et le GID du propriétaire de /app
 #    (l'utilisateur de la machine en développement, www-data en production).
-# 2. Si le socket Docker est monté (service « moteur » seulement), rejoint son groupe.
+# 2. Si le socket Docker est monté (service « moteur » seulement), rejoint son groupe ;
+#    de même pour le socket du second démon de développement (/run/dind, GID 2376).
 #
 # Les secrets du volume « secrets » sont chargés par Laravel lui-même (bootstrap/app.php).
 set -eu
@@ -44,6 +45,17 @@ if [ -S /var/run/docker.sock ]; then
         groupe_docker=dockerhote
     fi
     addgroup "$utilisateur" "$groupe_docker" 2>/dev/null || true
+fi
+
+# Le second démon (profil « machines ») peut démarrer après le moteur : le groupe est fixe
+# (dockerd --group=2376), rejoint dès que le volume de son socket est monté.
+if [ -d /run/dind ]; then
+    groupe_dind=$(getent group 2376 | cut -d: -f1 || true)
+    if [ -z "$groupe_dind" ]; then
+        addgroup -g 2376 dind
+        groupe_dind=dind
+    fi
+    addgroup "$utilisateur" "$groupe_dind" 2>/dev/null || true
 fi
 
 export HOME=/tmp

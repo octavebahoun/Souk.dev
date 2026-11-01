@@ -10,7 +10,7 @@ import { auditAxe, connexionDemo, resumer } from './outils'
  */
 
 const racine = fileURLToPath(new URL('../../', import.meta.url))
-const HOTE_DIND = 'tcp://host.docker.internal:2376'
+const HOTE_DIND = 'unix:///run/dind/docker.sock'
 const REFERER = 'http://localhost:5173/'
 
 function compose(...arguments_: string[]): string {
@@ -85,7 +85,12 @@ test.describe.serial('plusieurs serveurs', () => {
 
   test.beforeAll(() => {
     artisan('db:seed', '--class=DemoSeeder', '--force')
-    compose('--profile', 'machines', 'up', '-d', 'dind')
+    // Repart d'une liste propre : le aux d'un parcours précédent (sans copie, le réensemencement
+    // les a emportées) et la capacité de la locale.
+    artisan('tinker', '--execute', `
+      App\\Models\\Machine::query()->where("nom", "aux")->whereDoesntHave("deploiements")->delete();
+      App\\Models\\Machine::query()->where("nom", "locale")->update(["capacite_mo" => null]);`)
+    compose('--profile', 'machines', 'up', '-d', 'dind', 'route-dind')
     attendreDind()
   })
 
@@ -98,7 +103,12 @@ test.describe.serial('plusieurs serveurs', () => {
       }
     }
     try {
-      compose('--profile', 'machines', 'rm', '-sf', 'dind')
+      artisan('tinker', '--execute', 'App\\Models\\Machine::query()->where("nom", "locale")->update(["capacite_mo" => null]);')
+    } catch {
+      // Remise à zéro au prochain parcours.
+    }
+    try {
+      compose('--profile', 'machines', 'rm', '-sf', 'dind', 'route-dind')
     } catch {
       // Le conteneur reste pour un examen manuel.
     }
@@ -127,27 +137,22 @@ test.describe.serial('plusieurs serveurs', () => {
     test.setTimeout(600_000)
     expect(locale).toBeGreaterThan(0)
     await connexionDemo(page, 'soukdemo-admin')
-    // La locale ne garde qu'une place de 512 Mo : la première copie la remplit.
+    // La locale ne garde que 512 Mo, aux en déclare 4 Go : la copie part sur aux, la plus libre.
     expect((await api(page, 'patch', `/admin/machines/${locale}`, { capacite_mo: 512 })).status()).toBe(200)
 
     const pharmacie = await browser.newPage()
     await connexionDemo(pharmacie, 'soukdemo-pharmacie')
 
-    const premiere = await lancerUneCopie()
-    copies.push(premiere)
-    await expect.poll(async () => (await lireLaCopie(pharmacie, premiere)).etat, { timeout: 300_000, intervals: [5_000] }).toBe('en_ligne')
-    expect((await lireLaCopie(pharmacie, premiere)).machine_nom).toBe('locale')
-
-    const deuxieme = await lancerUneCopie()
-    copies.push(deuxieme)
-    await expect.poll(async () => (await lireLaCopie(pharmacie, deuxieme)).etat, { timeout: 300_000, intervals: [5_000] }).toBe('en_ligne')
-    expect((await lireLaCopie(pharmacie, deuxieme)).machine_nom).toBe('aux')
+    const copie = await lancerUneCopie()
+    copies.push(copie)
+    await expect.poll(async () => (await lireLaCopie(pharmacie, copie)).etat, { timeout: 300_000, intervals: [5_000] }).toBe('en_ligne')
+    expect((await lireLaCopie(pharmacie, copie)).machine_nom).toBe('aux')
 
     // Servie depuis le second démon, sur son sous-domaine.
     await expect
       .poll(
         async () => {
-          const reponse = await page.request.get(`http://d${deuxieme}.localhost/`, { failOnStatusCode: false })
+          const reponse = await page.request.get(`http://d${copie}.localhost/`, { failOnStatusCode: false })
           return reponse.ok() ? await reponse.text() : ''
         },
         { timeout: 60_000, intervals: [2_000] },
@@ -164,7 +169,8 @@ test.describe.serial('plusieurs serveurs', () => {
     await page.goto('/admin/serveurs')
     const aux = page.getByRole('article', { name: 'aux' })
     await aux.getByRole('button', { name: 'Mettre en maintenance' }).click()
-    await expect(aux.getByText('En maintenance')).toBeVisible()
+    await page.getByRole('dialog', { name: 'Mettre aux en maintenance ?' }).getByRole('button', { name: 'Mettre en maintenance' }).click()
+    await expect(aux.getByText('En maintenance', { exact: true })).toBeVisible()
 
     // La locale a de nouveau de la place : la copie suivante l'y rejoint, pas sur aux.
     expect((await api(page, 'patch', `/admin/machines/${locale}`, { capacite_mo: 8192 })).status()).toBe(200)

@@ -8,7 +8,8 @@ un plan, pas un mode d'emploi exécuté.
 ## Pourquoi le routage direct ne suffit plus
 
 Aujourd'hui, Traefik central vise l'adresse du conteneur (`http://172.x:port`). Ça marche
-quand les démons partagent l'espace réseau de l'hôte (démon local + DinD). Sur des VPS
+quand le sous-réseau des copies est routé jusqu'à lui (démon local, DinD de développement
+avec sa route vers `10.201.0.0/16`). Sur des VPS
 séparés, l'adresse d'un conteneur du VPS B est injoignable depuis le VPS A. Et parler à
 un démon distant en `tcp://` sans TLS exposerait Docker sans authentification.
 
