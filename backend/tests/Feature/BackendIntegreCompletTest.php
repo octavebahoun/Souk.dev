@@ -247,8 +247,10 @@ class BackendIntegreCompletTest extends TestCase
         $this->postJson("/api/copies/{$copie->cle_publique}/auth/code", ['canal' => 'sms', 'destinataire' => '+2290197123456'], ['Origin' => 'http://d42.localhost'])
             ->assertHeader('Access-Control-Allow-Origin', '*')
             ->assertHeaderMissing('Access-Control-Allow-Credentials');
-        // Le reste de l'API ne s'ouvre pas à l'origine d'une copie.
-        $this->getJson('/api/apps', ['Origin' => 'http://d42.localhost'])->assertHeaderMissing('Access-Control-Allow-Origin');
+        // Le reste de l'API ne s'ouvre pas à l'origine d'une copie (avec une seule origine
+        // configurée, comme en CI, la bibliothèque CORS renvoie toujours celle-ci : jamais la copie).
+        $autorisee = $this->getJson('/api/apps', ['Origin' => 'http://d42.localhost'])->headers->get('Access-Control-Allow-Origin');
+        $this->assertNotContains($autorisee, ['*', 'http://d42.localhost']);
     }
 
     public function test_le_client_liste_et_exporte_ses_sauvegardes_et_personne_d_autre(): void
