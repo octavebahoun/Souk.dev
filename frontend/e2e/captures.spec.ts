@@ -27,7 +27,7 @@ const lots: Lot[] = [
     pages: async (page) => {
       const appli = await idDe(page, '/apps?q=PharmaStock', (applis) => applis[0]?.id)
       const bug = await idDe(page, '/discussions?per_page=50', (discussions) => discussions.find((discussion) => String(discussion.titre).startsWith('Wave CI'))?.id)
-      return ['/', '/store', '/store?tri=note', `/store/${appli}`, '/echange', `/echange/${bug}`, '/devs', '/evenements', '/connexion', '/legal/cgu', '/legal/cgv', '/legal/confidentialite', '/legal/abus', '/page-inconnue']
+      return ['/', '/store', '/store?tri=note', `/store/${appli}`, '/echange', `/echange/${bug}`, '/devs', '/devs/soukdemo-awa', '/evenements', '/connexion', '/legal/cgu', '/legal/cgv', '/legal/confidentialite', '/legal/abus', '/page-inconnue']
     },
   },
   { compte: 'soukdemo-awa', pages: async () => ['/tableau', '/copies', '/publier', '/missions', '/revenus', '/notifications', '/notifications/reglages'] },

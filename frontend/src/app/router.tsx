@@ -21,14 +21,7 @@ export function creerRoutes(): RouteObject[] {
       {
         element: <Layout />,
         children: [
-          {
-            // Écrans d'avant la refonte : thème clair forcé jusqu'à leur redessin.
-            element: <ThemeClairForce />,
-            children: [
-          { path: '/devs/:username', element: <PageEnAttente titre="Profil" /> },
-            ],
-          },
-          // Écrans refaits avec le système de design (thème clair ou sombre).
+          // Pages publiques, dans la coquille du site (thème clair ou sombre).
           { index: true, lazy: async () => ({ Component: (await import('../features/accueil/Accueil')).Accueil }) },
           { path: '/connexion', element: <PageEnAttente titre="Connexion" /> },
           { path: '/store', lazy: async () => ({ Component: (await import('../features/catalogue/Store')).Store }) },
@@ -36,6 +29,7 @@ export function creerRoutes(): RouteObject[] {
           { path: '/echange/:id', lazy: async () => ({ Component: (await import('../features/echange/PageDiscussion')).PageDiscussion }) },
           { path: '/devs', lazy: async () => ({ Component: (await import('../features/catalogue/Recherche')).Recherche }) },
           { path: '/evenements', lazy: async () => ({ Component: (await import('../features/catalogue/Evenements')).Evenements }) },
+          { path: '/devs/:username', element: <PageEnAttente titre="Profil" /> },
           { path: '/store/:id', lazy: async () => ({ Component: (await import('../features/catalogue/Fiche')).Fiche }) },
           { path: '/store/:id/deployer', lazy: async () => ({ Component: (await import('../features/paiements/Commande')).Commande }) },
           { path: '/paiement/retour', lazy: async () => ({ Component: (await import('../features/paiements/RetourPaiement')).RetourPaiement }) },

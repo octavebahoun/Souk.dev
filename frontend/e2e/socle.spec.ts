@@ -82,8 +82,10 @@ test.describe('socle', () => {
     await page.reload()
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
 
-    // Un écran pas encore refait reste en clair.
+    // Le profil public suit le thème choisi, et l'audit axe passe aussi en sombre.
     await page.goto('/devs/soukdemo-awa')
-    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
+    await expect(page.getByRole('heading', { level: 1, name: 'Awa Dossou' })).toBeVisible()
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+    expect(resumer(await auditAxe(page))).toBe('')
   })
 })
