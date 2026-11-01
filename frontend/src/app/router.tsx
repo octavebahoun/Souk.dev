@@ -25,7 +25,6 @@ export function creerRoutes(): RouteObject[] {
             // Écrans d'avant la refonte : thème clair forcé jusqu'à leur redessin.
             element: <ThemeClairForce />,
             children: [
-          { path: '/evenements', lazy: async () => ({ Component: (await import('../features/catalogue/Evenements')).Evenements }) },
           { path: '/devs/:username', element: <PageEnAttente titre="Profil" /> },
             ],
           },
@@ -36,6 +35,7 @@ export function creerRoutes(): RouteObject[] {
           { path: '/echange', lazy: async () => ({ Component: (await import('../features/echange/Fil')).Fil }) },
           { path: '/echange/:id', lazy: async () => ({ Component: (await import('../features/echange/PageDiscussion')).PageDiscussion }) },
           { path: '/devs', lazy: async () => ({ Component: (await import('../features/catalogue/Recherche')).Recherche }) },
+          { path: '/evenements', lazy: async () => ({ Component: (await import('../features/catalogue/Evenements')).Evenements }) },
           { path: '/store/:id', lazy: async () => ({ Component: (await import('../features/catalogue/Fiche')).Fiche }) },
           { path: '/store/:id/deployer', lazy: async () => ({ Component: (await import('../features/paiements/Commande')).Commande }) },
           { path: '/paiement/retour', lazy: async () => ({ Component: (await import('../features/paiements/RetourPaiement')).RetourPaiement }) },

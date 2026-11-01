@@ -22,6 +22,15 @@ test.describe('socle', () => {
     expect(resumer(await auditAxe(page, '[role="dialog"]'))).toBe('')
     await page.keyboard.press('Escape')
 
+    // Les événements ; créer un événement demande d'être connecté.
+    await page.goto('/evenements')
+    await expect(page.getByRole('heading', { level: 2, name: 'À venir' })).toBeVisible()
+    expect(resumer(await auditAxe(page))).toBe('')
+    await page.getByRole('button', { name: 'Créer un événement' }).first().click()
+    await expect(page.getByRole('dialog', { name: 'Connectez-vous pour créer un événement' })).toBeVisible()
+    expect(resumer(await auditAxe(page, '[role="dialog"]'))).toBe('')
+    await page.keyboard.press('Escape')
+
     // La connexion : GitHub pour les devs, lien par e-mail pour les autres.
     await page.goto('/connexion')
     await expect(page.getByRole('link', { name: 'Continuer avec GitHub' })).toBeVisible()
@@ -74,7 +83,7 @@ test.describe('socle', () => {
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
 
     // Un écran pas encore refait reste en clair.
-    await page.goto('/evenements')
+    await page.goto('/devs/soukdemo-awa')
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
   })
 })
