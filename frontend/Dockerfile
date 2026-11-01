@@ -9,7 +9,7 @@ FROM node:24-alpine AS build
 
 WORKDIR /app
 
-COPY package.json package-lock.json ./
+COPY package.json package-lock.json .npmrc ./
 RUN npm ci --no-audit --no-fund
 
 COPY . .
@@ -20,6 +20,7 @@ ARG VITE_REVERB_PORT=443
 ARG VITE_REVERB_SCHEME=https
 ARG VITE_REVERB_KEY
 
+RUN test -n "$VITE_REVERB_KEY" || { echo "VITE_REVERB_KEY manquant : lire la clé publique de Reverb dans le volume « secrets » (docs/exploitation.md)." >&2; exit 1; }
 RUN npm run build
 
 FROM nginx:1.28-alpine

@@ -1,4 +1,5 @@
-# Plateforme Souk.dev en production, sur le VPS Datacloud : `docker-compose -f docker-compose.prod.yml up -d`.
+# Plateforme Souk.dev en production, sur le VPS Datacloud : `./scripts/prod.sh up -d` (Compose avec
+# --env-file backend/.env.prod, qui fournit ${DOMAINE}, ${ACME_EMAIL}… à ce fichier).
 #
 #   Front      https://$DOMAINE            (nginx, build Vite statique)
 #   API        https://api.$DOMAINE
@@ -277,7 +278,9 @@ services:
         VITE_REVERB_HOST: reverb.${DOMAINE:?DOMAINE manquant dans backend/.env.prod}
         VITE_REVERB_PORT: "443"
         VITE_REVERB_SCHEME: https
-        VITE_REVERB_KEY: "${VITE_REVERB_KEY:?VITE_REVERB_KEY manquant : lire REVERB_APP_KEY dans le volume « secrets » (voir docs/exploitation.md)}"
+        # Vide hors construction du front (les premières commandes la précèdent) : le Dockerfile
+        # du front refuse de construire sans elle.
+        VITE_REVERB_KEY: "${VITE_REVERB_KEY:-}"
     image: soukdev-front:prod
     init: true
     restart: unless-stopped
