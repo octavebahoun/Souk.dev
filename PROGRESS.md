@@ -150,6 +150,7 @@ Contrat : seul le schéma `Signalement` gagne `cible_chemin` ; types régénér�
   - [x] Store (1er novembre) : grille alignée sur l'en-tête, cartes du système (capture, badges, prix, note), recherche + tri + catégories visibles, filtres avancés repliés, bandeau dev unique ; thème sombre ; axe sans violation (lien du bandeau souligné). Avant : fond beige hors palette, 5 filtres ouverts, libellé anglais, double « Publier », cartes invisibles avant défilement
   - [x] Fiche (1er novembre) : panneau de commande fixe sur bureau, sous le titre sur mobile (prix détaillé, « Déployer ma copie » en primaire, démo en contour, sur mesure en retrait, rassurance, dépôt et signalement), captures avec vignettes, README, sécurité, avis, versions et discussions en cartes du système ; demande sur mesure dans la modale du système ; thème sombre. Avant : action principale en noir, démo en bleu primaire, couleurs codées en dur
   - [x] Accueil (1er novembre) : dans la coquille commune (en-tête et pied du site), bandeau bleu nuit avec le visuel généré, trois étapes illustrées, quatre applis du Store, l'Échange, qui paie quoi, appel final ; thème sombre ; axe sans violation. Avant : palette beige, en-tête et logo propres, débordement horizontal (1520 px), sections vides avant défilement, photos Unsplash chargées depuis leur CDN
+  - [x] Connexion (1er novembre) : dans la coquille commune, panneau bleu nuit (bureau) et carte du système, profil « Développeur » ou « Entreprise ou particulier », GitHub en primaire, lien par e-mail avec erreur reliée au champ ; thème sombre ; axe sans violation. Avant : personnage 3D sans licence connue (image retirée), icônes néon, `role="dialog"` sur une carte qui n'en est pas une
 
 ### Phase 8 — Release
 - [ ] Audit sécurité, performance, accessibilité ; documentation ; `RELEASE_NOTES.md`
@@ -171,6 +172,7 @@ Contrat : seul le schéma `Signalement` gagne `cible_chemin` ; types régénér�
 | Store (`/store`) | Trouver l'appli qui fera tourner son activité | Ouvrir la fiche d'une appli | Les captures et les noms, le prix par mois, le badge de sécurité ; la recherche et les catégories en haut, les filtres avancés repliés |
 | Fiche (`/store/{id}`) | Décider de commander l'appli | Déployer ma copie | Le prix par mois détaillé (appli, hébergement, 0 F de commission) et le bouton bleu, puis les captures, la sécurité et les avis |
 | Accueil (`/`) | Comprendre Souk.dev en dix secondes et choisir sa porte | Je suis dev (ou Je cherche une appli) | La promesse sur le bandeau bleu nuit et les deux boutons ; puis 0 % de commission, Mobile Money, analyse avant publication |
+| Connexion (`/connexion`) | Entrer, ou créer son compte, sans friction | Continuer avec GitHub (dev) ou Recevoir mon lien (entreprise) | Le choix du profil, puis un seul bouton ; la promesse « dépôts publics uniquement » |
 
 ## Vérifications
 

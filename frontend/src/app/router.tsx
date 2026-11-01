@@ -19,13 +19,6 @@ export function creerRoutes(): RouteObject[] {
     ),
     children: [
       {
-        // Écrans d'avant la refonte, hors coquille : thème clair forcé.
-        element: <ThemeClairForce />,
-        children: [
-          { path: '/connexion', element: <PageEnAttente titre="Connexion" /> },
-        ],
-      },
-      {
         element: <Layout />,
         children: [
           {
@@ -41,6 +34,7 @@ export function creerRoutes(): RouteObject[] {
           },
           // Écrans refaits avec le système de design (thème clair ou sombre).
           { index: true, lazy: async () => ({ Component: (await import('../features/accueil/Accueil')).Accueil }) },
+          { path: '/connexion', element: <PageEnAttente titre="Connexion" /> },
           { path: '/store', lazy: async () => ({ Component: (await import('../features/catalogue/Store')).Store }) },
           { path: '/store/:id', lazy: async () => ({ Component: (await import('../features/catalogue/Fiche')).Fiche }) },
           { path: '/store/:id/deployer', lazy: async () => ({ Component: (await import('../features/paiements/Commande')).Commande }) },

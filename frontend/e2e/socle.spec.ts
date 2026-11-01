@@ -11,6 +11,14 @@ test.describe('socle', () => {
     await expect(page.getByText('PharmaStock', { exact: true }).first()).toBeVisible()
     expect(resumer(await auditAxe(page))).toBe('')
 
+    // La connexion : GitHub pour les devs, lien par e-mail pour les autres.
+    await page.goto('/connexion')
+    await expect(page.getByRole('link', { name: 'Continuer avec GitHub' })).toBeVisible()
+    await page.getByRole('button', { name: 'Entreprise ou particulier' }).click()
+    await page.getByRole('button', { name: 'Recevoir mon lien' }).click()
+    await expect(page.getByText('Cette adresse ne semble pas valide')).toBeVisible()
+    expect(resumer(await auditAxe(page))).toBe('')
+
     await page.goto('/une-page-qui-n-existe-pas')
     await expect(page.getByRole('heading', { level: 1, name: 'Cette page n\'existe pas' })).toBeVisible()
     expect(resumer(await auditAxe(page))).toBe('')
