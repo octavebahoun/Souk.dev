@@ -12,6 +12,9 @@ date=$(date +%Y%m%d-%H%M%S)
 mkdir -p "$dossier"
 
 compose="docker compose -f docker-compose.prod.yml"
+# Projet Compose : « soukdev » (name: de docker-compose.prod.yml), ou COMPOSE_PROJECT_NAME pour un
+# essai à côté d'une autre plateforme. Ses volumes s'appellent <projet>_<volume>.
+projet=${COMPOSE_PROJECT_NAME:-soukdev}
 
 echo "== Base de données =="
 # Sans pipe : en sh, le code d'un pipe est celui de gzip, un pg_dump raté passerait
@@ -25,7 +28,7 @@ rm -f "$tmp"
 echo "== Volumes =="
 for volume in stockage routes letsencrypt; do
     docker run --rm \
-        -v "soukdev_${volume}:/donnees:ro" \
+        -v "${projet}_${volume}:/donnees:ro" \
         -v "$(pwd)/$dossier:/sortie" \
         alpine:3.21 tar czf "/sortie/${volume}-$date.tar.gz" -C /donnees .
 done
