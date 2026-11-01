@@ -227,17 +227,39 @@ services:
       - NET_BIND_SERVICE
     security_opt:
       - no-new-privileges:true
+    # Toute la configuration statique en arguments : Traefik ignore les arguments dès qu'un
+    # fichier statique est monté (le compte Let's Encrypt, passé ainsi, n'existait pas : aucun
+    # certificat). HTTPS partout, certificats Let's Encrypt (défi HTTP) ; pas de fournisseur
+    # Docker, les labels des dépôts et des images ne sont jamais lus ; journaux JSON.
     command:
-      # Le fichier statique n'interpole pas les variables : le compte ACME passe en arguments.
+      - --entrypoints.web.address=:80
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      - --entrypoints.web.http.redirections.entrypoint.permanent=true
+      - --entrypoints.websecure.address=:443
+      - --entrypoints.websecure.http.tls.certresolver=letsencrypt
+      # Contrôle de santé (traefik healthcheck --ping), seulement sur la boucle locale.
+      - --entrypoints.ping.address=127.0.0.1:8082
+      - --ping.entrypoint=ping
+      # Un fichier par copie en ligne (App\Moteur\RouteurCopies), plus plateforme.yml (écrit par
+      # le service « init » depuis infra/proxy/plateforme.yml.dist, avec le domaine).
+      - --providers.file.directory=/routes
+      - --providers.file.watch=true
+      - --api.dashboard=false
+      - --log.level=INFO
+      - --log.format=json
+      - --accesslog=true
+      - --accesslog.format=json
+      # Un certificat joker (*.domaine) exigerait le défi DNS-01 : voir docs/exploitation.md.
       - --certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL:?ACME_EMAIL manquant dans backend/.env.prod}
       - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
       - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
     volumes:
-      - ./infra/proxy/traefik.prod.yml:/etc/traefik/traefik.yml:ro
       - routes:/routes:ro
       - letsencrypt:/letsencrypt
     healthcheck:
-      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      # La sonde relit la configuration statique : mêmes arguments pour le point d'entrée ping.
+      test: ["CMD", "traefik", "healthcheck", "--ping", "--ping.entrypoint=ping", "--entrypoints.ping.address=127.0.0.1:8082"]
       interval: 10s
       timeout: 5s
       retries: 6
