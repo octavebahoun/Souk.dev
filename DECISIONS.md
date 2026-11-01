@@ -433,3 +433,13 @@ Choix faits par l'agent en exécutant `BRIEF.md` (le brief passe avant ce fichie
 - **2026-10-29 — Surveillance et nettoyage** : file bloquée, disque plein et machines injoignables alertés toutes les heures (une fois par heure au plus par sujet) ; images et caches inutilisés depuis 7 jours purgés le dimanche (les images des copies en ligne ne partent jamais) ; journaux JSON (canal `json`, Traefik JSON).
 - **2026-10-29 — Sauvegardes** : base (`pg_dump`) + volumes + sommes SHA-256 chaque nuit, test de restauration mensuel dans des volumes jetables (sommes, migrations, tables, solde du grand livre), jamais sur la production.
 - **2026-10-29 — Multi-VPS (conception seule, sans second VPS réel)** : frontal TLS + proxy en bordure par VPS, VPN WireGuard entre VPS, TLS Docker par machine (certificats déposés via l'API), routes des bordures poussées en SSH (clé par machine, utilisateur restreint). Voir `docs/multi-vps.md`.
+- **2026-10-29 — Après la revue de la phase 6** (10 constats, 8 corrigés, 2 en dette Docker) :
+  - la sauvegarde de la base ne passe plus par un pipe (code de gzip masquant pg_dump) : dump dans un temporaire, refusé s'il est vide, puis compression ;
+  - un compte suspendu est refusé sur ses canaux privés Reverb (la session survit et `/broadcasting/auth` ignore le middleware des routes `api/`) ;
+  - décider d'un signalement et suspendre ou réactiver une copie pour abus se fait sous verrou dans une transaction (travail et e-mail après validation) ;
+  - un seul signalement ouvert par membre et par cible, garanti par un index unique partiel (la violation rend le même 409 que le contrôle applicatif) ;
+  - l'équipe peut suspendre un autre admin depuis l'interface (seul son propre compte reste interdit, comme l'API) ;
+  - chaque message d'une discussion et chaque événement porte son bouton « Signaler » (hors auteur) ; signaler une copie ou un compte passe par l'API (`docs/moderation.md`) ;
+  - le signalement expose `cible_chemin` (discussion parente d'un message, adresse de la copie, profil du compte) : la ligne admin mène à toutes les cibles ;
+  - le nettoyage hebdomadaire purge le démon local puis chaque distant joignable (les morts sont laissés à la sonde).
+  - Contrat : seul le schéma `Signalement` gagne `cible_chemin` (`string|null`) ; types régénérés.

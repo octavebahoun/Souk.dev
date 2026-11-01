@@ -6,8 +6,8 @@ Journal de l'agent, tenu à jour en continu (voir `BRIEF.md`, section 1).
 ## Où on en est
 
 - **Branche** : `saas-complet`, partie de `main` (la PR #28 `fin-mvp` y est fusionnée).
-- **Phase en cours** : 6 — Exploitation, livrée sans Docker (vérification Docker en dette, comme la phase 5).
-- **Tâche suivante** : au retour de Docker, exécuter `moderation.spec.ts`, les captures `/admin/moderation` et `/legal/*`, le test de restauration et le démarrage prod, puis revue indépendante de la phase 6 (et, toujours en attente, la vérification Docker de la phase 5).
+- **Phase en cours** : 6 — Exploitation, revue indépendante traitée (8 constats corrigés, 2 en dette Docker, comme la phase 5).
+- **Tâche suivante** : au retour de Docker, exécuter `moderation.spec.ts`, les captures `/admin/moderation` et `/legal/*`, le test de restauration et le démarrage prod, puis clore la phase 6 (et, toujours en attente, la vérification Docker de la phase 5).
 
 ## Étape 0 (25 octobre)
 
@@ -128,7 +128,21 @@ Contrat : seule la description de `memoire_libre_mo` change (capacité utile, si
 - [x] `docker-compose.prod.yml` (HTTPS Traefik + Let's Encrypt, worker et planificateur séparés, volumes persistants, front nginx statique), sauvegardes avec test de restauration (scripts écrits, exécution en dette Docker), journaux JSON (canal `json`, Traefik JSON), alertes e-mail (file, disque, machines), nettoyage hebdomadaire des images
 - [x] Pages légales : CGU, CGV, confidentialité (APDP Bénin), politique d'abus — brouillons marqués « à faire valider par un juriste »
 - [x] Routage multi-VPS conçu dans `docs/multi-vps.md` (TLS par machine, proxy en bordure par machine, VPN WireGuard, push SSH des routes), sans second VPS réel ; `docs/machines.md` mis à jour
-- [ ] Vérification Docker en dette (démon arrêté, voir Problèmes ouverts) ; revue indépendante de la phase 6 à lancer ensuite
+- [x] Revue indépendante de la phase 6 (sous-agent neuf) : 10 constats, 8 corrigés, 2 en dette Docker (voir ci-dessous)
+- [ ] Vérification Docker en dette (démon arrêté, voir Problèmes ouverts)
+
+**Revue indépendante de la phase 6** (10 constats, tous fondés ; aucun réfuté) :
+1. Élevé : `pg_dump | gzip` en `sh` (code de gzip seul) déclarait réussie une sauvegarde vide → dump dans un temporaire, refusé s'il est vide, puis compression (prouvé : faux `docker` en échec → code 1, rien d'écrit).
+2. Moyen : un compte suspendu gardait ses canaux privés Reverb (`/broadcasting/auth` hors middleware `api/`) → chaque canal refuse un suspendu, test (200 avant, 403 après).
+3. Moyen : `lockForUpdate()` hors transaction (décisions de signalement, suspensions de copies) → lecture + contrôle + écriture dans `DB::transaction`, travail et e-mail après validation.
+4. Moyen : « un ouvert par cible » applicatif seul (double-clic = doublon) → index unique partiel `(user_id, cible, cible_id) WHERE statut='ouvert'` (PostgreSQL et SQLite), violation mappée en 409, test (refus du 2ᵉ, de nouveau signalable après décision).
+5. Moyen : l'UI interdisait de suspendre tout admin, contre l'API (seul son propre compte) → bouton désactivé pour son seul compte, texte aligné, test composant.
+6. Moyen : « Signaler » absent des messages, copies, comptes et événements → boutons sur chaque message et chaque événement (hors auteur), signalement d'une copie ou d'un compte par l'API documenté dans `docs/moderation.md`.
+7. Moyen : aucun lien « Voir » vers un message, une copie ou un compte signalé → le signalement expose `cible_chemin` (discussion parente, adresse de la copie, profil `/devs`), contrat et types à jour, test.
+8. Moyen : le nettoyage des images ignorait les démons distants → purge du local puis de chaque distant joignable (les injoignables laissés à la sonde), test.
+9. Moyen : captures `/admin/moderation` et `/legal/*` jamais faites → **non corrigé ici** : Docker toujours arrêté, à refaire dès son retour avant de clore la phase 6 (voir Problèmes ouverts).
+10. Moyen : restauration et `moderation.spec.ts` jamais exécutés (critères de sortie de la phase) → **non corrigé ici** : Docker toujours arrêté, à refaire dès son retour avant de clore la phase 6 (voir Problèmes ouverts).
+Contrat : seul le schéma `Signalement` gagne `cible_chemin` ; types régénérés.
 
 ### Phase 7 — Refonte du design
 - [ ] Chaque page redessinée, captures critiquées (3 tailles, 2 thèmes), zéro violation axe sérieuse
@@ -206,6 +220,11 @@ Contrat : seule la description de `memoire_libre_mo` change (capacité utile, si
 | 2026-10-29 | 6 | `npx playwright test e2e/moderation.spec.ts --list`, `tsc` + ESLint du parcours | 4 tests listés (suspension d'une copie signalée, compte suspendu puis rétabli, canaux, pages légales) ; exécution impossible : Docker arrêté (tenté : `ECONNREFUSED 127.0.0.1:5173`) |
 | 2026-10-29 | 6 | Test de restauration (`scripts/restaurer-plateforme.sh`), démarrage prod, Playwright `moderation.spec.ts`, captures `/admin/moderation` + `/legal/*` (3 tailles × 2 thèmes), axe, Lighthouse | **non faits** : Docker arrêté sur le poste (`/var/run/docker.sock` absent, `docker info` sans serveur, `sudo` interdit) ; parcours et scripts écrits et relus, à exécuter à son retour (voir Problèmes ouverts) |
 | 2026-10-29 | 6 | Relecture sécurité (sections 6-7 : Policies/middleware avant binding, anti-IDOR, argent hors navigateur, secrets jamais en clair, licences) | rien à corriger : cibles du signalement sur table fixe, suspensions avec motif et e-mail obligatoire, travaux moteur gardés, `DOMAINE` validé avant `sed`, secrets en volume ou `.env.prod` |
+| 2026-10-29 | 6 | Après corrections de la revue : suite PHP sur l'hôte (dont 4 tests de non-régression : canaux refusés au suspendu, index d'unicité, `cible_chemin`, nettoyage distant) | 624 passés, 4 échecs connus : `PublicationAppliTest` demande GD, absent de l'hôte (vert dans le conteneur) |
+| 2026-10-29 | 6 | Après corrections de la revue : Pint (461 fichiers), ESLint (tout le front), `tsc`, Vitest (dont `Moderation.test.tsx`), types régénérés depuis `openapi.yaml` | zéro erreur, 47/47 ; `api.ts` régénéré (`cible_chemin` sur `Signalement`) |
+| 2026-10-29 | 6 | Après corrections de la revue : `composer audit`, `npm audit`, `composer check-licenses`, `npm run check-licenses` | aucune faille, aucune licence interdite |
+| 2026-10-29 | 6 | Après corrections de la revue : `sh -n` du script de sauvegarde, faux `docker` en échec | syntaxe valide ; pg_dump en échec → code 1, rien d'écrit (avant : sauvegarde vide déclarée réussie) |
+| 2026-10-29 | 6 | Captures `/admin/moderation` + `/legal/*`, Playwright `moderation.spec.ts`, restauration, démarrage prod | **toujours non faits** : Docker encore arrêté (`/var/run/docker.sock` absent) ; dette maintenue (voir Problèmes ouverts) |
 
 ## Problèmes ouverts
 
@@ -219,7 +238,7 @@ Contrat : seule la description de `memoire_libre_mo` change (capacité utile, si
 - 26 octobre : deux plateformes lancées sur le même dossier de copies (vérification à froid) se nettoient l'une l'autre ; une copie de test de la plateforme habituelle a été arrêtée. Sans conséquence (jeu de démo) ; à ne pas reproduire.
 - 28 octobre : Docker arrêté sur le poste pendant le backend intégré (démon inactif, `sudo` interdit pour le relancer). La vérification Docker (suite en conteneur, démarrage à froid, Playwright dont `backend-integre.spec.ts`, captures 3 tailles × 2 thèmes, axe, Lighthouse) reste à faire avant de clore la phase 5 ; le parcours est écrit et relu, pas exécuté. Les 7 autres constats de la revue sont corrigés et testés ; le constat Docker (élevé) est revérifié toujours bloqué le 28 octobre au soir.
 - 28 octobre : plusieurs serveurs livré sans Docker (même cause). Dette précise avant de clore la phase 5 : démarrer Docker, `docker compose up -d`, `docker compose --profile machines up -d dind`, vérifier la sonde du second démon dans `/admin/serveurs`, exécuter `npx playwright test e2e/machines.spec.ts` (3 tests : enregistrement + sonde, copie sur la plus libre et joignable, maintenance + retrait refusé), captures `/admin/serveurs` (`PAGES=/admin/serveurs npm run e2e:captures`, 3 tailles × 2 thèmes, à regarder et critiquer — avec les nouveaux états : vide illustré, libre sondé), axe (inclus dans le parcours) et Lighthouse. Limite assumée : routage direct v1 (voir `docs/machines.md`), bord par machine et TLS par machine conçus en phase 6 (`docs/multi-vps.md`) avant tout second VPS réel. Revérifié bloqué le 29 octobre (constat 5 de la revue des serveurs).
-- 29 octobre : phase 6 livrée sans Docker (même cause : `/var/run/docker.sock` absent, `docker info` sans serveur, `sudo` interdit). Dette précise avant de clore la phase 6 : démarrer Docker, `docker compose up -d`, exécuter `npx playwright test e2e/moderation.spec.ts` (4 tests : copie signalée suspendue depuis l'admin, compte suspendu puis rétabli, canaux, pages légales), captures (`PAGES=/admin/moderation,/legal/cgu,/legal/cgv,/legal/confidentialite,/legal/abus npm run e2e:captures`, 3 tailles × 2 thèmes, à regarder et critiquer), axe (inclus dans le parcours) et Lighthouse ; puis côté production : `./scripts/sauvegarde-plateforme.sh` sur un jeu d'essai, `./scripts/restaurer-plateforme.sh` (doit finir par « RESTAURATION RÉUSSIE »), et `docker compose -f docker-compose.prod.yml up -d --build` avec un `DOMAINE` de test (front, API, Reverb, une copie HTTPS). Parcours et scripts écrits et relus, non exécutés.
+- 29 octobre : phase 6 livrée sans Docker (même cause : `/var/run/docker.sock` absent, `docker info` sans serveur, `sudo` interdit). Dette précise avant de clore la phase 6 : démarrer Docker, `docker compose up -d`, exécuter `npx playwright test e2e/moderation.spec.ts` (4 tests : copie signalée suspendue depuis l'admin, compte suspendu puis rétabli, canaux, pages légales), captures (`PAGES=/admin/moderation,/legal/cgu,/legal/cgv,/legal/confidentialite,/legal/abus npm run e2e:captures`, 3 tailles × 2 thèmes, à regarder et critiquer), axe (inclus dans le parcours) et Lighthouse ; puis côté production : `./scripts/sauvegarde-plateforme.sh` sur un jeu d'essai, `./scripts/restaurer-plateforme.sh` (doit finir par « RESTAURATION RÉUSSIE »), et `docker compose -f docker-compose.prod.yml up -d --build` avec un `DOMAINE` de test (front, API, Reverb, une copie HTTPS). Parcours et scripts écrits et relus, non exécutés. Revérifié bloqué après la revue de la phase 6 (constats 9 et 10 : 8 autres corrigés et testés).
 
 ## Dépenses et crédits
 
