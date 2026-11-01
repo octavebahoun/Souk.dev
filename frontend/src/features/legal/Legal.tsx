@@ -158,8 +158,8 @@ export function PolitiqueAbus() {
       <Titre>1. Interdits</Titre>
       <Liste
         elements={[
-          'minage de cryptomonnaie : un processeur saturé longtemps suspend la copie ;',
-          'hameçonnage et fraude : toute copie qui imite un service pour voler des identifiants est suspendue dès confirmation ;',
+          'minage de cryptomonnaie : une copie dont le processeur reste saturé (90 % de sa formule) pendant une heure est suspendue automatiquement ;',
+          'hameçonnage et fraude : une copie signalée pour hameçonnage est suspendue aussitôt, le temps que l’équipe examine (elle la rétablit si le signalement n’est pas fondé) ;',
           'spam, harcèlement, insultes, contenus illégaux, atteintes aux droits d’autrui.',
         ]}
       />
@@ -170,7 +170,7 @@ export function PolitiqueAbus() {
       </Paragraphe>
       <Titre>3. Examen et sanctions</Titre>
       <Paragraphe>
-        L’équipe examine chaque signalement avant d’agir : suppression du contenu, suspension de la copie (conteneurs arrêtés, page neutre,
+        Hors minage et hameçonnage, suspendus d’office pour protéger les visiteurs, l’équipe examine chaque signalement avant d’agir : suppression du contenu, suspension de la copie (conteneurs arrêtés, page neutre,
         données gardées) ou suspension du compte (plus de connexion ni d’API), toujours avec un motif. Un signalement non fondé est rejeté.
       </Paragraphe>
       <Titre>4. Contestation</Titre>

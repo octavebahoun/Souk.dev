@@ -12,6 +12,7 @@ use App\Jobs\ReversementsMensuels;
 use App\Jobs\SauvegarderCopie;
 use App\Jobs\SonderMachine;
 use App\Jobs\SurveillerExploitation;
+use App\Jobs\SurveillerProcesseur;
 use App\Jobs\VerifierReversements;
 use App\Models\AnalyseIa;
 use App\Models\CleIdempotence;
@@ -31,6 +32,8 @@ Schedule::job(new NettoyerCopies)->everyFiveMinutes()->withoutOverlapping()->nam
 
 // Santé des serveurs du moteur (joignable, mémoire, version), sondée par le moteur.
 Schedule::job(new SonderMachine)->everyFiveMinutes()->withoutOverlapping()->name('machines-sonde');
+// Politique d'abus : une copie au processeur saturé une heure d'affilée est suspendue (minage).
+Schedule::job(new SurveillerProcesseur)->everyFiveMinutes()->withoutOverlapping()->name('abus-processeur');
 
 // Sécurité avant publication : restes d'analyses interrompues chaque heure ; chaque semaine, toutes
 // les applis sont réanalysées (la base des failles grandit) ; chaque nuit, celles jamais analysées.

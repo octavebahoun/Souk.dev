@@ -27,6 +27,16 @@ final class LimitesTaille
         'grande' => ['memoire' => '2g', 'coeurs' => '2'],
     ];
 
+    /** Cœurs de processeur de la formule (0,5, 1 ou 2). */
+    public static function coeurs(string $taille): float
+    {
+        if (! self::connue($taille)) {
+            throw new LancementEchoue('La taille doit être petite, moyenne ou grande.');
+        }
+
+        return (float) self::FORMULES[$taille]['coeurs'];
+    }
+
     public static function connue(string $taille): bool
     {
         return isset(self::FORMULES[$taille]);

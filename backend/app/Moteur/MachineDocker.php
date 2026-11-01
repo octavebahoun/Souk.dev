@@ -99,4 +99,45 @@ final class MachineDocker implements MachineCible
             is_string($version) && $version !== '' ? mb_substr($version, 0, 32) : null,
         );
     }
+
+    public function processeurParCopie(): ?array
+    {
+        // Un seul appel pour toute la machine : le nom de copie vient de l'étiquette compose.
+        $resultat = Commande::isolee($this->environnement())->timeout(30)->run([
+            'docker', 'stats', '--no-stream', '--format', '{{.ID}}\t{{.CPUPerc}}',
+        ]);
+        $projets = Commande::isolee($this->environnement())->timeout(20)->run([
+            'docker', 'ps', '--no-trunc', '--format', '{{.ID}}\t{{.Label "com.docker.compose.project"}}',
+        ]);
+
+        if ($resultat->failed() || $projets->failed()) {
+            return null;
+        }
+
+        $copieDe = [];
+
+        foreach (preg_split('/\R/', trim($projets->output())) ?: [] as $ligne) {
+            [$id, $projet] = array_pad(explode("\t", $ligne, 2), 2, '');
+
+            if ($id !== '' && $projet !== '') {
+                $copieDe[substr($id, 0, 12)] = $projet;
+            }
+        }
+
+        $parCopie = [];
+
+        foreach (preg_split('/\R/', trim($resultat->output())) ?: [] as $ligne) {
+            [$id, $pourcentage] = array_pad(explode("\t", $ligne, 2), 2, '');
+            $copie = $copieDe[substr($id, 0, 12)] ?? null;
+            $valeur = rtrim(trim($pourcentage), '%');
+
+            if ($copie === null || ! is_numeric($valeur)) {
+                continue;
+            }
+
+            $parCopie[$copie] = ($parCopie[$copie] ?? 0.0) + ((float) $valeur) / 100;
+        }
+
+        return $parCopie;
+    }
 }

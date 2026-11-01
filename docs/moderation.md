@@ -22,6 +22,24 @@ Les motifs graves — hameçonnage, minage, contenu illégal — préviennent l'
 par e-mail : une copie de minage ou d'hameçonnage doit tomber vite. Les autres attendent
 dans `/admin/moderation`.
 
+## Politique d'abus automatique
+
+Deux cas suspendent une copie sans attendre l'équipe, qui examine ensuite et la réactive si
+ce n'était pas un abus :
+
+- **Minage présumé** (`App\Jobs\SurveillerProcesseur`, toutes les 5 minutes, file
+  `sondes`) : le processeur de chaque copie en ligne est relevé (`docker stats` sur sa
+  machine). À 90 % ou plus de sa formule (0,5, 1 ou 2 cœurs) pendant 12 relevés de suite,
+  soit une heure, la copie est suspendue avec le motif « Minage présumé ». Un relevé sous le
+  seuil, ou une machine muette, remet le compte à zéro.
+- **Hameçonnage signalé** : un signalement `hameconnage` sur une copie la suspend aussitôt
+  (ses visiteurs se font voler leurs identifiants pendant l'examen). Un même membre ne
+  déclenche que 3 suspensions automatiques par 24 heures ; au-delà, ses signalements
+  attendent l'équipe comme les autres.
+
+Dans les deux cas : même suspension que celle de l'équipe (conteneurs arrêtés, page neutre,
+client prévenu par e-mail avec le motif), alerte à l'équipe, levée depuis l'onglet « Copies ».
+
 ## Examiner
 
 `/admin/moderation`, onglet « Signalements » : les ouverts d'abord, les motifs graves en
@@ -30,8 +48,9 @@ discussion parente pour un message), la fiche d'une appli, la liste des événem
 l'adresse d'une copie (nouvel onglet), le profil d'un compte. Si la cible a été
 supprimée entre-temps, le résumé le dit au lieu de casser la liste, et il n'y a pas de lien.
 
-Règle : on examine avant d'agir. Un doute ? On laisse ouvert et on en parle à l'équipe,
-on ne suspend jamais « dans le doute ».
+Règle : on examine avant d'agir (hors politique d'abus automatique ci-dessus, qui se
+vérifie après coup). Un doute ? On laisse ouvert et on en parle à l'équipe, on ne suspend
+jamais « dans le doute ».
 
 ## Sanctions
 

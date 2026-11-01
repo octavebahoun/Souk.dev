@@ -19,4 +19,12 @@ interface MachineCible
 
     /** Sonde de santé : le démon répond-il, avec quelle mémoire ? */
     public function sonder(): SanteMachine;
+
+    /**
+     * Processeur utilisé par chaque copie en ce moment, en cœurs (somme de ses conteneurs),
+     * indexé par nom de copie (le projet docker compose). null si le démon ne répond pas.
+     *
+     * @return array<string, float>|null
+     */
+    public function processeurParCopie(): ?array;
 }

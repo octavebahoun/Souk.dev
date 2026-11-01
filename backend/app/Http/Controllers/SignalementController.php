@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Http\Pagination;
+use App\Models\Deploiement;
 use App\Models\Signalement;
 use App\Notifications\AlerteAdmin;
+use App\Securite\SuspensionAbus;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -37,7 +39,13 @@ final class SignalementController extends Controller
     /** Motifs qui préviennent l'équipe aussitôt : une copie de minage ou d'hameçonnage doit tomber vite. */
     private const MOTIFS_URGENTS = ['hameconnage', 'minage', 'contenu_illegal'];
 
-    public function store(Request $request): JsonResponse
+    /**
+     * Suspensions automatiques qu'un même membre peut provoquer par jour : au-delà, ses
+     * signalements d'hameçonnage attendent l'équipe (un membre ne fait pas tomber des copies en série).
+     */
+    private const SUSPENSIONS_PAR_JOUR = 3;
+
+    public function store(Request $request, SuspensionAbus $suspension): JsonResponse
     {
         $donnees = $request->validate([
             'cible' => ['required', 'string', Rule::in(Signalement::CIBLES)],
@@ -70,15 +78,49 @@ final class SignalementController extends Controller
         }
         $signalement->refresh();
 
+        $suspendue = $this->suspendreSiHameconnage($signalement, $suspension);
+
         if (in_array($signalement->motif, self::MOTIFS_URGENTS, true)) {
             AlerteAdmin::envoyer(
                 "Signalement {$signalement->motif} : {$signalement->cible} #{$signalement->cible_id}",
-                [$signalement->cibleResume(), 'Motif : '.$signalement->motif, 'À examiner dans l’administration.'],
+                [
+                    $signalement->cibleResume(),
+                    'Motif : '.$signalement->motif,
+                    $suspendue
+                        ? 'La copie est suspendue en attendant votre examen (politique d’abus) : réactivez-la si le signalement n’est pas fondé.'
+                        : 'À examiner dans l’administration.',
+                ],
                 '/admin/moderation',
             );
         }
 
         return response()->json($signalement->versApi(), 201);
+    }
+
+    /**
+     * Politique d'abus : une copie signalée pour hameçonnage est suspendue aussitôt (ses visiteurs
+     * se font voler leurs identifiants pendant qu'on examine), l'équipe tranche ensuite.
+     */
+    private function suspendreSiHameconnage(Signalement $signalement, SuspensionAbus $suspension): bool
+    {
+        if ($signalement->cible !== 'copie' || $signalement->motif !== 'hameconnage') {
+            return false;
+        }
+
+        $recentes = Signalement::query()
+            ->where('user_id', $signalement->user_id)
+            ->where('cible', 'copie')
+            ->where('motif', 'hameconnage')
+            ->where('created_at', '>=', now()->subDay())
+            ->count();
+
+        $deploiement = Deploiement::query()->find($signalement->cible_id);
+
+        if ($deploiement === null || $recentes > self::SUSPENSIONS_PAR_JOUR) {
+            return false;
+        }
+
+        return $suspension->suspendre($deploiement, 'Hameçonnage signalé : copie suspendue en attendant l’examen de l’équipe.') === SuspensionAbus::SUSPENDUE;
     }
 
     public function index(Request $request): AnonymousResourceCollection

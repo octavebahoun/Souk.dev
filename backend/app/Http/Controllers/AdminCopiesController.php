@@ -6,8 +6,8 @@ namespace App\Http\Controllers;
 
 use App\Http\Pagination;
 use App\Jobs\ReactiverCopieAbus;
-use App\Jobs\SuspendreCopieAbus;
 use App\Models\Deploiement;
+use App\Securite\SuspensionAbus;
 use App\Notifications\CopieSuspendueAbus;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -41,33 +41,15 @@ final class AdminCopiesController extends Controller
             ->through(fn (Deploiement $copie) => $copie->versApi()));
     }
 
-    public function suspendre(Request $request, Deploiement $deploiement): JsonResponse
+    public function suspendre(Request $request, Deploiement $deploiement, SuspensionAbus $suspension): JsonResponse
     {
         $donnees = $request->validate(['motif' => ['required', 'string', 'max:500']]);
 
-        // Le verrou ne tient que dans une transaction : deux suspensions concurrentes
-        // ne passent pas toutes deux le contrôle. Travail et e-mail après validation.
-        $deploiement = DB::transaction(function () use ($deploiement, $donnees): Deploiement {
-            $verrouille = Deploiement::query()->lockForUpdate()->findOrFail($deploiement->id);
-
-            if ($verrouille->suspension_admin_motif !== null) {
-                throw new ConflictHttpException('Cette copie est déjà suspendue pour abus.');
-            }
-
-            if ($verrouille->etat !== 'en_ligne') {
-                throw new ConflictHttpException('Seule une copie en ligne peut être suspendue pour abus.');
-            }
-
-            $verrouille->forceFill(['suspension_admin_motif' => $donnees['motif']])->save();
-
-            return $verrouille;
-        });
-
-        $deploiement->changerEtat('suspendu');
-        SuspendreCopieAbus::dispatch($deploiement->id);
-
-        $deploiement->loadMissing('utilisateur');
-        $deploiement->utilisateur?->notify(new CopieSuspendueAbus($deploiement, $donnees['motif']));
+        match ($suspension->suspendre($deploiement, $donnees['motif'])) {
+            SuspensionAbus::DEJA_SUSPENDUE => throw new ConflictHttpException('Cette copie est déjà suspendue pour abus.'),
+            SuspensionAbus::PAS_EN_LIGNE => throw new ConflictHttpException('Seule une copie en ligne peut être suspendue pour abus.'),
+            default => null,
+        };
 
         return response()->json($deploiement->refresh()->versApi());
     }
