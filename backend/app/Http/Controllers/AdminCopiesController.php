@@ -8,7 +8,6 @@ use App\Http\Pagination;
 use App\Jobs\ReactiverCopieAbus;
 use App\Models\Deploiement;
 use App\Securite\SuspensionAbus;
-use App\Notifications\CopieSuspendueAbus;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;

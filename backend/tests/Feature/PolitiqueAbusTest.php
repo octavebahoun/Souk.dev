@@ -9,7 +9,6 @@ use App\Models\Machine;
 use App\Models\User;
 use App\Notifications\AlerteAdmin;
 use App\Notifications\CopieSuspendueAbus;
-use App\Securite\SuspensionAbus;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Process\PendingProcess;
 use Illuminate\Support\Facades\Notification;

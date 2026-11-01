@@ -33,6 +33,7 @@ use App\Policies\EvenementPolicy;
 use App\Policies\FacturePolicy;
 use App\Policies\MessagePolicy;
 use App\Policies\MissionPolicy;
+use App\Securite\IsolementCopies;
 use App\Sms\FournisseurSms;
 use App\Sms\SmsNonEnvoye;
 use App\Sms\SmsSimule;
@@ -60,7 +61,6 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
-use App\Securite\IsolementCopies;
 use RuntimeException;
 
 class AppServiceProvider extends ServiceProvider
@@ -264,7 +264,7 @@ class AppServiceProvider extends ServiceProvider
             $sansCle = (string) config('services.deepseek.cle') === '';
             if (config('services.ia.fournisseur') === 'simulee' || ($sansCle && ! $app->isProduction())) {
                 if ($app->isProduction()) {
-                    throw new \RuntimeException('Souk AI : le fournisseur simulé est refusé en production (IA_FOURNISSEUR).');
+                    throw new RuntimeException('Souk AI : le fournisseur simulé est refusé en production (IA_FOURNISSEUR).');
                 }
 
                 return new IaSimulee;
@@ -295,7 +295,7 @@ class AppServiceProvider extends ServiceProvider
             }
 
             if ($app->isProduction()) {
-                throw new \RuntimeException('Paiement non configuré : SASPAY_SECRET_KEY est obligatoire en production.');
+                throw new RuntimeException('Paiement non configuré : SASPAY_SECRET_KEY est obligatoire en production.');
             }
 
             return $app->make(SimulateurSasPay::class);
