@@ -9,8 +9,9 @@ import { libellesMotifs } from './presentationModeration'
 const motifs: MotifSignalement[] = ['spam', 'abus', 'hameconnage', 'minage', 'contenu_illegal', 'autre']
 
 /**
- * Bouton « Signaler » d'une discussion, d'une appli ou d'un événement : le motif et des faits
- * vérifiables partent à l'équipe. Discret (fantôme), jamais l'action principale.
+ * Bouton « Signaler » d'une discussion, d'un message, d'une appli ou d'un événement : le
+ * motif et des faits vérifiables partent à l'équipe. Discret (fantôme), jamais l'action
+ * principale. Les copies et les comptes se signalent par l'API (voir docs/moderation.md).
  */
 export function Signaler({ cible, cibleId, etiquette }: { cible: CibleSignalement; cibleId: number; etiquette: string }) {
   const toast = useToast()

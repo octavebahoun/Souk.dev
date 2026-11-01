@@ -5,6 +5,7 @@ import { Avatar } from '../../shared/ui/Avatar'
 import { Badge } from '../../shared/ui/Badge'
 import { EmptyState } from '../../shared/ui/EmptyState'
 import { creerMessage, listerMessages, lireErreurHttp, messageAction } from './api'
+import { Signaler } from '../admin/Signaler'
 import { ilYA, nomAuteur } from './texte'
 import { TexteMarkdown } from './TexteMarkdown'
 
@@ -16,9 +17,10 @@ type FilMessagesProps = {
   auteurId: number
   page: number
   onPage: (page: number) => void
+  connecteId: number | null
 }
 
-export function FilMessages({ discussionId, auteurId, page, onPage }: FilMessagesProps) {
+export function FilMessages({ discussionId, auteurId, page, onPage, connecteId }: FilMessagesProps) {
   const client = useQueryClient()
   const [texte, setTexte] = useState('')
   const [erreurLocale, setErreurLocale] = useState<string | null>(null)
@@ -94,6 +96,9 @@ export function FilMessages({ discussionId, auteurId, page, onPage }: FilMessage
                   <time dateTime={message.cree_le} className="text-muted">
                     {ilYA(message.cree_le)}
                   </time>
+                  {connecteId != null && connecteId !== message.auteur.id ? (
+                    <Signaler cible="message" cibleId={message.id} etiquette="ce message" />
+                  ) : null}
                 </div>
                 <TexteMarkdown texte={message.texte} className="text-ink" />
               </div>

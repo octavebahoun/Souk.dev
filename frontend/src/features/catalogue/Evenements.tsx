@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router'
 import { creerEvenement, desinscrire, inscrire, listerEvenements, posterAvis, type Evenement } from './api'
 import { lireMoi, messageAction } from '../echange/api'
+import { Signaler } from '../admin/Signaler'
 
 const couleurs = ['#E6007E', '#06B6C9', '#FF6B16', '#7C3AED']
 
@@ -16,6 +17,7 @@ function Cube({ classe, fond, texte }: { classe: string; fond: string; texte: st
 
 export function Evenements() {
   const query = useQuery({ queryKey: ['evenements'], queryFn: () => listerEvenements() })
+  const moi = useQuery({ queryKey: ['moi'], queryFn: lireMoi })
   const client = useQueryClient()
   const [filtre, setFiltre] = useState<'tous' | 'en_ligne' | 'presentiel'>('tous')
   const [vue, setVue] = useState<'liste' | 'grille'>('liste')
@@ -82,10 +84,10 @@ export function Evenements() {
               </button>
             </div>
           </div>
-          <Liste titre="" items={aVenir} onBasculer={basculer} grille={vue === 'grille'} />
+          <Liste titre="" items={aVenir} onBasculer={basculer} grille={vue === 'grille'} connecteId={moi.data?.id ?? null} />
         </section>
       ) : null}
-      <Liste titre="Passés" items={passes} onBasculer={basculer} avis />
+      <Liste titre="Passés" items={passes} onBasculer={basculer} avis connecteId={moi.data?.id ?? null} />
       {query.isSuccess && aVenir.length === 0 && passes.length === 0 ? (
         <p className="m-0 rounded-carte border border-dashed border-line bg-canvas p-7 text-center text-subtle">Aucun événement de ce type pour l’instant. Pourquoi pas le vôtre ?</p>
       ) : null}
@@ -95,7 +97,7 @@ export function Evenements() {
   )
 }
 
-function Liste({ titre, items, onBasculer, avis = false, grille = false }: { titre: string; items: Evenement[]; onBasculer: (item: Evenement) => void; avis?: boolean; grille?: boolean }) {
+function Liste({ titre, items, onBasculer, avis = false, grille = false, connecteId }: { titre: string; items: Evenement[]; onBasculer: (item: Evenement) => void; avis?: boolean; grille?: boolean; connecteId: number | null }) {
   if (items.length === 0) return null
   return (
     <section className="flex flex-col gap-3">
@@ -136,6 +138,7 @@ function Liste({ titre, items, onBasculer, avis = false, grille = false }: { tit
                   <button type="button" aria-pressed={item.inscrit} onClick={() => onBasculer(item)} className={`min-h-cible rounded-controle px-[18px] font-semibold ${item.inscrit ? 'border border-line bg-canvas text-ink' : 'bg-accent text-canvas'}`}>
                     {item.inscrit ? 'Se désinscrire' : "S'inscrire"}
                   </button>
+                  {connecteId != null && connecteId !== item.organisateur.id ? <Signaler cible="evenement" cibleId={item.id} etiquette="cet événement" /> : null}
                   <span className="text-[13px] text-muted tabular-nums">
                     {item.inscrit ? <span className="mr-2 rounded-full bg-success-bg px-2 font-bold text-success">Inscrit</span> : null}
                     {item.nb_inscrits} inscrits

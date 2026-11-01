@@ -5,10 +5,18 @@ Qui signale, qui décide, et avec quelles sanctions. La version publique et cour
 
 ## Signaler
 
-Le bouton « Signaler » d'une discussion ou d'une appli envoie à l'équipe : la cible, un
-motif (`spam`, `abus`, `hameconnage`, `minage`, `contenu_illegal`, `autre`) et des faits
-vérifiables. 20 signalements par heure et par compte ; un seul signalement ouvert par
-membre et par cible (sinon `409`).
+Le bouton « Signaler » d'une discussion, d'un message, d'une appli ou d'un événement
+envoie à l'équipe : la cible, un motif (`spam`, `abus`, `hameconnage`, `minage`,
+`contenu_illegal`, `autre`) et des faits vérifiables. 20 signalements par heure et par
+compte ; un seul signalement ouvert par membre et par cible (sinon `409`).
+
+Signaler une copie ou un compte (pas de bouton dans l'interface) : `POST
+/api/signalements` avec `{"cible": "copie", "cible_id": <n°>, "motif": "minage",
+"details": "…"}`. Le n° d'une copie figure dans `/admin/moderation`, onglet « Copies »
+(colonne « #n° ») ; celui d'un compte, onglet « Comptes ». Un membre qui ne connaît que
+l'adresse d'une copie (`http://{copie}.localhost`) ou le pseudo d'un compte écrit à
+l'équipe avec cette référence : l'équipe retrouve le n° dans l'onglet et dépose le
+signalement elle-même (les motifs urgents — minage, hameçonnage — partent en premier).
 
 Les motifs graves — hameçonnage, minage, contenu illégal — préviennent l'équipe aussitôt
 par e-mail : une copie de minage ou d'hameçonnage doit tomber vite. Les autres attendent
@@ -17,8 +25,10 @@ dans `/admin/moderation`.
 ## Examiner
 
 `/admin/moderation`, onglet « Signalements » : les ouverts d'abord, les motifs graves en
-rouge. Chaque ligne mène à sa cible quand elle a une page (discussion, appli, événement).
-Si la cible a été supprimée entre-temps, le résumé le dit au lieu de casser la liste.
+rouge. Chaque ligne mène à sa cible quand elle a une page : la discussion (ou sa
+discussion parente pour un message), la fiche d'une appli, la liste des événements,
+l'adresse d'une copie (nouvel onglet), le profil d'un compte. Si la cible a été
+supprimée entre-temps, le résumé le dit au lieu de casser la liste, et il n'y a pas de lien.
 
 Règle : on examine avant d'agir. Un doute ? On laisse ouvert et on en parle à l'équipe,
 on ne suspend jamais « dans le doute ».

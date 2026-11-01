@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
 import { Link } from 'react-router'
+import { useCompte } from '../../app/compte'
 import { useTitrePage } from '../../app/titre'
 import {
   AccesRefuse,
@@ -188,14 +189,15 @@ function SectionSignalements() {
 }
 
 function CibleSignalement({ signalement }: { signalement: Signalement }) {
-  const chemin = cheminCible(signalement.cible, signalement.cible_id)
+  const chemin = signalement.cible_chemin ?? cheminCible(signalement.cible, signalement.cible_id)
+  const externe = chemin?.startsWith('http') ?? false
   return (
     <span>
       <Badge ton="info">{libellesCibles[signalement.cible]}</Badge> {signalement.cible_resume}
       {chemin && (
         <>
           {' — '}
-          <Link to={chemin}>Voir</Link>
+          {externe ? <a href={chemin} target="_blank" rel="noreferrer">Voir</a> : <Link to={chemin}>Voir</Link>}
         </>
       )}
       {signalement.details && <span className="block text-petit text-texte-doux">{signalement.details}</span>}
@@ -393,6 +395,7 @@ function ModaleSuspensionCopie({ copie, onFermer }: { copie: Deploiement | null;
 function SectionComptes() {
   const cache = useQueryClient()
   const toast = useToast()
+  const moi = useCompte().data?.id
   const [recherche, setRecherche] = useState('')
   const [filtre, setFiltre] = useState('')
   const [suspendus, setSuspendus] = useState(false)
@@ -449,7 +452,7 @@ function SectionComptes() {
             Lever
           </Bouton>
         ) : (
-          <Bouton taille="sm" variante="secondaire" disabled={compte.est_admin} title={compte.est_admin ? 'Un compte de l’équipe ne se suspend pas lui-même.' : undefined} onClick={() => setSuspension(compte)}>
+          <Bouton taille="sm" variante="secondaire" disabled={compte.id === moi} title={compte.id === moi ? 'L’équipe ne suspend pas son propre compte.' : undefined} onClick={() => setSuspension(compte)}>
             Suspendre
           </Bouton>
         ),

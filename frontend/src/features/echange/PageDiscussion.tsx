@@ -107,6 +107,7 @@ export function PageDiscussion() {
           discussion={discussion.data}
           auteur={moi.data?.id === discussion.data.auteur.id}
           connecte={moi.data != null}
+          connecteId={moi.data?.id ?? null}
           pageMessages={lirePage(params, 'messages')}
           pageCorrectifs={lirePage(params, 'correctifs')}
           onPage={changerPage}
@@ -123,6 +124,7 @@ function DiscussionChargee({
   discussion,
   auteur,
   connecte,
+  connecteId,
   pageMessages,
   pageCorrectifs,
   onPage,
@@ -133,6 +135,7 @@ function DiscussionChargee({
   discussion: Discussion
   auteur: boolean
   connecte: boolean
+  connecteId: number | null
   pageMessages: number
   pageCorrectifs: number
   onPage: (cle: 'messages' | 'correctifs', page: number) => void
@@ -227,6 +230,7 @@ function DiscussionChargee({
             auteurId={discussion.auteur.id}
             page={pageMessages}
             onPage={(page) => onPage('messages', page)}
+            connecteId={connecteId}
           />
         </div>
         <ColonneCorrectifs
