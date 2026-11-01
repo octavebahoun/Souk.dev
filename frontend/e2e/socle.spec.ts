@@ -5,6 +5,7 @@ test.describe('socle', () => {
   test('un visiteur voit les applis du Store et peut revenir d’une page introuvable', async ({ page }) => {
     await page.goto('/store')
     await expect(page.getByText('PharmaStock', { exact: true }).first()).toBeVisible()
+    expect(resumer(await auditAxe(page))).toBe('')
 
     await page.goto('/une-page-qui-n-existe-pas')
     await expect(page.getByRole('heading', { level: 1, name: 'Cette page n\'existe pas' })).toBeVisible()
@@ -39,7 +40,7 @@ test.describe('socle', () => {
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
 
     // Un écran pas encore refait reste en clair.
-    await page.goto('/store')
+    await page.goto('/evenements')
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
   })
 })

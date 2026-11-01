@@ -147,6 +147,7 @@ Contrat : seul le schéma `Signalement` gagne `cible_chemin` ; types régénér�
 
 ### Phase 7 — Refonte du design
 - [ ] Chaque page redessinée, captures critiquées (3 tailles, 2 thèmes), zéro violation axe sérieuse
+  - [x] Store (1er novembre) : grille alignée sur l'en-tête, cartes du système (capture, badges, prix, note), recherche + tri + catégories visibles, filtres avancés repliés, bandeau dev unique ; thème sombre ; axe sans violation (lien du bandeau souligné). Avant : fond beige hors palette, 5 filtres ouverts, libellé anglais, double « Publier », cartes invisibles avant défilement
 
 ### Phase 8 — Release
 - [ ] Audit sécurité, performance, accessibilité ; documentation ; `RELEASE_NOTES.md`
@@ -165,6 +166,7 @@ Contrat : seul le schéma `Signalement` gagne `cible_chemin` ; types régénér�
 | Serveurs (`/admin/serveurs`) | Voir la flotte et sa santé, l'entretenir | Ajouter un serveur (ou sonder, basculer, retirer) | Les pastilles d'état (en service, en maintenance, injoignable) et les jauges de mémoire libre |
 | Modération (`/admin/moderation`) | Examiner et décider vite | Traiter un signalement (ou suspendre) | Les motifs graves en rouge, puis les copies et comptes suspendus |
 | Pages légales (`/legal/*`) | Lire les règles et ses droits | Comprendre (aucune action) | Le bandeau « brouillon à faire valider par un juriste », puis le plan en 4-5 articles |
+| Store (`/store`) | Trouver l'appli qui fera tourner son activité | Ouvrir la fiche d'une appli | Les captures et les noms, le prix par mois, le badge de sécurité ; la recherche et les catégories en haut, les filtres avancés repliés |
 
 ## Vérifications
 

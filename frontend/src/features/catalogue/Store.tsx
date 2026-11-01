@@ -1,20 +1,43 @@
-import type { ReactNode } from 'react'
+import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { useInfiniteQuery } from '@tanstack/react-query'
+import { Search, ShieldAlert, ShieldCheck, SlidersHorizontal } from 'lucide-react'
+import { useTitrePage } from '../../app/titre'
 import { categories, fcfa, libelleCategorie, listerApplis, type Appli } from './api'
-import { teintes } from './teintes'
 import { nomPays } from '../echange/texte'
 import { messageAction } from '../echange/api'
-import { Etoiles, formaterNote } from '../../ui'
-
-const page = 'mx-auto flex max-w-[1440px] flex-col gap-6 px-4 py-8 min-[761px]:px-9'
+import {
+  Badge,
+  Bouton,
+  CaseACocher,
+  Champ,
+  EnTetePage,
+  EtatErreur,
+  EtatVide,
+  Etoiles,
+  Interrupteur,
+  LienBouton,
+  Liste,
+  Saisie,
+  SqueletteCartes,
+  cx,
+  formaterNote,
+} from '../../ui'
 
 type PageStore = {
   data: Appli[]
   meta: { current_page: number; last_page: number; per_page: number; total: number }
 }
 
+/** Filtres repliés par défaut (loi de Hick) : la recherche, le tri et les catégories suffisent souvent. */
+const FILTRES_AVANCES = ['pays', 'prix_max', 'type_prix', 'gratuit', 'securite'] as const
+
+/**
+ * Store : trouver l'appli qui fera tourner son activité. Recherche, tri et catégories visibles,
+ * filtres avancés repliés ; chaque carte mène à la fiche (une seule cible par carte).
+ */
 export function Store() {
+  useTitrePage('Store')
   const [params, setParams] = useSearchParams()
   const filtres = {
     q: params.get('q') ?? '',
@@ -26,11 +49,15 @@ export function Store() {
     gratuit: params.get('gratuit') === '1',
     securite: params.get('securite') === '1',
   }
+  const avancesActifs = FILTRES_AVANCES.filter((cle) => params.get(cle)).length
+  const [ouverts, setOuverts] = useState(avancesActifs > 0)
+  const filtre = Boolean(filtres.q || filtres.categorie || avancesActifs > 0)
+
   const applis = useInfiniteQuery<PageStore>({
     queryKey: ['applis', filtres],
     queryFn: async ({ pageParam }) => {
       const numeroPage = Number(pageParam)
-      const filtresApi = {
+      return listerApplis({
         q: filtres.q || undefined,
         categorie: filtres.categorie || undefined,
         pays: filtres.pays || undefined,
@@ -40,8 +67,7 @@ export function Store() {
         gratuit: filtres.gratuit || undefined,
         securite: filtres.securite || undefined,
         page: numeroPage > 1 ? numeroPage : undefined,
-      }
-      return listerApplis(filtresApi)
+      })
     },
     initialPageParam: 1,
     getNextPageParam: (derniere) =>
@@ -52,205 +78,241 @@ export function Store() {
     const suivant = new URLSearchParams(params)
     if (valeur) suivant.set(cle, valeur)
     else suivant.delete(cle)
-    setParams(suivant)
+    setParams(suivant, { replace: cle === 'q' })
   }
 
   const liste = applis.data?.pages.flatMap((lot) => lot.data) ?? []
   const total = applis.data?.pages[0] ? Math.max(applis.data.pages[0].meta.total, liste.length) : 0
 
   return (
-    <div>
-      <div className={page}>
-        <div className="flex flex-col gap-4 min-[761px]:flex-row min-[761px]:items-end min-[761px]:justify-between">
-          <div>
-            <h1 className="m-0 text-[30px] font-bold tracking-tight">Store</h1>
-            <p className="m-0 max-w-[62ch] text-muted">
-              Des applis publiées par des devs africains. Consultez leur fiche et ouvrez leur application en ligne si l’auteur a fourni une URL.
-            </p>
-          </div>
-          <Link to="/publier" className="inline-flex min-h-cible w-full items-center justify-center rounded-controle bg-accent px-5 font-semibold text-canvas no-underline min-[761px]:w-auto">
-            + Publier une appli
-          </Link>
-        </div>
+    <div className="mx-auto flex w-full max-w-site flex-col gap-6 px-4 py-8 tablette:px-6 bureau:px-8">
+      <EnTetePage
+        titre="Store"
+        description="Des applis publiées par des devs africains, prêtes à tourner pour vous : chaque client a sa copie isolée, payée en FCFA."
+      />
 
-        <form className="verre flex flex-col gap-3.5 rounded-[14px] p-[18px]" onSubmit={(evenement) => evenement.preventDefault()}>
-          <div className="relative">
-            <span aria-hidden="true" className="pointer-events-none absolute top-3.5 left-3.5 text-muted">⌕</span>
-            <input
-              type="search"
-              value={filtres.q}
-              aria-label="Rechercher une appli"
-              placeholder="Rechercher : stock, paiement, réservation…"
-              onChange={(evenement) => changer('q', evenement.target.value)}
-              className="min-h-cible w-full rounded-controle border border-line bg-canvas pr-3.5 pl-10"
-            />
-          </div>
-          <div className="grid gap-3 min-[761px]:grid-cols-5">
-            <Champ label="Catégorie">
-              <select className="champ-select" value={filtres.categorie} onChange={(e) => changer('categorie', e.target.value)}>
-                <option value="">Toutes</option>
-                {categories.map((item) => (
-                  <option key={item.valeur} value={item.valeur}>{item.libelle}</option>
-                ))}
-              </select>
-            </Champ>
-            <Champ label="Pays de l'auteur">
-              <select className="champ-select" value={filtres.pays} onChange={(e) => changer('pays', e.target.value)}>
-                <option value="">Tous</option>
-                {['BJ', 'CM', 'CI', 'SN', 'TG'].map((code) => (
-                  <option key={code} value={code}>{nomPays(code)}</option>
-                ))}
-              </select>
-            </Champ>
-            <Champ label="Prix maximum">
-              <select className="champ-select" value={filtres.prix_max} onChange={(e) => changer('prix_max', e.target.value)}>
-                <option value="">Sans limite</option>
-                <option value="10000">10 000 F</option>
-                <option value="20000">20 000 F</option>
-                <option value="100000">100 000 F</option>
-                <option value="200000">200 000 F</option>
-              </select>
-            </Champ>
-            <Champ label="Type de prix">
-              <select className="champ-select" value={filtres.type_prix} onChange={(e) => changer('type_prix', e.target.value)}>
-                <option value="">Tous</option>
-                <option value="mensuel">Mensuel</option>
-                <option value="unique">Paiement unique</option>
-              </select>
-            </Champ>
-            <Champ label="Trier par">
-              <select className="champ-select" value={filtres.tri} onChange={(e) => changer('tri', e.target.value)}>
+      <section aria-label="Recherche et filtres" className="flex flex-col gap-4">
+        <div className="flex flex-col gap-3 tablette:flex-row tablette:items-end">
+          <Champ libelle="Rechercher une appli" libelleCache className="flex-1">
+            {(liaison) => (
+              <div className="relative">
+                <Search aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-texte-indice" />
+                <Saisie
+                  {...liaison}
+                  type="search"
+                  value={filtres.q}
+                  placeholder="Stock, paiement, réservation…"
+                  onChange={(evenement) => changer('q', evenement.target.value)}
+                  className="pl-9"
+                />
+              </div>
+            )}
+          </Champ>
+          <Champ libelle="Trier par" libelleCache className="tablette:w-56">
+            {(liaison) => (
+              <Liste {...liaison} value={filtres.tri} onChange={(evenement) => changer('tri', evenement.target.value)}>
                 <option value="recent">Les plus récentes</option>
+                <option value="note">Les mieux notées</option>
                 <option value="prix_croissant">Prix croissant</option>
                 <option value="prix_decroissant">Prix décroissant</option>
-                <option value="note">Les mieux notées</option>
-              </select>
-            </Champ>
-          </div>
-          <div className="flex flex-wrap items-center gap-4">
-            <button type="button" role="switch" className="inline-flex min-h-cible items-center gap-2.5 font-semibold" aria-checked={filtres.gratuit} onClick={() => changer('gratuit', filtres.gratuit ? '' : '1')}>
-              <span aria-hidden="true" className={`relative inline-block h-[22px] w-10 rounded-full ${filtres.gratuit ? 'bg-accent' : 'bg-[#CBD5E1]'}`}>
-                <span className={`absolute top-[3px] size-4 rounded-full bg-canvas ${filtres.gratuit ? 'left-[21px]' : 'left-[3px]'}`} />
-              </span>
-              Gratuites uniquement
-            </button>
-            <label className="inline-flex min-h-cible items-center gap-2 font-semibold">
-              <input type="checkbox" checked={filtres.securite} onChange={() => changer('securite', filtres.securite ? '' : '1')} />
-              Security Checked seulement
-            </label>
-            <span role="status" className="ml-auto text-sm text-muted">{applis.isSuccess ? `${total} appli${total > 1 ? 's' : ''}` : ''}</span>
-            {filtres.q || filtres.categorie || filtres.pays || filtres.prix_max || filtres.type_prix || filtres.gratuit || filtres.securite ? (
-              <button type="button" onClick={() => setParams({})} className="min-h-cible rounded-controle border border-line bg-canvas px-3.5 text-sm font-semibold text-accent">Réinitialiser</button>
-            ) : null}
-          </div>
-        </form>
-
-        {applis.isPending ? <div role="status" aria-label="Chargement du store" className="squelette h-64 rounded-[18px]" /> : null}
-        {applis.isError ? (
-          <div className="verre flex flex-wrap items-center justify-between gap-3 rounded-[14px] p-5">
-            <p role="alert" className="m-0 text-subtle">{messageAction(applis.error, 'Le Store n’a pas pu charger les applis.')}</p>
-            <button type="button" onClick={() => applis.refetch()} className="min-h-cible rounded-controle bg-accent px-4 font-semibold text-canvas">Réessayer</button>
-          </div>
-        ) : null}
-        {applis.isSuccess && liste.length === 0 ? (
-          <div className="verre rounded-[14px] border-dashed px-5 py-10 text-center">
-            <strong>{filtres.q || filtres.categorie || filtres.pays || filtres.prix_max || filtres.type_prix || filtres.gratuit || filtres.securite ? 'Aucune appli ne correspond à ces filtres' : 'Aucune appli publiée pour le moment'}</strong>
-            <p className="m-0 text-subtle">{filtres.q || filtres.categorie || filtres.pays || filtres.prix_max || filtres.type_prix || filtres.gratuit || filtres.securite ? 'Essayez un autre mot ou élargissez les filtres.' : 'Les applications apparaîtront ici après leur publication depuis un dépôt GitHub public.'}</p>
-            {filtres.q || filtres.categorie || filtres.pays || filtres.prix_max || filtres.type_prix || filtres.gratuit || filtres.securite ? (
-              <button type="button" onClick={() => setParams({})} className="mt-3 min-h-cible rounded-controle bg-accent px-5 font-semibold text-canvas">Réinitialiser les filtres</button>
-            ) : (
-              <Link to="/publier" className="mt-3 inline-flex min-h-cible items-center rounded-controle bg-accent px-5 font-semibold text-canvas no-underline">Publier une appli</Link>
+              </Liste>
             )}
+          </Champ>
+          <Bouton
+            variante="secondaire"
+            icone={<SlidersHorizontal aria-hidden="true" className="size-4" />}
+            aria-expanded={ouverts}
+            aria-controls="filtres-avances"
+            onClick={() => setOuverts(!ouverts)}
+          >
+            Filtres{avancesActifs > 0 ? ` (${avancesActifs})` : ''}
+          </Bouton>
+        </div>
+
+        <div role="group" aria-label="Catégorie" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 tablette:mx-0 tablette:flex-wrap tablette:px-0">
+          {[{ valeur: '', libelle: 'Toutes' }, ...categories].map((item) => {
+            const actif = filtres.categorie === item.valeur
+            return (
+              <button
+                key={item.valeur || 'toutes'}
+                type="button"
+                aria-pressed={actif}
+                onClick={() => changer('categorie', item.valeur)}
+                className={cx(
+                  'inline-flex h-11 shrink-0 items-center rounded-pastille border px-4 text-petit font-medium transition-colors duration-150 tablette:h-9',
+                  actif ? 'border-primaire bg-primaire text-sur-couleur' : 'border-bordure bg-surface text-texte hover:border-bordure-champ hover:text-titre',
+                )}
+              >
+                {item.libelle}
+              </button>
+            )
+          })}
+        </div>
+
+        {ouverts ? (
+          <div id="filtres-avances" className="grid gap-4 rounded-moyen border border-bordure bg-surface p-4 tablette:grid-cols-3 tablette:p-5">
+            <Champ libelle="Pays de l’auteur">
+              {(liaison) => (
+                <Liste {...liaison} value={filtres.pays} onChange={(evenement) => changer('pays', evenement.target.value)}>
+                  <option value="">Tous</option>
+                  {['BJ', 'CM', 'CI', 'SN', 'TG'].map((code) => (
+                    <option key={code} value={code}>{nomPays(code)}</option>
+                  ))}
+                </Liste>
+              )}
+            </Champ>
+            <Champ libelle="Prix maximum">
+              {(liaison) => (
+                <Liste {...liaison} value={filtres.prix_max} onChange={(evenement) => changer('prix_max', evenement.target.value)}>
+                  <option value="">Sans limite</option>
+                  <option value="10000">10 000 F</option>
+                  <option value="20000">20 000 F</option>
+                  <option value="100000">100 000 F</option>
+                  <option value="200000">200 000 F</option>
+                </Liste>
+              )}
+            </Champ>
+            <Champ libelle="Type de prix">
+              {(liaison) => (
+                <Liste {...liaison} value={filtres.type_prix} onChange={(evenement) => changer('type_prix', evenement.target.value)}>
+                  <option value="">Tous</option>
+                  <option value="mensuel">Mensuel</option>
+                  <option value="unique">Paiement unique</option>
+                </Liste>
+              )}
+            </Champ>
+            <div className="tablette:col-span-3 flex flex-col gap-1 border-t border-bordure pt-3 tablette:flex-row tablette:items-center tablette:gap-8">
+              <div className="tablette:w-64">
+                <Interrupteur actif={filtres.gratuit} onChange={(actif) => changer('gratuit', actif ? '1' : '')} libelle="Gratuites uniquement" />
+              </div>
+              <CaseACocher
+                checked={filtres.securite}
+                onChange={() => changer('securite', filtres.securite ? '' : '1')}
+                libelle="Badge Security Checked seulement"
+              />
+            </div>
           </div>
         ) : null}
-        <ul className="m-0 grid list-none gap-[18px] p-0 min-[761px]:grid-cols-2 min-[1100px]:grid-cols-4">
+
+        <div className="flex min-h-11 flex-wrap items-center justify-between gap-3">
+          <p role="status" className="m-0 text-petit text-texte-doux">
+            {applis.isSuccess ? `${total} appli${total > 1 ? 's' : ''}${filtre ? ' pour ces critères' : ''}` : ''}
+          </p>
+          {filtre ? (
+            <Bouton variante="fantome" taille="sm" onClick={() => setParams({})}>
+              Réinitialiser
+            </Bouton>
+          ) : null}
+        </div>
+      </section>
+
+      {applis.isPending ? <SqueletteCartes nombre={8} /> : null}
+      {applis.isError ? (
+        <EtatErreur description={messageAction(applis.error, 'Le Store n’a pas pu charger les applis.')} onReessayer={() => void applis.refetch()} />
+      ) : null}
+      {applis.isSuccess && liste.length === 0 ? (
+        filtre ? (
+          <EtatVide
+            illustration="vide-recherche"
+            titre="Aucune appli ne correspond à ces filtres"
+            description="Essayez un autre mot ou élargissez les filtres."
+            action={<Bouton onClick={() => setParams({})}>Réinitialiser les filtres</Bouton>}
+          />
+        ) : (
+          <EtatVide
+            illustration="vide-store"
+            titre="Aucune appli publiée pour le moment"
+            description="Les applications apparaîtront ici après leur publication depuis un dépôt GitHub public."
+            action={<LienBouton to="/publier">Publier une appli</LienBouton>}
+          />
+        )
+      ) : null}
+
+      {liste.length > 0 ? (
+        <ul className="m-0 grid list-none gap-5 p-0 tablette:grid-cols-2 bureau:grid-cols-4">
           {liste.map((appli) => (
-            <Carte key={appli.id} appli={appli} />
+            <li key={appli.id} className="flex">
+              <CarteAppli appli={appli} />
+            </li>
           ))}
         </ul>
-        {applis.hasNextPage ? (
-          <button type="button" disabled={applis.isFetchingNextPage} onClick={() => void applis.fetchNextPage()} className="mx-auto min-h-cible rounded-controle border border-line bg-canvas px-5 font-semibold">
-            Afficher plus
-          </button>
-        ) : null}
+      ) : null}
+      {applis.hasNextPage ? (
+        <Bouton variante="secondaire" className="self-center" chargement={applis.isFetchingNextPage} onClick={() => void applis.fetchNextPage()}>
+          Afficher plus d’applis
+        </Bouton>
+      ) : null}
 
-        <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[#C9D7FB] bg-nav p-6">
-          <div>
-            <h2 className="m-0 text-[19px]">Vous êtes dev ? Publiez votre appli</h2>
-            <p className="m-0 text-nav-texte">Liez votre dépôt, ajoutez un soukdev.json et fixez votre prix. Publier ne coûte rien, et Souk.dev ne prend aucune commission.</p>
-          </div>
-          <Link to="/publier" className="inline-flex min-h-cible items-center rounded-controle bg-accent px-5 font-semibold text-canvas no-underline">Publier une appli</Link>
-        </section>
-        <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-line bg-canvas p-6">
-          <div className="max-w-[62ch]">
-            <h2 className="m-0 text-[19px]">Agences et entreprises : déployez l’appli pour vous</h2>
-            <p className="m-0 text-muted">Consultez une application publiée, puis lancez votre copie isolée. Besoin d’une version adaptée ? Trouvez le dev et proposez-lui une mission.</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Link to="/store" className="inline-flex min-h-cible items-center rounded-controle bg-ink px-4 font-semibold text-canvas no-underline">Voir les applis</Link>
-            <Link to="/devs" className="inline-flex min-h-cible items-center rounded-controle border border-line px-4 font-semibold no-underline">Demander une mission</Link>
-          </div>
-        </section>
-      </div>
+      <section className="mt-4 flex flex-col gap-4 rounded-moyen bg-surface-accent p-5 tablette:flex-row tablette:items-center tablette:justify-between tablette:p-7">
+        <div className="flex max-w-prose flex-col gap-1">
+          <h2 className="m-0 text-titre-3 text-titre">Vous êtes dev ? Publiez votre appli</h2>
+          <p className="m-0 text-texte">
+            Liez votre dépôt, ajoutez un soukdev.json et fixez votre prix. Publier ne coûte rien, et Souk.dev ne prend aucune commission. Besoin d’une version sur mesure ? <Link to="/devs" className="underline underline-offset-2">Trouvez un dev</Link>.
+          </p>
+        </div>
+        <LienBouton to="/publier" variante="contour" className="shrink-0">
+          Publier une appli
+        </LienBouton>
+      </section>
     </div>
   )
 }
 
-function Champ({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <label className="flex flex-col gap-1.5 text-[13.5px] font-semibold">
-      {label}
-      {children}
-    </label>
-  )
+function BadgeSecurite({ statut }: { statut: Appli['securite']['statut'] }) {
+  if (statut === 'verifie') {
+    return <Badge ton="succes" icone={<ShieldCheck aria-hidden="true" className="size-3.5" />}>Security Checked</Badge>
+  }
+  if (statut === 'problemes') {
+    return <Badge ton="alerte" icone={<ShieldAlert aria-hidden="true" className="size-3.5" />}>Problèmes détectés</Badge>
+  }
+  return <Badge>{statut === 'en_cours' ? 'Analyse en cours' : 'Analyse impossible'}</Badge>
 }
 
-function Carte({ appli }: { appli: Appli }) {
-  const teinte = teintes[appli.categorie]
-  const prix = appli.prix === 0 ? 'Gratuit' : `${fcfa(appli.prix)}${appli.type_prix === 'mensuel' ? '/mois' : ''}`
+/** Une appli : capture, nom (seul lien, qui couvre la carte), auteur, note, description, prix. */
+function CarteAppli({ appli }: { appli: Appli }) {
+  const prix = appli.prix === 0 ? 'Gratuit' : fcfa(appli.prix)
   return (
-    <li data-reveal-item className="appli-carte flex overflow-hidden rounded-[18px] border border-white/60 bg-[rgba(246,243,237,0.72)]">
-      <article className="flex flex-1 flex-col">
-        <Link to={`/store/${appli.id}`} aria-label={`Voir la fiche de ${appli.nom}`} className="no-underline">
-          {appli.captures[0] ? (
-            <img src={appli.captures[0].url} alt={`Capture de ${appli.nom}`} className="aspect-video w-full bg-white object-cover" />
-          ) : (
-            <div className="grid aspect-video place-items-center p-5 text-center" style={{ background: teinte.fond, color: teinte.texte }}>
-              <span><strong className="block text-3xl">{appli.nom.slice(0, 2).toUpperCase()}</strong><span className="mt-1 block text-sm font-semibold">Aucune capture publiée</span></span>
-            </div>
-          )}
-        </Link>
-        <div className="flex flex-1 flex-col gap-3 p-[18px]">
-          <div className="flex flex-wrap gap-1.5">
-            <span className="rounded-full bg-chip px-2 py-0.5 text-[12.5px] font-semibold text-nav-texte">{libelleCategorie(appli.categorie)}</span>
-            {appli.securite.statut === 'verifie' ? <span className="rounded-full bg-[#DCFCE7] px-2 py-0.5 text-[12.5px] font-semibold text-[#166534]">Security Checked</span> : null}
-            {appli.securite.statut === 'problemes' ? <span className="rounded-full bg-[#FFEDD5] px-2 py-0.5 text-[12.5px] font-semibold text-[#9A3412]">Problèmes détectés</span> : null}
-            {appli.securite.statut === 'en_cours' ? <span className="rounded-full bg-page px-2 py-0.5 text-[12.5px] font-semibold text-subtle">Analyse en cours</span> : null}
-            {appli.securite.statut === 'echec' ? <span className="rounded-full bg-page px-2 py-0.5 text-[12.5px] font-semibold text-subtle">Analyse impossible</span> : null}
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="grid size-11 place-items-center rounded-xl text-[15px] font-bold" style={{ background: teinte.fond, color: teinte.texte }}>
-              {appli.nom.slice(0, 2).toUpperCase()}
-            </span>
-            <div className="min-w-0">
-              <Link to={`/store/${appli.id}`} className="text-[17px] font-bold text-ink no-underline">{appli.nom}</Link>
-              <p className="m-0 text-[13px] text-muted">par {appli.auteur.nom || appli.auteur.username || 'un dev'}</p>
-              {appli.note_moyenne !== null ? (
-                <p className="m-0 mt-0.5 flex items-center gap-1.5 text-[13px] font-semibold text-ink">
-                  <Etoiles note={appli.note_moyenne} taille="sm" />
-                  <span aria-hidden="true">{formaterNote(appli.note_moyenne)}</span>
-                  <span className="font-normal text-muted">({appli.nb_avis} avis)</span>
-                </p>
-              ) : null}
-            </div>
-          </div>
-          <p className="m-0 line-clamp-3 flex-1 text-[14.5px] text-subtle">{appli.description}</p>
-          <div className="flex items-center justify-between gap-2 border-t border-ink/10 pt-3">
-            <strong>{prix}</strong>
-            <Link to={`/store/${appli.id}`} className="inline-flex min-h-10 items-center font-semibold">Voir la fiche →</Link>
-          </div>
+    <article className="group relative flex w-full flex-col overflow-hidden rounded-moyen border border-bordure bg-surface shadow-1 transition-[box-shadow,border-color,transform] duration-200 ease-souk hover:-translate-y-0.5 hover:border-bordure-champ hover:shadow-3 has-[a:focus-visible]:outline-3 has-[a:focus-visible]:outline-offset-2 has-[a:focus-visible]:outline-lien">
+      {appli.captures[0] ? (
+        <img
+          src={appli.captures[0].url}
+          alt=""
+          loading="lazy"
+          className="aspect-video w-full border-b border-bordure bg-surface-douce object-cover object-top"
+        />
+      ) : (
+        <div aria-hidden="true" className="grid aspect-video place-items-center border-b border-bordure bg-surface-accent text-titre-2 text-sur-primaire-doux">
+          {appli.nom.slice(0, 2).toUpperCase()}
         </div>
-      </article>
-    </li>
+      )}
+      <div className="flex flex-1 flex-col gap-3 p-4">
+        <div className="flex flex-wrap gap-1.5">
+          <Badge ton="marque">{libelleCategorie(appli.categorie)}</Badge>
+          <BadgeSecurite statut={appli.securite.statut} />
+        </div>
+        <div className="flex flex-col gap-0.5">
+          <h2 className="m-0 text-titre-3">
+            <Link to={`/store/${appli.id}`} className="text-titre no-underline after:absolute after:inset-0 after:content-[''] focus-visible:outline-none">
+              {appli.nom}
+            </Link>
+          </h2>
+          <p className="m-0 text-petit text-texte-doux">par {appli.auteur.nom || appli.auteur.username || 'un dev'}</p>
+        </div>
+        <p className="m-0 line-clamp-3 flex-1 text-corps text-texte">{appli.description}</p>
+        <div className="flex items-center justify-between gap-2 border-t border-bordure pt-3">
+          <p className="m-0 text-corps font-semibold text-titre">
+            <span className="chiffres">{prix}</span>
+            {appli.prix > 0 && appli.type_prix === 'mensuel' ? <span className="font-normal text-texte-doux"> / mois</span> : null}
+          </p>
+          {appli.note_moyenne !== null ? (
+            <p className="m-0 flex items-center gap-1.5 text-petit text-texte-doux">
+              <Etoiles note={appli.note_moyenne} taille="sm" />
+              <span aria-hidden="true" className="font-medium text-titre">{formaterNote(appli.note_moyenne)}</span>
+              <span>({appli.nb_avis})</span>
+            </p>
+          ) : null}
+        </div>
+      </div>
+    </article>
   )
 }
