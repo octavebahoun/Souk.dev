@@ -18,8 +18,8 @@ import {
   LienBouton,
   Liste,
   Saisie,
+  PuceFiltre,
   SqueletteCartes,
-  cx,
 } from '../../ui'
 
 type PageStore = {
@@ -128,23 +128,11 @@ export function Store() {
         </div>
 
         <div role="group" aria-label="Catégorie" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 tablette:mx-0 tablette:flex-wrap tablette:px-0">
-          {[{ valeur: '', libelle: 'Toutes' }, ...categories].map((item) => {
-            const actif = filtres.categorie === item.valeur
-            return (
-              <button
-                key={item.valeur || 'toutes'}
-                type="button"
-                aria-pressed={actif}
-                onClick={() => changer('categorie', item.valeur)}
-                className={cx(
-                  'inline-flex h-11 shrink-0 items-center rounded-pastille border px-4 text-petit font-medium transition-colors duration-150 tablette:h-9',
-                  actif ? 'border-primaire bg-primaire text-sur-couleur' : 'border-bordure bg-surface text-texte hover:border-bordure-champ hover:text-titre',
-                )}
-              >
-                {item.libelle}
-              </button>
-            )
-          })}
+          {[{ valeur: '', libelle: 'Toutes' }, ...categories].map((item) => (
+            <PuceFiltre key={item.valeur || 'toutes'} presse={filtres.categorie === item.valeur} onClick={() => changer('categorie', item.valeur)}>
+              {item.libelle}
+            </PuceFiltre>
+          ))}
         </div>
 
         {ouverts ? (

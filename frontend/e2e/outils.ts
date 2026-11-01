@@ -23,6 +23,16 @@ type Violation = { id: string; impact: string | null; help: string; nodes: Array
  * seulement cette partie (un panneau ouvert par-dessus la page, qu'on ne peut pas utiliser dessous).
  */
 export async function auditAxe(page: Page, selecteur?: string): Promise<Violation[]> {
+  // Contrastes mesurés sur l'état final : une transition de couleur en cours fausserait la mesure.
+  // Les animations sans fin (squelettes, points pulsés) ne sont pas attendues.
+  await page.evaluate(() =>
+    Promise.all(
+      document
+        .getAnimations()
+        .filter((animation) => animation.effect?.getComputedTiming().iterations !== Infinity)
+        .map((animation) => animation.finished.catch(() => undefined)),
+    ),
+  )
   await page.addScriptTag({ url: AXE })
   const violations = await page.evaluate(async (cible) => {
     const resultat = await (window as unknown as { axe: { run: (contexte: Document | string, options: object) => Promise<{ violations: Violation[] }> } }).axe.run(cible ?? document, {

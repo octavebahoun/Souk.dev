@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import { Champ, classeChamp } from '../../shared/ui/Champ'
+import { Alerte, Bouton, Champ, Liste, PuceFiltre, Saisie, ZoneTexte } from '../../ui'
 import {
   creerDiscussion,
   lireErreurHttp,
@@ -11,6 +11,7 @@ import {
   type Etiquette,
   type Techno,
 } from './api'
+import { libelleDifficulte } from './presentation'
 import { nomPays } from './texte'
 
 const etiquettesPossibles: Etiquette[] = ['bug', 'question', 'tuto', 'projet', 'entraide']
@@ -137,208 +138,120 @@ export function FormulaireDiscussion({
             : serveur?.message
 
   return (
-    <form onSubmit={publier} className="flex flex-col gap-3.5" noValidate>
+    <form onSubmit={publier} className="flex flex-col gap-4" noValidate>
       {alerte ? (
-        <p role="alert" className="m-0 rounded-controle border border-[#FECACA] bg-[#FEF2F2] px-3.5 py-2.5 text-sm font-semibold text-danger">
+        <Alerte ton="danger" urgente>
           {alerte}
           {serveur?.message && serveur.statut === 429 ? ` ${serveur.message}` : null}
-        </p>
+        </Alerte>
       ) : null}
       {Object.keys(locaux).length > 0 ? (
-        <p role="alert" className="m-0 rounded-controle border border-[#FECACA] bg-[#FEF2F2] px-3.5 py-2.5 text-sm font-semibold text-danger">
+        <Alerte ton="danger" urgente>
           Il manque des champs obligatoires. Complétez-les pour publier.
-        </p>
+        </Alerte>
       ) : null}
 
-      <Champ id="nd-titre" label="Titre" erreur={erreurDe('titre', locaux.titre)}>
-        <input
-          id="nd-titre"
-          value={titre}
-          onChange={(evenement) => setTitre(evenement.target.value)}
-          aria-invalid={Boolean(erreurDe('titre', locaux.titre))}
-          aria-describedby={erreurDe('titre', locaux.titre) ? 'nd-titre-erreur' : undefined}
-          className={classeChamp}
-          placeholder="Ex. : Le webhook Wave ne déclenche rien en production"
-        />
+      <Champ libelle="Titre" erreur={erreurDe('titre', locaux.titre)}>
+        {(liaison) => (
+          <Saisie {...liaison} value={titre} onChange={(evenement) => setTitre(evenement.target.value)} placeholder="Ex. : Le webhook Wave ne déclenche rien en production" data-autofocus />
+        )}
       </Champ>
 
-      <Champ id="nd-texte" label="Texte" erreur={erreurDe('texte', locaux.texte)}>
-        <textarea
-          id="nd-texte"
-          value={texte}
-          onChange={(evenement) => setTexte(evenement.target.value)}
-          aria-invalid={Boolean(erreurDe('texte', locaux.texte))}
-          aria-describedby={erreurDe('texte', locaux.texte) ? 'nd-texte-erreur' : undefined}
-          className={`${classeChamp} min-h-24 py-2.5`}
-          placeholder="Expliquez le contexte, ce que vous avez déjà essayé…"
-        />
+      <Champ libelle="Texte" erreur={erreurDe('texte', locaux.texte)} aide="Le contexte, ce que vous avez déjà essayé. Le Markdown est accepté.">
+        {(liaison) => <ZoneTexte {...liaison} value={texte} onChange={(evenement) => setTexte(evenement.target.value)} rows={5} />}
       </Champ>
 
-      <Champ id="nd-canal" label="Canal" erreur={erreurDe('canal', locaux.canal)}>
-        <select
-          id="nd-canal"
-          value={canal}
-          onChange={(evenement) => setCanal(evenement.target.value)}
-          aria-invalid={Boolean(erreurDe('canal', locaux.canal))}
-          aria-describedby={erreurDe('canal', locaux.canal) ? 'nd-canal-erreur' : undefined}
-          className={classeChamp}
-        >
-          <option value="">Choisir un canal</option>
-          <optgroup label="Généraux">
-            {generaux.map((item) => (
-              <option key={item.slug} value={item.slug}>
-                {item.nom}
-              </option>
-            ))}
-          </optgroup>
-          <optgroup label="Par pays">
-            {parPays.map((item) => (
-              <option key={item.slug} value={item.slug}>
-                {item.nom}
-                {item.pays ? ` (${nomPays(item.pays)})` : ''}
-              </option>
-            ))}
-          </optgroup>
-        </select>
+      <Champ libelle="Canal" erreur={erreurDe('canal', locaux.canal)}>
+        {(liaison) => (
+          <Liste {...liaison} value={canal} onChange={(evenement) => setCanal(evenement.target.value)}>
+            <option value="">Choisir un canal</option>
+            <optgroup label="Généraux">
+              {generaux.map((item) => (
+                <option key={item.slug} value={item.slug}>
+                  {item.nom}
+                </option>
+              ))}
+            </optgroup>
+            <optgroup label="Par pays">
+              {parPays.map((item) => (
+                <option key={item.slug} value={item.slug}>
+                  {item.nom}
+                  {item.pays ? ` (${nomPays(item.pays)})` : ''}
+                </option>
+              ))}
+            </optgroup>
+          </Liste>
+        )}
       </Champ>
 
-      <fieldset className="m-0 border-0 p-0">
-        <legend className="mb-2 text-sm font-semibold text-ink">Étiquettes</legend>
+      <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
+        <legend className="mb-2 text-petit font-medium text-titre">Étiquettes</legend>
         <div className="flex flex-wrap gap-2">
-          {etiquettesPossibles.map((etiquette) => {
-            const cochee = choisies.includes(etiquette)
-            return (
-              <label key={etiquette} className="inline-flex min-h-cible cursor-pointer items-center">
-                <span
-                  className={`inline-flex h-9 items-center gap-2 rounded-full border px-3.5 text-sm font-semibold ${
-                    cochee ? 'border-accent bg-nav text-accent' : 'border-line bg-canvas text-ink'
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={cochee}
-                    onChange={() => basculer(etiquette)}
-                    className="size-4 accent-accent"
-                  />
-                  {etiquette}
-                </span>
-              </label>
-            )
-          })}
+          {etiquettesPossibles.map((etiquette) => (
+            <PuceFiltre key={etiquette} presse={choisies.includes(etiquette)} onClick={() => basculer(etiquette)}>
+              {etiquette}
+            </PuceFiltre>
+          ))}
         </div>
       </fieldset>
 
       {estBug ? (
-        <fieldset className="m-0 flex flex-col gap-3 rounded-xl border border-[#FECACA] bg-[#FFFBFB] p-4">
-          <legend className="px-1.5 text-[15px] font-bold text-ink">Fiche du bug</legend>
-          <Champ id="nd-erreur" label="Erreur obtenue" erreur={erreurDe('bug.erreur_obtenue', locaux.erreur)}>
-            <textarea
-              id="nd-erreur"
-              value={erreurBug}
-              onChange={(evenement) => setErreurBug(evenement.target.value)}
-              aria-invalid={Boolean(erreurDe('bug.erreur_obtenue', locaux.erreur))}
-              aria-describedby={erreurDe('bug.erreur_obtenue', locaux.erreur) ? 'nd-erreur-erreur' : undefined}
-              className={`${classeChamp} min-h-[72px] py-2.5 font-mono text-[13.5px]`}
-            />
+        <fieldset className="m-0 flex flex-col gap-4 rounded-moyen border border-bordure-danger bg-fond-danger/40 p-4">
+          <legend className="px-1.5 text-corps font-semibold text-titre">Fiche du bug</legend>
+          <Champ libelle="Erreur obtenue" erreur={erreurDe('bug.erreur_obtenue', locaux.erreur)}>
+            {(liaison) => <ZoneTexte {...liaison} value={erreurBug} onChange={(evenement) => setErreurBug(evenement.target.value)} rows={3} className="font-mono text-petit" />}
           </Champ>
-          <Champ id="nd-attendu" label="Comportement attendu" erreur={erreurDe('bug.comportement_attendu', locaux.attendu)}>
-            <textarea
-              id="nd-attendu"
-              value={attendu}
-              onChange={(evenement) => setAttendu(evenement.target.value)}
-              aria-invalid={Boolean(erreurDe('bug.comportement_attendu', locaux.attendu))}
-              aria-describedby={erreurDe('bug.comportement_attendu', locaux.attendu) ? 'nd-attendu-erreur' : undefined}
-              className={`${classeChamp} min-h-[72px] py-2.5`}
-            />
+          <Champ libelle="Comportement attendu" erreur={erreurDe('bug.comportement_attendu', locaux.attendu)}>
+            {(liaison) => <ZoneTexte {...liaison} value={attendu} onChange={(evenement) => setAttendu(evenement.target.value)} rows={3} />}
           </Champ>
-          <Champ id="nd-techno" label="Techno" facultatif erreur={serveur?.champs['bug.techno']}>
-            <select
-              id="nd-techno"
-              value={techno}
-              onChange={(evenement) => setTechno(evenement.target.value as Techno | '')}
-              className={classeChamp}
-            >
-              <option value="">Aucune</option>
-              {technos.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </select>
+          <div className="grid gap-4 tablette:grid-cols-2">
+            <Champ libelle="Techno" facultatif erreur={serveur?.champs['bug.techno']}>
+              {(liaison) => (
+                <Liste {...liaison} value={techno} onChange={(evenement) => setTechno(evenement.target.value as Techno | '')}>
+                  <option value="">Aucune</option>
+                  {technos.map((item) => (
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
+                  ))}
+                </Liste>
+              )}
+            </Champ>
+            <fieldset className="m-0 flex flex-col gap-1.5 border-0 p-0">
+              <legend className="mb-1.5 text-petit font-medium text-titre">
+                Difficulté <span className="font-normal text-texte-doux">(facultatif)</span>
+              </legend>
+              <div className="flex flex-wrap gap-2">
+                {difficultes.map((item) => (
+                  <PuceFiltre key={item} presse={difficulte === item} onClick={() => setDifficulte(difficulte === item ? '' : item)}>
+                    {libelleDifficulte[item]}
+                  </PuceFiltre>
+                ))}
+              </div>
+            </fieldset>
+          </div>
+          <Champ libelle="Code concerné" facultatif erreur={serveur?.champs['bug.code']}>
+            {(liaison) => <ZoneTexte {...liaison} value={code} onChange={(evenement) => setCode(evenement.target.value)} rows={4} className="font-mono text-petit" />}
           </Champ>
-          <Champ id="nd-code" label="Code concerné" facultatif erreur={serveur?.champs['bug.code']}>
-            <textarea
-              id="nd-code"
-              value={code}
-              onChange={(evenement) => setCode(evenement.target.value)}
-              className={`${classeChamp} min-h-24 py-2.5 font-mono text-[13.5px]`}
-            />
-          </Champ>
-          <fieldset className="m-0 border-0 p-0">
-            <legend className="mb-2 text-sm font-semibold text-ink">Difficulté</legend>
-            <div className="flex flex-wrap gap-2">
-              {difficultes.map((item) => (
-                <label key={item} className="inline-flex min-h-cible cursor-pointer items-center">
-                  <span
-                    className={`inline-flex h-9 items-center gap-2 rounded-full border px-3.5 text-sm font-semibold ${
-                      difficulte === item ? 'border-accent bg-nav text-accent' : 'border-line bg-canvas text-ink'
-                    }`}
-                  >
-                  <input
-                    type="radio"
-                    name="nd-difficulte"
-                    value={item}
-                    checked={difficulte === item}
-                    onChange={() => setDifficulte(item)}
-                    className="size-4 accent-accent"
-                  />
-                  {item}
-                  </span>
-                </label>
-              ))}
-            </div>
-          </fieldset>
         </fieldset>
       ) : null}
 
-      <Champ id="nd-depot" label="Dépôt GitHub" facultatif erreur={serveur?.champs.depot_url}>
-        <input
-          id="nd-depot"
-          value={depot}
-          onChange={(evenement) => setDepot(evenement.target.value)}
-          aria-invalid={Boolean(serveur?.champs.depot_url)}
-          aria-describedby={serveur?.champs.depot_url ? 'nd-depot-erreur' : undefined}
-          className={`${classeChamp} font-mono text-[13.5px]`}
-          placeholder="https://github.com/vous/projet"
-        />
-      </Champ>
-      <Champ id="nd-demo" label="Lien de démo" facultatif erreur={serveur?.champs.demo_url}>
-        <input
-          id="nd-demo"
-          value={demo}
-          onChange={(evenement) => setDemo(evenement.target.value)}
-          aria-invalid={Boolean(serveur?.champs.demo_url)}
-          aria-describedby={serveur?.champs.demo_url ? 'nd-demo-erreur' : undefined}
-          className={`${classeChamp} font-mono text-[13.5px]`}
-          placeholder="https://demo.exemple.bj"
-        />
-      </Champ>
+      <div className="grid gap-4 tablette:grid-cols-2">
+        <Champ libelle="Dépôt GitHub" facultatif erreur={serveur?.champs.depot_url}>
+          {(liaison) => <Saisie {...liaison} value={depot} onChange={(evenement) => setDepot(evenement.target.value)} className="font-mono text-petit" placeholder="https://github.com/vous/projet" />}
+        </Champ>
+        <Champ libelle="Lien de démo" facultatif erreur={serveur?.champs.demo_url}>
+          {(liaison) => <Saisie {...liaison} value={demo} onChange={(evenement) => setDemo(evenement.target.value)} className="font-mono text-petit" placeholder="https://demo.exemple.bj" />}
+        </Champ>
+      </div>
 
-      <div className="flex flex-wrap justify-end gap-2.5">
-        <button
-          type="button"
-          onClick={onAnnuler}
-          className="inline-flex min-h-cible items-center rounded-controle border border-line bg-canvas px-4 font-semibold text-ink"
-        >
+      <div className="flex flex-col-reverse gap-2 border-t border-bordure pt-4 tablette:flex-row tablette:justify-end">
+        <Bouton variante="contour" onClick={onAnnuler}>
           Annuler
-        </button>
-        <button
-          type="submit"
-          disabled={mutation.isPending || canaux.length === 0}
-          className="inline-flex min-h-cible items-center rounded-controle bg-accent px-5 font-bold text-canvas disabled:opacity-60"
-        >
-          {mutation.isPending ? 'Publication…' : 'Publier la discussion'}
-        </button>
+        </Bouton>
+        <Bouton type="submit" chargement={mutation.isPending} disabled={canaux.length === 0}>
+          Publier la discussion
+        </Bouton>
       </div>
     </form>
   )

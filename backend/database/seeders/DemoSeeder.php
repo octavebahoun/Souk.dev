@@ -120,6 +120,8 @@ class DemoSeeder extends Seeder
             ->whereIn('slug', ['laravel', 'mobile-money', 'react', 'devops', 'laravel-benin', 'dakar-tech', 'entraide-generale'])
             ->whereDoesntHave('discussions')
             ->delete();
+        // Canaux créés par un parcours de bout en bout interrompu avant de les supprimer.
+        Canal::query()->where('slug', 'like', 'canal-e2e-%')->whereDoesntHave('discussions')->delete();
     }
 
     private function creerComptes(): void

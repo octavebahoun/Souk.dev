@@ -37,6 +37,17 @@ test.describe('socle', () => {
     await expect(page.getByRole('menu', { name: 'Menu du compte' })).toContainText('Awa Dossou')
     await page.keyboard.press('Escape')
     await expect(page.getByRole('menu')).toHaveCount(0)
+
+    // L'Échange et son formulaire de discussion, fiche du bug dépliée.
+    await page.goto('/echange')
+    await expect(page.getByRole('heading', { level: 1, name: 'Échange' })).toBeVisible()
+    expect(resumer(await auditAxe(page))).toBe('')
+    await page.getByRole('button', { name: 'Nouvelle discussion' }).first().click()
+    const formulaire = page.getByRole('dialog', { name: 'Nouvelle discussion' })
+    await formulaire.getByRole('button', { name: 'bug', exact: true }).click()
+    await expect(formulaire.getByText('Fiche du bug')).toBeVisible()
+    expect(resumer(await auditAxe(page, '[role="dialog"]'))).toBe('')
+    await page.keyboard.press('Escape')
   })
 
   test('le thème sombre se choisit au clavier et reste après rechargement', async ({ page }) => {
