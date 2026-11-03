@@ -11,6 +11,7 @@ use App\Notifications\AlerteAdmin;
 use App\Notifications\CopieSuspendueAbus;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Process\PendingProcess;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Queue;
@@ -37,12 +38,12 @@ class PolitiqueAbusTest extends TestCase
         $this->dockerMesure(['mineuse' => ['49.10%', '0.02%'], 'sage' => ['10.00%']]);
 
         for ($releve = 1; $releve < SurveillerProcesseur::RELEVES; $releve++) {
-            app()->call([new SurveillerProcesseur, 'handle']);
+            app()->call([new SurveillerProcesseur($machine->id), 'handle']);
         }
 
         $this->assertNull($mineuse->refresh()->suspension_admin_motif, 'Onze relevés (55 minutes) ne suffisent pas.');
 
-        app()->call([new SurveillerProcesseur, 'handle']);
+        app()->call([new SurveillerProcesseur($machine->id), 'handle']);
 
         $this->assertSame('suspendu', $mineuse->refresh()->etat);
         $this->assertStringContainsString('Minage présumé', (string) $mineuse->suspension_admin_motif);
@@ -52,6 +53,34 @@ class PolitiqueAbusTest extends TestCase
         Notification::assertSentOnDemand(AlerteAdmin::class);
     }
 
+    public function test_le_plafond_vaut_par_conteneur_pas_pour_toute_la_copie(): void
+    {
+        $machine = Machine::assurerLocale();
+        $copie = Deploiement::factory()->create(['copie' => 'boutique', 'taille' => 'petite', 'machine_id' => $machine->id]);
+        // Web à 0,3 cœur et base à 0,2 : 0,5 au total, mais chaque conteneur reste sous 90 % de 0,5.
+        $this->dockerMesure(['boutique' => ['30.00%', '20.00%']]);
+
+        for ($releve = 1; $releve <= SurveillerProcesseur::RELEVES; $releve++) {
+            app()->call([new SurveillerProcesseur($machine->id), 'handle']);
+        }
+
+        $this->assertSame('en_ligne', $copie->refresh()->etat);
+    }
+
+    public function test_le_passage_planifie_releve_chaque_machine_a_part(): void
+    {
+        Queue::fake([SurveillerProcesseur::class]);
+        $locale = Machine::assurerLocale();
+        $seconde = Machine::query()->forceCreate(['nom' => 'seconde', 'hote_docker' => 'tcp://localhost:2376', 'etat' => 'active', 'joignable' => true]);
+        Machine::query()->forceCreate(['nom' => 'muette', 'hote_docker' => 'tcp://localhost:2377', 'etat' => 'active', 'joignable' => false]);
+
+        app()->call([new SurveillerProcesseur, 'handle']);
+
+        Queue::assertPushed(SurveillerProcesseur::class, 2);
+        Queue::assertPushed(SurveillerProcesseur::class, fn ($job) => $job->machineId === $locale->id);
+        Queue::assertPushed(SurveillerProcesseur::class, fn ($job) => $job->machineId === $seconde->id);
+    }
+
     public function test_un_releve_normal_remet_le_compte_a_zero(): void
     {
         $machine = Machine::assurerLocale();
@@ -59,32 +88,30 @@ class PolitiqueAbusTest extends TestCase
 
         $this->dockerMesure(['calcul' => ['95.00%']]);
         for ($releve = 1; $releve < SurveillerProcesseur::RELEVES; $releve++) {
-            app()->call([new SurveillerProcesseur, 'handle']);
+            app()->call([new SurveillerProcesseur($machine->id), 'handle']);
         }
 
         $this->dockerMesure(['calcul' => ['20.00%']]);
-        app()->call([new SurveillerProcesseur, 'handle']);
+        app()->call([new SurveillerProcesseur($machine->id), 'handle']);
 
         $this->dockerMesure(['calcul' => ['95.00%']]);
         for ($releve = 1; $releve < SurveillerProcesseur::RELEVES; $releve++) {
-            app()->call([new SurveillerProcesseur, 'handle']);
+            app()->call([new SurveillerProcesseur($machine->id), 'handle']);
         }
 
         $this->assertSame('en_ligne', $copie->refresh()->etat);
         Queue::assertNothingPushed();
     }
 
-    public function test_une_copie_signalee_pour_hameconnage_est_suspendue_aussitot(): void
+    public function test_deux_membres_anciens_qui_signalent_un_hameconnage_font_suspendre_la_copie(): void
     {
-        $membre = User::factory()->create();
         $copie = Deploiement::factory()->create(['copie' => 'faux-wave']);
+        [$premier, $second] = User::factory()->count(2)->create(['created_at' => now()->subMonth()]);
 
-        $this->actingAs($membre)->postJson('/api/signalements', [
-            'cible' => 'copie',
-            'cible_id' => $copie->id,
-            'motif' => 'hameconnage',
-            'details' => 'Page qui imite la connexion Wave et demande le code secret.',
-        ])->assertCreated();
+        $this->signalerHameconnage($premier, $copie);
+        $this->assertSame('en_ligne', $copie->refresh()->etat, 'Un seul signalement ne fait pas tomber la copie d’un client.');
+
+        $this->signalerHameconnage($second, $copie);
 
         $this->assertSame('suspendu', $copie->refresh()->etat);
         $this->assertStringContainsString('Hameçonnage signalé', (string) $copie->suspension_admin_motif);
@@ -92,20 +119,38 @@ class PolitiqueAbusTest extends TestCase
         Notification::assertSentOnDemand(AlerteAdmin::class, fn (AlerteAdmin $alerte) => str_contains(implode(' ', $alerte->lignes), 'suspendue en attendant'));
     }
 
-    public function test_un_membre_ne_fait_pas_tomber_des_copies_en_serie(): void
+    public function test_des_comptes_crees_pour_l_occasion_ne_comptent_pas(): void
     {
-        $membre = User::factory()->create();
-        $copies = Deploiement::factory()->count(4)->create();
+        $copie = Deploiement::factory()->create();
 
-        foreach ($copies as $copie) {
-            $this->actingAs($membre)->postJson('/api/signalements', [
-                'cible' => 'copie',
-                'cible_id' => $copie->id,
-                'motif' => 'hameconnage',
-            ])->assertCreated();
+        foreach (User::factory()->count(3)->create() as $compteNeuf) {
+            $this->signalerHameconnage($compteNeuf, $copie);
         }
 
-        $this->assertSame(['suspendu', 'suspendu', 'suspendu', 'en_ligne'], $copies->map(fn ($copie) => $copie->refresh()->etat)->all());
+        $this->assertSame('en_ligne', $copie->refresh()->etat);
+    }
+
+    public function test_la_plateforme_ne_suspend_d_office_que_dix_copies_par_jour(): void
+    {
+        $temoins = User::factory()->count(2)->create(['created_at' => now()->subMonth()]);
+        Cache::put('abus:suspensions-hameconnage:'.now()->toDateString(), 10, now()->addDay());
+        $copie = Deploiement::factory()->create();
+
+        foreach ($temoins as $temoin) {
+            $this->signalerHameconnage($temoin, $copie);
+        }
+
+        $this->assertSame('en_ligne', $copie->refresh()->etat, 'Au-delà du plafond, l’équipe examine.');
+    }
+
+    private function signalerHameconnage(User $membre, Deploiement $copie): void
+    {
+        $this->actingAs($membre)->postJson('/api/signalements', [
+            'cible' => 'copie',
+            'cible_id' => $copie->id,
+            'motif' => 'hameconnage',
+            'details' => 'Page qui imite la connexion Wave et demande le code secret.',
+        ])->assertCreated();
     }
 
     public function test_un_autre_motif_ne_suspend_rien(): void

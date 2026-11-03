@@ -13,9 +13,10 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Politique d'abus, minage : toutes les 5 minutes, le processeur de chaque copie en ligne est
- * relevé. Une copie à 90 % ou plus de sa formule pendant une heure d'affilée (12 relevés de
- * suite) est suspendue pour minage présumé ; l'équipe est prévenue et peut la réactiver.
+ * Politique d'abus, minage : toutes les 5 minutes, le processeur des copies en ligne est relevé,
+ * machine par machine (une tâche chacune : une machine lente ne retient pas les autres). Une copie
+ * dont un conteneur reste à 90 % ou plus de son plafond pendant une heure d'affilée (12 relevés
+ * de suite) est suspendue pour minage présumé ; l'équipe est prévenue et peut la réactiver.
  * Un relevé sous le seuil, ou manqué (machine muette), remet le compte à zéro.
  */
 class SurveillerProcesseur implements ShouldQueue
@@ -28,7 +29,7 @@ class SurveillerProcesseur implements ShouldQueue
 
     public int $tries = 1;
 
-    public function __construct()
+    public function __construct(public ?int $machineId = null)
     {
         // Comme la sonde des machines : le service « sondes » a le socket Docker.
         $this->onQueue('sondes');
@@ -36,13 +37,18 @@ class SurveillerProcesseur implements ShouldQueue
 
     public function handle(SuspensionAbus $suspension): void
     {
-        foreach (Machine::query()->where('joignable', true)->orderBy('id')->get() as $machine) {
-            $mesures = $machine->cible()->processeurParCopie();
-
-            if ($mesures === null) {
-                continue;
+        if ($this->machineId === null) {
+            foreach (Machine::query()->where('joignable', true)->orderBy('id')->pluck('id') as $id) {
+                self::dispatch($id);
             }
 
+            return;
+        }
+
+        $machine = Machine::query()->find($this->machineId);
+        $mesures = $machine?->joignable ? $machine->cible()->processeurParCopie() : null;
+
+        if ($machine !== null && $mesures !== null) {
             $copies = Deploiement::query()
                 ->where('machine_id', $machine->id)
                 ->where('etat', 'en_ligne')
@@ -82,7 +88,7 @@ class SurveillerProcesseur implements ShouldQueue
 
         Log::warning('moderation: copie suspendue pour minage présumé', ['deploiement' => $deploiement->id, 'coeurs' => $coeurs]);
         AlerteAdmin::envoyer("Copie #{$deploiement->id} suspendue : minage présumé", [
-            "La copie {$deploiement->copie} utilise son processeur à plus de 90 % depuis une heure : elle est suspendue (politique d’abus).",
+            "La copie {$deploiement->copie} a un conteneur à plus de 90 % de son processeur depuis une heure : elle est suspendue (politique d’abus).",
             'Vérifiez et réactivez-la depuis l’administration si c’est une charge légitime.',
         ], '/admin/moderation');
     }

@@ -21,8 +21,9 @@ interface MachineCible
     public function sonder(): SanteMachine;
 
     /**
-     * Processeur utilisé par chaque copie en ce moment, en cœurs (somme de ses conteneurs),
-     * indexé par nom de copie (le projet docker compose). null si le démon ne répond pas.
+     * Processeur du conteneur le plus chargé de chaque copie, en cœurs (le plafond de la formule
+     * vaut par conteneur), indexé par nom de copie (le projet docker compose). null si le démon
+     * ne répond pas.
      *
      * @return array<string, float>|null
      */

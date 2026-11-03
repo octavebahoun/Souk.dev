@@ -14,6 +14,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -40,10 +41,18 @@ final class SignalementController extends Controller
     private const MOTIFS_URGENTS = ['hameconnage', 'minage', 'contenu_illegal'];
 
     /**
-     * Suspensions automatiques qu'un même membre peut provoquer par jour : au-delà, ses
-     * signalements d'hameçonnage attendent l'équipe (un membre ne fait pas tomber des copies en série).
+     * Politique d'abus, hameçonnage : une copie est suspendue d'office quand des membres distincts,
+     * inscrits depuis assez longtemps, la signalent (un seul compte, ou des comptes créés pour
+     * l'occasion, ne font pas tomber la copie d'un client). Chaque membre ne compte que pour
+     * 3 signalements par jour, et la plateforme ne suspend d'office que 10 copies par jour.
      */
-    private const SUSPENSIONS_PAR_JOUR = 3;
+    private const SIGNALEMENTS_DISTINCTS = 2;
+
+    private const ANCIENNETE_JOURS = 7;
+
+    private const SIGNALEMENTS_PAR_MEMBRE_ET_PAR_JOUR = 3;
+
+    private const SUSPENSIONS_PAR_JOUR = 10;
 
     public function store(Request $request, SuspensionAbus $suspension): JsonResponse
     {
@@ -107,20 +116,44 @@ final class SignalementController extends Controller
             return false;
         }
 
-        $recentes = Signalement::query()
-            ->where('user_id', $signalement->user_id)
-            ->where('cible', 'copie')
-            ->where('motif', 'hameconnage')
-            ->where('created_at', '>=', now()->subDay())
-            ->count();
-
         $deploiement = Deploiement::query()->find($signalement->cible_id);
 
-        if ($deploiement === null || $recentes > self::SUSPENSIONS_PAR_JOUR) {
+        if ($deploiement === null) {
             return false;
         }
 
-        return $suspension->suspendre($deploiement, 'Hameçonnage signalé : copie suspendue en attendant l’examen de l’équipe.') === SuspensionAbus::SUSPENDUE;
+        // Signalements ouverts sur cette copie, d'auteurs distincts, anciens et pas en rafale.
+        $temoins = Signalement::query()
+            ->where('cible', 'copie')
+            ->where('cible_id', $deploiement->id)
+            ->where('motif', 'hameconnage')
+            ->where('statut', 'ouvert')
+            ->whereHas('signalePar', fn ($compte) => $compte->where('created_at', '<=', now()->subDays(self::ANCIENNETE_JOURS)))
+            ->pluck('user_id')
+            ->unique()
+            ->filter(fn (int $membre) => Signalement::query()
+                ->where('user_id', $membre)
+                ->where('motif', 'hameconnage')
+                ->where('created_at', '>=', now()->subDay())
+                ->count() <= self::SIGNALEMENTS_PAR_MEMBRE_ET_PAR_JOUR);
+
+        if ($temoins->count() < self::SIGNALEMENTS_DISTINCTS) {
+            return false;
+        }
+
+        $cle = 'abus:suspensions-hameconnage:'.now()->toDateString();
+
+        if ((int) Cache::get($cle, 0) >= self::SUSPENSIONS_PAR_JOUR) {
+            return false;
+        }
+
+        if ($suspension->suspendre($deploiement, 'Hameçonnage signalé : copie suspendue en attendant l’examen de l’équipe.') !== SuspensionAbus::SUSPENDUE) {
+            return false;
+        }
+
+        Cache::put($cle, (int) Cache::get($cle, 0) + 1, now()->addDay());
+
+        return true;
     }
 
     public function index(Request $request): AnonymousResourceCollection

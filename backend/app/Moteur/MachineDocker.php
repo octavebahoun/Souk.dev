@@ -135,7 +135,7 @@ final class MachineDocker implements MachineCible
                 continue;
             }
 
-            $parCopie[$copie] = ($parCopie[$copie] ?? 0.0) + ((float) $valeur) / 100;
+            $parCopie[$copie] = max($parCopie[$copie] ?? 0.0, ((float) $valeur) / 100);
         }
 
         return $parCopie;
