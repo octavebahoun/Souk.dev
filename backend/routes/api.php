@@ -199,5 +199,5 @@ Route::post('/events/{evenement}/avis', [EvenementController::class, 'noter'])->
 
 // Webhooks SasPay : pas de session, la signature HMAC fait foi (voir WebhookSasPayController).
 Route::post('/webhooks/saspay', [WebhookSasPayController::class, 'recevoir'])
-    ->withoutMiddleware('throttle:60,1')
+    ->withoutMiddleware('throttle:api')
     ->middleware('throttle:webhooks');

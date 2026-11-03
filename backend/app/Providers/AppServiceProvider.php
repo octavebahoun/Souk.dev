@@ -141,6 +141,15 @@ class AppServiceProvider extends ServiceProvider
 
         JsonResource::withoutWrapping();
 
+        // Limite générale de l'API : un écran qui suit une construction se relit toutes les
+        // 4 secondes, et beaucoup d'abonnés mobiles partagent une même adresse (CGNAT). Les
+        // routes sensibles (lien magique, paiements, IA, discussions…) gardent leur limite propre.
+        RateLimiter::for('api', function (Request $request) {
+            $compte = $request->user();
+
+            return Limit::perMinute(300)->by($compte ? 'compte:'.$compte->getAuthIdentifier() : 'ip:'.$request->ip());
+        });
+
         RateLimiter::for('discussions', function (Request $request) {
             return Limit::perHour(10)->by($request->user()?->id ?: $request->ip());
         });

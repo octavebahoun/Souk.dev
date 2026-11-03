@@ -53,7 +53,7 @@ return Application::configure(basePath: dirname(__DIR__))
             ? null
             : rtrim((string) config('app.frontend_url'), '/').'/connexion');
         $middleware->api(append: [
-            'throttle:60,1',
+            'throttle:api',
         ]);
         $middleware->alias([
             'idempotence' => Idempotence::class,
