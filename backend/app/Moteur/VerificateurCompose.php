@@ -510,6 +510,11 @@ final class VerificateurCompose
         }
 
         foreach ($deploy as $cle => $valeur) {
+            // docker compose config écrit des sections vides (placement: {}) : sans effet, acceptées.
+            if ($valeur === null || $valeur === []) {
+                continue;
+            }
+
             if ($cle !== 'resources') {
                 $erreurs[] = "Le service « {$nom} » utilise deploy.{$cle}, qui n'est pas autorisé.";
 
@@ -520,8 +525,8 @@ final class VerificateurCompose
                 throw new LancementEchoue('docker-compose.yml ne peut pas être vérifié.');
             }
 
-            foreach (array_keys($valeur) as $sousCle) {
-                if ($sousCle !== 'limits') {
+            foreach ($valeur as $sousCle => $contenu) {
+                if ($sousCle !== 'limits' && $contenu !== null && $contenu !== []) {
                     $erreurs[] = "Le service « {$nom} » utilise deploy.resources.{$sousCle}, qui n'est pas autorisé.";
                 }
             }
