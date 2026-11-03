@@ -61,7 +61,7 @@ final class VerificateurCompose
 
         foreach (array_keys($document) as $cle) {
             if (! $this->cleAutorisee((string) $cle, self::CLES_RACINE)) {
-                throw new LancementEchoue("docker-compose.yml utilise « {$cle} », qui n'est pas autorisé.");
+                throw new LancementEchoue("docker-compose.yml utilise « {$cle} », qui n'est pas autorisé.");
             }
         }
 
@@ -73,8 +73,10 @@ final class VerificateurCompose
 
         $erreurs = [];
 
-        if (count($services) > self::MAX_SERVICES) {
-            $erreurs[] = 'docker-compose.yml déclare '.count($services).' services : '.self::MAX_SERVICES.' au plus par copie.';
+        // Compté sur le dépôt : la configuration finale ajoute les services de la plateforme
+        // (base et API du backend intégré), qui ne comptent pas dans la limite de l'auteur.
+        if ($taille === null && count($services) > self::MAX_SERVICES) {
+            $erreurs[] = 'docker-compose.yml déclare '.count($services).' services : '.self::MAX_SERVICES.' au plus par copie.';
         }
 
         foreach ($services as $nom => $service) {
@@ -85,7 +87,7 @@ final class VerificateurCompose
             }
 
             if (array_key_exists('extends', $service)) {
-                throw new LancementEchoue("Le service « {$nom} » utilise extends et ne peut pas être vérifié.");
+                throw new LancementEchoue("Le service « {$nom} » utilise extends et ne peut pas être vérifié.");
             }
 
             foreach (array_keys($service) as $cle) {
@@ -95,7 +97,7 @@ final class VerificateurCompose
                 }
 
                 if (! $this->cleAutorisee((string) $cle, self::CLES_SERVICE)) {
-                    $erreurs[] = "Le service « {$nom} » utilise « {$cle} », qui n'est pas autorisé.";
+                    $erreurs[] = "Le service « {$nom} » utilise « {$cle} », qui n'est pas autorisé.";
                 }
             }
 
@@ -121,11 +123,11 @@ final class VerificateurCompose
         $this->verifierReseauxRacine($document['networks'] ?? null, $erreurs, $taille === null);
 
         if ($taille !== null && ! $this->contientCle($document['networks'] ?? null, Durcissement::RESEAU)) {
-            $erreurs[] = 'Le réseau de la copie « '.Durcissement::RESEAU.' » est absent de la configuration finale.';
+            $erreurs[] = 'Le réseau de la copie « '.Durcissement::RESEAU.' » est absent de la configuration finale.';
         }
 
         if ($erreurs !== []) {
-            throw new LancementEchoue("docker-compose.yml est dangereux :\n".implode("\n", $erreurs));
+            throw new LancementEchoue("docker-compose.yml est dangereux :\n".implode("\n", $erreurs));
         }
     }
 
@@ -140,7 +142,7 @@ final class VerificateurCompose
         }
 
         if ($this->estVrai($service['privileged'])) {
-            $erreurs[] = "Le service « {$nom} » est privileged.";
+            $erreurs[] = "Le service « {$nom} » est privileged.";
 
             return;
         }
@@ -167,7 +169,7 @@ final class VerificateurCompose
         $mode = strtolower($service['network_mode']);
 
         if ($mode === 'host') {
-            $erreurs[] = "Le service « {$nom} » utilise network_mode host.";
+            $erreurs[] = "Le service « {$nom} » utilise network_mode host.";
 
             return;
         }
@@ -175,7 +177,7 @@ final class VerificateurCompose
         // container:… et service:… feraient entrer la copie dans le réseau d'un autre conteneur,
         // bridge la mettrait sur le réseau partagé par tous les conteneurs du serveur, et none
         // empêcherait la plateforme de la rattacher à son réseau.
-        $erreurs[] = "Le service « {$nom} » utilise network_mode « {$service['network_mode']} », qui n'est pas autorisé.";
+        $erreurs[] = "Le service « {$nom} » utilise network_mode « {$service['network_mode']} », qui n'est pas autorisé.";
     }
 
     /**
@@ -191,7 +193,7 @@ final class VerificateurCompose
         $ports = $service['ports'];
 
         if (is_string($ports) || is_int($ports)) {
-            $erreurs[] = "Le service « {$nom} » publie des ports.";
+            $erreurs[] = "Le service « {$nom} » publie des ports.";
 
             return;
         }
@@ -201,7 +203,7 @@ final class VerificateurCompose
         }
 
         if ($ports !== []) {
-            $erreurs[] = "Le service « {$nom} » publie des ports.";
+            $erreurs[] = "Le service « {$nom} » publie des ports.";
         }
     }
 
@@ -228,13 +230,13 @@ final class VerificateurCompose
         foreach ($volumes as $volume) {
             // Une variable ${…} serait remplacée par Docker au lancement, après notre vérification.
             if ($this->contientVariable($volume)) {
-                $erreurs[] = "Le service « {$nom} » utilise une variable dans un volume.";
+                $erreurs[] = "Le service « {$nom} » utilise une variable dans un volume.";
 
                 continue;
             }
 
             if (is_array($volume) && isset($volume['type']) && ! in_array(strtolower((string) $volume['type']), ['volume', 'tmpfs', 'bind', 'npipe'], true)) {
-                $erreurs[] = "Le service « {$nom} » utilise un volume de type « {$volume['type']} », qui n'est pas autorisé.";
+                $erreurs[] = "Le service « {$nom} » utilise un volume de type « {$volume['type']} », qui n'est pas autorisé.";
 
                 continue;
             }
@@ -242,7 +244,7 @@ final class VerificateurCompose
             $source = $this->sourceHote($volume);
 
             if ($source !== null) {
-                $erreurs[] = "Le service « {$nom} » monte un volume de l'hôte « {$source} ».";
+                $erreurs[] = "Le service « {$nom} » monte un volume de l'hôte « {$source} ».";
             }
         }
     }
@@ -271,15 +273,15 @@ final class VerificateurCompose
 
             // external ou name pourraient viser le volume d'une autre copie ou de la plateforme.
             if (array_key_exists('external', $definition) && ! $this->estFaux($definition['external'])) {
-                $erreurs[] = "Le volume « {$nom} » est externe.";
+                $erreurs[] = "Le volume « {$nom} » est externe.";
             }
 
             if (array_key_exists('name', $definition)) {
-                $erreurs[] = "Le volume « {$nom} » fixe son nom (name), ce qui n'est pas autorisé.";
+                $erreurs[] = "Le volume « {$nom} » fixe son nom (name), ce qui n'est pas autorisé.";
             }
 
             if ($this->contientVariable($definition)) {
-                $erreurs[] = "Le volume « {$nom} » utilise une variable.";
+                $erreurs[] = "Le volume « {$nom} » utilise une variable.";
             }
 
             $options = $definition['driver_opts'] ?? null;
@@ -297,8 +299,8 @@ final class VerificateurCompose
             $device = (string) ($options['device'] ?? '');
 
             if ($type === 'bind' || str_contains($option, 'bind') || $this->estCheminHote($device)) {
-                $cible = $device !== '' ? " « {$device} »" : '';
-                $erreurs[] = "Le volume « {$nom} » monte un chemin de l'hôte{$cible}.";
+                $cible = $device !== '' ? " « {$device} »" : '';
+                $erreurs[] = "Le volume « {$nom} » monte un chemin de l'hôte{$cible}.";
             }
         }
     }
@@ -326,26 +328,26 @@ final class VerificateurCompose
             }
 
             if ($depot && (string) $nom === Durcissement::RESEAU) {
-                $erreurs[] = 'Le réseau « '.Durcissement::RESEAU.' » est réservé à la plateforme.';
+                $erreurs[] = 'Le réseau « '.Durcissement::RESEAU.' » est réservé à la plateforme.';
             }
 
             // Un réseau externe ou nommé ferait sortir la copie de son propre projet.
             if (array_key_exists('external', $definition) && ! $this->estFaux($definition['external'])) {
-                $erreurs[] = "Le réseau « {$nom} » est externe.";
+                $erreurs[] = "Le réseau « {$nom} » est externe.";
             }
 
             if (array_key_exists('name', $definition)) {
-                $erreurs[] = "Le réseau « {$nom} » fixe son nom (name), ce qui n'est pas autorisé.";
+                $erreurs[] = "Le réseau « {$nom} » fixe son nom (name), ce qui n'est pas autorisé.";
             }
 
             $pilote = $definition['driver'] ?? null;
 
             if ($pilote !== null && strtolower((string) $pilote) !== 'bridge') {
-                $erreurs[] = "Le réseau « {$nom} » utilise le pilote « {$pilote} », qui n'est pas autorisé.";
+                $erreurs[] = "Le réseau « {$nom} » utilise le pilote « {$pilote} », qui n'est pas autorisé.";
             }
 
             if (array_key_exists('driver_opts', $definition) || $this->contientVariable($definition)) {
-                $erreurs[] = "Le réseau « {$nom} » utilise des options qui ne sont pas autorisées.";
+                $erreurs[] = "Le réseau « {$nom} » utilise des options qui ne sont pas autorisées.";
             }
         }
     }
@@ -377,7 +379,7 @@ final class VerificateurCompose
         foreach ($capacites as $capacite) {
             if (! is_string($capacite) || ! in_array(Durcissement::normaliserCapacite($capacite), $autorisees, true)) {
                 $valeur = is_scalar($capacite) ? (string) $capacite : '?';
-                $erreurs[] = "Le service « {$nom} » ajoute la capacité « {$valeur} » (cap_add), qui n'est pas autorisée.";
+                $erreurs[] = "Le service « {$nom} » ajoute la capacité « {$valeur} » (cap_add), qui n'est pas autorisée.";
             }
         }
     }
@@ -407,7 +409,7 @@ final class VerificateurCompose
         foreach ($options as $option) {
             if (! Durcissement::estSecuriteAutorisee($option)) {
                 $valeur = is_scalar($option) ? (string) $option : '?';
-                $erreurs[] = "Le service « {$nom} » utilise security_opt « {$valeur} », qui n'est pas autorisé.";
+                $erreurs[] = "Le service « {$nom} » utilise security_opt « {$valeur} », qui n'est pas autorisé.";
             }
         }
     }
@@ -432,7 +434,7 @@ final class VerificateurCompose
 
         if (! is_int($pids) || $pids < 1 || $pids > Durcissement::pidsMaximum()) {
             $valeur = is_scalar($pids) ? (string) $pids : '?';
-            $erreurs[] = "Le service « {$nom} » fixe pids_limit à « {$valeur} », qui n'est pas autorisé.";
+            $erreurs[] = "Le service « {$nom} » fixe pids_limit à « {$valeur} », qui n'est pas autorisé.";
         }
     }
 
@@ -443,7 +445,7 @@ final class VerificateurCompose
     private function verifierReseauReserveService(string $nom, array $service, array &$erreurs): void
     {
         if ($this->contientCle($service['networks'] ?? null, Durcissement::RESEAU)) {
-            $erreurs[] = "Le service « {$nom} » utilise le réseau « ".Durcissement::RESEAU.' », réservé à la plateforme.';
+            $erreurs[] = "Le service « {$nom} » utilise le réseau « ".Durcissement::RESEAU.' », réservé à la plateforme.';
         }
     }
 
@@ -458,7 +460,7 @@ final class VerificateurCompose
         $pids = $service['pids_limit'] ?? null;
 
         if (! is_int($pids) || $pids < 1 || $pids > Durcissement::pids($taille)) {
-            $erreurs[] = "Le service « {$nom} » n'a pas le plafond de processus (pids_limit) de la copie.";
+            $erreurs[] = "Le service « {$nom} » n'a pas le plafond de processus (pids_limit) de la copie.";
         }
 
         $retirees = is_array($service['cap_drop'] ?? null) ? array_map(
@@ -467,17 +469,17 @@ final class VerificateurCompose
         ) : [];
 
         if (! in_array('ALL', $retirees, true)) {
-            $erreurs[] = "Le service « {$nom} » ne retire pas toutes les capacités (cap_drop: ALL).";
+            $erreurs[] = "Le service « {$nom} » ne retire pas toutes les capacités (cap_drop: ALL).";
         }
 
         $options = is_array($service['security_opt'] ?? null) ? $service['security_opt'] : [];
 
         if (array_filter($options, fn (mixed $option) => Durcissement::estSecuriteAutorisee($option)) === []) {
-            $erreurs[] = "Le service « {$nom} » n'a pas no-new-privileges.";
+            $erreurs[] = "Le service « {$nom} » n'a pas no-new-privileges.";
         }
 
         if (! $this->contientCle($service['networks'] ?? null, Durcissement::RESEAU)) {
-            $erreurs[] = "Le service « {$nom} » n'est pas sur le réseau de la copie.";
+            $erreurs[] = "Le service « {$nom} » n'est pas sur le réseau de la copie.";
         }
 
         $journaux = is_array($service['logging'] ?? null) ? $service['logging'] : [];
@@ -486,7 +488,7 @@ final class VerificateurCompose
         if (($journaux['driver'] ?? null) !== self::JOURNAUX['driver']
             || (string) ($options['max-size'] ?? '') !== self::JOURNAUX['max-size']
             || (string) ($options['max-file'] ?? '') !== self::JOURNAUX['max-file']) {
-            $erreurs[] = "Le service « {$nom} » n'a pas le plafond de journaux de la copie.";
+            $erreurs[] = "Le service « {$nom} » n'a pas le plafond de journaux de la copie.";
         }
     }
 
@@ -516,7 +518,7 @@ final class VerificateurCompose
             }
 
             if ($cle !== 'resources') {
-                $erreurs[] = "Le service « {$nom} » utilise deploy.{$cle}, qui n'est pas autorisé.";
+                $erreurs[] = "Le service « {$nom} » utilise deploy.{$cle}, qui n'est pas autorisé.";
 
                 continue;
             }
@@ -527,7 +529,7 @@ final class VerificateurCompose
 
             foreach ($valeur as $sousCle => $contenu) {
                 if ($sousCle !== 'limits' && $contenu !== null && $contenu !== []) {
-                    $erreurs[] = "Le service « {$nom} » utilise deploy.resources.{$sousCle}, qui n'est pas autorisé.";
+                    $erreurs[] = "Le service « {$nom} » utilise deploy.resources.{$sousCle}, qui n'est pas autorisé.";
                 }
             }
         }
@@ -567,13 +569,13 @@ final class VerificateurCompose
 
         foreach (array_keys($build) as $cle) {
             if (! in_array((string) $cle, self::CLES_BUILD, true)) {
-                $erreurs[] = "Le service « {$nom} » utilise build.{$cle}, qui n'est pas autorisé.";
+                $erreurs[] = "Le service « {$nom} » utilise build.{$cle}, qui n'est pas autorisé.";
             }
         }
 
         foreach (['context', 'dockerfile'] as $cle) {
             if (isset($build[$cle]) && ! $this->cheminDansDepot($build[$cle])) {
-                $erreurs[] = "Le service « {$nom} » utilise un build.{$cle} hors du dépôt.";
+                $erreurs[] = "Le service « {$nom} » utilise un build.{$cle} hors du dépôt.";
             }
         }
     }
@@ -600,7 +602,7 @@ final class VerificateurCompose
             $chemin = is_array($fichier) ? ($fichier['path'] ?? null) : $fichier;
 
             if (! $this->cheminDansDepot($chemin)) {
-                $erreurs[] = "Le service « {$nom} » lit un env_file hors du dépôt.";
+                $erreurs[] = "Le service « {$nom} » lit un env_file hors du dépôt.";
             }
         }
     }
