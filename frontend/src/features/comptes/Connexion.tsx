@@ -4,6 +4,7 @@ import { isAxiosError } from 'axios'
 import { ArrowRight, CircleCheck, GitBranch, Mail } from 'lucide-react'
 import { useTitrePage } from '../../app/titre'
 import { demanderLien } from './api'
+import { ComptesDemo } from './ComptesDemo'
 import { lireErreurHttp, messageAction } from '../echange/api'
 import { Alerte, Bouton, Carte, ChoixPastilles, Champ, Saisie, classesBouton, cx } from '../../ui'
 import hero from '../../assets/accueil/hero.webp'
@@ -144,6 +145,8 @@ export function Connexion() {
               </Bouton>
             </form>
           )}
+
+          {import.meta.env.DEV ? <ComptesDemo /> : null}
 
           <p className="m-0 flex items-center gap-1.5 border-t border-bordure pt-4 text-petit text-texte-doux">
             Pas encore décidé ?
