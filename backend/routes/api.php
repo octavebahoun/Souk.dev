@@ -171,7 +171,7 @@ Route::patch('/messages/{message}', [MessageController::class, 'update'])->middl
 Route::delete('/messages/{message}', [MessageController::class, 'destroy'])->middleware(['auth:sanctum', 'compte.actif']);
 
 Route::get('/canaux', [CanalController::class, 'index']);
-Route::post('/canaux', [CanalController::class, 'store'])->middleware(['auth:sanctum', 'compte.actif']);
+Route::post('/canaux', [CanalController::class, 'store'])->middleware(['auth:sanctum', 'compte.actif', 'throttle:canaux']);
 
 Route::get('/etiquettes', [EtiquetteController::class, 'index']);
 

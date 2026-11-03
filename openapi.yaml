@@ -1177,7 +1177,7 @@ paths:
     post:
       tags: [Discussions]
       operationId: createCanal
-      summary: Créer un canal
+      summary: Créer un canal (3 par jour et par compte)
       requestBody:
         required: true
         content:
@@ -1191,6 +1191,7 @@ paths:
               schema: { $ref: '#/components/schemas/Canal' }
         '401': { $ref: '#/components/responses/NonConnecte' }
         '422': { $ref: '#/components/responses/Invalide' }
+        '429': { $ref: '#/components/responses/TropDeRequetes' }
         '419': { $ref: '#/components/responses/CsrfInvalide' }
 
   /etiquettes:

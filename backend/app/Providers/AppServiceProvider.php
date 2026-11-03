@@ -150,6 +150,9 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(300)->by($compte ? 'compte:'.$compte->getAuthIdentifier() : 'ip:'.$request->ip());
         });
 
+        // Un canal s'affiche chez tout le monde : 3 créations par jour et par compte.
+        RateLimiter::for('canaux', fn (Request $request) => Limit::perDay(3)->by((string) $request->user()?->getAuthIdentifier()));
+
         RateLimiter::for('discussions', function (Request $request) {
             return Limit::perHour(10)->by($request->user()?->id ?: $request->ip());
         });

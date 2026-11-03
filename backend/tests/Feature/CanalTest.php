@@ -44,4 +44,15 @@ final class CanalTest extends TestCase
     {
         $this->postJson('/api/canaux', ['nom' => 'Laravel'])->assertStatus(401);
     }
+
+    public function test_un_compte_cree_trois_canaux_par_jour_au_plus(): void
+    {
+        $compte = User::factory()->create();
+
+        foreach (['Flutter', 'Kotlin', 'Rust'] as $nom) {
+            $this->actingAs($compte)->postJson('/api/canaux', ['nom' => $nom])->assertCreated();
+        }
+
+        $this->actingAs($compte)->postJson('/api/canaux', ['nom' => 'Elixir'])->assertStatus(429);
+    }
 }

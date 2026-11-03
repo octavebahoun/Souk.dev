@@ -686,7 +686,7 @@ export interface paths {
         /** Liste des canaux */
         get: operations["listCanaux"];
         put?: never;
-        /** Créer un canal */
+        /** Créer un canal (3 par jour et par compte) */
         post: operations["createCanal"];
         delete?: never;
         options?: never;
@@ -4363,6 +4363,7 @@ export interface operations {
             401: components["responses"]["NonConnecte"];
             419: components["responses"]["CsrfInvalide"];
             422: components["responses"]["Invalide"];
+            429: components["responses"]["TropDeRequetes"];
         };
     };
     listEtiquettes: {
