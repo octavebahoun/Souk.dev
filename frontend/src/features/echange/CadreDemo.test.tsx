@@ -55,4 +55,12 @@ describe('CadreDemo', () => {
 
     expect(screen.getByTitle('Démo isolée')).toHaveAttribute('src', 'http://dtest3.localhost')
   })
+
+  it('ne met pas une démo en http:// dans le cadre : un lien vers un onglet à la place', () => {
+    afficher(discussion({ demo_url: 'http://demo.exemple.dev' }))
+
+    expect(screen.queryByTitle('Démo isolée')).not.toBeInTheDocument()
+    expect(screen.getByText(/pas servie en HTTPS/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Ouvrir dans un onglet/ })).toHaveAttribute('href', 'http://demo.exemple.dev')
+  })
 })
