@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link, useParams, useSearchParams } from 'react-router'
-import { CircleCheck, RotateCcw } from 'lucide-react'
+import { useState } from 'react'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
+import { CircleCheck, RotateCcw, Trash2 } from 'lucide-react'
 import { useTitrePage } from '../../app/titre'
-import { Alerte, Avatar, Badge, Bouton, Carte, EnTeteCarte, EtatErreur, EtatVide, FilAriane, LienBouton, Squelette } from '../../ui'
-import { modifierDiscussion, estIntrouvable, lireDiscussion, lireMoi, messageAction, type Discussion } from './api'
+import { Alerte, Avatar, Badge, Bouton, Carte, EnTeteCarte, EtatErreur, EtatVide, FilAriane, LienBouton, Modale, Squelette, useToast } from '../../ui'
+import { modifierDiscussion, estIntrouvable, lireDiscussion, lireMoi, messageAction, supprimerDiscussion, type Discussion } from './api'
 import { CadreDemo } from './CadreDemo'
 import { ColonneCorrectifs } from './ColonneCorrectifs'
 import { FilMessages } from './FilMessages'
@@ -44,6 +45,20 @@ export function PageDiscussion() {
   const marquer = useMutation({
     mutationFn: (resolue: boolean) => modifierDiscussion(id, { resolue }),
     onSuccess: (recue) => client.setQueryData(['discussion', id], recue),
+  })
+  const navigate = useNavigate()
+  const toast = useToast()
+  const [aSupprimer, setASupprimer] = useState(false)
+  const suppression = useMutation({
+    mutationFn: () => supprimerDiscussion(id),
+    onSuccess: () => {
+      setASupprimer(false)
+      client.removeQueries({ queryKey: ['discussion', id] })
+      void client.invalidateQueries({ queryKey: ['discussions'] })
+      toast.succes('Discussion supprimée.')
+      navigate('/echange')
+    },
+    onError: (erreur) => toast.erreur(messageAction(erreur, 'La discussion n’a pas pu être supprimée.')),
   })
 
   function changerPage(cle: 'messages' | 'correctifs', page: number) {
@@ -98,6 +113,8 @@ export function PageDiscussion() {
         <DiscussionChargee
           discussion={discussion.data}
           auteur={moi.data?.id === discussion.data.auteur.id}
+          moderateur={moi.data?.est_admin === true}
+          onSupprimer={() => setASupprimer(true)}
           connecte={moi.data != null}
           connecteId={moi.data?.id ?? null}
           pageMessages={lirePage(params, 'messages')}
@@ -108,6 +125,23 @@ export function PageDiscussion() {
           onResolue={(resolue) => marquer.mutate(resolue)}
         />
       ) : null}
+      <Modale
+        ouverte={aSupprimer}
+        onFermer={() => setASupprimer(false)}
+        taille="petite"
+        titre="Supprimer cette discussion ?"
+        description="Elle disparaît de l’Échange avec ses messages et ses correctifs. Cette action est définitive."
+        pied={
+          <>
+            <Bouton variante="contour" onClick={() => setASupprimer(false)}>
+              Garder
+            </Bouton>
+            <Bouton variante="danger" chargement={suppression.isPending} onClick={() => suppression.mutate()}>
+              Supprimer
+            </Bouton>
+          </>
+        }
+      />
     </div>
   )
 }
@@ -115,6 +149,8 @@ export function PageDiscussion() {
 function DiscussionChargee({
   discussion,
   auteur,
+  moderateur,
+  onSupprimer,
   connecte,
   connecteId,
   pageMessages,
@@ -126,6 +162,9 @@ function DiscussionChargee({
 }: {
   discussion: Discussion
   auteur: boolean
+  /** Compte de l'équipe : il supprime une discussion ou un message signalé. */
+  moderateur: boolean
+  onSupprimer: () => void
   connecte: boolean
   connecteId: number | null
   pageMessages: number
@@ -154,16 +193,23 @@ function DiscussionChargee({
       <header className="flex flex-col gap-4">
         <div className="flex flex-col gap-4 tablette:flex-row tablette:items-start tablette:justify-between">
           <h1 className="m-0 max-w-3xl text-titre-1 break-words text-titre">{discussion.titre}</h1>
-          {auteur ? (
-            discussion.resolue ? (
-              <Bouton variante="contour" className="shrink-0" icone={<RotateCcw aria-hidden="true" className="size-4" />} chargement={enCours} onClick={() => onResolue(false)}>
-                Rouvrir
+          {auteur || moderateur ? (
+            <div className="flex shrink-0 flex-wrap gap-2">
+              {auteur ? (
+                discussion.resolue ? (
+                  <Bouton variante="contour" icone={<RotateCcw aria-hidden="true" className="size-4" />} chargement={enCours} onClick={() => onResolue(false)}>
+                    Rouvrir
+                  </Bouton>
+                ) : (
+                  <Bouton variante="contour" icone={<CircleCheck aria-hidden="true" className="size-4" />} chargement={enCours} onClick={() => onResolue(true)}>
+                    Marquer comme résolue
+                  </Bouton>
+                )
+              ) : null}
+              <Bouton variante="fantome" icone={<Trash2 aria-hidden="true" className="size-4" />} onClick={onSupprimer}>
+                Supprimer
               </Bouton>
-            ) : (
-              <Bouton variante="contour" className="shrink-0" icone={<CircleCheck aria-hidden="true" className="size-4" />} chargement={enCours} onClick={() => onResolue(true)}>
-                Marquer comme résolue
-              </Bouton>
-            )
+            </div>
           ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-petit text-texte-doux">
@@ -235,6 +281,7 @@ function DiscussionChargee({
             page={pageMessages}
             onPage={(page) => onPage('messages', page)}
             connecteId={connecteId}
+            moderateur={moderateur}
           />
         </div>
         <ColonneCorrectifs

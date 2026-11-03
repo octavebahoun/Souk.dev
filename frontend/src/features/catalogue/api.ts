@@ -83,6 +83,21 @@ export async function creerEvenement(corps: EvenementCreation): Promise<Evenemen
   return data
 }
 
+export type EvenementModification = components['schemas']['EvenementModification']
+
+export async function modifierEvenement(id: number, corps: EvenementModification): Promise<Evenement> {
+  await preparerCsrf()
+  const { data } = await clientLocal.patch<Evenement>(cheminLaravel(`/events/${id}`), corps)
+  if (!data || typeof data.id !== 'number') throw new Error('Réponse vide')
+  return data
+}
+
+/** Annule l'événement : les inscrits reçoivent un e-mail. */
+export async function annulerEvenement(id: number): Promise<void> {
+  await preparerCsrf()
+  await clientLocal.delete(cheminLaravel(`/events/${id}`))
+}
+
 export async function inscrire(id: number): Promise<void> {
   await preparerCsrf()
   await clientLocal.post(cheminLaravel(`/events/${id}/inscription`))
@@ -223,4 +238,12 @@ export async function deployerAppli(id: number, variables: Record<string, string
   const { data } = await clientLocal.post<Deploiement>(cheminLaravel(`/apps/${id}/deployments`), { variables })
   if (!data || typeof data.id !== 'number') throw new Error('Réponse vide')
   return data
+}
+
+export type AppModification = components['schemas']['AppModification']
+
+/** Modifier une appli (auteur) : la formule ne vaut que pour les nouveaux déploiements. */
+export async function modifierAppli(id: number, corps: AppModification): Promise<void> {
+  await preparerCsrf()
+  await clientLocal.patch(cheminLaravel(`/apps/${id}`), corps)
 }

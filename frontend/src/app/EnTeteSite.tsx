@@ -72,7 +72,7 @@ function MenuDuCompte() {
       ),
     },
     { type: 'separateur' },
-    ...(compte.username ? [{ type: 'lien' as const, libelle: t.navigation.monProfil, vers: `/devs/${compte.username}`, icone: <UserRound aria-hidden="true" className="size-4 text-texte-doux" /> }] : []),
+    { type: 'lien', libelle: t.navigation.monProfil, vers: '/profil', icone: <UserRound aria-hidden="true" className="size-4 text-texte-doux" /> },
     { type: 'lien', libelle: t.navigation.tableau, vers: '/tableau', icone: <Gauge aria-hidden="true" className="size-4 text-texte-doux" /> },
     { type: 'lien', libelle: t.navigation.mesCopies, vers: '/copies', icone: <Server aria-hidden="true" className="size-4 text-texte-doux" /> },
     { type: 'lien', libelle: t.navigation.mesApplis, vers: '/publier', icone: <Package aria-hidden="true" className="size-4 text-texte-doux" /> },

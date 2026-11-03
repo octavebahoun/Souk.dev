@@ -5,7 +5,7 @@ import { Search, Sparkles } from 'lucide-react'
 import { useTitrePage } from '../../app/titre'
 import { listerDevs, proposerMissionDev, type DevResume, type Specialite } from './api'
 import { messageAction } from '../echange/api'
-import { useCompte } from '../../app/compte'
+import { useSelonCompte } from '../../app/compte'
 import { ModaleConnexion } from '../../app/ModaleConnexion'
 import { nomPays } from '../echange/texte'
 import {
@@ -96,7 +96,7 @@ export function Recherche() {
   useTitrePage('Trouver un dev')
   const [params, setParams] = useSearchParams()
   const [besoin, setBesoin] = useState('')
-  const compte = useCompte()
+  const selonCompte = useSelonCompte()
   const [cible, setCible] = useState<DevResume | null>(null)
   const [connexion, setConnexion] = useState(false)
   const filtres = {
@@ -223,7 +223,7 @@ export function Recherche() {
         <ul className="m-0 grid list-none gap-5 p-0 tablette:grid-cols-2 bureau:grid-cols-3">
           {liste.map((dev) => (
             <li key={dev.id} className="flex">
-              <CarteDev dev={dev} correspondance={avecBesoin ? scoreCorrespondance(dev, besoin) : null} onMission={() => (compte.data ? setCible(dev) : setConnexion(true))} />
+              <CarteDev dev={dev} correspondance={avecBesoin ? scoreCorrespondance(dev, besoin) : null} onMission={() => void selonCompte(() => setCible(dev), () => setConnexion(true))} />
             </li>
           ))}
         </ul>

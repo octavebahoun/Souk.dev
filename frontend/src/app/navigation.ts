@@ -1,4 +1,4 @@
-import { Bell, Briefcase, CalendarDays, CreditCard, Flag, Gauge, HardDrive, LayoutGrid, MessagesSquare, Package, Server, Settings, Shield, Users, Wallet, type LucideIcon } from 'lucide-react'
+import { Bell, Briefcase, CalendarDays, CreditCard, Flag, Gauge, HardDrive, LayoutGrid, MessagesSquare, Package, Server, Settings, Shield, UserRound, Users, Wallet, type LucideIcon } from 'lucide-react'
 import type { components } from '../shared/types/api'
 import { t } from '../i18n'
 
@@ -27,6 +27,7 @@ export const liensPrincipaux: LienNavigation[] = [
 /** Navigation de l'espace connecté (barre latérale). Une ligne s'ajoute quand l'écran existe. */
 export const liensEspace: LienNavigation[] = [
   { vers: '/tableau', libelle: t.navigation.tableau, icone: Gauge, visible: connecte },
+  { vers: '/profil', libelle: t.navigation.monProfil, icone: UserRound, visible: connecte },
   { vers: '/publier', libelle: t.navigation.mesApplis, icone: Package, visible: connecte },
   { vers: '/copies', libelle: t.navigation.mesCopies, icone: Server, visible: connecte },
   { vers: '/paiements', libelle: t.navigation.paiements, icone: CreditCard, visible: connecte },

@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { useParams } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import { Award, BadgeCheck, ExternalLink, MapPin, Send, Star } from 'lucide-react'
+import { useSelonCompte } from '../../app/compte'
 import { useTitrePage } from '../../app/titre'
 import { lireMoi, messageAction } from '../echange/api'
 import { nomPays } from '../echange/texte'
@@ -75,6 +76,7 @@ export function Profil() {
     enabled: username.length > 0,
   })
   const moi = useQuery({ queryKey: ['moi'], queryFn: lireMoi })
+  const selonCompte = useSelonCompte()
   const [mission, setMission] = useState(false)
   const [ouvertures, setOuvertures] = useState(0)
   const [connexion, setConnexion] = useState(false)
@@ -138,18 +140,24 @@ export function Profil() {
             ) : null}
             <div className="mt-1 flex flex-col gap-2 tablette:flex-row tablette:items-center">
               {moiMeme ? (
-                <LienBouton to="/tableau">Mon tableau de bord</LienBouton>
+                <>
+                  <LienBouton to="/profil">Modifier mon profil</LienBouton>
+                  <LienBouton to="/tableau" variante="contour">
+                    Mon tableau de bord
+                  </LienBouton>
+                </>
               ) : (
                 <Bouton
                   icone={<Send aria-hidden="true" className="size-4" />}
-                  onClick={() => {
-                    if (!moi.data) {
-                      setConnexion(true)
-                      return
-                    }
-                    setOuvertures((nombre) => nombre + 1)
-                    setMission(true)
-                  }}
+                  onClick={() =>
+                    void selonCompte(
+                      () => {
+                        setOuvertures((nombre) => nombre + 1)
+                        setMission(true)
+                      },
+                      () => setConnexion(true),
+                    )
+                  }
                 >
                   Proposer une mission
                 </Bouton>

@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import { ExternalLink, Lock } from 'lucide-react'
 import { useTitrePage } from '../../app/titre'
-import { useCompte } from '../../app/compte'
+import { useCompte, useSelonCompte } from '../../app/compte'
 import { fcfa, libelleCategorie, lireAppli, listerDiscussionsAppli, proposerMissionAppli } from './api'
 import { BadgeSecurite } from './BadgeSecurite'
 import { messageAction } from '../echange/api'
@@ -12,6 +12,7 @@ import { formules } from '../paiements/formules'
 import { RapportSecurite } from '../securite/RapportSecurite'
 import { AvisClients } from './AvisClients'
 import { VersionsAppli } from './VersionsAppli'
+import { MesureMemoire } from './MesureMemoire'
 import { Signaler } from '../admin/Signaler'
 import { ModaleConnexion } from '../../app/ModaleConnexion'
 import {
@@ -44,6 +45,7 @@ import {
  */
 export function Fiche() {
   const compte = useCompte()
+  const selonCompte = useSelonCompte()
   const { id = '' } = useParams()
   // Clé numérique, comme la commande et le rapport de sécurité : une invalidation les touche tous.
   const appli = useQuery({
@@ -183,14 +185,15 @@ export function Fiche() {
               <Bouton
                 variante="fantome"
                 pleineLargeur
-                onClick={() => {
-                  if (!compte.data) {
-                    setConnexion(true)
-                    return
-                  }
-                  setOuvertures((nombre) => nombre + 1)
-                  setMission(true)
-                }}
+                onClick={() =>
+                  void selonCompte(
+                    () => {
+                      setOuvertures((nombre) => nombre + 1)
+                      setMission(true)
+                    },
+                    () => setConnexion(true),
+                  )
+                }
               >
                 Demander une version sur mesure
               </Bouton>
@@ -263,6 +266,8 @@ export function Fiche() {
           </Carte>
 
           <RapportSecurite appId={fiche.id} securite={fiche.securite} estAuteur={estAuteur} />
+
+          <MesureMemoire appId={fiche.id} taille={fiche.taille} mesure={fiche.mesure} estAuteur={estAuteur} />
 
           <AvisClients appId={fiche.id} noteMoyenne={fiche.note_moyenne} nbAvis={fiche.nb_avis} />
 

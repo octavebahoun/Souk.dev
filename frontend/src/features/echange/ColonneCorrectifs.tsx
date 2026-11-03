@@ -2,6 +2,7 @@ import { useCallback, useState, type FormEvent } from 'react'
 import { Link } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ExternalLink, GitPullRequestArrow } from 'lucide-react'
+import { useSelonCompte } from '../../app/compte'
 import { ModaleConnexion } from '../../app/ModaleConnexion'
 import { Alerte, Avatar, Badge, Bouton, Carte, Champ, EtatErreur, Modale, Pagination, Saisie, Squelette, ZoneTexte, classesBouton, cx } from '../../ui'
 import {
@@ -47,9 +48,14 @@ export function ColonneCorrectifs({ discussion, auteur, page, onPage }: ColonneC
   const fermerProposition = useCallback(() => setProposer(false), [])
   const fermerAcceptation = useCallback(() => setAAccepter(null), [])
   const moi = useQuery({ queryKey: ['moi'], queryFn: lireMoi })
+  const selonCompte = useSelonCompte()
   const correctifs = useQuery({
     queryKey: ['correctifs', discussion.id, page],
     queryFn: () => listerCorrectifs(discussion.id, page),
+    // Une version corrigée en construction se relit jusqu'à son état final, même si un
+    // événement temps réel est parti avant l'abonnement de la page.
+    refetchInterval: (requete) =>
+      requete.state.data?.data.some((correctif) => ['en_file', 'construction', 'demarrage', 'arret_en_cours'].includes(correctif.deploiement?.etat ?? '')) ? 4000 : false,
   })
   const dejaAccepte = correctifs.data?.data.some((correctif) => correctif.accepte) ?? discussion.resolue
   const analyse = discussion.analyse_ia
@@ -148,7 +154,7 @@ export function ColonneCorrectifs({ discussion, auteur, page, onPage }: ColonneC
       {correctifs.data ? <Pagination libelle="Pages des correctifs" page={page} dernierePage={correctifs.data.meta.last_page} onChange={onPage} /> : null}
 
       <div className="flex flex-col gap-2">
-        <Bouton variante="secondaire" pleineLargeur icone={<GitPullRequestArrow aria-hidden="true" className="size-4" />} onClick={() => (moi.data ? setProposer(true) : setConnexion(true))}>
+        <Bouton variante="secondaire" pleineLargeur icone={<GitPullRequestArrow aria-hidden="true" className="size-4" />} onClick={() => void selonCompte(() => setProposer(true), () => setConnexion(true))}>
           Proposer un correctif
         </Bouton>
         <p className="m-0 text-petit text-texte-doux">Un correctif, c’est l’URL de votre branche. Un seul correctif peut être accepté par discussion.</p>
@@ -239,16 +245,19 @@ function CorrectifCarte({
   moiId: number | null
   onAccepter: () => void
 }) {
-  const [deploiement, setDeploiement] = useState(correctif.deploiement)
+  const cache = useQueryClient()
   const [erreurLancement, setErreurLancement] = useState<string | null>(null)
   const lancer = useMutation({
     mutationFn: () => deployerCorrectif(correctif.id),
-    onSuccess: (recu) => {
-      setDeploiement(recu)
+    onSuccess: () => {
       setErreurLancement(null)
+      void cache.invalidateQueries({ queryKey: ['correctifs', correctif.discussion_id] })
     },
     onError: (erreur) => setErreurLancement(messageAction(erreur, '3 déploiements par heure. Réessayez plus tard.')),
   })
+  // L'état vient des données relues (temps réel ou relecture) ; la réponse du lancement sert
+  // seulement le temps que la liste se relise.
+  const deploiement = correctif.deploiement ?? lancer.data ?? null
   const mien = moiId !== null && moiId === correctif.auteur.id
 
   const nom = nomAuteur(correctif.auteur.nom, correctif.auteur.username)

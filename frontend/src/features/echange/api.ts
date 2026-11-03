@@ -190,3 +190,24 @@ export function lireErreurHttp(erreur: unknown, secours = 'La publication a éch
 
   return { statut, message, champs }
 }
+
+export type CanalCreation = components['schemas']['CanalCreation']
+
+export async function creerCanal(corps: CanalCreation): Promise<Canal> {
+  await preparerCsrf()
+  const { data } = await clientLocal.post<Canal>(cheminLaravel('/canaux'), corps)
+  if (!data || typeof data.slug !== 'string') throw new Error('Réponse vide')
+  return data
+}
+
+/** Supprimer une discussion (son auteur ou l'équipe de modération). */
+export async function supprimerDiscussion(id: number): Promise<void> {
+  await preparerCsrf()
+  await clientLocal.delete(cheminLaravel(`/discussions/${id}`))
+}
+
+/** Supprimer un message (son auteur ou l'équipe de modération). */
+export async function supprimerMessage(id: number): Promise<void> {
+  await preparerCsrf()
+  await clientLocal.delete(cheminLaravel(`/messages/${id}`))
+}

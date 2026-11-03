@@ -14,4 +14,5 @@ export function brancherComptes(routes: RouteObject[]) {
   remplacer(routes, '/connexion', async () => ({ Component: (await import('./Connexion')).Connexion }))
   remplacer(routes, '/devs/:username', async () => ({ Component: (await import('./Profil')).Profil }))
   remplacer(routes, '/tableau', async () => ({ Component: (await import('./Tableau')).Tableau }))
+  remplacer(routes, '/profil', async () => ({ Component: (await import('./ModifierProfil')).ModifierProfil }))
 }

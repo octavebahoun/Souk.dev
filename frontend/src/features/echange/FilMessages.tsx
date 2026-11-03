@@ -1,9 +1,9 @@
 import { useState, type KeyboardEvent } from 'react'
 import { Link } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Send } from 'lucide-react'
-import { Alerte, Avatar, Badge, Bouton, Carte, Champ, EnTeteCarte, EtatErreur, LienBouton, Pagination, SqueletteLignes, ZoneTexte } from '../../ui'
-import { creerMessage, listerMessages, lireErreurHttp, messageAction } from './api'
+import { Send, Trash2 } from 'lucide-react'
+import { Alerte, Avatar, Badge, Bouton, BoutonIcone, Carte, Champ, EnTeteCarte, EtatErreur, LienBouton, Modale, Pagination, SqueletteLignes, ZoneTexte, useToast } from '../../ui'
+import { creerMessage, listerMessages, lireErreurHttp, messageAction, supprimerMessage } from './api'
 import { Signaler } from '../admin/Signaler'
 import { ilYA, nomAuteur } from './texte'
 import { TexteMarkdown } from './TexteMarkdown'
@@ -14,10 +14,24 @@ type FilMessagesProps = {
   page: number
   onPage: (page: number) => void
   connecteId: number | null
+  /** Compte de l'équipe : il supprime n'importe quel message. */
+  moderateur?: boolean
 }
 
-export function FilMessages({ discussionId, auteurId, page, onPage, connecteId }: FilMessagesProps) {
+export function FilMessages({ discussionId, auteurId, page, onPage, connecteId, moderateur = false }: FilMessagesProps) {
   const client = useQueryClient()
+  const toast = useToast()
+  const [aSupprimer, setASupprimer] = useState<number | null>(null)
+  const suppression = useMutation({
+    mutationFn: (id: number) => supprimerMessage(id),
+    onSuccess: async () => {
+      setASupprimer(null)
+      toast.succes('Message supprimé.')
+      await client.invalidateQueries({ queryKey: ['messages', discussionId] })
+      await client.invalidateQueries({ queryKey: ['discussion', discussionId] })
+    },
+    onError: (erreur) => toast.erreur(messageAction(erreur, 'Le message n’a pas pu être supprimé.')),
+  })
   const [texte, setTexte] = useState('')
   const [erreurLocale, setErreurLocale] = useState<string | null>(null)
   const [erreurServeur, setErreurServeur] = useState<string | null>(null)
@@ -94,9 +108,14 @@ export function FilMessages({ discussionId, auteurId, page, onPage, connecteId }
                     )}
                     {message.auteur.id === auteurId ? <Badge ton="marque">auteur</Badge> : null}
                     <time dateTime={message.cree_le}>{ilYA(message.cree_le)}</time>
-                    {connecteId != null && connecteId !== message.auteur.id ? (
-                      <span className="ml-auto">
-                        <Signaler cible="message" cibleId={message.id} etiquette="ce message" />
+                    {connecteId != null ? (
+                      <span className="ml-auto flex items-center gap-1">
+                        {connecteId !== message.auteur.id ? <Signaler cible="message" cibleId={message.id} etiquette="ce message" /> : null}
+                        {moderateur || connecteId === message.auteur.id ? (
+                          <BoutonIcone libelle={`Supprimer le message de ${nom}`} onClick={() => setASupprimer(message.id)}>
+                            <Trash2 aria-hidden="true" className="size-4" />
+                          </BoutonIcone>
+                        ) : null}
                       </span>
                     ) : null}
                   </div>
@@ -134,6 +153,23 @@ export function FilMessages({ discussionId, auteurId, page, onPage, connecteId }
         </Bouton>
       </form>
       )}
+      <Modale
+        ouverte={aSupprimer !== null}
+        onFermer={() => setASupprimer(null)}
+        taille="petite"
+        titre="Supprimer ce message ?"
+        description="Il disparaît de la discussion. Cette action est définitive."
+        pied={
+          <>
+            <Bouton variante="contour" onClick={() => setASupprimer(null)}>
+              Garder
+            </Bouton>
+            <Bouton variante="danger" chargement={suppression.isPending} onClick={() => aSupprimer !== null && suppression.mutate(aSupprimer)}>
+              Supprimer
+            </Bouton>
+          </>
+        }
+      />
     </Carte>
   )
 }

@@ -3,14 +3,15 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useSearchParams } from 'react-router'
 import { Plus } from 'lucide-react'
 import { useTitrePage } from '../../app/titre'
-import { listerCanaux, listerDiscussions, listerEtiquettes, messageAction, type Discussion } from './api'
+import { listerCanaux, listerDiscussions, listerEtiquettes, messageAction, type Canal, type Discussion } from './api'
 import { CarteDiscussion } from './CarteDiscussion'
 import { nomPays } from './texte'
 import { FormulaireDiscussion } from './FormulaireDiscussion'
+import { FormulaireCanal } from './FormulaireCanal'
 import { correspond, ecrireFiltres, filtresActifs, lireFiltres, type FiltresFil } from './filtres'
 import { libelleDifficulte } from './presentation'
 import { useBandeau } from './tempsReel'
-import { useCompte } from '../../app/compte'
+import { useSelonCompte } from '../../app/compte'
 import { ModaleConnexion } from '../../app/ModaleConnexion'
 import { AvisDonneesPartielles, Bouton, Champ, ChoixPastilles, EnTetePage, EtatErreur, EtatVide, Liste, Modale, Pagination, PuceFiltre, SqueletteListe, cx, useToast } from '../../ui'
 
@@ -31,9 +32,10 @@ export function Fil() {
   const filtres = lireFiltres(params)
   const actifs = filtresActifs(filtres)
   const queryClient = useQueryClient()
-  const compte = useCompte()
+  const selonCompte = useSelonCompte()
   const [ouverte, setOuverte] = useState(false)
-  const [connexion, setConnexion] = useState(false)
+  const [connexion, setConnexion] = useState<string | null>(null)
+  const [nouveauCanal, setNouveauCanal] = useState(0)
   const [epinglees, setEpinglees] = useState<Discussion[]>([])
   const bandeau = useBandeau(filtres)
   const fermer = useCallback(() => setOuverte(false), [])
@@ -47,8 +49,19 @@ export function Fil() {
 
   // Publier une discussion demande un compte : un visiteur l'apprend avant de remplir le formulaire.
   function nouvelle() {
-    if (compte.data) setOuverte(true)
-    else setConnexion(true)
+    void selonCompte(() => setOuverte(true), () => setConnexion('publier une discussion'))
+  }
+
+  // Le compteur remonte un formulaire vierge à chaque ouverture (0 : fermé).
+  function ouvrirCanal() {
+    void selonCompte(() => setNouveauCanal((nombre) => Math.abs(nombre) + 1), () => setConnexion('créer un canal'))
+  }
+
+  function canalCree(canal: Canal) {
+    setNouveauCanal((nombre) => -Math.abs(nombre))
+    void queryClient.invalidateQueries({ queryKey: ['canaux'] })
+    changer({ canal: canal.slug })
+    toast.succes(`Canal #${canal.slug} créé.`)
   }
 
   function changer(partiel: Partial<FiltresFil>) {
@@ -101,7 +114,7 @@ export function Fil() {
       />
 
       <div className="flex flex-col gap-6 tablette:flex-row tablette:items-start">
-        <Canaux generaux={generaux} parPays={parPays} canalActif={filtres.canal} onChoisir={(canal) => changer({ canal })} />
+        <Canaux generaux={generaux} parPays={parPays} canalActif={filtres.canal} onChoisir={(canal) => changer({ canal })} onCreer={ouvrirCanal} />
 
         <section aria-labelledby="titre-fil" className="flex min-w-0 flex-1 flex-col gap-4">
           <h2 id="titre-fil" className="pour-lecteur">
@@ -203,7 +216,10 @@ export function Fil() {
       <Modale ouverte={ouverte} onFermer={fermer} titre="Nouvelle discussion" description="Un bug, une question, un tuto : avec votre dépôt, d’autres devs peuvent proposer un correctif." taille="grande">
         <FormulaireDiscussion canaux={canaux.data ?? []} canalInitial={filtres.canal} onAnnuler={fermer} onPubliee={publiee} />
       </Modale>
-      <ModaleConnexion ouverte={connexion} onFermer={() => setConnexion(false)} action="publier une discussion" />
+      <Modale ouverte={nouveauCanal > 0} onFermer={() => setNouveauCanal((nombre) => -Math.abs(nombre))} titre="Créer un canal" description="Un canal regroupe les discussions d’un sujet ou d’un pays.">
+        <FormulaireCanal key={Math.abs(nouveauCanal)} onAnnuler={() => setNouveauCanal((nombre) => -Math.abs(nombre))} onCree={canalCree} />
+      </Modale>
+      <ModaleConnexion ouverte={connexion !== null} onFermer={() => setConnexion(null)} action={connexion ?? 'publier une discussion'} />
     </div>
   )
 }
@@ -215,11 +231,13 @@ function Canaux({
   parPays,
   canalActif,
   onChoisir,
+  onCreer,
 }: {
   generaux: CanalListe[]
   parPays: CanalListe[]
   canalActif?: string
   onChoisir: (canal?: string) => void
+  onCreer: () => void
 }) {
   return (
     <div className="w-full min-w-0 tablette:sticky tablette:top-24 tablette:w-56 tablette:shrink-0">
@@ -242,6 +260,9 @@ function Canaux({
             </span>
           </BoutonCanal>
         ))}
+        <Bouton variante="fantome" taille="sm" icone={<Plus aria-hidden="true" className="size-4" />} onClick={onCreer} className="mt-3 justify-start">
+          Créer un canal
+        </Bouton>
       </div>
       <div className="tablette:hidden">
         <Champ libelle="Canal">
@@ -265,6 +286,9 @@ function Canaux({
             </Liste>
           )}
         </Champ>
+        <Bouton variante="fantome" taille="sm" icone={<Plus aria-hidden="true" className="size-4" />} onClick={onCreer} className="mt-2">
+          Créer un canal
+        </Bouton>
       </div>
     </div>
   )

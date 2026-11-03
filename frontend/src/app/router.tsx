@@ -47,6 +47,7 @@ export function creerRoutes(): RouteObject[] {
             element: <LayoutEspace />,
             children: [
               { path: '/tableau', element: <PageEnAttente titre="Tableau de bord" /> },
+              { path: '/profil', element: <PageEnAttente titre="Mon profil" /> },
               { path: '/missions', lazy: async () => ({ Component: (await import('../features/catalogue/Missions')).Missions }) },
               { path: '/publier', lazy: async () => ({ Component: (await import('../features/catalogue/Publier')).Publier }) },
               { path: '/copies', lazy: async () => ({ Component: (await import('../features/deploiements/MesCopies')).MesCopies }) },

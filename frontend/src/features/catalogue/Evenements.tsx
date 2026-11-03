@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router'
 import { CalendarPlus, MapPin, Star, Video } from 'lucide-react'
 import { useTitrePage } from '../../app/titre'
-import { creerEvenement, desinscrire, inscrire, listerEvenements, posterAvis, type Evenement } from './api'
+import { annulerEvenement, creerEvenement, modifierEvenement, desinscrire, inscrire, listerEvenements, posterAvis, type Evenement } from './api'
 import { lireMoi, messageAction } from '../echange/api'
 import { Signaler } from '../admin/Signaler'
 import {
@@ -48,14 +48,33 @@ export function Evenements() {
   const [ouvert, setOuvert] = useState(false)
   // Chaque ouverture repart d'un formulaire vierge (format, erreur).
   const [ouvertures, setOuvertures] = useState(0)
+  const [enModification, setEnModification] = useState<Evenement | null>(null)
+  const [aAnnuler, setAAnnuler] = useState<Evenement | null>(null)
+  const [annulation, setAnnulation] = useState(false)
   const [maintenant] = useState(() => Date.now())
   const liste = (query.data?.data ?? []).filter((item) => filtre === 'tous' || item.type === filtre)
   const aVenir = liste.filter((item) => new Date(item.date).getTime() >= maintenant)
   const passes = liste.filter((item) => new Date(item.date).getTime() < maintenant)
 
-  function ouvrir() {
+  function ouvrir(evenement: Evenement | null = null) {
+    setEnModification(evenement)
     setOuvertures((nombre) => nombre + 1)
     setOuvert(true)
+  }
+
+  async function annuler() {
+    if (!aAnnuler) return
+    setAnnulation(true)
+    try {
+      await annulerEvenement(aAnnuler.id)
+      await client.invalidateQueries({ queryKey: ['evenements'] })
+      toast.succes(aAnnuler.nb_inscrits > 0 ? 'Événement annulé : les inscrits sont prévenus par e-mail.' : 'Événement annulé.')
+      setAAnnuler(null)
+    } catch (erreurHttp) {
+      toast.erreur(messageAction(erreurHttp, 'L’annulation a échoué.'))
+    } finally {
+      setAnnulation(false)
+    }
   }
 
   async function basculer(item: Evenement) {
@@ -75,7 +94,7 @@ export function Evenements() {
         titre="Événements"
         description="Ateliers en ligne et rencontres près de chez vous, organisés par les devs de la communauté."
         actions={
-          <Bouton icone={<CalendarPlus aria-hidden="true" className="size-4" />} onClick={ouvrir}>
+          <Bouton icone={<CalendarPlus aria-hidden="true" className="size-4" />} onClick={() => ouvrir()}>
             Créer un événement
           </Bouton>
         }
@@ -90,7 +109,7 @@ export function Evenements() {
           illustration="vide-evenements"
           titre="Aucun événement de ce type pour l’instant"
           description="Un atelier, une rencontre, une revue de code : pourquoi pas le vôtre ?"
-          action={<Bouton onClick={ouvrir}>Créer un événement</Bouton>}
+          action={<Bouton onClick={() => ouvrir()}>Créer un événement</Bouton>}
         />
       ) : null}
 
@@ -101,7 +120,14 @@ export function Evenements() {
           </h2>
           <ul className="m-0 flex list-none flex-col gap-3 p-0">
             {aVenir.map((item) => (
-              <CarteEvenement key={item.id} item={item} onBasculer={() => void basculer(item)} connecteId={moi.data?.id ?? null} />
+              <CarteEvenement
+                key={item.id}
+                item={item}
+                onBasculer={() => void basculer(item)}
+                connecteId={moi.data?.id ?? null}
+                onModifier={() => ouvrir(item)}
+                onAnnuler={() => setAAnnuler(item)}
+              />
             ))}
           </ul>
         </section>
@@ -120,12 +146,48 @@ export function Evenements() {
         </section>
       ) : null}
 
-      <Formulaire key={ouvertures} ouvert={ouvert} onFermer={() => setOuvert(false)} />
+      <Formulaire key={ouvertures} ouvert={ouvert} evenement={enModification} onFermer={() => setOuvert(false)} />
+      <Modale
+        ouverte={aAnnuler !== null}
+        onFermer={() => setAAnnuler(null)}
+        taille="petite"
+        titre="Annuler cet événement ?"
+        description={
+          aAnnuler && aAnnuler.nb_inscrits > 0
+            ? `« ${aAnnuler.titre} » disparaît de la liste et ${aAnnuler.nb_inscrits === 1 ? 'la personne inscrite reçoit' : `les ${aAnnuler.nb_inscrits} inscrits reçoivent`} un e-mail d’annulation.`
+            : `« ${aAnnuler?.titre ?? ''} » disparaît de la liste. Personne n’est encore inscrit.`
+        }
+        pied={
+          <>
+            <Bouton variante="contour" onClick={() => setAAnnuler(null)}>
+              Garder l’événement
+            </Bouton>
+            <Bouton variante="danger" chargement={annulation} onClick={() => void annuler()}>
+              Annuler l’événement
+            </Bouton>
+          </>
+        }
+      />
     </div>
   )
 }
 
-function CarteEvenement({ item, passe = false, onBasculer, connecteId }: { item: Evenement; passe?: boolean; onBasculer?: () => void; connecteId: number | null }) {
+function CarteEvenement({
+  item,
+  passe = false,
+  onBasculer,
+  connecteId,
+  onModifier,
+  onAnnuler,
+}: {
+  item: Evenement
+  passe?: boolean
+  onBasculer?: () => void
+  connecteId: number | null
+  onModifier?: () => void
+  onAnnuler?: () => void
+}) {
+  const organisateur = connecteId != null && connecteId === item.organisateur.id
   const date = new Date(item.date)
   const mois = date.toLocaleDateString('fr-FR', { month: 'short' }).replace('.', '')
   const heure = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
@@ -173,7 +235,16 @@ function CarteEvenement({ item, passe = false, onBasculer, connecteId }: { item:
         {passe && connecteId != null && item.inscrit ? <AvisFormulaire id={item.id} /> : null}
       </div>
       <div className="flex shrink-0 flex-row items-center justify-between gap-2 border-t border-bordure pt-3 tablette:flex-col tablette:items-end tablette:justify-start tablette:border-t-0 tablette:pt-0">
-        {!passe && onBasculer ? (
+        {!passe && organisateur && onModifier && onAnnuler ? (
+          <div className="flex flex-wrap gap-2 tablette:justify-end">
+            <Bouton variante="contour" onClick={onModifier}>
+              Modifier
+            </Bouton>
+            <Bouton variante="fantome" onClick={onAnnuler}>
+              Annuler l’événement
+            </Bouton>
+          </div>
+        ) : !passe && onBasculer ? (
           <Bouton variante={item.inscrit ? 'contour' : 'primaire'} onClick={onBasculer}>
             {item.inscrit ? 'Se désinscrire' : 'S’inscrire'}
           </Bouton>
@@ -234,17 +305,24 @@ function AvisFormulaire({ id }: { id: number }) {
   )
 }
 
-function Formulaire({ ouvert, onFermer }: { ouvert: boolean; onFermer: () => void }) {
+/** Valeur d'un champ datetime-local (heure locale, à la minute). */
+function dateLocale(iso: string): string {
+  const date = new Date(iso)
+  const decalage = date.getTimezoneOffset() * 60_000
+  return new Date(date.getTime() - decalage).toISOString().slice(0, 16)
+}
+
+function Formulaire({ ouvert, evenement, onFermer }: { ouvert: boolean; evenement: Evenement | null; onFermer: () => void }) {
   const client = useQueryClient()
   const toast = useToast()
   const moi = useQuery({ queryKey: ['moi'], queryFn: lireMoi })
   const [erreur, setErreur] = useState<string | null>(null)
-  const [type, setType] = useState<'en_ligne' | 'presentiel' | null>(null)
+  const [type, setType] = useState<'en_ligne' | 'presentiel' | null>(evenement?.type ?? null)
   const [envoi, setEnvoi] = useState(false)
 
-  async function envoyer(evenement: FormEvent<HTMLFormElement>) {
-    evenement.preventDefault()
-    const donnees = new FormData(evenement.currentTarget)
+  async function envoyer(soumission: FormEvent<HTMLFormElement>) {
+    soumission.preventDefault()
+    const donnees = new FormData(soumission.currentTarget)
     const date = new Date(String(donnees.get('date') ?? ''))
     if (!Number.isFinite(date.getTime())) {
       setErreur('Choisissez une date et une heure valides.')
@@ -260,20 +338,22 @@ function Formulaire({ ouvert, onFermer }: { ouvert: boolean; onFermer: () => voi
     }
     setEnvoi(true)
     setErreur(null)
+    const corps = {
+      titre: String(donnees.get('titre') ?? ''),
+      description: String(donnees.get('description') ?? ''),
+      date: date.toISOString(),
+      type,
+      lieu: type === 'presentiel' ? String(donnees.get('lieu') ?? '').trim() : undefined,
+      lien: type === 'en_ligne' ? String(donnees.get('lien') ?? '').trim() : undefined,
+    }
     try {
-      await creerEvenement({
-        titre: String(donnees.get('titre') ?? ''),
-        description: String(donnees.get('description') ?? ''),
-        date: date.toISOString(),
-        type,
-        lieu: type === 'presentiel' ? String(donnees.get('lieu') ?? '').trim() : undefined,
-        lien: type === 'en_ligne' ? String(donnees.get('lien') ?? '').trim() : undefined,
-      })
+      if (evenement) await modifierEvenement(evenement.id, corps)
+      else await creerEvenement(corps)
       await client.invalidateQueries({ queryKey: ['evenements'] })
-      toast.succes('Événement créé.')
+      toast.succes(evenement ? 'Événement modifié.' : 'Événement créé.')
       onFermer()
     } catch (erreurHttp) {
-      setErreur(messageAction(erreurHttp, 'La création a échoué.'))
+      setErreur(messageAction(erreurHttp, evenement ? 'La modification a échoué.' : 'La création a échoué.'))
     } finally {
       setEnvoi(false)
     }
@@ -306,28 +386,28 @@ function Formulaire({ ouvert, onFermer }: { ouvert: boolean; onFermer: () => voi
     <Modale
       ouverte={ouvert}
       onFermer={onFermer}
-      titre="Créer un événement"
-      description="Il apparaît tout de suite dans la liste ; vous pourrez le modifier ou l’annuler ensuite."
+      titre={evenement ? 'Modifier l’événement' : 'Créer un événement'}
+      description={evenement ? 'Les changements apparaissent tout de suite dans la liste.' : "Il apparaît tout de suite dans la liste ; vous pourrez le modifier ou l’annuler ensuite."}
       pied={
         <>
           <Bouton variante="contour" onClick={onFermer}>
             Annuler
           </Bouton>
           <Bouton type="submit" form="creer-evenement" chargement={envoi}>
-            Créer l’événement
+            {evenement ? 'Enregistrer' : 'Créer l’événement'}
           </Bouton>
         </>
       }
     >
-      <form id="creer-evenement" onSubmit={(evenement) => void envoyer(evenement)} className="flex flex-col gap-4">
+      <form id="creer-evenement" onSubmit={(soumission) => void envoyer(soumission)} className="flex flex-col gap-4">
         <Champ libelle="Titre">
-          {(liaison) => <Saisie {...liaison} name="titre" required maxLength={200} placeholder="Ex. : Atelier Laravel à Cotonou" data-autofocus />}
+          {(liaison) => <Saisie {...liaison} name="titre" required maxLength={200} defaultValue={evenement?.titre} placeholder="Ex. : Atelier Laravel à Cotonou" data-autofocus />}
         </Champ>
         <Champ libelle="Description">
-          {(liaison) => <ZoneTexte {...liaison} name="description" required maxLength={10000} rows={3} placeholder="Le sujet, et ce que les participants vont apprendre…" />}
+          {(liaison) => <ZoneTexte {...liaison} name="description" required maxLength={10000} rows={3} defaultValue={evenement?.description} placeholder="Le sujet, et ce que les participants vont apprendre…" />}
         </Champ>
         <Champ libelle="Date et heure">
-          {(liaison) => <Saisie {...liaison} name="date" required type="datetime-local" />}
+          {(liaison) => <Saisie {...liaison} name="date" required type="datetime-local" defaultValue={evenement ? dateLocale(evenement.date) : undefined} />}
         </Champ>
         <ChoixCartes
           nom="format-evenement"
@@ -345,12 +425,12 @@ function Formulaire({ ouvert, onFermer }: { ouvert: boolean; onFermer: () => voi
         />
         {type === 'presentiel' ? (
           <Champ libelle="Lieu">
-            {(liaison) => <Saisie {...liaison} name="lieu" required maxLength={200} placeholder="Ex. : Cotonou, Haie Vive" />}
+            {(liaison) => <Saisie {...liaison} name="lieu" required maxLength={200} defaultValue={evenement?.lieu ?? undefined} placeholder="Ex. : Cotonou, Haie Vive" />}
           </Champ>
         ) : null}
         {type === 'en_ligne' ? (
           <Champ libelle="Lien de la rencontre" aide="Visible des seuls inscrits.">
-            {(liaison) => <Saisie {...liaison} name="lien" required type="url" placeholder="https://meet.google.com/abc-defg-hij" />}
+            {(liaison) => <Saisie {...liaison} name="lien" required type="url" defaultValue={evenement?.lien ?? undefined} placeholder="https://meet.google.com/abc-defg-hij" />}
           </Champ>
         ) : null}
         {erreur ? <Alerte ton="danger">{erreur}</Alerte> : null}
