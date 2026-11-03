@@ -42,23 +42,23 @@ function Liste({ elements }: { elements: string[] }) {
 
 export function Cgu() {
   return (
-    <PageLegale titre="Conditions d’utilisation" description="Les règles du service Souk.dev : comptes, publications, échange et modération.">
+    <PageLegale titre="Conditions d’utilisation" description="Les règles du service Souk.dev : comptes, publications, échange et modération.">
       <Titre>1. Le service</Titre>
       <Paragraphe>
-        Souk.dev est le marché des développeurs africains : ils y publient leurs applications, que chacun peut déployer en un clic (une copie
+        Souk.dev est le marché des développeurs africains : ils y publient leurs applications, que chacun peut déployer en un clic (une copie
         isolée par client), et un espace d’échange leur ouvre entraide, missions et revenus. Poster un problème, lire un dépôt et proposer un
         correctif sont gratuits et ne déclenchent aucun déploiement.
       </Paragraphe>
       <Titre>2. Comptes</Titre>
       <Paragraphe>
-        L’entrée « Développeur » se fait par GitHub, l’entrée « Entreprise, agence, particulier » par lien magique envoyé par e-mail. Un seul
-        compte par personne : le choix d’entrée oriente la connexion et la page d’arrivée, sans étiquette définitive. GitHub n’est obligatoire que
+        L’entrée « Développeur » se fait par GitHub, l’entrée « Entreprise, agence, particulier » par lien magique envoyé par e-mail. Un seul
+        compte par personne : le choix d’entrée oriente la connexion et la page d’arrivée, sans étiquette définitive. GitHub n’est obligatoire que
         pour publier une application ou proposer un correctif. Seuls les dépôts publics sont acceptés.
       </Paragraphe>
       <Titre>3. Contenus publiés</Titre>
       <Paragraphe>
         En publiant (application, discussion, message, correctif, événement), le membre garantit qu’il a le droit de le faire et que le contenu
-        respecte la loi et la politique d’abus. Les applications sont analysées avant publication (secrets, dépendances) : un secret bloque la
+        respecte la loi et la politique d’abus. Les applications sont analysées avant publication (secrets, dépendances) : un secret bloque la
         publication, des failles connues donnent un badge orange avec le rapport.
       </Paragraphe>
       <Titre>4. Modération</Titre>
@@ -69,7 +69,7 @@ export function Cgu() {
       <Titre>5. Responsabilités</Titre>
       <Paragraphe>
         Souk.dev héberge les copies des clients et fournit la plateforme en l’état, sans garantie d’absence d’interruption. L’auteur d’une
-        application reste responsable de son code et de ses données ; le client d’une copie reste responsable de l’usage qu’il en fait. Les missions
+        application reste responsable de son code et de ses données ; le client d’une copie reste responsable de l’usage qu’il en fait. Les missions
         se règlent entre le client et le développeur, hors de la plateforme.
       </Paragraphe>
     </PageLegale>
@@ -78,27 +78,27 @@ export function Cgu() {
 
 export function Cgv() {
   return (
-    <PageLegale titre="Conditions de vente" description="Ce que paie le client, tous les mois : l’hébergement de sa copie et le prix de l’appli.">
+    <PageLegale titre="Conditions de vente" description="Ce que paie le client, tous les mois : l’hébergement de sa copie et le prix de l’appli.">
       <Titre>1. Prix</Titre>
-      <Paragraphe>Le client paie chaque mois deux montants, en francs CFA :</Paragraphe>
+      <Paragraphe>Le client paie chaque mois deux montants, en francs CFA :</Paragraphe>
       <Liste
         elements={[
-          'l’hébergement de sa copie, fixé par Souk.dev selon sa formule : petite 3 500 F, moyenne 7 000 F, grande 13 500 F par mois ;',
-          'le prix de l’appli, fixé par son auteur : chaque mois si le prix est mensuel, une seule fois s’il est unique.',
+          'l’hébergement de sa copie, fixé par Souk.dev selon sa formule : petite 3 500 F, moyenne 7 000 F, grande 13 500 F par mois ;',
+          'le prix de l’appli, fixé par son auteur : chaque mois si le prix est mensuel, une seule fois s’il est unique.',
         ]}
       />
       <Paragraphe>
-        Le prix de l’appli va entièrement à son auteur, sans aucune commission : Souk.dev ne gagne que sur l’hébergement. Les frais de paiement
-        s’ajoutent au total payé par le client ; les frais de reversement aux développeurs sont pris sur la marge de Souk.dev.
+        Le prix de l’appli va entièrement à son auteur, sans aucune commission : Souk.dev ne gagne que sur l’hébergement. Les frais de paiement
+        s’ajoutent au total payé par le client ; les frais de reversement aux développeurs sont pris sur la marge de Souk.dev.
       </Paragraphe>
       <Titre>2. Facturation</Titre>
       <Paragraphe>
         Une facture par copie et par période, à date anniversaire du premier paiement. Rappel par e-mail 3 jours avant l’échéance, avec un lien de
         paiement. Le paiement se fait en Mobile Money ou par carte, via le prestataire SasPay.
       </Paragraphe>
-      <Titre>3. Impayé : grâce, suspension, arrêt</Titre>
+      <Titre>3. Impayé : grâce, suspension, arrêt</Titre>
       <Paragraphe>
-        Sans paiement à l’échéance : 7 jours de grâce, puis suspension (conteneurs arrêtés, page neutre sur le sous-domaine, données gardées).
+        Sans paiement à l’échéance : 7 jours de grâce, puis suspension (conteneurs arrêtés, page neutre sur le sous-domaine, données gardées).
         Réactivation dès le paiement, pour un mois à partir du paiement. Après 30 jours de suspension, arrêt définitif et suppression des données,
         avec un e-mail d’avertissement 7 jours avant.
       </Paragraphe>
@@ -122,10 +122,10 @@ export function Confidentialite() {
       <Titre>1. Données collectées</Titre>
       <Liste
         elements={[
-          'compte : nom, e-mail, identifiant GitHub et avatar quand GitHub est lié, pays et bio déclarés ;',
-          'paiement : factures, références de transaction ; jamais les codes Mobile Money ni les numéros de carte, qui restent chez le prestataire ;',
-          'reversement : pays, réseau et numéro Mobile Money du développeur, chiffrés ;',
-          'technique : journaux de connexion et d’erreur, sans clé ni mot de passe, numéros tronqués.',
+          'compte : nom, e-mail, identifiant GitHub et avatar quand GitHub est lié, pays et bio déclarés ;',
+          'paiement : factures, références de transaction ; jamais les codes Mobile Money ni les numéros de carte, qui restent chez le prestataire ;',
+          'reversement : pays, réseau et numéro Mobile Money du développeur, chiffrés ;',
+          'technique : journaux de connexion et d’erreur, sans clé ni mot de passe, numéros tronqués.',
         ]}
       />
       <Titre>2. Usage</Titre>
@@ -135,17 +135,17 @@ export function Confidentialite() {
       </Paragraphe>
       <Titre>3. Sous-traitants</Titre>
       <Paragraphe>
-        Hébergement des serveurs (Datacloud), paiement (SasPay), e-mails (Resend), analyse IA sur consentement explicite (DeepSeek : le bug et son
+        Hébergement des serveurs (Datacloud), paiement (SasPay), e-mails (Resend), analyse IA sur consentement explicite (DeepSeek : le bug et son
         code partent chez le fournisseur, secrets masqués). Chacun ne reçoit que ce dont il a besoin.
       </Paragraphe>
       <Titre>4. Conservation</Titre>
       <Paragraphe>
-        Compte actif : le temps du service. Compte supprimé sur demande : effacement sous 30 jours, sauf les écritures comptables (10 ans) et les
-        journaux de sécurité (1 an). Copies arrêtées : données supprimées ; copies suspendues : données gardées jusqu’à l’arrêt définitif.
+        Compte actif : le temps du service. Compte supprimé sur demande : effacement sous 30 jours, sauf les écritures comptables (10 ans) et les
+        journaux de sécurité (1 an). Copies arrêtées : données supprimées ; copies suspendues : données gardées jusqu’à l’arrêt définitif.
       </Paragraphe>
       <Titre>5. Vos droits (APDP Bénin)</Titre>
       <Paragraphe>
-        Accès, correction, suppression, opposition : écrivez à l’équipe depuis votre adresse de compte. Réponse sous 30 jours. En cas de désaccord,
+        Accès, correction, suppression, opposition : écrivez à l’équipe depuis votre adresse de compte. Réponse sous 30 jours. En cas de désaccord,
         l’Autorité de protection des données personnelles du Bénin (APDP) peut être saisie.
       </Paragraphe>
     </PageLegale>
@@ -154,29 +154,29 @@ export function Confidentialite() {
 
 export function PolitiqueAbus() {
   return (
-    <PageLegale titre="Politique d’abus" description="Ce qui est interdit sur Souk.dev, et ce qui arrive en cas d’abus : examen, suspension, appel.">
+    <PageLegale titre="Politique d’abus" description="Ce qui est interdit sur Souk.dev, et ce qui arrive en cas d’abus : examen, suspension, appel.">
       <Titre>1. Interdits</Titre>
       <Liste
         elements={[
-          'minage de cryptomonnaie : une copie dont le processeur reste saturé (90 % de sa formule) pendant une heure est suspendue automatiquement ;',
-          'hameçonnage et fraude : une copie signalée pour hameçonnage est suspendue aussitôt, le temps que l’équipe examine (elle la rétablit si le signalement n’est pas fondé) ;',
+          'minage de cryptomonnaie : une copie dont le processeur reste saturé (90 % de sa formule) pendant une heure est suspendue automatiquement ;',
+          'hameçonnage et fraude : une copie signalée pour hameçonnage est suspendue aussitôt, le temps que l’équipe examine (elle la rétablit si le signalement n’est pas fondé) ;',
           'spam, harcèlement, insultes, contenus illégaux, atteintes aux droits d’autrui.',
         ]}
       />
       <Titre>2. Signalement</Titre>
       <Paragraphe>
-        Le bouton « Signaler » d’une discussion ou d’une appli envoie le motif et des faits vérifiables à l’équipe. L’hameçonnage, le minage et les
-        contenus illégaux la préviennent aussitôt ; les autres motifs attendent dans la file de modération.
+        Le bouton « Signaler » d’une discussion ou d’une appli envoie le motif et des faits vérifiables à l’équipe. L’hameçonnage, le minage et les
+        contenus illégaux la préviennent aussitôt ; les autres motifs attendent dans la file de modération.
       </Paragraphe>
       <Titre>3. Examen et sanctions</Titre>
       <Paragraphe>
-        Hors minage et hameçonnage, suspendus d’office pour protéger les visiteurs, l’équipe examine chaque signalement avant d’agir : suppression du contenu, suspension de la copie (conteneurs arrêtés, page neutre,
+        Hors minage et hameçonnage, suspendus d’office pour protéger les visiteurs, l’équipe examine chaque signalement avant d’agir : suppression du contenu, suspension de la copie (conteneurs arrêtés, page neutre,
         données gardées) ou suspension du compte (plus de connexion ni d’API), toujours avec un motif. Un signalement non fondé est rejeté.
       </Paragraphe>
       <Titre>4. Contestation</Titre>
       <Paragraphe>
-        Chaque suspension part avec un e-mail qui donne le motif : il suffit d’y répondre pour contester, l’équipe relit. Les données restent
-        gardées pendant l’examen ; en cas d’erreur, la copie ou le compte est rétabli.
+        Chaque suspension part avec un e-mail qui donne le motif : il suffit d’y répondre pour contester, l’équipe relit. Les données restent
+        gardées pendant l’examen ; en cas d’erreur, la copie ou le compte est rétabli.
       </Paragraphe>
     </PageLegale>
   )
