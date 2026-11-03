@@ -81,12 +81,12 @@ toujours par l'adaptateur simulé.
   avec la plateforme ; `userns-remap` ou gVisor, puis des machines dédiées aux copies, avant
   d'accueillir des auteurs inconnus en nombre (`docs/exploitation.md`). Pas de quota disque
   par copie.
-- **Paiement réel** : la clé SasPay fournie affiche le nom marchand « Gentube » ; un compte au
-  nom de Souk.dev est nécessaire. Les reversements réels restent coupés tant que
+- **Paiement réel** : la page de paiement SasPay affiche le nom marchand « Gentube », celui du
+  compte fourni (voulu). Les reversements réels restent coupés tant que
   `REVERSEMENTS_REELS` n'est pas activé ; les parcours se testent avec le simulateur.
 - **Webhooks réels en développement** : il faut un tunnel public (non mis en place).
-- **SMS** : la connexion des utilisateurs finaux par SMS attend la clé d'un fournisseur ;
-  l'e-mail fonctionne.
+- **SMS** : aucun fournisseur de SMS n'est branché (pas de clé) ; la connexion des
+  utilisateurs finaux par SMS passe par l'adaptateur simulé, l'e-mail fonctionne.
 - **Certificats** : un certificat par copie (défi HTTP-01) ; au-delà de 50 nouvelles copies par
   semaine, passer au certificat joker (défi DNS-01).
 - **Second VPS** : le routage multi-VPS est conçu (`docs/multi-vps.md`), pas déployé.

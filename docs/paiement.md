@@ -147,6 +147,6 @@ e-mail ; son remboursement se saisira depuis l'administration (phase 6).
 
 ## Limites connues
 
-- Le compte SasPay fourni affiche le nom marchand « Gentube » sur la page de paiement : un
-  compte marchand au nom de Souk.dev sera nécessaire avant le lancement.
+- Le compte SasPay fourni affiche le nom marchand « Gentube » sur la page de paiement : c'est
+  voulu.
 - Le remboursement d'un trop-perçu se saisira dans l'administration (phase 6).
