@@ -539,7 +539,7 @@ function CarteCopie({
             <span />
           )}
           {actif && copie.etat !== "attente_paiement" ? (
-            <Bouton variante="fantome" taille="sm" onClick={onArreter}>
+            <Bouton variante="retrait" taille="sm" onClick={onArreter}>
               Arrêter la copie
             </Bouton>
           ) : null}
