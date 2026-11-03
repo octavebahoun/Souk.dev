@@ -22,7 +22,7 @@ final class CreerCorrectifRequest extends FormRequest
         return [
             'depot_url' => ['required', 'string', new DepotGithub],
             'description' => ['sometimes', 'nullable', 'string', 'max:1000'],
-            'demo_url' => ['sometimes', 'nullable', 'url', 'max:2048'],
+            'demo_url' => ['sometimes', 'nullable', 'url:http,https', 'max:2048'],
         ];
     }
 

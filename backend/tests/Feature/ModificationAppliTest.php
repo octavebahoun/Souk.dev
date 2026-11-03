@@ -80,6 +80,20 @@ class ModificationAppliTest extends TestCase
             ->assertNotFound();
     }
 
+    public function test_un_nom_avec_retour_a_la_ligne_est_refuse(): void
+    {
+        $auteur = User::factory()->create();
+        $appli = $this->appli($auteur);
+
+        // Le nom part dans des sujets d'e-mail : un retour à la ligne y est une injection d'en-tête.
+        $this->actingAs($auteur)
+            ->patchJson('/api/apps/'.$appli->id, ['nom' => "Pharmacie\nBcc: pirate@exemple.test"])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('nom');
+
+        $this->assertSame('Pharmacie', $appli->refresh()->nom);
+    }
+
     public function test_une_stack_avec_doublon_est_refusee(): void
     {
         $auteur = User::factory()->create();

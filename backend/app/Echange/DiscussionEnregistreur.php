@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Echange;
 
+use App\Models\AnalyseIa;
 use App\Models\Discussion;
 use App\Models\User;
 
@@ -58,6 +59,12 @@ final class DiscussionEnregistreur
         }
 
         $discussion->save();
+
+        // La fiche du bug a changé : ses analyses Souk AI ne la décrivent plus (une analyse en cours sera écartée).
+        if ($discussion->wasChanged(['titre', 'texte', 'bug'])) {
+            AnalyseIa::query()->where('discussion_id', $discussion->id)->where('statut', '!=', 'perimee')->update(['statut' => 'perimee']);
+            $discussion->unsetRelation('derniereAnalyse')->unsetRelation('dernierePrete');
+        }
 
         return $discussion;
     }

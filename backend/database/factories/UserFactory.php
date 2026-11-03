@@ -45,6 +45,18 @@ class UserFactory extends Factory
         ]);
     }
 
+    /**
+     * Un dev qui a lié son GitHub (obligatoire pour publier ou proposer un correctif).
+     */
+    public function github(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'profil' => 'dev',
+            'github_lie' => true,
+            'username' => fake()->unique()->regexify('[a-z][a-z0-9]{5,12}'),
+        ]);
+    }
+
     public function admin(): static
     {
         return $this->state(fn (array $attributes) => [

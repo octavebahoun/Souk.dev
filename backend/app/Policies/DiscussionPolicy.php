@@ -18,4 +18,20 @@ final class DiscussionPolicy
     {
         return $compte->est_admin || $discussion->user_id === $compte->id;
     }
+
+    /**
+     * La copie de test n'est jamais automatique : seul l'auteur la lance.
+     */
+    public function lancerCopieTest(User $compte, Discussion $discussion): bool
+    {
+        return $discussion->user_id === $compte->id;
+    }
+
+    /**
+     * Seul l'auteur demande l'avis de Souk AI : c'est sa fiche et son code qui partent chez le fournisseur.
+     */
+    public function analyser(User $compte, Discussion $discussion): bool
+    {
+        return $discussion->user_id === $compte->id;
+    }
 }

@@ -77,6 +77,10 @@ final class GithubController extends Controller
             return redirect()->away($front->erreur($resultat->erreur ?? 'github'));
         }
 
+        if ($resultat->compte->estSuspendu()) {
+            return redirect()->away($front->erreur('compte_suspendu'));
+        }
+
         Auth::login($resultat->compte);
         $request->session()->regenerate();
 

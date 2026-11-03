@@ -27,6 +27,16 @@ final class LimitesTaille
         'grande' => ['memoire' => '2g', 'coeurs' => '2'],
     ];
 
+    /** Cœurs de processeur de la formule (0,5, 1 ou 2). */
+    public static function coeurs(string $taille): float
+    {
+        if (! self::connue($taille)) {
+            throw new LancementEchoue('La taille doit être petite, moyenne ou grande.');
+        }
+
+        return (float) self::FORMULES[$taille]['coeurs'];
+    }
+
     public static function connue(string $taille): bool
     {
         return isset(self::FORMULES[$taille]);
@@ -65,6 +75,7 @@ final class LimitesTaille
         $formule = self::FORMULES[$taille];
         $pids = Durcissement::pids($taille);
         $capacites = Durcissement::capacites();
+        $journaux = VerificateurCompose::JOURNAUX;
         $lignes = ['services:'];
 
         foreach ($services as $service) {
@@ -73,6 +84,8 @@ final class LimitesTaille
             }
 
             $lignes[] = "  {$service}:";
+            // Remplace le restart du dépôt : une copie suspendue (arrêtée) ne repart pas seule.
+            $lignes[] = '    restart: unless-stopped';
             $lignes[] = "    mem_limit: {$formule['memoire']}";
             $lignes[] = "    memswap_limit: {$formule['memoire']}";
             $lignes[] = "    cpus: \"{$formule['coeurs']}\"";
@@ -95,6 +108,11 @@ final class LimitesTaille
                 }
             }
 
+            $lignes[] = '    logging:';
+            $lignes[] = "      driver: {$journaux['driver']}";
+            $lignes[] = '      options:';
+            $lignes[] = "        max-size: {$journaux['max-size']}";
+            $lignes[] = "        max-file: \"{$journaux['max-file']}\"";
             $lignes[] = '    security_opt:';
             $lignes[] = '      - "'.Durcissement::SECURITE.'"';
             $lignes[] = '    networks:';

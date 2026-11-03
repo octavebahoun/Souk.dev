@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\Deploiement;
+use App\Moteur\BackendIntegre;
 use App\Moteur\CopieLocale;
 use App\Moteur\Exceptions\DepotInvalide;
 use App\Moteur\Exceptions\LancementEchoue;
@@ -10,17 +11,23 @@ use App\Moteur\Exceptions\ManifestInvalide;
 use App\Moteur\Exceptions\VariablesManquantes;
 use App\Moteur\MoteurDeploiement;
 use App\Moteur\NettoyeurCopie;
+use App\Moteur\PlacementMachines;
+use App\Paiement\Facturation;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Str;
 use Throwable;
 
 class LancerDeploiement implements ShouldQueue
 {
     use Queueable;
 
-    public function __construct(public int $deploiementId) {}
+    public function __construct(public int $deploiementId)
+    {
+        $this->onQueue('moteur');
+    }
 
-    public function handle(MoteurDeploiement $moteur): void
+    public function handle(MoteurDeploiement $moteur, BackendIntegre $backend): void
     {
         $deploiement = Deploiement::query()->find($this->deploiementId);
 
@@ -40,15 +47,29 @@ class LancerDeploiement implements ShouldQueue
                 return;
             }
 
+            // Placement : la machine active et joignable qui a le plus de mémoire libre,
+            // réservée dans la même transaction que l'élection.
+            $machine = app(PlacementMachines::class)->choisir((string) $deploiement->taille, $deploiement);
+            $cible = $machine->cible();
+
+            // Clé publique de la copie : l'adresse de connexion de ses utilisateurs (backend intégré).
+            if ($deploiement->cle_publique === null) {
+                $deploiement->forceFill(['cle_publique' => (string) Str::uuid()])->save();
+            }
+
             $copie = $moteur->depuisGithub(
                 $deploiement->depotACloner(),
                 is_array($deploiement->variables) ? $deploiement->variables : [],
                 'd'.$deploiement->id,
                 true,
+                commit: $deploiement->version?->commit,
+                clePublique: $deploiement->cle_publique,
+                machine: $cible,
             );
 
             $deploiement->copie = $copie->id;
             $deploiement->repertoire = $copie->repertoire;
+            $deploiement->backend_secret = $backend->secretDe($copie->repertoire);
             $deploiement->save();
 
             if ($this->estArrete($deploiement)) {
@@ -72,6 +93,8 @@ class LancerDeploiement implements ShouldQueue
 
             if (! $enLigne) {
                 $this->couper($moteur, $copie);
+            } else {
+                app(Facturation::class)->leverIncident($deploiement);
             }
         } catch (Throwable $exception) {
             if ($this->estArrete($deploiement)) {
@@ -84,8 +107,13 @@ class LancerDeploiement implements ShouldQueue
 
             $deploiement->changerEtat('echec', erreur: $this->messageLisible($exception));
 
+            // Copie payée qui ne démarre pas : plus de facture, l'équipe et le client sont prévenus.
+            if ($deploiement->type === 'client') {
+                app(Facturation::class)->signalerIncident($deploiement, $this->messageLisible($exception));
+            }
+
             // Conteneurs, volumes et dossier cloné (avec son .env) ne restent pas après un échec.
-            app(NettoyeurCopie::class)->liberer($copie?->id ?? $deploiement->copie, $copie?->repertoire ?? $deploiement->repertoire, $deploiement->id);
+            app(NettoyeurCopie::class)->liberer($copie?->id ?? $deploiement->copie, $copie?->repertoire ?? $deploiement->repertoire, $deploiement->id, $copie?->machine);
         }
     }
 
@@ -98,13 +126,17 @@ class LancerDeploiement implements ShouldQueue
         }
 
         $deploiement->changerEtat('echec', erreur: 'Le déploiement a échoué.');
+
+        if ($deploiement->type === 'client') {
+            app(Facturation::class)->signalerIncident($deploiement, 'Le déploiement a échoué ('.$exception->getMessage().').');
+        }
     }
 
     private function estArrete(Deploiement $deploiement): bool
     {
         $deploiement->refresh();
 
-        return $deploiement->etat === 'arrete';
+        return $deploiement->estEnCoursArret();
     }
 
     private function couper(MoteurDeploiement $moteur, CopieLocale $copie): void

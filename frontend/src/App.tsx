@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { RouterProvider } from 'react-router'
 import { preparerCsrf } from './app/preparerCsrf'
-import { Apparitions } from './app/Apparitions'
 import { creerRouter } from './app/router'
 
 export default function App() {
@@ -11,10 +10,5 @@ export default function App() {
     void preparerCsrf()
   }, [])
 
-  return (
-    <>
-      <Apparitions />
-      <RouterProvider router={router} />
-    </>
-  )
+  return <RouterProvider router={router} />
 }

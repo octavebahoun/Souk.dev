@@ -1,0 +1,325 @@
+# Plateforme Souk.dev en production, sur le VPS Datacloud : `./scripts/prod.sh up -d` (Compose avec
+# --env-file backend/.env.prod, qui fournit ${DOMAINE}, ${ACME_EMAIL}… à ce fichier).
+#
+#   Front      https://$DOMAINE            (nginx, build Vite statique)
+#   API        https://api.$DOMAINE
+#   Reverb     wss://reverb.$DOMAINE
+#   Copies     https://{copie}.$DOMAINE_COPIES (Traefik, un sous-domaine par copie, sur un domaine
+#              à part : le cookie de session de .$DOMAINE ne doit jamais leur parvenir)
+#
+# Avant le premier démarrage : copier backend/.env.prod.example en backend/.env.prod
+# (jamais commité) et le remplir — voir docs/exploitation.md. Les secrets internes
+# (PostgreSQL, Reverb) sont générés au premier démarrage dans le volume « secrets ».
+# Seul le service « moteur » reçoit le socket Docker. Journaux en JSON (canal « json »).
+
+name: soukdev
+
+x-php: &php
+  image: soukdev-php:prod
+  build:
+    context: ./backend
+    target: prod
+  init: true
+  restart: unless-stopped
+  working_dir: /app
+  # Les clés externes de l'opérateur (SasPay, DeepSeek, Resend, GitHub…). Optionnel pour que
+  # `docker compose config` se valide sans lui ; sans lui, Laravel refuse de démarrer (APP_KEY).
+  env_file:
+    - path: ./backend/.env.prod
+      required: false
+  volumes:
+    - stockage:/app/storage
+    - routes:/app/storage/app/private/proxy
+    - secrets:/run/soukdev:ro
+  environment: &php-env
+    APP_ENV: production
+    APP_DEBUG: "false"
+    APP_URL: https://api.${DOMAINE:?DOMAINE manquant dans backend/.env.prod}
+    FRONTEND_URL: https://${DOMAINE:?DOMAINE manquant dans backend/.env.prod}
+    CORS_ALLOWED_ORIGINS: https://${DOMAINE:?DOMAINE manquant dans backend/.env.prod}
+    SANCTUM_STATEFUL_DOMAINS: ${DOMAINE:?DOMAINE manquant dans backend/.env.prod}
+    SESSION_DOMAIN: .${DOMAINE:?DOMAINE manquant dans backend/.env.prod}
+    SESSION_SECURE_COOKIE: "true"
+    DB_CONNECTION: pgsql
+    DB_HOST: db
+    DB_PORT: "5432"
+    DB_DATABASE: soukdev
+    DB_USERNAME: soukdev
+    QUEUE_CONNECTION: database
+    CACHE_STORE: database
+    SESSION_DRIVER: database
+    BROADCAST_CONNECTION: reverb
+    REVERB_HOST: reverb.${DOMAINE:?DOMAINE manquant dans backend/.env.prod}
+    REVERB_PORT: "443"
+    REVERB_SCHEME: https
+    REVERB_ALLOWED_ORIGINS: ${DOMAINE:?DOMAINE manquant dans backend/.env.prod}
+    LOG_CHANNEL: json
+    LOG_LEVEL: info
+    MOTEUR_PROXY_ROUTES: /app/storage/app/private/proxy
+    MOTEUR_URL_COPIE: https://{copie}.${DOMAINE_COPIES:?DOMAINE_COPIES manquant dans backend/.env.prod}
+    MOTEUR_PAGE_SUSPENDUE: http://127.0.0.1:8000
+    MOTEUR_DELAI_PROXY: "3"
+    DEMO_CONNEXION: "false"
+    PAIEMENT_PASSERELLE: saspay
+  networks: [interne]
+  depends_on: &php-depends
+    db:
+      condition: service_healthy
+    init:
+      condition: service_completed_successfully
+
+services:
+  secrets:
+    image: soukdev-php:prod
+    build:
+      context: ./backend
+      target: prod
+    entrypoint: ["sh", "/app/docker/secrets.sh"]
+    restart: "no"
+    network_mode: none
+    volumes:
+      - secrets:/run/soukdev
+      - secrets_publics:/run/soukdev-public
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    entrypoint: ["sh", "-c", "export POSTGRES_PASSWORD=\"$$(cat /run/soukdev/db_password)\" && exec docker-entrypoint.sh postgres"]
+    environment:
+      POSTGRES_DB: soukdev
+      POSTGRES_USER: soukdev
+    volumes:
+      - db:/var/lib/postgresql/data
+      - secrets:/run/soukdev:ro
+    networks: [interne]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U soukdev -d soukdev"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    depends_on:
+      secrets:
+        condition: service_completed_successfully
+
+  init:
+    <<: *php
+    command: ["sh", "/app/docker/init-prod.sh"]
+    restart: "no"
+    volumes:
+      - stockage:/app/storage
+      - routes:/app/storage/app/private/proxy
+      - secrets:/run/soukdev:ro
+      - ./infra/proxy/plateforme.yml.dist:/modele-plateforme.yml:ro
+    depends_on:
+      db:
+        condition: service_healthy
+      secrets:
+        condition: service_completed_successfully
+
+  api:
+    <<: *php
+    command: ["frankenphp", "php-server", "--listen", ":8000", "--root", "public/"]
+    networks: [interne, web]
+    ports:
+      - "127.0.0.1:8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/up"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  worker:
+    <<: *php
+    command: ["php", "artisan", "queue:work", "--queue=paiements,default", "--sleep=1", "--tries=3", "--timeout=120"]
+    healthcheck:
+      test: ["CMD", "php", "docker/sante.php", "worker"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Moteur de déploiement : clone, docker compose, sondes, sauvegardes des copies.
+  moteur:
+    <<: *php
+    command: ["php", "artisan", "queue:work", "--queue=moteur", "--sleep=2", "--tries=1", "--timeout=1200"]
+    volumes:
+      - stockage:/app/storage
+      - routes:/app/storage/app/private/proxy
+      - secrets:/run/soukdev:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test: ["CMD", "php", "docker/sante.php", "worker"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Sondes des serveurs (docker info, quelques secondes) : file « sondes », à part du moteur, pour
+  # qu'une sonde demandée par l'équipe n'attende pas derrière une construction de copie.
+  sondes:
+    <<: *php
+    command: ["php", "artisan", "queue:work", "--queue=sondes", "--sleep=2", "--tries=1", "--timeout=60"]
+    volumes:
+      - stockage:/app/storage
+      - secrets:/run/soukdev:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test: ["CMD", "php", "docker/sante.php", "worker"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Sécurité avant publication (gitleaks, Trivy) dans des conteneurs jetables : file « analyse »,
+  # à part du moteur, pour qu'une publication n'attende jamais derrière un déploiement.
+  analyse:
+    <<: *php
+    command: ["php", "artisan", "queue:work", "--queue=analyse", "--sleep=1", "--tries=1", "--timeout=1200"]
+    volumes:
+      - stockage:/app/storage
+      - routes:/app/storage/app/private/proxy
+      - secrets:/run/soukdev:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test: ["CMD", "php", "docker/sante.php", "worker"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Recherche de secrets (gitleaks) avant publication : son propre worker, pour qu'une vérification
+  # n'attende jamais derrière une longue analyse Trivy de la file « analyse ».
+  analyse-secrets:
+    <<: *php
+    command: ["php", "artisan", "queue:work", "--queue=secrets", "--sleep=1", "--tries=1", "--timeout=700"]
+    volumes:
+      - stockage:/app/storage
+      - routes:/app/storage/app/private/proxy
+      - secrets:/run/soukdev:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test: ["CMD", "php", "docker/sante.php", "worker"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Souk AI : les analyses (quelques secondes chez DeepSeek) ont leur worker, jamais devant les paiements.
+  ia:
+    <<: *php
+    command: ["php", "artisan", "queue:work", "--queue=ia", "--sleep=1", "--tries=1", "--timeout=150"]
+    healthcheck:
+      test: ["CMD", "php", "docker/sante.php", "worker"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  reverb:
+    <<: *php
+    command: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=8080"]
+    ports:
+      - "127.0.0.1:8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/up"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  scheduler:
+    <<: *php
+    command: ["php", "artisan", "schedule:work"]
+    healthcheck:
+      test: ["CMD", "php", "docker/sante.php", "planificateur"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+
+  # Reverse proxy HTTPS : la plateforme (front, API, Reverb) et les copies, certificats Let's Encrypt.
+  # Réseau de l'hôte pour joindre l'adresse déjà sondée du service web, sans partager de réseau
+  # avec les copies (voir infra/proxy/).
+  traefik:
+    image: traefik:v3.3.4
+    network_mode: host
+    restart: unless-stopped
+    read_only: true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+    # Toute la configuration statique en arguments : Traefik ignore les arguments dès qu'un
+    # fichier statique est monté (le compte Let's Encrypt, passé ainsi, n'existait pas : aucun
+    # certificat). HTTPS partout, certificats Let's Encrypt (défi HTTP) ; pas de fournisseur
+    # Docker, les labels des dépôts et des images ne sont jamais lus ; journaux JSON.
+    command:
+      - --entrypoints.web.address=:80
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      - --entrypoints.web.http.redirections.entrypoint.permanent=true
+      - --entrypoints.websecure.address=:443
+      - --entrypoints.websecure.http.tls.certresolver=letsencrypt
+      # Contrôle de santé (traefik healthcheck --ping), seulement sur la boucle locale.
+      - --entrypoints.ping.address=127.0.0.1:8082
+      - --ping.entrypoint=ping
+      # Un fichier par copie en ligne (App\Moteur\RouteurCopies), plus plateforme.yml (écrit par
+      # le service « init » depuis infra/proxy/plateforme.yml.dist, avec le domaine).
+      - --providers.file.directory=/routes
+      - --providers.file.watch=true
+      - --api.dashboard=false
+      - --log.level=INFO
+      - --log.format=json
+      - --accesslog=true
+      - --accesslog.format=json
+      # Un certificat joker (*.domaine) exigerait le défi DNS-01 : voir docs/exploitation.md.
+      - --certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL:?ACME_EMAIL manquant dans backend/.env.prod}
+      - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
+    volumes:
+      - routes:/routes:ro
+      - letsencrypt:/letsencrypt
+    healthcheck:
+      # La sonde relit la configuration statique : mêmes arguments pour le point d'entrée ping.
+      test: ["CMD", "traefik", "healthcheck", "--ping", "--ping.entrypoint=ping", "--entrypoints.ping.address=127.0.0.1:8082"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    depends_on:
+      init:
+        condition: service_completed_successfully
+
+  # Front statique (build Vite + nginx). La clé publique de Reverb (envoyée aux navigateurs
+  # de toute façon) est lue dans le volume « secrets » au déploiement : voir docs/exploitation.md.
+  front:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE: https://api.${DOMAINE:?DOMAINE manquant dans backend/.env.prod}
+        VITE_REVERB_HOST: reverb.${DOMAINE:?DOMAINE manquant dans backend/.env.prod}
+        VITE_REVERB_PORT: "443"
+        VITE_REVERB_SCHEME: https
+        # Vide hors construction du front (les premières commandes la précèdent) : le Dockerfile
+        # du front refuse de construire sans elle.
+        VITE_REVERB_KEY: "${VITE_REVERB_KEY:-}"
+    image: soukdev-front:prod
+    init: true
+    restart: unless-stopped
+    networks: [web]
+    ports:
+      - "127.0.0.1:8081:80"
+    healthcheck:
+      test: ["CMD", "wget", "-qO", "/dev/null", "http://127.0.0.1/"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    depends_on:
+      secrets:
+        condition: service_completed_successfully
+
+networks:
+  interne:
+  web:
+
+volumes:
+  db:
+  stockage:
+  routes:
+  letsencrypt:
+  secrets:
+  secrets_publics:

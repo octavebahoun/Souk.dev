@@ -3,7 +3,6 @@
 namespace App\Moteur;
 
 use App\Moteur\Exceptions\LancementEchoue;
-use Illuminate\Support\Facades\Process;
 
 /**
  * Pic du conteneur le plus gourmand d'une copie, lu avec docker stats.
@@ -11,13 +10,13 @@ use Illuminate\Support\Facades\Process;
  */
 final class ReleveDockerStats
 {
-    public function pic(string $repertoire, string $copie, int $dureeSecondes, int $intervalleSecondes): int
+    public function pic(string $repertoire, string $copie, int $dureeSecondes, int $intervalleSecondes, ?MachineCible $machine = null): int
     {
         $echeance = microtime(true) + max(0, $dureeSecondes);
         $pic = null;
 
         do {
-            $instantane = $this->picInstantane($repertoire, $copie);
+            $instantane = $this->picInstantane($repertoire, $copie, $machine);
 
             if ($instantane !== null) {
                 $pic = $pic === null ? $instantane : max($pic, $instantane);
@@ -38,15 +37,15 @@ final class ReleveDockerStats
         return $pic;
     }
 
-    public function picInstantane(string $repertoire, string $copie): ?int
+    public function picInstantane(string $repertoire, string $copie, ?MachineCible $machine = null): ?int
     {
-        $ids = $this->identifiants($repertoire, $copie);
+        $ids = $this->identifiants($repertoire, $copie, $machine);
 
         if ($ids === []) {
             return null;
         }
 
-        $resultat = Process::timeout(30)->run([
+        $resultat = Commande::pour($machine)->timeout(30)->run([
             'docker', 'stats', '--no-stream', '--format', '{{.MemUsage}}',
             ...$ids,
         ]);
@@ -101,11 +100,11 @@ final class ReleveDockerStats
     /**
      * @return list<string>
      */
-    private function identifiants(string $repertoire, string $copie): array
+    private function identifiants(string $repertoire, string $copie, ?MachineCible $machine = null): array
     {
         (new LanceurCompose)->verifierNomCopie($copie);
 
-        $resultat = Process::path($repertoire)
+        $resultat = Commande::pour($machine)->path($repertoire)
             ->timeout(30)
             ->run(['docker', 'compose', '-p', $copie, 'ps', '-q']);
 

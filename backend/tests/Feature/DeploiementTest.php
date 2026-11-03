@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Moteur\CopieLocale;
 use App\Moteur\Exceptions\DepotInvalide;
 use App\Moteur\LanceurCompose;
+use App\Moteur\MachineCible;
 use App\Moteur\MoteurDeploiement;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
@@ -19,6 +20,7 @@ use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Queue;
+use Mockery;
 use Tests\TestCase;
 
 class DeploiementTest extends TestCase
@@ -32,30 +34,55 @@ class DeploiementTest extends TestCase
         Cache::flush();
     }
 
-    public function test_le_post_repond_en_file_et_met_le_travail_en_attente(): void
+    public function test_la_commande_attend_le_paiement_sans_rien_lancer(): void
     {
         Queue::fake();
         Event::fake([DeploiementEtat::class]);
-        $utilisateur = User::factory()->create();
-        $appli = $this->appli($utilisateur, 'moyenne');
+        $client = User::factory()->client()->create();
+        $appli = $this->appli(User::factory()->github()->create(), 'moyenne');
+        $appli->forceFill([
+            'prix' => 15000,
+            'type_prix' => 'mensuel',
+            'variables_client' => [['nom' => 'APP_NOM', 'libelle' => 'Nom de la pharmacie', 'requis' => true]],
+        ])->save();
 
-        $reponse = $this->actingAs($utilisateur)->postJson('/api/apps/'.$appli->id.'/deployments', [
+        $reponse = $this->actingAs($client)->postJson('/api/apps/'.$appli->id.'/deployments', [
             'variables' => ['APP_NOM' => 'Pharmacie du Port'],
         ]);
 
+        // Hébergement moyen (7 000 F) et prix mensuel de l'appli (15 000 F) sur la première facture.
         $reponse->assertStatus(202)
-            ->assertJsonPath('etat', 'en_file')
+            ->assertJsonPath('etat', 'attente_paiement')
             ->assertJsonPath('app_id', $appli->id)
             ->assertJsonPath('app_nom', 'Cobaye')
             ->assertJsonPath('taille', 'moyenne')
-            ->assertJsonPath('url', null);
+            ->assertJsonPath('url', null)
+            ->assertJsonPath('abonnement.statut', 'en_attente')
+            ->assertJsonPath('facture_a_payer.montant_total', 22000);
 
-        Queue::assertPushed(LancerDeploiement::class);
+        Queue::assertNotPushed(LancerDeploiement::class);
         Event::assertDispatched(DeploiementEtat::class, function (DeploiementEtat $event) {
-            return $event->payload['etat'] === 'en_file'
+            return $event->payload['etat'] === 'attente_paiement'
                 && $event->broadcastAs() === 'deploiement.etat'
                 && $event->broadcastOn()[0]->name === 'private-deploiement.'.$event->deploiementId;
         });
+    }
+
+    public function test_une_variable_obligatoire_manquante_est_refusee_avant_de_payer(): void
+    {
+        $client = User::factory()->client()->create();
+        $appli = $this->appli(User::factory()->github()->create());
+        $appli->forceFill(['variables_client' => [['nom' => 'APP_NOM', 'libelle' => 'Nom de la pharmacie', 'requis' => true]]])->save();
+
+        $this->actingAs($client)
+            ->postJson('/api/apps/'.$appli->id.'/deployments', ['variables' => ['AUTRE' => 'x']])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors([
+                'variables.APP_NOM' => 'Renseignez « Nom de la pharmacie ».',
+                'variables.AUTRE' => "La variable AUTRE n'est pas demandée par cette appli.",
+            ]);
+
+        $this->assertDatabaseCount('factures', 0);
     }
 
     public function test_un_invite_recoit_401(): void
@@ -135,6 +162,22 @@ class DeploiementTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_chacun_ecoute_seulement_son_propre_canal_de_factures(): void
+    {
+        $this->configurerReverb();
+        $client = User::factory()->create();
+        $autre = User::factory()->create();
+
+        $this->actingAs($client)
+            ->post('/broadcasting/auth', ['channel_name' => 'private-utilisateur.'.$client->id, 'socket_id' => '1234.5678'])
+            ->assertOk()
+            ->assertJsonStructure(['auth']);
+
+        $this->actingAs($autre)
+            ->post('/broadcasting/auth', ['channel_name' => 'private-utilisateur.'.$client->id, 'socket_id' => '1234.5678'])
+            ->assertForbidden();
+    }
+
     public function test_un_changement_d_etat_est_pousse_vers_reverb(): void
     {
         $http = new MockHandler([
@@ -194,15 +237,18 @@ class DeploiementTest extends TestCase
         $this->mock(LanceurCompose::class, function ($mock) use ($deploiement) {
             $mock->shouldReceive('arreter')
                 ->once()
-                ->with('/tmp/copie', 'd'.$deploiement->id);
+                ->with('/tmp/copie', 'd'.$deploiement->id, Mockery::type(MachineCible::class));
         });
 
+        // Le moteur arrête la copie en arrière-plan (file synchrone dans les tests).
         $this->actingAs($client)
             ->deleteJson('/api/deployments/'.$deploiement->id)
-            ->assertNoContent();
+            ->assertAccepted()
+            ->assertJsonPath('etat', 'arrete');
 
         $this->assertSame('arrete', $deploiement->refresh()->etat);
         $this->assertNull($deploiement->url);
+        Event::assertDispatched(DeploiementEtat::class, fn (DeploiementEtat $event) => $event->payload['etat'] === 'arret_en_cours');
         Event::assertDispatched(DeploiementEtat::class, function (DeploiementEtat $event) {
             return $event->payload['etat'] === 'arrete' && $event->payload['url'] === null;
         });
@@ -223,7 +269,7 @@ class DeploiementTest extends TestCase
         $this->mock(MoteurDeploiement::class, function ($mock) use ($copie, $deploiement) {
             $mock->shouldReceive('depuisGithub')
                 ->once()
-                ->with($deploiement->appli->depot_url, [], 'd'.$deploiement->id, true)
+                ->withArgs(fn (string $url, array $variables, string $copie, bool $essai, string $taille, ?string $commit, ?string $cle) => $url === $deploiement->appli->depot_url && $variables === [] && $copie === 'd'.$deploiement->id && $essai && $commit === null && is_string($cle))
                 ->andReturn($copie);
             $mock->shouldReceive('mettreEnLigne')->once()->with($copie, 'petite')->andReturn($copie);
         });
@@ -356,7 +402,7 @@ class DeploiementTest extends TestCase
 
         $this->actingAs($client)
             ->deleteJson('/api/deployments/'.$deploiement->id)
-            ->assertNoContent();
+            ->assertAccepted();
 
         $this->assertSame('arrete', $deploiement->refresh()->etat);
     }
@@ -378,7 +424,7 @@ class DeploiementTest extends TestCase
         $this->mock(MoteurDeploiement::class, function ($mock) use ($copie, $deploiement) {
             $mock->shouldReceive('depuisGithub')
                 ->once()
-                ->with('https://github.com/wasfade/momo', [], 'd'.$deploiement->id, true)
+                ->withArgs(fn (string $url, array $variables, string $copie, bool $essai, string $taille, ?string $commit, ?string $cle) => $url === 'https://github.com/wasfade/momo' && $variables === [] && $copie === 'd'.$deploiement->id && $essai && $commit === null && is_string($cle))
                 ->andReturn($copie);
             $mock->shouldReceive('mettreEnLigne')->once()->with($copie, 'petite')->andReturn($copie);
         });

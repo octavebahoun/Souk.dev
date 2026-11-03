@@ -1,32 +1,23 @@
 import { useCallback, useState, type FormEvent } from 'react'
 import { Link } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Avatar } from '../../shared/ui/Avatar'
-import { Badge } from '../../shared/ui/Badge'
-import { Champ, classeChamp } from '../../shared/ui/Champ'
-import { EmptyState } from '../../shared/ui/EmptyState'
-import { Modal } from '../../shared/ui/Modal'
+import { ExternalLink, GitPullRequestArrow } from 'lucide-react'
+import { useSelonCompte } from '../../app/compte'
+import { ModaleConnexion } from '../../app/ModaleConnexion'
+import { Alerte, Avatar, Badge, Bouton, Carte, Champ, EtatErreur, Modale, Pagination, Saisie, Squelette, ZoneTexte, classesBouton, cx } from '../../ui'
 import {
   accepterCorrectif,
   creerCorrectif,
-  demanderAnalyse,
   deployerCorrectif,
   lireErreurHttp,
   lireMoi,
   listerCorrectifs,
   messageAction,
-  type AnalyseIa,
   type Correctif,
   type Discussion,
 } from './api'
 import { ilYA, nomAuteur } from './texte'
-
-const boutonAccent =
-  'inline-flex min-h-cible items-center justify-center rounded-controle bg-accent px-4 font-semibold text-canvas disabled:opacity-60'
-const boutonSecond =
-  'inline-flex min-h-cible items-center justify-center rounded-controle border border-line bg-canvas px-4 text-sm font-semibold text-ink'
-const boutonIa =
-  'inline-flex min-h-cible items-center justify-center rounded-controle bg-[#5B21B6] px-4 text-sm font-semibold text-canvas disabled:opacity-60'
+import { AnalyseSoukAi } from './AnalyseSoukAi'
 
 function urlHttp(valeur: string): boolean {
   try {
@@ -47,8 +38,8 @@ type ColonneCorrectifsProps = {
 export function ColonneCorrectifs({ discussion, auteur, page, onPage }: ColonneCorrectifsProps) {
   const client = useQueryClient()
   const [proposer, setProposer] = useState(false)
+  const [connexion, setConnexion] = useState(false)
   const [aAccepter, setAAccepter] = useState<Correctif | null>(null)
-  const [demander, setDemander] = useState(false)
   const [depot, setDepot] = useState('')
   const [description, setDescription] = useState('')
   const [demo, setDemo] = useState('')
@@ -56,11 +47,15 @@ export function ColonneCorrectifs({ discussion, auteur, page, onPage }: ColonneC
   const [erreur, setErreur] = useState<string | null>(null)
   const fermerProposition = useCallback(() => setProposer(false), [])
   const fermerAcceptation = useCallback(() => setAAccepter(null), [])
-  const fermerAnalyse = useCallback(() => setDemander(false), [])
   const moi = useQuery({ queryKey: ['moi'], queryFn: lireMoi })
+  const selonCompte = useSelonCompte()
   const correctifs = useQuery({
     queryKey: ['correctifs', discussion.id, page],
     queryFn: () => listerCorrectifs(discussion.id, page),
+    // Une version corrigée en construction se relit jusqu'à son état final, même si un
+    // événement temps réel est parti avant l'abonnement de la page.
+    refetchInterval: (requete) =>
+      requete.state.data?.data.some((correctif) => ['en_file', 'construction', 'demarrage', 'arret_en_cours'].includes(correctif.deploiement?.etat ?? '')) ? 4000 : false,
   })
   const dejaAccepte = correctifs.data?.data.some((correctif) => correctif.accepte) ?? discussion.resolue
   const analyse = discussion.analyse_ia
@@ -115,18 +110,6 @@ export function ColonneCorrectifs({ discussion, auteur, page, onPage }: ColonneC
     onError: (recue) => setErreur(messageAction(recue, '10 correctifs par heure.')),
   })
 
-  const analyseMutation = useMutation({
-    mutationFn: () => demanderAnalyse(discussion.id),
-    onSuccess: (recue) => {
-      client.setQueryData<Discussion>(['discussion', discussion.id], (actuelle) =>
-        actuelle ? { ...actuelle, analyse_ia: recue } : actuelle,
-      )
-      setDemander(false)
-      setErreur(null)
-    },
-    onError: (recue) => setErreur(messageAction(recue, '3 analyses par jour.')),
-  })
-
   function soumettre(evenement: FormEvent) {
     evenement.preventDefault()
     const suivants: Record<string, string> = {}
@@ -140,23 +123,23 @@ export function ColonneCorrectifs({ discussion, auteur, page, onPage }: ColonneC
   const total = correctifs.data ? Math.max(correctifs.data.meta.total, correctifs.data.data.length) : 0
 
   return (
-    <aside aria-labelledby="titre-correctifs" className="flex w-full min-w-0 flex-col gap-3.5 min-[761px]:w-auto min-[761px]:flex-1 min-[761px]:basis-[300px]">
+    <aside aria-labelledby="titre-correctifs" className="flex w-full min-w-0 flex-col gap-4 bureau:sticky bureau:top-24">
       <div className="flex items-baseline justify-between gap-2.5">
-        <h2 id="titre-correctifs" className="m-0 text-[17px] font-bold">
+        <h2 id="titre-correctifs" className="m-0 text-titre-3 text-titre">
           Correctifs
         </h2>
-        <span className="text-sm text-muted">{correctifs.isSuccess ? `${total} proposé${total > 1 ? 's' : ''}` : ''}</span>
+        <span className="text-petit text-texte-doux">{correctifs.isSuccess ? `${total} proposé${total > 1 ? 's' : ''}` : ''}</span>
       </div>
 
       {correctifs.isPending ? (
-        <div role="status" aria-label="Chargement des correctifs" className="squelette h-28 rounded-carte" />
+        <div role="status" aria-label="Chargement des correctifs">
+          <Squelette className="h-28 rounded-moyen" />
+        </div>
       ) : null}
-      {correctifs.isError ? (
-        <button type="button" onClick={() => correctifs.refetch()} className={boutonAccent}>
-          Réessayer les correctifs
-        </button>
+      {correctifs.isError ? <EtatErreur niveau={3} description="Les correctifs n’ont pas pu être chargés." onReessayer={() => void correctifs.refetch()} /> : null}
+      {correctifs.isSuccess && correctifs.data.data.length === 0 ? (
+        <p className="m-0 rounded-moyen border border-dashed border-bordure bg-surface p-4 text-petit text-texte-doux">Aucun correctif pour l’instant. Le premier qui propose sa branche aide l’auteur.</p>
       ) : null}
-      {correctifs.isSuccess && correctifs.data.data.length === 0 ? <EmptyState message="Aucun correctif pour l’instant." /> : null}
       {correctifs.data?.data.map((correctif) => (
         <CorrectifCarte
           key={correctif.id}
@@ -168,90 +151,84 @@ export function ColonneCorrectifs({ discussion, auteur, page, onPage }: ColonneC
         />
       ))}
 
-      {correctifs.data && correctifs.data.meta.last_page > 1 ? (
-        <div className="flex flex-wrap gap-2">
-          <button type="button" disabled={page <= 1} onClick={() => onPage(page - 1)} className={boutonSecond}>
-            Page précédente
-          </button>
-          <button type="button" disabled={page >= correctifs.data.meta.last_page} onClick={() => onPage(page + 1)} className={boutonSecond}>
-            Page suivante
-          </button>
-        </div>
-      ) : null}
+      {correctifs.data ? <Pagination libelle="Pages des correctifs" page={page} dernierePage={correctifs.data.meta.last_page} onChange={onPage} /> : null}
 
-      <button type="button" onClick={() => setProposer(true)} className="min-h-cible rounded-controle border border-dashed border-[#A9B8DA] bg-canvas font-semibold text-accent">
-        Proposer un correctif
-      </button>
-      <p className="m-0 text-[13px] text-muted">Un correctif, c’est l’URL de votre branche. Un seul correctif peut être accepté par discussion.</p>
+      <div className="flex flex-col gap-2">
+        <Bouton variante="secondaire" pleineLargeur icone={<GitPullRequestArrow aria-hidden="true" className="size-4" />} onClick={() => void selonCompte(() => setProposer(true), () => setConnexion(true))}>
+          Proposer un correctif
+        </Bouton>
+        <p className="m-0 text-petit text-texte-doux">Un correctif, c’est l’URL de votre branche. Un seul correctif peut être accepté par discussion.</p>
+      </div>
 
-      {bug ? <Analyse analyse={analyse} auteur={auteur} onDemander={() => setDemander(true)} /> : null}
-      {erreur && !proposer && !demander && !aAccepter ? (
-        <p role="alert" className="m-0 text-sm text-danger">
-          {erreur}
-        </p>
-      ) : null}
+      {bug ? <AnalyseSoukAi discussionId={discussion.id} analyse={analyse} auteur={auteur} /> : null}
+      {erreur && !proposer && !aAccepter ? <Alerte ton="danger">{erreur}</Alerte> : null}
 
-      {proposer ? (
-        <Modal titre="Proposer un correctif" onFermer={fermerProposition}>
-          <form onSubmit={soumettre} className="flex flex-col gap-3">
-            <Champ id="depot-correctif" label="URL de la branche" erreur={champs.depot_url}>
-              <input id="depot-correctif" value={depot} onChange={(e) => setDepot(e.target.value)} aria-invalid={champs.depot_url ? true : undefined} aria-describedby={champs.depot_url ? 'depot-correctif-erreur' : undefined} className={classeChamp} />
-            </Champ>
-            <Champ id="description-correctif" label="Description" facultatif erreur={champs.description}>
-              <textarea id="description-correctif" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} className={`${classeChamp} py-2.5`} />
-            </Champ>
-            <Champ id="demo-correctif" label="Démo corrigée" facultatif erreur={champs.demo_url}>
-              <input id="demo-correctif" value={demo} onChange={(e) => setDemo(e.target.value)} aria-invalid={champs.demo_url ? true : undefined} aria-describedby={champs.demo_url ? 'demo-correctif-erreur' : undefined} className={classeChamp} />
-            </Champ>
-            {erreur ? <p role="alert" className="m-0 text-sm text-danger">{erreur}</p> : null}
-            <div className="flex flex-wrap justify-end gap-2">
-              <button type="button" onClick={fermerProposition} className={boutonSecond}>Annuler</button>
-              <button type="submit" disabled={creer.isPending} className={boutonAccent}>Envoyer le correctif</button>
-            </div>
-          </form>
-        </Modal>
-      ) : null}
+      <ModaleConnexion ouverte={connexion} onFermer={() => setConnexion(false)} action="proposer un correctif" />
 
-      {aAccepter ? (
-        <Modal titre="Accepter ce correctif ?" onFermer={fermerAcceptation}>
-          <p className="m-0 text-subtle">
-            Vous allez accepter le correctif de {nomAuteur(aAccepter.auteur.nom, aAccepter.auteur.username)}. Souk.dev ne fusionne rien sur GitHub.
-          </p>
-          <p className="m-0 break-all rounded-controle bg-page p-2.5 font-mono text-[13px]">{aAccepter.depot_url}</p>
-          {erreur ? <p role="alert" className="m-0 text-sm text-danger">{erreur}</p> : null}
-          <div className="flex flex-wrap justify-end gap-2">
-            <button type="button" onClick={fermerAcceptation} className={boutonSecond}>Annuler</button>
-            <button type="button" onClick={() => accepter.mutate(aAccepter.id)} disabled={accepter.isPending} className={boutonAccent}>
+      <Modale
+        ouverte={proposer}
+        onFermer={fermerProposition}
+        titre="Proposer un correctif"
+        description="L’auteur l’essaie, puis l’accepte s’il règle son problème. Souk.dev ne fusionne rien sur GitHub."
+        pied={
+          <>
+            <Bouton variante="contour" onClick={fermerProposition}>
+              Annuler
+            </Bouton>
+            <Bouton type="submit" form="proposer-correctif" chargement={creer.isPending}>
+              Envoyer le correctif
+            </Bouton>
+          </>
+        }
+      >
+        <form id="proposer-correctif" onSubmit={soumettre} className="flex flex-col gap-4" noValidate>
+          <Champ libelle="URL de la branche" erreur={champs.depot_url}>
+            {(liaison) => <Saisie {...liaison} value={depot} onChange={(evenement) => setDepot(evenement.target.value)} className="font-mono text-petit" placeholder="https://github.com/vous/projet/tree/correctif" data-autofocus />}
+          </Champ>
+          <Champ libelle="Description" facultatif erreur={champs.description}>
+            {(liaison) => <ZoneTexte {...liaison} rows={3} value={description} onChange={(evenement) => setDescription(evenement.target.value)} />}
+          </Champ>
+          <Champ libelle="Démo corrigée" facultatif erreur={champs.demo_url}>
+            {(liaison) => <Saisie {...liaison} value={demo} onChange={(evenement) => setDemo(evenement.target.value)} className="font-mono text-petit" placeholder="https://demo.exemple.bj" />}
+          </Champ>
+          {erreur ? <Alerte ton="danger">{erreur}</Alerte> : null}
+        </form>
+      </Modale>
+
+      <Modale
+        ouverte={aAccepter !== null}
+        onFermer={fermerAcceptation}
+        taille="petite"
+        titre="Accepter ce correctif ?"
+        description={aAccepter ? `Vous allez accepter le correctif de ${nomAuteur(aAccepter.auteur.nom, aAccepter.auteur.username)}. La discussion passe en résolue ; Souk.dev ne fusionne rien sur GitHub.` : undefined}
+        pied={
+          <>
+            <Bouton variante="contour" onClick={fermerAcceptation}>
+              Annuler
+            </Bouton>
+            <Bouton chargement={accepter.isPending} onClick={() => aAccepter && accepter.mutate(aAccepter.id)}>
               Accepter le correctif
-            </button>
-          </div>
-        </Modal>
-      ) : null}
-
-      {demander ? (
-        <Modal titre="Demander l’avis de Souk AI" onFermer={fermerAnalyse}>
-          <p className="m-0 text-subtle">
-            Votre fiche et votre code partent chez un fournisseur extérieur (Claude, Anthropic). 3 analyses par jour. L’analyse ne résout pas la discussion.
-          </p>
-          {erreur ? <p role="alert" className="m-0 text-sm text-danger">{erreur}</p> : null}
-          <div className="flex flex-wrap justify-end gap-2">
-            <button type="button" onClick={fermerAnalyse} className={boutonSecond}>Annuler</button>
-            <button type="button" onClick={() => analyseMutation.mutate()} disabled={analyseMutation.isPending} className={boutonIa}>
-              Lancer l’analyse
-            </button>
-          </div>
-        </Modal>
-      ) : null}
+            </Bouton>
+          </>
+        }
+      >
+        {aAccepter ? <p className="m-0 rounded-moyen bg-surface-douce p-2.5 font-mono text-petit break-all text-titre">{aAccepter.depot_url}</p> : null}
+        {erreur ? <Alerte ton="danger">{erreur}</Alerte> : null}
+      </Modale>
     </aside>
   )
 }
 
 const etatCopie = {
+  attente_paiement: 'En attente de paiement',
   en_file: 'En file',
   construction: 'Construction',
   demarrage: 'Démarrage',
   en_ligne: 'En ligne',
   echec: 'Échec',
+  arret_en_cours: 'Arrêt en cours',
+  suspendu: 'Suspendue',
+  mise_a_jour: 'Mise à jour',
   arrete: 'Arrêtée',
 } as const
 
@@ -268,128 +245,88 @@ function CorrectifCarte({
   moiId: number | null
   onAccepter: () => void
 }) {
-  const [deploiement, setDeploiement] = useState(correctif.deploiement)
+  const cache = useQueryClient()
   const [erreurLancement, setErreurLancement] = useState<string | null>(null)
   const lancer = useMutation({
     mutationFn: () => deployerCorrectif(correctif.id),
-    onSuccess: (recu) => {
-      setDeploiement(recu)
+    onSuccess: () => {
       setErreurLancement(null)
+      void cache.invalidateQueries({ queryKey: ['correctifs', correctif.discussion_id] })
     },
     onError: (erreur) => setErreurLancement(messageAction(erreur, '3 déploiements par heure. Réessayez plus tard.')),
   })
+  // L'état vient des données relues (temps réel ou relecture) ; la réponse du lancement sert
+  // seulement le temps que la liste se relise.
+  const deploiement = correctif.deploiement ?? lancer.data ?? null
   const mien = moiId !== null && moiId === correctif.auteur.id
 
+  const nom = nomAuteur(correctif.auteur.nom, correctif.auteur.username)
+
   return (
-    <article className={`flex flex-col gap-2.5 rounded-carte border bg-canvas p-4 ${correctif.accepte ? 'border-success' : 'border-line'}`}>
-      <div className="flex flex-wrap items-center gap-2 text-sm">
-        <Avatar nom={correctif.auteur.nom} username={correctif.auteur.username} avatarUrl={correctif.auteur.avatar_url} />
+    <Carte as="article" className={cx('flex flex-col gap-3', correctif.accepte && 'border-bordure-succes')}>
+      <div className="flex flex-wrap items-center gap-2 text-petit text-texte-doux">
+        <Avatar nom={nom} url={correctif.auteur.avatar_url} taille="xs" />
         {correctif.auteur.username ? (
-          <Link to={`/devs/${correctif.auteur.username}`} className="font-semibold text-ink no-underline">
-            {nomAuteur(correctif.auteur.nom, correctif.auteur.username)}
+          <Link to={`/devs/${correctif.auteur.username}`} className="font-medium text-titre no-underline hover:underline">
+            {nom}
           </Link>
         ) : (
-          <span className="font-semibold">{nomAuteur(correctif.auteur.nom, correctif.auteur.username)}</span>
+          <span className="font-medium text-titre">{nom}</span>
         )}
-        <time dateTime={correctif.cree_le} className="text-muted">
-          · {ilYA(correctif.cree_le)}
-        </time>
-        {correctif.accepte ? <Badge ton="resolue">Accepté</Badge> : null}
+        <time dateTime={correctif.cree_le}>{ilYA(correctif.cree_le)}</time>
+        {correctif.accepte ? <Badge ton="succes">Accepté</Badge> : null}
       </div>
-      <a href={correctif.depot_url} target="_blank" rel="noreferrer" className="break-all font-mono text-[13px]">
+      <a href={correctif.depot_url} target="_blank" rel="noreferrer" className="font-mono text-petit break-all">
         {correctif.depot_url}
+        <span className="pour-lecteur"> (nouvel onglet)</span>
       </a>
-      {correctif.description ? <p className="m-0 text-sm wrap-break-word whitespace-pre-wrap text-subtle">{correctif.description}</p> : null}
-      <div className="flex flex-wrap gap-2">
+      {correctif.description ? <p className="m-0 text-petit wrap-break-word whitespace-pre-wrap text-texte">{correctif.description}</p> : null}
+      <div className="flex flex-wrap items-center gap-2">
         {correctif.demo_url ? (
-          <a href={correctif.demo_url} target="_blank" rel="noreferrer" className={boutonSecond}>
+          <a href={correctif.demo_url} target="_blank" rel="noreferrer" className={classesBouton('contour', 'sm')}>
             Voir la démo corrigée
+            <ExternalLink aria-hidden="true" className="size-3.5" />
+            <span className="pour-lecteur"> (nouvel onglet)</span>
           </a>
         ) : (
-          <span className="inline-flex min-h-cible items-center text-[13px] text-muted">Pas de démo</span>
+          <span className="text-petit text-texte-doux">Pas de démo</span>
         )}
         {peutAccepter ? (
-          <button type="button" onClick={onAccepter} className={boutonAccent}>
+          <Bouton taille="sm" onClick={onAccepter}>
             Accepter
-          </button>
+          </Bouton>
         ) : null}
         {mien && !deploiement ? (
-          <button type="button" onClick={() => lancer.mutate()} disabled={lancer.isPending} className={boutonAccent}>
+          <Bouton taille="sm" variante="secondaire" chargement={lancer.isPending} onClick={() => lancer.mutate()}>
             Lancer ma version corrigée
-          </button>
+          </Bouton>
         ) : null}
       </div>
-      {erreurLancement ? <p role="alert" className="m-0 text-sm text-danger">{erreurLancement}</p> : null}
+      {erreurLancement ? <Alerte ton="danger">{erreurLancement}</Alerte> : null}
       {deploiement ? (
-        <p className="m-0 text-sm text-subtle">
-          Version corrigée : {etatCopie[deploiement.etat]}
+        <p className="m-0 text-petit text-texte">
+          Version corrigée : {etatCopie[deploiement.etat]}
           {deploiement.etat === 'echec' && deploiement.erreur ? ` — ${deploiement.erreur}` : null}
           {deploiement.url ? (
             <>
               {' '}
-              <a href={deploiement.url}>{deploiement.url}</a>
+              <a href={deploiement.url} className="underline underline-offset-2">
+                {deploiement.url}
+              </a>
             </>
           ) : null}
         </p>
       ) : null}
       {peutFusionner ? (
-        <div className="flex flex-col gap-2 border-t border-[#EEF2F9] pt-2.5">
-          <a href={correctif.depot_url} target="_blank" rel="noreferrer" className="inline-flex min-h-cible items-center justify-center rounded-controle bg-ink px-4 text-sm font-semibold text-canvas">
+        <div className="flex flex-col gap-2 border-t border-bordure pt-3">
+          <a href={correctif.depot_url} target="_blank" rel="noreferrer" className={classesBouton('primaire', 'md', true)}>
             Fusionner sur GitHub
+            <ExternalLink aria-hidden="true" className="size-4" />
+            <span className="pour-lecteur"> (nouvel onglet)</span>
           </a>
-          <span className="text-[12.5px] text-muted">Ouvre la branche sur GitHub. Souk.dev ne fusionne rien à votre place.</span>
+          <span className="text-petit text-texte-doux">Ouvre la branche sur GitHub. Souk.dev ne fusionne rien à votre place.</span>
         </div>
       ) : null}
-    </article>
-  )
-}
-
-function Analyse({
-  analyse,
-  auteur,
-  onDemander,
-}: {
-  analyse: AnalyseIa | null
-  auteur: boolean
-  onDemander: () => void
-}) {
-  return (
-    <section aria-labelledby="titre-ia" className="mt-2 flex flex-col gap-3 rounded-carte border border-[#DDD6FE] bg-canvas p-4">
-      <div>
-        <h2 id="titre-ia" className="m-0 text-base font-bold">
-          Analyse IA
-        </h2>
-        <span className="text-[12.5px] text-muted">Souk AI · une suggestion, pas un correctif</span>
-      </div>
-      {!analyse && auteur ? (
-        <>
-          <p className="m-0 text-sm text-subtle">Souk AI lit la fiche du bug et propose une piste, à côté des correctifs.</p>
-          <button type="button" onClick={onDemander} className={boutonIa}>
-            Demander l’avis de Souk AI
-          </button>
-          <p className="m-0 text-[12.5px] text-muted">3 analyses par jour. Le reste n’est pas renvoyé par l’API.</p>
-        </>
-      ) : null}
-      {!analyse && !auteur ? <p className="m-0 text-sm text-muted">Pas encore d’analyse.</p> : null}
-      {analyse?.statut === 'en_cours' ? (
-        <p role="status" className="m-0 rounded-controle bg-[#F5F3FF] p-3 text-sm text-[#4C1D95]">
-          Analyse en cours. La réponse arrive ici, sans recharger la page.
-        </p>
-      ) : null}
-      {analyse?.statut === 'prete' && analyse.texte ? (
-        <p className="m-0 text-sm wrap-break-word whitespace-pre-wrap">{analyse.texte}</p>
-      ) : null}
-      {analyse?.statut === 'echec' ? (
-        <p role="status" className="m-0 rounded-controle bg-page p-3 text-sm">
-          Analyse indisponible. Les réponses de la communauté restent là.
-        </p>
-      ) : null}
-      {auteur && analyse ? (
-        <button type="button" onClick={onDemander} className="inline-flex min-h-cible items-center justify-center rounded-controle border border-[#DDD6FE] bg-canvas px-3.5 text-sm font-semibold text-[#5B21B6]">
-          {analyse.statut === 'echec' ? 'Réessayer l’analyse' : 'Relancer'}
-        </button>
-      ) : null}
-      {auteur ? <p className="m-0 text-[12.5px] font-semibold text-[#5B21B6]">3 analyses par jour</p> : null}
-    </section>
+    </Carte>
   )
 }

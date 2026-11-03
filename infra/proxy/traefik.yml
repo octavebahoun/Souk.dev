@@ -3,6 +3,12 @@
 entryPoints:
   web:
     address: ":80"
+  # Contrôle de santé (traefik healthcheck --ping), seulement sur la boucle locale.
+  ping:
+    address: "127.0.0.1:8082"
+
+ping:
+  entryPoint: ping
 
 providers:
   file:

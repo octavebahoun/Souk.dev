@@ -1,0 +1,333 @@
+# PROGRESS — Souk.dev, SaaS complet
+
+Journal de l'agent, tenu à jour en continu (voir `BRIEF.md`, section 1).
+À relire avec `BRIEF.md` et `DECISIONS.md` au début de chaque session.
+
+## Où on en est
+
+- **Branche** : `saas-complet`, partie de `main` (la PR #28 `fin-mvp` y est fusionnée).
+- **Phase en cours** : aucune — les huit phases sont livrées. Phase 8 (release) close le 3 novembre : audit de sécurité (9 constats), revue indépendante (13 constats), écrans et parcours qui manquaient au brief, README, `docs/architecture.md`, `RELEASE_NOTES.md` ; 30 parcours sur 30.
+- **Tâche suivante** : rien d'engagé. Ce qui attend l'utilisateur ou une version suivante est dans « Problèmes ouverts » et dans les limites connues de `RELEASE_NOTES.md`.
+
+## Étape 0 (25 octobre)
+
+- Docker répond (29.1.3, 4 cœurs, 7,7 Go).
+- Clés présentes dans `backend/.env` : SasPay (`sk_live_`), webhook SasPay, DeepSeek, Resend, GitHub.
+- Tunnel public refusé par le mode auto de Claude Code : question posée à l'utilisateur
+  (lancer `cloudflared tunnel --url http://localhost:8000` lui-même). En attendant, le retour
+  de paiement et le rapprochement toutes les 15 minutes vérifient les paiements sans webhook.
+- SMS : question posée ; sans réponse, adaptateur simulé.
+
+## Plan
+
+### Phase 1 — Socle
+- [x] Dettes : git en `LC_ALL=C` (`RepositoryReaderTest`), suite PHP dans le conteneur (GD) — reste : couleurs en dur → tokens (avec la refonte)
+- [x] Laravel Boost installé (demandé par `backend/CLAUDE.md`)
+- [x] Faille : liens symboliques des dépôts clonés neutralisés
+- [x] Image PHP de la plateforme (`backend/Dockerfile`) et `docker-compose.yml` : API, worker, moteur, Reverb, planificateur, PostgreSQL, Traefik, front
+- [x] Docker réservé au service moteur (arrêt asynchrone, nettoyage et mesure sur la file `moteur`)
+- [x] Migrations vérifiées sur PostgreSQL (montée et descente), contrôles de santé par service
+- [x] Policies pour chaque ressource (fin des `abort_unless` dispersés)
+- [x] Tests anti-IDOR : déploiement, mission, messages et note de mission, canaux privés
+- [x] Temps réel des missions (canal privé `mission.{id}`)
+- [x] Réputation, stats et Souk Score branchés (ils valaient zéro), recherche triée par Souk Score
+- [x] Système de design : `docs/design.md`, tokens clair et sombre, Outfit, bibliothèque `frontend/src/ui`, coquille
+- [x] Jeu de démo (`DemoSeeder`) et connexion de démo pour Playwright ; Playwright, captures et audit axe en place
+- [x] Revue indépendante (sous-agent neuf) : 10 constats, tous corrigés (voir ci-dessous)
+- [x] Sortie : `docker compose up` à froid démarre tout, suite PHP verte dans le conteneur, aucun test sauté
+
+**Revue indépendante de la phase 1** (constats corrigés) :
+1. Critique : un `docker-compose.yml` lisait les secrets de la plateforme par interpolation → environnement minimal pour git et docker.
+2. Élevé : le conteneur `front` (npm, root) voyait DB_PASSWORD et joignait la base → volume public et réseau séparés.
+3. Moyen : un arrêt pouvait rester bloqué si Reverb tombait → job d'abord, diffusion non bloquante, reprise par le nettoyage.
+4. Moyen : XP sans validation d'un tiers (auto-acceptation, événements passés) → exclus.
+5. à 8. Front : thème sombre des anciens écrans, sélecteur de thème dans un menu, contrastes des états, rendu des refus d'autorisation.
+9. et 10. Tri initial du Souk Score, Traefik sur la boucle locale, interrupteur de 44 px, compte admin de démo réservé au poste de dev.
+
+### Phase 2 — Paiement (SasPay)
+- [x] Adaptateurs `PasserellePaiement` (SasPay, simulée) et reversements (simulés)
+- [x] Simulateur SasPay : page de paiement locale, statuts `PENDING`/`SUCCESS`/`FAILED`, webhooks signés
+- [x] Factures à date anniversaire, rappel J-3, grâce 7 jours, suspension, réactivation, arrêt définitif à 30 jours
+- [x] Webhook signé et idempotent, revérification par l'API, rapprochement (15 min et quotidien)
+- [x] Grand livre en partie double, en entiers FCFA, sans modification (écritures inverses, trigger PostgreSQL)
+- [x] Reversements : solde, coordonnées Mobile Money confirmées, mensuel ou à la demande (≥ 5 000 F)
+- [x] Avoirs saisis par l'admin
+- [x] Écrans : commande et paiement, retour, « Mes paiements » et reçus, « Mes revenus », vue financière admin, « Mes copies »
+- [x] Sortie : un client paie et sa copie démarre ; un impayé est suspendu puis réactivé ; un dev est reversé (simulé) ; un échec réel de SasPay est géré de bout en bout
+- [x] Revue indépendante de la phase 2 et corrections (25 constats, tous traités)
+
+**Revue indépendante de la phase 2** (sous-agent neuf, 8 constats prouvés par des tests jetables, repris en tests de non-régression) :
+1. Copie réactivée après sa date anniversaire resuspendue quelques jours plus tard → le paiement ouvre un mois à partir d'aujourd'hui.
+2. Succès tardif sur une tentative « annulée » jamais crédité → la transaction décide, revérifiée pendant 7 jours.
+3. Course entre le passage quotidien et un paiement (suspension ou arrêt d'une copie payée) → verrou et revérification à chaque étape, ordre des verrous commun.
+4. Copie payée qui ne démarre pas, toujours facturée → statut « incident », plus de facture, équipe et client prévenus.
+5. En production, reversements par le simulateur (« versé » sans argent) → refusés tant que les payouts réels ne sont pas activés.
+6. Carte débitée en dollars rejetée comme « montant incohérent » → créditée, l'équipe vérifie ; plus de « rien débité » faux.
+7. Double paiement possible pendant une validation USSD → 409 et « Vérifier le paiement ».
+8. à 25. Idempotency-Key obligatoire, diffusion en file, frais retenus passés en charge, remboursement des paiements en double, reprises et blocages des reversements, suspension dans le bon ordre, premier mois depuis le paiement, rapprochement robuste, annonces aux lecteurs d'écran, données partielles, prix de l'auteur, clés renouvelées, messages, captures complètes, garde du jeu de démo, jobs uniques, masquage des numéros.
+
+### Phase 3 — Confiance
+- [x] Sécurité avant publication : gitleaks et Trivy en conteneurs jetables, statuts, badge, relance par l'auteur, rapport sur la fiche
+- [x] Avis et notes des applis : clients ayant payé une copie, 1 à 5, un par client et par appli (modifiable), moyenne sur la fiche et les cartes, tri « Les mieux notées »
+- [x] Notifications : centre dans l'appli (cloche en direct, page, réglages), e-mails, préférences par type (e-mail de suspension obligatoire)
+- [x] Sortie : un dépôt avec un secret est refusé ; badge vert sur un dépôt sain ; un e-mail remis pour chaque notification (12 sur 12, adresse de test de Resend)
+- [x] Revue indépendante de la phase 3 (sous-agent neuf) : 15 constats, tous traités
+
+**Revue indépendante de la phase 3** :
+1. Recherche de secrets coincée derrière les analyses Trivy (un seul worker) → file et worker dédiés, demande abandonnée non analysée, 20 vérifications par heure.
+2. Un dépôt pouvait couper gitleaks avec sa propre configuration → `.gitleaks.toml`, `.gitleaksignore` et `gitleaks:allow` retirés avant l'analyse (test).
+3. Liens et images injectables dans les nouveaux e-mails → Markdown sécurisé (test sur le HTML rendu).
+4. Statut « en cours » éternel, bouton de relance grisé → état `echec`, relance après 30 minutes, réanalyse hebdomadaire et des oubliées, fiche relue pendant l'analyse.
+5. Trivy suivait les dépôts déclarés par le pom.xml (requêtes vers une adresse choisie par le dépôt) → `--offline-scan`.
+6. Une nouvelle demande de mission ne prévenait personne → notification et e-mail au dev.
+7. et 8. Panneau de la cloche resté ouvert hors du focus ; erreurs du formulaire d'avis muettes et focus perdu → corrigés (WCAG 2.4.11, 3.3.1, 2.4.3).
+9. à 15. 503 sans son message ni Retry-After, mission d'une notification ignorée sur la page Missions, rappels d'abonnement orphelins, réglages concurrents, conteneurs et clones laissés par un travail tué, pluriels, tests manquants (503 de bout en bout, configuration hostile, mission notifiée) et parcours E2E rendus rejouables.
+
+### Phase 4 — Intelligence
+- [x] Souk AI : API DeepSeek (`deepseek-flash`), consentement exigé par l'API, 3 sur 24 heures (échecs exclus), une à la fois, résultat par Reverb (`analyse_ia.terminee`), secrets masqués avant l'envoi, réponse en Markdown sans HTML
+- [x] Sortie : une analyse réelle s'affiche à côté des correctifs (E2E, DeepSeek, environ 8 s) ; la 4ᵉ demande en 24 heures reçoit 429
+- [x] Revue indépendante de la phase 4 (sous-agent neuf) : 15 constats, tous traités
+
+**Revue indépendante de la phase 4** :
+1. Supprimer la discussion rendait l'analyse (environ 240 par jour au lieu de 3) → les analyses survivent à leur discussion et comptent.
+2. Échecs provoqués gratuits, dépense sans plafond → refus comptés, pannes rendues dans la limite de six tentatives, 6 000 jetons et fiche tronquée.
+3. Analyses devant les paiements sur le même worker → file et worker `ia`.
+4. Masquage incomplet (PHP, JSON, `.env`, adresses, Bearer, MTN MoMo…) → motifs élargis, un test par format.
+5. Bloc de la fiche refermable, analyse gardée après modification → bornes aléatoires, analyses périmées à chaque modification.
+6. à 15. Analyse « en cours » éternelle, message du quota masqué à l'écran, alertes en rafale, annonces et focus, bonne analyse cachée par une relance ratée, « 1 h 60 », messages Reverb trop gros, 401 au contrat, rendu Markdown (retraits, italique, numérotation, titres), tests manquants.
+
+### Phase 5 — Plateforme
+- [x] Mises à jour poussées : versions publiées par l'auteur (vérifiées comme une publication, commit épinglé), clients prévenus, mise à jour choisie par le client avec sauvegarde des volumes et retour arrière automatique ; vérifié en réel (version 2 appliquée, version cassée revenue d'elle-même)
+- [x] Backend intégré complet : connexion SMS et e-mail des utilisateurs finaux, sauvegarde quotidienne, export
+- [x] Revue indépendante du backend intégré (sous-agent neuf) : 8 constats, 7 corrigés, 1 en attente de Docker (voir ci-dessous)
+- [x] Plusieurs serveurs : liste des machines, placement sur la plus libre, maintenance (drain), état et santé sondés, page admin ; test local avec deux machines écrit (`machines.spec.ts`), à exécuter au retour de Docker (voir ci-dessous)
+- [x] Revue indépendante des serveurs (sous-agent neuf) : 6 constats, 5 corrigés, 1 en dette Docker (voir ci-dessous)
+- [x] Vérification Docker (1er novembre) : `backend-integre.spec.ts` 2/2, `machines.spec.ts` 3/3 (une copie part sur `aux`, la plus libre, et répond sur son sous-domaine ; maintenance ; retrait refusé), captures `/admin/serveurs` et `/copies` (3 tailles × 2 thèmes), axe dans les parcours. Le second démon de test a été isolé (voir Problèmes ouverts, 1er novembre)
+
+**Revue indépendante du backend intégré** (8 constats, tous fondés ; aucun réfuté) :
+1. Élevé : Playwright (dont `backend-integre.spec.ts`), captures /copies, axe et Lighthouse jamais exécutés (Docker arrêté) → **non corrigé ici** : Docker toujours arrêté, à refaire dès son retour avant de clore la phase 5.
+2. Moyen : `/session` sans limite propre (5 faux essais bloquaient le code d'autrui) → 20 essais par heure et par adresse IP.
+3. Moyen : verdicts distincts faux/expiré (oracle d'activité sur un numéro) → verdict unique « invalide ou expiré ».
+4. Moyen : panne SMS inattendue en 500, contre 503 au contrat → toute panne SMS rend 503 + `Retry-After`, comme l'e-mail.
+5. Moyen : nom d'appli avec retour à la ligne → 503 pour tous les utilisateurs de la copie (CVE-2026-45070) → nom sans CR/LF à la saisie, nettoyé à l'envoi.
+6. Moyen : codes expirés jamais purgés → purge quotidienne planifiée.
+7. Moyen : « Mes copies » ne montrait que la dernière sauvegarde → liste de chaque sauvegarde gardée, chacune exportable.
+8. Moyen : demande de sauvegarde sans fin en cas d'échec du travail → erreur et bouton de retour après 15 minutes sans nouvelle sauvegarde.
+Contrat inchangé : les codes et routes utilisés (422, 429, 503, `GET /deployments/{id}/sauvegardes`) y figuraient déjà.
+
+**Revue indépendante des serveurs** (6 constats, tous fondés ; aucun réfuté) :
+1. Moyen : démon déjà enregistré → 500 de base au lieu du 422 du contrat → `unique` sur `hote_docker` (ignoré en modification) avec message français, test.
+2. Élevé : `tcp://` distant sans TLS accepté partout, aucun champ TLS → refusé en 422 en production (seuls le socket local, `localhost`, `127.0.0.0/8`, `host.docker.internal`), aide dans le formulaire, TLS par machine prévu avec le bord par machine (phase 6).
+3. Moyen : le verrou de placement ne couvrait pas l'écriture de `machine_id` (course possible à plusieurs workers) → élection et réservation dans la même transaction, copies occupantes verrouillées ; test de deux placements successifs.
+4. Moyen : l'UI disait « Sans limite déclarée » alors que le placement limitait par la mémoire sondée → contrat corrigé, « environ X libres (mémoire sondée) » et jauge sur la sondée, tests.
+5. Moyen : captures `/admin/serveurs` jamais faites → **non corrigé ici** : Docker toujours arrêté, à refaire dès son retour avant de clore la phase 5 (avec les nouveaux états : vide, libre sondé).
+6. Moyen : état vide en simple paragraphe, contre `EtatVide` illustré exigé → `EtatVide` avec illustration `vide-serveurs` (clair et sombre, 0,27 $) et action vers le formulaire.
+Contrat : seule la description de `memoire_libre_mo` change (capacité utile, sinon sondée) ; types régénérés.
+
+### Phase 6 — Exploitation
+- [x] Administration et modération : signalements (motifs graves en e-mail aussitôt), suspensions de copies pour abus (moteur, volumes gardés) et de comptes (plus de connexion ni d'API), gestion des canaux, finances et serveurs déjà en place, politique d'abus (`docs/moderation.md`, `/legal/abus`)
+- [x] `docker-compose.prod.yml` (HTTPS Traefik + Let's Encrypt, worker et planificateur séparés, volumes persistants, front nginx statique), sauvegardes avec test de restauration (scripts écrits, exécution en dette Docker), journaux JSON (canal `json`, Traefik JSON), alertes e-mail (file, disque, machines), nettoyage hebdomadaire des images
+- [x] Pages légales : CGU, CGV, confidentialité (APDP Bénin), politique d'abus — brouillons marqués « à faire valider par un juriste »
+- [x] Routage multi-VPS conçu dans `docs/multi-vps.md` (TLS par machine, proxy en bordure par machine, VPN WireGuard, push SSH des routes), sans second VPS réel ; `docs/machines.md` mis à jour
+- [x] Revue indépendante de la phase 6 (sous-agent neuf) : 10 constats, 8 corrigés, 2 en dette Docker (voir ci-dessous)
+- [x] Vérification Docker (1er novembre) : `moderation.spec.ts` 4/4, captures `/admin/moderation` et `/legal/*` (3 tailles × 2 thèmes), essai de production réel (front, API, Reverb en HTTPS, HTTP redirigé, défi ACME servi) et « RESTAURATION RÉUSSIE ». L'essai a révélé quatre défauts, corrigés : Traefik sans résolveur Let's Encrypt, Compose sans `backend/.env.prod`, `APP_KEY` impossible à générer, build du front sans `.npmrc`
+
+**Revue indépendante de la phase 6** (10 constats, tous fondés ; aucun réfuté) :
+1. Élevé : `pg_dump | gzip` en `sh` (code de gzip seul) déclarait réussie une sauvegarde vide → dump dans un temporaire, refusé s'il est vide, puis compression (prouvé : faux `docker` en échec → code 1, rien d'écrit).
+2. Moyen : un compte suspendu gardait ses canaux privés Reverb (`/broadcasting/auth` hors middleware `api/`) → chaque canal refuse un suspendu, test (200 avant, 403 après).
+3. Moyen : `lockForUpdate()` hors transaction (décisions de signalement, suspensions de copies) → lecture + contrôle + écriture dans `DB::transaction`, travail et e-mail après validation.
+4. Moyen : « un ouvert par cible » applicatif seul (double-clic = doublon) → index unique partiel `(user_id, cible, cible_id) WHERE statut='ouvert'` (PostgreSQL et SQLite), violation mappée en 409, test (refus du 2ᵉ, de nouveau signalable après décision).
+5. Moyen : l'UI interdisait de suspendre tout admin, contre l'API (seul son propre compte) → bouton désactivé pour son seul compte, texte aligné, test composant.
+6. Moyen : « Signaler » absent des messages, copies, comptes et événements → boutons sur chaque message et chaque événement (hors auteur), signalement d'une copie ou d'un compte par l'API documenté dans `docs/moderation.md`.
+7. Moyen : aucun lien « Voir » vers un message, une copie ou un compte signalé → le signalement expose `cible_chemin` (discussion parente, adresse de la copie, profil `/devs`), contrat et types à jour, test.
+8. Moyen : le nettoyage des images ignorait les démons distants → purge du local puis de chaque distant joignable (les injoignables laissés à la sonde), test.
+9. Moyen : captures `/admin/moderation` et `/legal/*` jamais faites → **non corrigé ici** : Docker toujours arrêté, à refaire dès son retour avant de clore la phase 6 (voir Problèmes ouverts).
+10. Moyen : restauration et `moderation.spec.ts` jamais exécutés (critères de sortie de la phase) → **non corrigé ici** : Docker toujours arrêté, à refaire dès son retour avant de clore la phase 6 (voir Problèmes ouverts).
+Contrat : seul le schéma `Signalement` gagne `cible_chemin` ; types régénérés.
+
+### Phase 7 — Refonte du design
+- [x] Chaque page redessinée, captures critiquées (3 tailles, 2 thèmes), zéro violation axe sérieuse (1er novembre)
+  - [x] Store (1er novembre) : grille alignée sur l'en-tête, cartes du système (capture, badges, prix, note), recherche + tri + catégories visibles, filtres avancés repliés, bandeau dev unique ; thème sombre ; axe sans violation (lien du bandeau souligné). Avant : fond beige hors palette, 5 filtres ouverts, libellé anglais, double « Publier », cartes invisibles avant défilement
+  - [x] Fiche (1er novembre) : panneau de commande fixe sur bureau, sous le titre sur mobile (prix détaillé, « Déployer ma copie » en primaire, démo en contour, sur mesure en retrait, rassurance, dépôt et signalement), captures avec vignettes, README, sécurité, avis, versions et discussions en cartes du système ; demande sur mesure dans la modale du système ; thème sombre. Avant : action principale en noir, démo en bleu primaire, couleurs codées en dur
+  - [x] Accueil (1er novembre) : dans la coquille commune (en-tête et pied du site), bandeau bleu nuit avec le visuel généré, trois étapes illustrées, quatre applis du Store, l'Échange, qui paie quoi, appel final ; thème sombre ; axe sans violation. Avant : palette beige, en-tête et logo propres, débordement horizontal (1520 px), sections vides avant défilement, photos Unsplash chargées depuis leur CDN
+  - [x] Connexion (1er novembre) : dans la coquille commune, panneau bleu nuit (bureau) et carte du système, profil « Développeur » ou « Entreprise ou particulier », GitHub en primaire, lien par e-mail avec erreur reliée au champ ; thème sombre ; axe sans violation. Avant : personnage 3D sans licence connue (image retirée), icônes néon, `role="dialog"` sur une carte qui n'en est pas une
+  - [x] Échange, fil (1er novembre) : canaux en panneau (liste sur mobile), filtres d'étiquette et de statut en pastilles du système, difficulté seulement pour les bugs, cartes du système (auteur, canal, aperçu sans Markdown, badges, messages, partage), formulaire de discussion dans la modale du système, toasts du système, pagination du système ; thème sombre ; axe sans violation (fil et formulaire). Avant : cartes beiges, onglet unique « Pour toi », couleurs codées en dur, discussions invisibles avant défilement. L'audit axe attend désormais la fin des transitions (une puce mesurée en pleine transition donnait un faux défaut de contraste)
+  - [x] Discussion (1er novembre) : fil d'Ariane, en-tête (auteur, état, étiquettes, signalement), problème et fiche du bug en carte, projet et copie de test avec les étapes du système, messages et réponse en champs du système, correctifs en colonne fixe sur bureau avec propositions et acceptation dans la modale du système, analyse IA ; thème sombre ; axe sans violation (parcours Souk AI). Avant : conteneur décalé, boutons et badges de l'ancien style, couleurs codées en dur
+  - [x] Trouver un dev (1er novembre) : le « radar des talents » (survol, fond beige, liste sous la ligne de flottaison) devient un champ « Votre besoin » avec suggestions, qui classe les profils et affiche le pourcentage de correspondance ; filtres et cartes du système, proposition de mission dans la modale du système ; thème sombre ; axe sans violation. Défaut trouvé : la liste ne chargeait jamais (le client « Prism » visait `VITE_API_URL`, un mock arrêté, et aurait aussi échoué en production sur le domaine du front) : les trois appels concernés passent par le client Laravel
+  - [x] Événements (1er novembre) : en-tête du système avec « Créer un événement », filtres en pastilles, cartes avec la date en vignette, le format, l'organisateur et S'inscrire ; passés avec l'avis réservé aux inscrits ; création et invitation à se connecter dans la modale du système (format en cartes de choix) ; thème sombre ; axe sans violation. Avant : titre géant sombre sur bleu nuit (contraste insuffisant), cubes flottants, bouton jaune, cubes roses 3D, bascule liste/grille superflue, formulaire d'avis ouvert aux visiteurs
+  - [x] Profil d'un dev (1er novembre) : en-tête du système (avatar, métier, bio, disponibilité, compétences, « Proposer une mission »), Souk Score en encart, statistiques, détail du score en barres accessibles, badges obtenus ou non, applis en cartes du Store, dépôts ; mission dans la modale du système ; thème sombre ; axe sans violation, y compris en sombre (le parcours socle audite désormais le thème sombre). Avant : « orbite » décorative, bio en double, tuiles redondantes, couleurs codées en dur. Toutes les pages publiques suivent maintenant le thème choisi
+  - [x] Tableau de bord (1er novembre) : en-tête avec « Publier une appli », résumé du profil (Souk Score, niveau, lien vers le profil public), quatre tuiles (l'encaissé du mois mis en avant), tableau du système par appli (cartes sur mobile) ; thème sombre ; axe sans violation. Avant : cartes en dégradé, et un bandeau faux (« revenus estimés tant que le paiement n'est pas en place ») alors que les montants viennent du grand livre. Montants : `formaterFcfa` remplace l'espace fine U+202F par une insécable (Outfit l'affichait presque nulle en grand corps : « 30000 F »)
+  - [x] Publier (1er novembre) : quatre étapes en cartes (dépôt vérifié, infos, prix et hébergement en cartes de choix, captures et stack), sélecteur d'images en français relié à son libellé, stack en pastilles, récapitulatif fixe avec l'état de chaque étape ; thème sombre ; axe sans violation. Avant : sélecteur de fichiers natif en anglais (« Choose Files »), libellé « Les captures » relié à rien, étape « sécurité » réduite à un paragraphe
+  - [x] Missions (1er novembre) : en-tête avec « Nouvelle mission », liste et mission ouverte (« Mission avec … », étiquettes, budget, délai, lien vers la fiche), besoin en encart, fil en bulles du système, note en étoiles dans la modale du système, état vide qui mène au Store ou à « Trouver un dev » ; thème sombre ; axe sans violation (parcours des notifications). Avant : bandeau marketing de 680 px avec photos Unsplash chargées depuis leur CDN, missions invisibles avant défilement, titre « Appli 365 »
+  - [x] Plus aucun écran en thème clair forcé : `ThemeClairForce` et `forcerThemeClair` supprimés. Parcours complet : 25/25 (la sonde d'un second démon tout juste démarré échouait une fois : une sonde ciblée ratée se relance désormais deux fois à dix secondes)
+  - [x] Ancien style supprimé : `styles/ancien.css` (714 lignes de classes et d'alias), `shared/ui` (anciens Badge, Avatar, Champ, Modal, EmptyState), `MenuCompte` (mort), le système d'apparition au défilement (les contenus invisibles avant défilement) ; `PageEnAttente` passe au système ; `docs/design.md` pointe vers `frontend/src/ui/` et décrit `PuceFiltre`
+- [x] Revue indépendante de la phase 7 (sous-agent neuf) : 15 constats, tous corrigés (voir ci-dessous)
+
+**Revue indépendante de la phase 7** (15 constats, tous fondés ; aucun réfuté) :
+1. Élevé : erreurs et succès plus annoncés (Alerte sans rôle, erreurs de champ sans rôle) → `Alerte` porte `role="alert"` pour une erreur et `role="status"` pour un succès, l'erreur d'un `Champ` porte `role="alert"`.
+2. Élevé : liens dans le texte distingués par la seule couleur (WCAG 1.4.1) → soulignés (auteur de la fiche, organisateur et lien d'un événement, « Sur une appli », adresse d'une version corrigée, « Parcourir le Store »).
+3. Élevé : Publier sans validation côté navigateur, erreurs du serveur en anglais et non reliées → erreurs par champ (vérifiées avant l'envoi, ou rendues par le serveur sous leur champ), bouton désactivé tant que les quatre étapes ne sont pas complètes avec la raison affichée ; côté serveur, `lang/fr/validation.php` (les 52 validations sans message propre répondaient en anglais).
+4. Moyen : chargement plus annoncé → `SqueletteCartes` et `SqueletteListe` portent `role="status"` et un libellé lu, l'accueil enveloppe ses lignes dans `Chargement` ; le squelette des missions passe dans un `<li>`.
+5. Moyen : `aria-pressed` sur des choix exclusifs → nouveau composant `ChoixPastilles` (groupe radio ARIA, flèches, une seule tabulation) pour la catégorie du Store, le format des événements, le statut du fil, le profil de connexion et la note d'une mission ; `aria-current` pour les vignettes de la fiche et les canaux ; plus d'`aria-pressed` sur S'inscrire.
+6. Moyen : état sélectionné peu visible (1,03:1) → les choix exclusifs sélectionnés passent en bleu plein.
+7. Moyen : visiteur non connecté face à des formulaires réservés → `ModaleConnexion` (« Connectez-vous pour … », lien vers la connexion) avant la mission, la version sur mesure, la discussion et le correctif ; la réponse à une discussion devient une invitation à se connecter.
+8. Moyen : données partielles ignorées → avis dans le fil (canaux ou étiquettes absents), message et Réessayer pour les discussions de la fiche et les messages d'une mission.
+9. Moyen : typographie française absente des écrans refaits → espaces insécables posées par un outil qui ne touche que les chaînes et le texte JSX (analyseur TypeScript), 62 corrections.
+10. Faible : état d'une modale gardé après fermeture → chaque ouverture remonte un formulaire vierge (mission, sur mesure, événement).
+11. Faible : titres et repères → `CarteAppli` prend un niveau (h3 sous une section), `CarteDiscussion` en h3, `EtatErreur` prend un niveau, deux paginations nommées différemment, la liste des missions devient une navigation de liens, les canaux un groupe.
+12. Faible : écarts au système → `Etoiles` pour la note d'une mission, token `etoile`, `LienBouton` à l'accueil.
+13. Faible : textes → notes à la française (`formaterNote`), message d'erreur GitHub sans jargon de développeur.
+14. Faible : cibles tactiles → `CaseACocher` haute de 44 px sur mobile, liens d'en-tête de carte de discussion aussi.
+15. Faible : hiérarchie et détails → « Proposer une mission » secondaire sur chaque carte, arrêt d'une copie de test confirmé, « (nouvel onglet) » lu sur les liens externes restants ; la `Modale` ferme sur Échap même quand le focus a quitté le panneau.
+
+### Phase 8 — Release
+- [x] Audit sécurité (3 novembre) : sous-agent neuf sur tout le produit, 9 constats. Critique : le cookie de session (`.DOMAINE`) partait vers les copies `{copie}.DOMAINE`, qui font tourner le code des auteurs → copies sur `DOMAINE_COPIES`, l'API refuse de servir sinon. Élevé : aucun proxy de confiance (une seule limite de débit pour tous, liens signés en http) → `trustProxies`. Moyens : réplicas, réservations et services sans limite, journaux sans plafond, aucun en-tête de sécurité → six services, `deploy` réduit aux limites, journaux 3 × 10 Mo, CSP par empreinte, HSTS, refus des cadres ; isolation noyau documentée (userns-remap ou gVisor à poser). Faibles : schémas d'URL, lien magique consommé par un GET, devise en minuscules → corrigés. `follow-redirects` (haute) mis à jour.
+- [x] Fonctions du brief sans écran ou absentes (carte des fonctions par un sous-agent) : « Mon profil », création de canal, modification et annulation d'événement, suppression d'une discussion ou d'un message, mémoire mesurée et formule recommandée, politique d'abus automatique (minage, hameçonnage), session de démo en développement.
+- [x] Parcours qui manquaient (section 10, étape 4) : `e2e/communaute.spec.ts`, 6 tests à l'écran (discussion et copie de test, correctif proposé, accepté puis lancé, mission notée, événement créé, modifié, annulé, avis, profil et canal, suppression par l'équipe, publication depuis le formulaire). Ils ont trouvé : un clic juste après l'arrivée sur une page prenait un membre pour un visiteur ; l'état d'une version corrigée restait figé ; la limite générale de l'API (60/min) bloquait un membre qui suit sa copie → 300/min.
+- [x] Performance : temps réel chargé à la demande (−26 ko compressés au premier chargement), route et image préchargées dès le HTML. Mobile toujours sous 90 sur les pages publiques (voir Vérifications) : pré-rendu à faire, inscrit dans les limites.
+- [x] Documentation : README réécrit (captures, installation en moins de 10 minutes, comptes de démo), `docs/architecture.md`, `RELEASE_NOTES.md`, ancien brief rangé dans `docs/brief-concours.md`.
+- [x] Revue indépendante de la phase (sous-agent neuf, code et docs) : 13 constats, voir plus bas.
+
+#### Revue indépendante de la phase 8 (13 constats, tous traités)
+
+1. Élevé : un seul signalement d'hameçonnage suspendait la copie d'un client → deux membres distincts inscrits depuis 7 jours, 3 signalements par membre et par jour, 10 suspensions d'office par jour.
+2. Élevé : la CSP de l'API (`form-action 'self'`) bloquait la redirection après « Me connecter » et la confirmation d'un numéro → front permis.
+3. Moyen : le minage comparait la somme des conteneurs au plafond d'un seul → conteneur le plus chargé.
+4. Moyen : la limite de six services comptait les services du backend intégré dans la configuration finale → comptée sur le dépôt seulement.
+5. Faible : actions destructrices neutres et collées à l'action principale (la classe rouge perdait contre la variante) → variante `retrait`, noms accessibles précis.
+6. Faible : création de canaux sans limite propre → 3 par jour et par compte.
+7. Faible : isolement des copies vérifié dans un seul sens → les deux.
+8. Faible : messages du vérificateur sans espaces insécables → 92 corrigés.
+9. Faible : docs inexactes ou inachevées (notes de version, WCAG affirmé, images du README, préchargement, « refuse de démarrer ») → corrigées.
+10. Faible : commentaires et texte de « Mon profil » → corrigés, description selon le profil.
+11. Faible : relevé du processeur de toutes les machines dans une seule tâche (délai de 60 s) → une tâche par machine.
+12. Faible : démo en http:// en cadre blanc → lien vers un onglet.
+13. Faible : temps réel sans repli si la bibliothèque ne se charge pas → relecture, échec non gardé.
+
+## Pages (but, action principale, ce qui doit sauter aux yeux)
+
+| Page | But | Action principale | Ce qui doit sauter aux yeux |
+|---|---|---|---|
+| Commande (`/store/{id}/deployer`) | Commander une copie en confiance | Payer | Le total d'aujourd'hui, puis ce qui revient chaque mois ; « 0 F de commission » |
+| Retour de paiement | Savoir si l'argent est passé et ce qui suit | Ouvrir ma copie (ou réessayer) | Le résultat (confirmé, refusé, en attente), puis les étapes de la copie |
+| Mes paiements | Payer ce qui est dû, retrouver ses reçus | Payer la facture due | Ce qui est à payer ; sinon « vous êtes à jour » et la prochaine facture |
+| Facture / reçu | Garder une preuve de paiement | Imprimer le reçu (ou payer) | Le total, payé quand et comment |
+| Mes revenus | Être payé | Recevoir son solde | Le solde, le numéro où l'argent arrive, sa confirmation |
+| Finances (admin) | Suivre l'argent de Souk.dev | Saisir un avoir après un remboursement | La marge, ce qui est dû aux devs, les impayés et les écarts |
+| Mes copies | Suivre ses copies | Payer, ouvrir ou relancer selon l'état | L'état de chaque copie, son adresse, ce qu'elle coûte
+| Serveurs (`/admin/serveurs`) | Voir la flotte et sa santé, l'entretenir | Ajouter un serveur (ou sonder, basculer, retirer) | Les pastilles d'état (en service, en maintenance, injoignable) et les jauges de mémoire libre |
+| Modération (`/admin/moderation`) | Examiner et décider vite | Traiter un signalement (ou suspendre) | Les motifs graves en rouge, puis les copies et comptes suspendus |
+| Pages légales (`/legal/*`) | Lire les règles et ses droits | Comprendre (aucune action) | Le bandeau « brouillon à faire valider par un juriste », puis le plan en 4-5 articles |
+| Store (`/store`) | Trouver l'appli qui fera tourner son activité | Ouvrir la fiche d'une appli | Les captures et les noms, le prix par mois, le badge de sécurité ; la recherche et les catégories en haut, les filtres avancés repliés |
+| Fiche (`/store/{id}`) | Décider de commander l'appli | Déployer ma copie | Le prix par mois détaillé (appli, hébergement, 0 F de commission) et le bouton bleu, puis les captures, la sécurité et les avis |
+| Accueil (`/`) | Comprendre Souk.dev en dix secondes et choisir sa porte | Je suis dev (ou Je cherche une appli) | La promesse sur le bandeau bleu nuit et les deux boutons ; puis 0 % de commission, Mobile Money, analyse avant publication |
+| Connexion (`/connexion`) | Entrer, ou créer son compte, sans friction | Continuer avec GitHub (dev) ou Recevoir mon lien (entreprise) | Le choix du profil, puis un seul bouton ; la promesse « dépôts publics uniquement » |
+| Échange (`/echange`) | Trouver un problème à résoudre, ou poser le sien | Nouvelle discussion | Les titres et leur état (ouverte, résolue, étiquettes), le canal ; les filtres d'étiquette et de statut |
+| Discussion (`/echange/{id}`) | Comprendre le problème et le régler | Proposer un correctif (l'auteur : accepter, marquer résolue) | Le titre et son état, la fiche du bug (erreur, attendu, code), puis les correctifs à droite |
+| Trouver un dev (`/devs`) | Trouver le dev qui fera le travail | Proposer une mission | Les profils classés (Souk Score ou correspondance au besoin), disponibilité et spécialités |
+| Événements (`/evenements`) | Trouver un atelier ou une rencontre, en proposer un | S'inscrire (ou Créer un événement) | La date, le titre, le format (en ligne ou présentiel) et le bouton S'inscrire |
+| Profil d'un dev (`/devs/{username}`) | Juger si ce dev est le bon | Proposer une mission | Le nom, le métier, la disponibilité et le Souk Score ; puis la preuve : statistiques, badges, applis |
+| Tableau de bord (`/tableau`) | Voir ce que rapportent ses applis | Publier une appli | L'argent encaissé ce mois-ci (mis en avant), les vues et les copies, puis le détail par appli |
+| Publier (`/publier`) | Mettre son appli dans le Store | Publier l'appli | Les quatre étapes et leur état, puis le récapitulatif qui dit ce qui manque |
+| Missions (`/missions`) | Mener une mission privée jusqu'au bout | Envoyer un message (le client : terminer et noter) | La mission ouverte : avec qui, le besoin, l'état, puis le fil des messages |
+
+## Vérifications
+
+| Date | Phase | Contrôle | Résultat |
+|---|---|---|---|
+| 2026-10-25 | 0 | `php artisan test` (état de départ) | 356/361 : 1 échec `RepositoryReaderTest` (locale), 4 erreurs GD (`PublicationAppliTest`) |
+| 2026-10-25 | 1 | `docker compose up` à froid (volumes vides) | 8 services sains, migrations PostgreSQL passées |
+| 2026-10-25 | 1 | Copie locale déployée par le moteur conteneurisé | sonde OK, `http://essai-locale.localhost` → 200 via Traefik |
+| 2026-10-25 | 1 | `php artisan test` dans le conteneur PHP | 380/380, aucun test sauté |
+| 2026-10-25 | 1 | Playwright (parcours socle, axe sur la page introuvable en clair et en sombre) | 3/3, zéro violation sérieuse |
+| 2026-10-25 | 1 | `composer audit`, `npm audit` | aucune faille (Prism retiré : 8 failles npm de développement) |
+| 2026-10-25 | 1 | Revue indépendante | 10 constats, tous corrigés ; fuite des secrets vérifiée avant et après dans le conteneur moteur |
+| 2026-10-26 | 2 | `php artisan test` dans le conteneur, chaque réponse JSON validée contre `openapi.yaml` | 464/464, aucun test sauté |
+| 2026-10-26 | 2 | Pint, ESLint, `tsc`, Vitest | zéro erreur, 25/25 |
+| 2026-10-26 | 2 | Démarrage à froid (projet Docker séparé, volumes vierges) | 8 services sains en 66 s, 26 migrations |
+| 2026-10-26 | 2 | Playwright contre la plateforme démarrée à froid (moteur réel, paiement simulé) | 8/8 : payer → copie en ligne → impayé suspendu (page neutre via Traefik) → réactivé ; refus expliqué et retenté ; reversement ; vue admin ; audit axe sans violation sérieuse |
+| 2026-10-26 | 2 | Échec réel SasPay (passerelle `saspay`, numéro togolais impossible) | « Paiement échoué » chez SasPay ; vérifié par l'API : paiement `echoue`, facture toujours à payer, page « Paiement refusé » |
+| 2026-10-26 | 2 | Trigger du grand livre sur PostgreSQL ; migrations annulées puis rejouées | modification et suppression refusées ; aller-retour sans erreur |
+| 2026-10-26 | 2 | Captures (3 tailles × 2 thèmes) des écrans de paiement, critiquées | 6 défauts corrigés (bouton coupé, visuel de l'appli, état « à jour », compteurs à zéro, montants et ponctuation coupés en fin de ligne) |
+| 2026-10-26 | 2 | `composer audit`, `npm audit`, licences | aucune faille, aucune licence interdite |
+| 2026-10-26 | 2 | Après corrections de la revue : suite PHP (réponses validées contre le contrat), Playwright 8/8, captures 42/42 | 494/494 ; 8/8 ; relues |
+| 2026-10-26 | 2 | Lighthouse (build de production) sur la commande et « Mes copies » | bureau : 98 / 100 / 100 ; mobile simulé : accessibilité et bonnes pratiques 100, performance 72 à 79 (premier affichage 2,3 s, LCP 3,3 s) : sous l'objectif de 90, voir Problèmes ouverts |
+| 2026-10-26 | 3 | Suite PHP dans le conteneur (réponses validées contre le contrat) ; Pint, ESLint, `tsc`, Vitest | 517/517 ; zéro erreur, 28/28 |
+| 2026-10-26 | 3 | Démarrage à froid d'une copie propre du dépôt (worktree, projet Docker séparé, volumes vierges) | 10 services sains en 61 s, 34 migrations ; a révélé les webhooks simulés refusés sans secret (corrigé : secret de développement tiré de `APP_KEY`) |
+| 2026-10-26 | 3 | Playwright contre la plateforme démarrée à froid | 11/11 au troisième passage (deux échecs isolés non reproduits : script axe non chargé depuis le CDN, un parcours de paiement refusé) ; secret refusé, badge vert, avis, cloche en direct, réglages, paiement, suspension, reversement, admin |
+| 2026-10-26 | 3 | Un e-mail par notification (12 sortes) envoyé par Resend à `delivered@resend.dev` | 12/12 remis (statut lu dans l'API de Resend) |
+| 2026-10-26 | 3 | Captures (3 tailles × 2 thèmes) : Store trié par note, fiche avec avis, notifications, réglages, cloche | 30 captures relues ; corrigés : interrupteur grisé illisible, bouton mal placé sur mobile, erreur de note restée affichée |
+| 2026-10-26 | 3 | Lighthouse (build de production), bureau | accueil 99 / 100 / 100, Store 95 / 100 / 96, fiche 99 / 100 / 96 (décalage de mise en page corrigé : 0,67 → 0,03), « Mes copies » et notifications 100 / 100 / 100 ; mobile de la fiche 66 (voir Problèmes ouverts) |
+| 2026-10-26 | 3 | `composer audit`, `npm audit`, licences | aucune faille, aucune licence interdite (gitleaks MIT et Trivy Apache 2.0 inscrits) |
+| 2026-10-26 | 4 | Analyse réelle par DeepSeek (`deepseek-flash`) sur le bug de démo | prête en 7,7 s, 387 jetons lus, 994 écrits, réponse en français en trois parties |
+| 2026-10-26 | 4 | Suite PHP dans le conteneur (contrat vérifié) ; Pint, ESLint, `tsc`, Vitest | 547/547 ; zéro erreur, 31/31 |
+| 2026-10-26 | 4 | Démarrage à froid d'une copie propre (worktree, projet séparé, `.env` réel) puis Playwright | 11 services sains en 51 s, 36 migrations ; 13/13 du premier coup (dont Souk AI réel : analyse affichée en direct, focus et annonce, 429 à la 4ᵉ) |
+| 2026-10-26 | 4 | Captures de la discussion avec l'analyse (3 tailles × 2 thèmes, auteur et visiteur) | 12 relues ; corrigés : italique non rendu, messages en Markdown brut alors que « Markdown accepté » |
+| 2026-10-28 | 5 | Suite PHP sur l'hôte (réponses validées contre le contrat), dont `BackendIntegreCompletTest` (9 tests) et `ContratRoutesTest` | 563 passés, 4 échecs connus : `PublicationAppliTest` demande GD, absent de l'hôte (vert dans le conteneur, voir phase 1) ; Docker arrêté, suite en conteneur non relancée |
+| 2026-10-28 | 5 | Pint, ESLint (tout le front), `tsc`, Vitest, types régénérés depuis `openapi.yaml` | zéro erreur, 31/31 ; `api.ts` régénéré (routes d'authentification des copies, sauvegardes, `derniere_sauvegarde`, 503) |
+| 2026-10-28 | 5 | `composer audit`, `npm audit`, licences | 1 faille moyenne trouvée (symfony/mime CVE-2026-45070, injection d'en-têtes e-mail, publiée le jour même) : corrigée (8.1.7 → 8.1.10, `composer.lock` seul modifié) ; après : aucune faille, aucune licence interdite |
+| 2026-10-28 | 5 | Démarrage à froid, Playwright (dont `backend-integre.spec.ts`), captures, axe, Lighthouse | **non faits** : Docker arrêté sur le poste (`/var/run/docker.sock` absent, service inactif, `sudo` interdit) ; à refaire dès son retour, avant la revue de phase |
+| 2026-10-28 | 5 | Après corrections de la revue : suite PHP sur l'hôte (dont 5 tests de non-régression du backend intégré) | 568 passés, 4 échecs connus : `PublicationAppliTest` demande GD, absent de l'hôte (vert dans le conteneur) |
+| 2026-10-28 | 5 | Après corrections de la revue : Pint (431 fichiers), ESLint, `tsc`, Vitest (dont `MesCopies.test.tsx`) | zéro erreur, 33/33 |
+| 2026-10-28 | 5 | Après corrections de la revue : `composer audit`, `npm audit`, licences | aucune faille, aucune licence interdite |
+| 2026-10-28 | 5 | Suite PHP sur l'hôte, dont `MachinesTest` (21 tests : contrat, placement, maintenance, anti-IDOR admin, sonde, démons) et `ContratRoutesTest` | 589 passés, 4 échecs connus : `PublicationAppliTest` demande GD, absent de l'hôte (vert dans le conteneur) ; Docker arrêté, suite en conteneur non relancée |
+| 2026-10-28 | 5 | Pint (442 fichiers), ESLint (tout le front), `tsc`, Vitest (dont `etatServeurs.test.ts`), types régénérés depuis `openapi.yaml` | zéro erreur, 41/41 ; `api.ts` régénéré (schémas `Machine`, `machine_nom` sur `Deploiement`) |
+| 2026-10-28 | 5 | `composer audit`, `npm audit`, `composer check-licenses`, `npm run check-licenses` | aucune faille, aucune licence interdite (docker:dind Apache 2.0 inscrit) |
+| 2026-10-28 | 5 | `docker compose config` (dont profil `machines`) et chargement du parcours `machines.spec.ts` | compose valide, 3 tests listés ; exécution impossible : Docker arrêté |
+| 2026-10-28 | 5 | Playwright `machines.spec.ts`, captures `/admin/serveurs` (3 tailles × 2 thèmes), axe, Lighthouse | **non faits** : Docker arrêté sur le poste (`/var/run/docker.sock` absent, `sudo` interdit) ; parcours écrit et relu, à exécuter à son retour (voir Problèmes ouverts) |
+| 2026-10-29 | 5 | Après corrections de la revue des serveurs : suite PHP sur l'hôte (dont 5 tests de non-régression serveurs) | 594 passés, 4 échecs connus : `PublicationAppliTest` demande GD, absent de l'hôte (vert dans le conteneur) |
+| 2026-10-29 | 5 | Après corrections de la revue des serveurs : Pint (442 fichiers), ESLint, `tsc`, Vitest, types régénérés depuis `openapi.yaml` | zéro erreur, 43/43 ; `api.ts` régénéré (description `memoire_libre_mo`) |
+| 2026-10-29 | 5 | Après corrections de la revue des serveurs : `composer audit`, `npm audit`, licences | aucune faille, aucune licence interdite |
+| 2026-10-29 | 5 | Playwright `machines.spec.ts`, captures `/admin/serveurs` (3 tailles × 2 thèmes, nouveaux états), axe, Lighthouse | **toujours non faits** : Docker encore arrêté (`/var/run/docker.sock` absent) ; dette maintenue (voir Problèmes ouverts) |
+| 2026-10-29 | 6 | Suite PHP sur l'hôte, dont `ModerationTest` (18 tests : signalements, suspensions copies/comptes, canaux, anti-IDOR admin) et `ExploitationTest` (7 tests : alertes, nettoyage, journaux JSON), `ContratRoutesTest` | 620 passés, 4 échecs connus : `PublicationAppliTest` demande GD, absent de l'hôte (vert dans le conteneur) |
+| 2026-10-29 | 6 | Pint (460 fichiers), ESLint (tout le front), `tsc` (appli + E2E), Vitest (dont `presentationModeration.test.ts`), types régénérés identiques | zéro erreur, 46/46 ; `api.ts` régénéré (schémas `Signalement`, `CompteAdmin`, suspensions, `CanalModification`) |
+| 2026-10-29 | 6 | `composer audit`, `npm audit`, `composer check-licenses`, `npm run check-licenses` | aucune faille, aucune licence interdite (nginx BSD-2-Clause, alpine MIT inscrits) |
+| 2026-10-29 | 6 | `docker compose -f docker-compose.prod.yml config` (avec `DOMAINE`, `ACME_EMAIL`, `VITE_REVERB_KEY` de test), YAML Traefik, `sh -n` des scripts | compose valide ; `traefik.prod.yml` et `plateforme.yml.dist` parsés ; `init-prod.sh` et scripts de sauvegarde valides |
+| 2026-10-29 | 6 | `npx playwright test e2e/moderation.spec.ts --list`, `tsc` + ESLint du parcours | 4 tests listés (suspension d'une copie signalée, compte suspendu puis rétabli, canaux, pages légales) ; exécution impossible : Docker arrêté (tenté : `ECONNREFUSED 127.0.0.1:5173`) |
+| 2026-10-29 | 6 | Test de restauration (`scripts/restaurer-plateforme.sh`), démarrage prod, Playwright `moderation.spec.ts`, captures `/admin/moderation` + `/legal/*` (3 tailles × 2 thèmes), axe, Lighthouse | **non faits** : Docker arrêté sur le poste (`/var/run/docker.sock` absent, `docker info` sans serveur, `sudo` interdit) ; parcours et scripts écrits et relus, à exécuter à son retour (voir Problèmes ouverts) |
+| 2026-10-29 | 6 | Relecture sécurité (sections 6-7 : Policies/middleware avant binding, anti-IDOR, argent hors navigateur, secrets jamais en clair, licences) | rien à corriger : cibles du signalement sur table fixe, suspensions avec motif et e-mail obligatoire, travaux moteur gardés, `DOMAINE` validé avant `sed`, secrets en volume ou `.env.prod` |
+| 2026-10-29 | 6 | Après corrections de la revue : suite PHP sur l'hôte (dont 4 tests de non-régression : canaux refusés au suspendu, index d'unicité, `cible_chemin`, nettoyage distant) | 624 passés, 4 échecs connus : `PublicationAppliTest` demande GD, absent de l'hôte (vert dans le conteneur) |
+| 2026-10-29 | 6 | Après corrections de la revue : Pint (461 fichiers), ESLint (tout le front), `tsc`, Vitest (dont `Moderation.test.tsx`), types régénérés depuis `openapi.yaml` | zéro erreur, 47/47 ; `api.ts` régénéré (`cible_chemin` sur `Signalement`) |
+| 2026-10-29 | 6 | Après corrections de la revue : `composer audit`, `npm audit`, `composer check-licenses`, `npm run check-licenses` | aucune faille, aucune licence interdite |
+| 2026-10-29 | 6 | Après corrections de la revue : `sh -n` du script de sauvegarde, faux `docker` en échec | syntaxe valide ; pg_dump en échec → code 1, rien d'écrit (avant : sauvegarde vide déclarée réussie) |
+| 2026-10-29 | 6 | Captures `/admin/moderation` + `/legal/*`, Playwright `moderation.spec.ts`, restauration, démarrage prod | **toujours non faits** : Docker encore arrêté (`/var/run/docker.sock` absent) ; dette maintenue (voir Problèmes ouverts) |
+| 2026-11-01 | 5-6 | Pint, tsc, ESLint, Vitest, suite PHP en conteneur | Pint propre ; tsc et ESLint propres ; Vitest 47/47 ; PHP 628/628 |
+| 2026-11-01 | 5 | Playwright `machines.spec.ts` (second démon isolé) | 3/3 après deux corrections du parcours (maintenance confirmée dans sa fenêtre ; la copie vise la machine la plus libre, comme la règle de placement) |
+| 2026-11-01 | 5-6 | Playwright des 7 autres parcours | 24/24 au total après corrections (modération : boutons cherchés dans leur fenêtre, ligne du tableau ; confiance : jeu de démo rechargé, libellé « Suspensions » ; accueil : liens légaux ajoutés au pied) |
+| 2026-11-01 | 5-6 | Captures `/admin/serveurs`, `/admin/moderation`, `/legal/cgu`, `/legal/abus`, `/copies` (3 tailles × 2 thèmes), relues | conformes ; seul artefact : la barre d'onglets fixe apparaît au milieu des captures pleine page mobile |
+| 2026-11-01 | 6 | Essai de production local (`COMPOSE_PROJECT_NAME=soukdev-essai`, worktree, `DOMAINE=localhost`, autorité ACME injoignable par surcharge) | front, API et Reverb 200 en HTTPS, HTTP → 301, défi ACME servi en HTTP ; 4 défauts trouvés et corrigés (voir phase 6) |
+| 2026-11-01 | 6 | `scripts/sauvegarde-plateforme.sh` puis `scripts/restaurer-plateforme.sh` sur l'essai | sauvegarde complète ; « RESTAURATION RÉUSSIE » (47 migrations, 41 tables, grand livre soldé) |
+| 2026-11-01 | 5-6 | Lighthouse | non relancé : accueil, Store, fiche, paiement et Mes copies inchangés depuis la dernière mesure (bureau 98, mobile 66–79, en dette pour l'audit de la phase 8) |
+| 2026-11-01 | 7 | Parcours E2E complets après la refonte | 25/25 (axe sans violation sérieuse sur chaque écran refait, profil audité aussi en thème sombre) |
+| 2026-11-01 | 7 | Captures de toutes les pages (32 pages × 3 tailles × 2 thèmes = 192), revues en planches | ensemble cohérent : même en-tête, même navigation, mêmes composants ; plus aucun écran dans l'ancien style |
+| 2026-11-01 | 7 | Lighthouse 12, build de production, pages publiques à froid (accueil, Store, fiche) | bureau : 100/100/96, 99/100/96, 99/100/96 ; mobile simulé : performance 86, 81, 75 (accessibilité 100). Les 96 viennent du 401 attendu de `/api/me` pour un visiteur, compté comme erreur de console |
+| 2026-11-01 | 7 | Lighthouse 12, pages connectées (commande, « Mes copies ») via un Chromium où la session de démo est ouverte (`--port`, `--disable-storage-reset`) | bureau : 97/100/100 et 100/100/100 ; mobile : 95 et 98, mais cache chaud (profil conservé) : chiffres optimistes. La première tentative avec un en-tête Cookie mesurait en fait la page déconnectée (401), écartée |
+| 2026-11-01 | 7 | Parcours E2E après la revue de la phase 7 | 25/25 (confiance relancé seul après un premier chargement de Vite trop lent juste après des modifications : 3/3). « Deux machines » échouait dans la suite complète : la sonde attendait derrière les constructions de copies dans la file `moteur` et ne tournait qu'après le nettoyage du test (« socket introuvable ») → file et service `sondes` à part, en dev comme en production |
+| 2026-11-03 | 8 | Pint, ESLint, `tsc`, PHPUnit, Vitest | 0 erreur ; 658 tests PHPUnit, 50 Vitest |
+| 2026-11-03 | 8 | `composer audit`, `npm audit` | composer : aucune faille. npm : `follow-redirects` (haute) corrigée ; restent 15 moyennes dans les outils de développement seulement (minimatch sous eslint, license-checker, openapi-typescript) |
+| 2026-11-03 | 8 | Parcours Playwright, suite complète | 30/30 (dont les 6 nouveaux de la communauté), axe sans violation sérieuse sur chaque écran visité. Après les corrections de la revue : 29/30, « une version qui ne démarre pas revient » attendait un état de quelques secondes → test corrigé, 2/2 |
+| 2026-11-03 | 8 | CSP du front contre les 25 pages du parcours (build de production servi avec l'en-tête) | aucune violation hors images servies en `http://` en développement (en `https://` en production) |
+| 2026-11-03 | 8 | Captures 3 tailles × 2 thèmes, jeu de démo rechargé | 198 captures (33 pages), nouveaux écrans regardés en clair et sombre ; « Arrêter la copie » et les autres retraits passés au rouge |
+| 2026-11-03 | 8 | Lighthouse 12, build de production | bureau : accueil 99/100/96, Store 99/100/96, fiche 98/100/96, commande 99/100/100, Mes copies 100/100/100 (le 96 : le 401 attendu de `/api/me` pour un visiteur). Mobile simulé : accueil 78, Store 75, fiche 72 (TBT 400–550 ms, machine chargée par les copies) ; commande 99 et Mes copies 96 en session ouverte (cache chaud, optimiste). Pages connectées mesurées sur le port 5173 (seul port accepté par Sanctum en dev), le serveur Vite arrêté le temps de la mesure |
+| 2026-11-03 | 8 | Redémarrage de l'hôte | Docker relancé par l'utilisateur ; un serveur Python occupait le port 8000 (arrêté avec son accord) ; l'API, née pendant l'échec du port, n'était pas branchée au réseau du front (502 après 5 s) → recréée. Compose 2.40 ajoute `placement: {}` à la configuration finale → accepté (sections vides) |
+| 2026-11-03 | 8 | Démarrage à froid sur volumes vides | non refait : il partagerait le dossier des copies avec la plateforme en place (voir 26 octobre). Dernier le 1er novembre ; le redémarrage complet de l'hôte ci-dessus a rejoué le démarrage des 16 services |
+
+## Problèmes ouverts
+
+- 25 octobre : l'agent a vidé par erreur la base SQLite locale de l'hôte (`backend/database/database.sqlite`, sans sauvegarde) avec `migrate:fresh`. La plateforme Docker (PostgreSQL) n'est pas touchée. Règle ajoutée : ne plus jamais lancer de commande destructrice sur cette base.
+
+- Tunnel public pour le webhook SasPay : refusé par le mode auto de Claude Code, en attente de l'utilisateur.
+- Déploiement réel d'un dépôt GitHub (`octavebahoun/marchilearnia`) : refusé par le mode auto (« code externe »). À autoriser par l'utilisateur ; en attendant, le moteur est vérifié avec une appli locale écrite par l'agent.
+
+- Performance Lighthouse sur mobile simulé (Moto G, 4G lente) : 72 à 78 sur les pages publiques au 3 novembre (84 à 86 sur une machine moins chargée le 1er), sous 90. Le premier affichage utile attend React : le pré-rendu des pages publiques est le chemin, écarté pour cette version (DECISIONS, 1er novembre). Historique : Mesure initiale : entre 66 (fiche) et 79 pour une appli 100 % JavaScript, alors que le bureau est à 98. Gains déjà faits : animations chargées à part, coquille statique. Pistes pour l'audit de la phase 8 : pré-rendu des pages publiques, CSS critique en ligne, données de la page demandées plus tôt, poids de react-router et d'axios.
+- Le compte SasPay fourni affiche le nom marchand « Gentube » sur la page de paiement : voulu (confirmé par l'utilisateur le 3 novembre). Pas de clé de fournisseur SMS : la connexion par SMS reste sur l'adaptateur simulé.
+- 26 octobre : deux plateformes lancées sur le même dossier de copies (vérification à froid) se nettoient l'une l'autre ; une copie de test de la plateforme habituelle a été arrêtée. Sans conséquence (jeu de démo) ; à ne pas reproduire.
+- 28 octobre (résolu le 1er novembre) : Docker arrêté sur le poste pendant le backend intégré (démon inactif, `sudo` interdit pour le relancer). La vérification Docker (suite en conteneur, démarrage à froid, Playwright dont `backend-integre.spec.ts`, captures 3 tailles × 2 thèmes, axe, Lighthouse) reste à faire avant de clore la phase 5 ; le parcours est écrit et relu, pas exécuté. Les 7 autres constats de la revue sont corrigés et testés ; le constat Docker (élevé) est revérifié toujours bloqué le 28 octobre au soir.
+- 28 octobre (résolu le 1er novembre) : plusieurs serveurs livré sans Docker (même cause). Dette précise avant de clore la phase 5 : démarrer Docker, `docker compose up -d`, `docker compose --profile machines up -d dind`, vérifier la sonde du second démon dans `/admin/serveurs`, exécuter `npx playwright test e2e/machines.spec.ts` (3 tests : enregistrement + sonde, copie sur la plus libre et joignable, maintenance + retrait refusé), captures `/admin/serveurs` (`PAGES=/admin/serveurs npm run e2e:captures`, 3 tailles × 2 thèmes, à regarder et critiquer — avec les nouveaux états : vide illustré, libre sondé), axe (inclus dans le parcours) et Lighthouse. Limite assumée : routage direct v1 (voir `docs/machines.md`), bord par machine et TLS par machine conçus en phase 6 (`docs/multi-vps.md`) avant tout second VPS réel. Revérifié bloqué le 29 octobre (constat 5 de la revue des serveurs).
+- 1er novembre : dette Docker des phases 5 et 6 soldée (voir Vérifications). Incident pendant la vérification : le second démon de test, lancé en `network_mode: host`, a pris l'interface `docker0` de l'hôte et réécrit ses chaînes iptables ; plus aucun conteneur ne sortait sur Internet. L'utilisateur a relancé Docker (`sudo systemctl restart docker`). Le démon est désormais isolé (réseau propre, socket partagé, une seule route posée par `route-dind`), voir `docs/machines.md`. Trois conteneurs arrêtés d'un ancien démarrage à froid (`d6-web-1`, `d10-web-1`, `d18-web-1`) supprimés le 3 novembre avec l'accord de l'utilisateur (avec leurs images et réseaux).
+- 29 octobre (résolu le 1er novembre) : phase 6 livrée sans Docker (même cause : `/var/run/docker.sock` absent, `docker info` sans serveur, `sudo` interdit). Dette précise avant de clore la phase 6 : démarrer Docker, `docker compose up -d`, exécuter `npx playwright test e2e/moderation.spec.ts` (4 tests : copie signalée suspendue depuis l'admin, compte suspendu puis rétabli, canaux, pages légales), captures (`PAGES=/admin/moderation,/legal/cgu,/legal/cgv,/legal/confidentialite,/legal/abus npm run e2e:captures`, 3 tailles × 2 thèmes, à regarder et critiquer), axe (inclus dans le parcours) et Lighthouse ; puis côté production : `./scripts/sauvegarde-plateforme.sh` sur un jeu d'essai, `./scripts/restaurer-plateforme.sh` (doit finir par « RESTAURATION RÉUSSIE »), et `docker compose -f docker-compose.prod.yml up -d --build` avec un `DOMAINE` de test (front, API, Reverb, une copie HTTPS). Parcours et scripts écrits et relus, non exécutés. Revérifié bloqué après la revue de la phase 6 (constats 9 et 10 : 8 autres corrigés et testés).
+
+## Dépenses et crédits
+
+- Vertex AI (Nano Banana Pro, `gemini-3-pro-image`) : 5,76 $ / 10 $ (43 images, détail dans `scripts/visuels/depenses.json`).
+- Logo.dev : 8 logos de réseaux Mobile Money récupérés une fois (16 crédits ; 486 restants sur 500 ce mois-ci).

@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Carnet de commandes</title>
+  <style>
+    :root { --bleu: #1265dd; --texte: #364153; --titre: #1f1f1f; --bordure: #e3e9f3; --fond: #f7faff; --danger: #b42318; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--texte); background: var(--fond); }
+    header { background: #fff; border-bottom: 1px solid var(--bordure); }
+    .barre { max-width: 720px; margin: 0 auto; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    .marque { font-weight: 700; color: var(--titre); }
+    .demo { font-size: 13px; padding: 4px 10px; border-radius: 999px; background: #fffaeb; color: #b54708; font-weight: 600; }
+    main { max-width: 720px; margin: 0 auto; padding: 28px 20px 48px; }
+    main > * { margin: 0 0 20px; }
+    main > p:empty { margin: 0; }
+    h1 { color: var(--titre); font-size: 26px; }
+    form, section { background: #fff; border: 1px solid var(--bordure); border-radius: 12px; padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+    label { font-weight: 600; color: var(--titre); display: flex; flex-direction: column; gap: 6px; }
+    input, textarea { font: inherit; padding: 10px 12px; border: 1px solid #8290a6; border-radius: 8px; }
+    button { font: inherit; font-weight: 600; min-height: 44px; padding: 0 16px; border: 0; border-radius: 8px; background: var(--bleu); color: #fff; cursor: pointer; align-self: flex-start; }
+    button.secondaire { background: #fff; color: var(--titre); border: 1px solid #8290a6; }
+    ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+    section form { border: 0; padding: 0; }
+    li { border-top: 1px solid var(--bordure); padding-top: 10px; }
+    li:first-child { border-top: 0; padding-top: 0; }
+    time { display: block; font-size: 13px; color: #5f6b7e; }
+    .erreur { color: var(--danger); margin: 0; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <header><div class="barre"><span class="marque">Carnet de commandes</span><span class="demo">Démo</span></div></header>
+  <main>
+    <h1 id="titre">Mes commandes</h1>
+    <p id="annonce" role="status"></p>
+
+    <form id="demande">
+      <label>Votre numéro (format international)
+        <input id="numero" name="numero" type="tel" autocomplete="tel" required placeholder="+229 01 97 00 00 00">
+      </label>
+      <button type="submit">Recevoir un code par SMS</button>
+    </form>
+
+    <form id="verification" hidden>
+      <label>Code reçu par SMS
+        <input id="code" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required>
+      </label>
+      <button type="submit">Se connecter</button>
+    </form>
+
+    <section id="carnet" hidden aria-labelledby="titre">
+      <form id="ajout">
+        <label>Nouvelle commande
+          <textarea id="texte" rows="2" maxlength="500" required></textarea>
+        </label>
+        <button type="submit">Ajouter</button>
+      </form>
+      <ul id="notes"></ul>
+      <button id="sortie" class="secondaire" type="button">Se déconnecter</button>
+    </section>
+    <p id="erreur" class="erreur" role="alert"></p>
+  </main>
+  <script src="/config.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>

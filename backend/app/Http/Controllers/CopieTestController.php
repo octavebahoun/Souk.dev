@@ -10,6 +10,7 @@ use App\Moteur\Exceptions\DepotInvalide;
 use App\Moteur\SourceCopieTest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -19,11 +20,11 @@ use Illuminate\Validation\ValidationException;
 class CopieTestController extends Controller
 {
     /** États où la copie occupe encore le serveur. */
-    public const ETATS_ACTIFS = ['en_file', 'construction', 'demarrage', 'en_ligne'];
+    public const ETATS_ACTIFS = ['en_file', 'construction', 'demarrage', 'en_ligne', 'arret_en_cours'];
 
     public function store(Request $request, Discussion $discussion): JsonResponse
     {
-        abort_unless($discussion->user_id === $request->user()->id, 403, 'Seul l\'auteur de la discussion peut lancer sa copie de test.');
+        Gate::authorize('lancerCopieTest', $discussion);
 
         $active = Deploiement::query()
             ->where('discussion_id', $discussion->id)

@@ -4,21 +4,31 @@ namespace Tests\Feature;
 
 use App\Models\Appli;
 use App\Models\User;
+use App\Securite\VerificationSecrets;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Process\PendingProcess;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
+use Mockery\MockInterface;
 use Tests\TestCase;
 
 class VerificationDepotTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // La recherche de secrets tourne sur le moteur (voir SecuriteDepotTest) : ici, un dépôt sans secret.
+        $this->mock(VerificationSecrets::class, fn (MockInterface $mock) => $mock->shouldReceive('secrets')->andReturn([]));
+    }
+
     public function test_un_depot_valide_renvoie_ce_que_la_plateforme_a_lu(): void
     {
         $this->simulerDepot();
 
-        $this->actingAs(User::factory()->create())
+        $this->actingAs(User::factory()->github()->create())
             ->postJson('/api/apps/verification', [
                 'depot_url' => 'https://github.com/acme/cobaye',
             ])
@@ -51,7 +61,7 @@ class VerificationDepotTest extends TestCase
     {
         $this->simulerDepot(compose: "services:\n  front:\n    image: nginx:alpine\n    privileged: true\n");
 
-        $this->actingAs(User::factory()->create())
+        $this->actingAs(User::factory()->github()->create())
             ->postJson('/api/apps/verification', [
                 'depot_url' => 'https://github.com/acme/cobaye',
             ])
@@ -65,7 +75,7 @@ class VerificationDepotTest extends TestCase
     {
         $this->simulerDepot(manifeste: ['version' => 2]);
 
-        $this->actingAs(User::factory()->create())
+        $this->actingAs(User::factory()->github()->create())
             ->postJson('/api/apps/verification', [
                 'depot_url' => 'https://github.com/acme/cobaye',
             ])
@@ -77,7 +87,7 @@ class VerificationDepotTest extends TestCase
 
     public function test_une_url_manquante_est_refusee(): void
     {
-        $this->actingAs(User::factory()->create())
+        $this->actingAs(User::factory()->github()->create())
             ->postJson('/api/apps/verification', [])
             ->assertStatus(422)
             ->assertJsonValidationErrors('depot_url');
@@ -87,7 +97,7 @@ class VerificationDepotTest extends TestCase
     {
         $this->simulerDepot(compose: false);
 
-        $this->actingAs(User::factory()->create())
+        $this->actingAs(User::factory()->github()->create())
             ->postJson('/api/apps/verification', [
                 'depot_url' => 'https://github.com/acme/cobaye',
             ])
@@ -116,6 +126,11 @@ class VerificationDepotTest extends TestCase
         Process::fake(function (PendingProcess $process) use ($manifeste, $compose) {
             if (($process->command[0] ?? '') !== 'git') {
                 return Process::result(errorOutput: 'inattendu', exitCode: 1);
+            }
+
+            // Le commit lu après le clonage (version 1 de l'appli).
+            if (($process->command[1] ?? '') === 'rev-parse') {
+                return Process::result(str_repeat('a', 40));
             }
 
             $destination = $process->command[array_key_last($process->command)];

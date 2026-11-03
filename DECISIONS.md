@@ -303,3 +303,162 @@ Validés par Oktav. L'équipe s'engage à les livrer d'ici le 25 octobre, **apr�
 - **Encaissement** : le client paie Souk.dev (hébergement et prix de l'appli), puis Souk.dev reverse le prix de l'appli au dev. Le prestataire de paiement reste à choisir ; Paxity, entité de Systalink, est envisagé.
 - Service d'envoi des emails (liens magiques, annulation d'événement) : à choisir par l'équipe.
 - Vérifier que l'appli est vraiment prête avant de donner son URL (étape 4 du moteur).
+
+## Décisions de l'agent
+
+Choix faits par l'agent en exécutant `BRIEF.md` (le brief passe avant ce fichier, voir sa section 2). Une ligne par décision, avec la raison.
+
+### Tranché par le brief (25 octobre)
+
+- **Encaissement** (point ouvert ci-dessus) : SasPay, en Mobile Money et carte. Frais en `ADD_ON` (le client les paie), reversements aux devs sans commission, frais de reversement pris sur la marge de Souk.dev.
+- **E-mails** (point ouvert ci-dessus) : Resend, déjà branché.
+- **Vérifier que l'appli est prête** (point ouvert ci-dessus) : fait, la sonde du service web décide de `en_ligne`.
+- **Souk AI** : l'API officielle DeepSeek remplace Claude pour l'instant, derrière l'adaptateur `FournisseurIa`.
+- **Revenus du tableau de bord** : réels dès que la facturation tourne, plus « estimés ».
+- **Concours CADEV** : terminé ; les règles du concours ne s'appliquent plus, la règle des licences permissives reste.
+
+### Socle (phase 1)
+
+- **2026-10-25 — Branche** : `saas-complet` part de `main`, où la PR #28 (`fin-mvp`) est déjà fusionnée.
+- **2026-10-25 — Laravel Boost** (MIT, dev) installé, comme le demande `backend/CLAUDE.md` : règles et skills Laravel pour les agents.
+- **2026-10-25 — Dépôts clonés** : `git clone --config core.symlinks=false` et git en `LC_ALL=C`. Un lien symbolique du dépôt vers `backend/.env` ou le `.env` d'une autre copie était lu par le validateur ou envoyé par Docker Compose (faille corrigée).
+- **2026-10-25 — Plateforme en conteneurs** : une seule image PHP (FrankenPHP, Alpine) pour l'API, les workers, Reverb et le planificateur. Raison : un seul environnement, du poste de dev au VPS.
+- **2026-10-25 — Docker réservé au moteur** : seul le service `moteur` (file `moteur`) reçoit le socket Docker. L'API, exposée à Internet, ne lance jamais de conteneur. Conséquence : `DELETE /deployments/{id}` répond `202` (`arret_en_cours`, puis `arrete` par Reverb) au lieu de `204`/`503` ; contrat mis à jour.
+- **2026-10-25 — Sonde du service web** : depuis un conteneur jetable (`curlimages/curl`) branché sur le réseau de la copie. Raison : Docker isole les réseaux entre eux, et la même sonde servira pour une autre machine.
+- **2026-10-25 — Secrets internes** (mot de passe PostgreSQL, clés Reverb) : générés au premier `docker compose up` dans un volume, chargés par Laravel au démarrage. Raison : démarrage à froid sans étape manuelle, rien dans le dépôt.
+- **2026-10-25 — Autorisation** : une Policy par ressource ; un refus garde sa raison, et une Policy peut répondre `404` pour ne pas révéler qu'une ressource existe (factures, revenus, notifications). Les routes déjà au contrat gardent leur `403`.
+- **2026-10-25 — GitHub lié** : contrôlé aussi pour `POST /apps` et `POST /apps/verification` (le contrat l'exigeait, le code non).
+- **2026-10-25 — Souk Score de la recherche de devs** : une copie du profil calculé est rangée sur le compte, rafraîchie à chaque action validée et chaque nuit, pour trier sans tout recalculer. Le profil d'un dev reste calculé en direct.
+
+### Paiement (phase 2)
+
+- **2026-10-26 — Passerelle par défaut en développement** : le simulateur (`PAIEMENT_PASSERELLE=simulee` dans `docker-compose.yml`). La clé fournie est une clé de production sur un compte où les paiements échouent : elle sert aux parcours d'échec, sur demande. Jamais le simulateur en production (refusé au démarrage).
+- **2026-10-26 — Une vérification par l'API fait foi** : ni le navigateur ni le webhook ne paient une facture ; seul `GET /payments/{id}/verify/` à `SUCCESS` le fait, sous verrou, une seule fois.
+- **2026-10-26 — Grand livre immuable** : en plus du modèle, un trigger PostgreSQL refuse toute modification ; seule la purge du jeu de démo peut supprimer (variable de session `soukdev.purge`).
+- **2026-10-26 — Reversement repris sans double paiement** : bénéficiaire figé et chiffré sur le reversement, même `Idempotency-Key` à chaque essai ; un `409` de SasPay se réessaie et ne rend jamais le solde.
+- **2026-10-26 — Confirmation du numéro par un bouton** : le lien de l'e-mail ouvre une page ; seul le clic confirme. Raison : les analyseurs de liens des messageries ouvrent les liens tout seuls.
+- **2026-10-26 — Suspension = conteneurs arrêtés, volumes gardés**, page neutre sur le sous-domaine (rien sur la facture : le client d'une pharmacie n'a pas à savoir qu'elle n'a pas payé). Les copies déclarent `restart: unless-stopped` : une copie suspendue ne repart pas seule après un redémarrage de Docker.
+- **2026-10-26 — E-mails de facturation en file** : une panne de Resend ne bloque ni une suspension ni un paiement. Aucun e-mail ne part vers les comptes de démo (adresses inexistantes, rebonds nuisibles au domaine d'envoi).
+- **2026-10-26 — Liens absolus sur `APP_URL`** : simulateur, lien de paiement et confirmation visent l'API, même quand la requête passe par le proxy du front.
+- **2026-10-26 — Le contrat vérifié par les tests** : chaque réponse JSON de `/api` est validée contre `openapi.yaml` (JSON Schema 2020-12). Il a trouvé 11 descriptions YAML cassées et 4 listes paginées hors format.
+- **2026-10-26 — Miroir local des applis de démo** (développement seulement, `MOTEUR_MIROIRS`) : le moteur clone une appli cobaye écrite pour Souk.dev au lieu de `github.com/soukdemo/…`, ce qui permet de prouver « payer → en ligne → suspendu → réactivé » avec de vrais conteneurs.
+- **2026-10-26 — Copie annoncée en ligne après Traefik** : 3 secondes d'attente après l'écriture de la route (Traefik regroupe les changements toutes les 2 s), sinon un clic rapide tombait sur un 404.
+- **2026-10-26 — Logos des réseaux Mobile Money** (Logo.dev, 8 marques, une fois chacune) : seulement pour désigner le moyen de paiement choisi, hébergés dans `frontend/src/assets/reseaux/`.
+- **2026-10-26 — Animations chargées à part** (`LazyMotion`) et coquille statique dans `index.html` : premier affichage plus rapide, mêmes animations.
+- **2026-10-26 — Après la revue de la phase 2** :
+  - le premier mois court depuis le paiement ; une réactivation après la date anniversaire ouvre un mois à partir du paiement (rien n'a été servi pendant la suspension) ;
+  - statut d'abonnement « incident » (contrat) : copie payée qui ne démarre pas, plus de facture tant que l'équipe n'a pas réglé le problème ;
+  - en production, reversements refusés tant que `REVERSEMENTS_REELS` n'est pas activé (jamais le simulateur) ;
+  - `Idempotency-Key` obligatoire (428) sur le paiement, le reversement, l'avoir et le remboursement d'un paiement en double ; l'autorisation passe avant ce contrôle ;
+  - routes d'administration : le contrôle d'admin passe avant la recherche de l'objet de l'URL (403, jamais un 404 révélateur) ;
+  - une carte débitée dans une autre devise est créditée et vérifiée par l'équipe ; un montant inattendu en francs CFA n'est jamais appliqué automatiquement ;
+  - frais retenus par SasPay malgré `ADD_ON` : charge de Souk.dev (compte `charge_frais_encaissement`), jamais sur la part du dev ;
+  - alertes de l'équipe par e-mail (`AlerteAdmin`, `ADMIN_EMAIL`) pour tout cas d'argent qu'aucun automatisme ne doit trancher seul.
+
+### Confiance (phase 3)
+
+- **2026-10-26 — Sécurité avant publication dans des conteneurs jetables** : gitleaks (réseau coupé, rapport masqué) et Trivy (base des failles dans un volume) tournent sur le service `analyse`, jamais dans l'API. Un secret bloque la publication (422 avec le fichier, la ligne et la règle, jamais la valeur) ; une faille de dépendance donne le badge orange et le rapport ; l'auteur relance l'analyse (5 par heure). Le jeu de démo a un dépôt « fuite » dont la clé factice est écrite à l'exécution, pour que le dépôt de Souk.dev lui-même reste sans secret.
+- **2026-10-26 — Qui note une appli** : un client dont au moins une facture de l'appli est payée (une commande jamais payée ne suffit pas), jamais son auteur. Un avis par client et par appli, modifiable ; la suppression et la modération viendront avec l'administration (phase 6).
+- **2026-10-26 — Moyenne rangée sur l'appli** : nombre et somme des notes recalculés depuis la table des avis, sous le verrou de l'appli. Raison : la fiche, le Store et le tri lisent deux colonnes, sans jointure ni course entre deux avis simultanés.
+- **2026-10-26 — Tri « Les mieux notées »** : moyenne bayésienne, comme si chaque appli avait déjà trois avis à 3/5. Raison : un seul 5/5 ne doit pas passer devant vingt avis à 4,7 ; une appli sans avis se range au milieu, devant une appli mal notée.
+- **2026-10-26 — Six types de notification** : correctif proposé, correctif accepté, message de mission, factures et échéances (rappel, retard, paiement reçu), suspension (suspension, dernier avertissement, arrêt, copie qui ne démarre pas), reversement. Chacun se règle dans Souk.dev et par e-mail ; tout est reçu par défaut.
+- **2026-10-26 — E-mail de suspension obligatoire** : il prévient avant la suppression des données d'un client ; l'écran des réglages le dit au lieu d'afficher un interrupteur grisé.
+- **2026-10-26 — Un e-mail par fil de mission toutes les 30 minutes au plus** : chaque message arrive dans le centre, mais une conversation n'inonde pas la boîte.
+- **2026-10-26 — Notifications en direct** : `notification.creee` sur `utilisateur.{id}`, même forme que l'API ; sans Reverb, la cloche relit l'API toutes les deux minutes. Une notification d'un autre compte répond 404.
+- **2026-10-26 — Preuve des e-mails** : un e-mail par notification envoyé par Resend à son adresse de test officielle `delivered@resend.dev`, tous remis (statut lu dans l'API de Resend). Raison : aucune boîte de réception n'est configurée (`ADMIN_EMAIL` absent) et l'adresse personnelle de l'utilisateur ne sert pas sans son accord.
+- **2026-10-26 — Après la revue de la phase 3** :
+  - la recherche de secrets a sa file et son worker (`analyse-secrets`) : une vérification n'attend jamais derrière une analyse Trivy ; une demande abandonnée par la requête n'est pas analysée ; vérifier et publier : 20 par heure et par compte ;
+  - le dépôt analysé ne choisit pas les règles de gitleaks : `.gitleaks.toml`, `.gitleaksignore` et les commentaires `gitleaks:allow` sont retirés de la copie analysée ;
+  - Trivy en `--offline-scan` : il ne contacte pas les dépôts Maven ou npm déclarés par le dépôt (adresse interne, serveur lent) ;
+  - état `echec` (contrat) : une analyse impossible se voit et se relance ; une analyse « en cours » depuis plus de 30 minutes se relance ; chaque semaine toutes les applis sont réanalysées, chaque nuit celles jamais analysées ; les restes d'analyses interrompues sont nettoyés chaque heure ;
+  - un service indisponible (503) garde son message et son `Retry-After` ; la requête qui attend la recherche de secrets a le temps de le faire ;
+  - les textes des membres restent du texte dans les e-mails (Markdown sécurisé : ni lien ni image injectés) ;
+  - une nouvelle demande de mission prévient le dev (type « Missions ») ;
+  - les réglages de notification s'enregistrent sous verrou, l'un après l'autre.
+
+### Intelligence (phase 4)
+
+- **2026-10-26 — Souk AI sur l'API officielle DeepSeek**, modèle `deepseek-flash` lu dans `GET /models` (DeepSeek-V4.1-Flash), derrière `FournisseurIa` ; `DEEPSEEK_MODELE` le change. Le fournisseur simulé sert aux tests, au travail hors ligne et au dépôt cloné sans clé ; il est refusé en production.
+- **2026-10-26 — Consentement exigé par l'API**, pas seulement par l'écran : `consentement: true` obligatoire, date gardée avec la demande.
+- **2026-10-26 — « 3 par jour » = 3 sur 24 heures glissantes**, vérifiées sous le verrou du compte. Raison : pas de remise à zéro à minuit UTC (1 h du matin au Bénin), et un 429 qui dit quand réessayer. Seules les pannes du fournisseur sont rendues, avec six tentatives au plus (revue de la phase 4).
+- **2026-10-26 — Secrets masqués avant l'envoi** : une fiche de bug contient souvent un extrait de configuration ; les motifs de clés courants sont remplacés avant de partir chez DeepSeek.
+- **2026-10-26 — Réponse rendue en Markdown simple, sans HTML** : titres, listes, gras, code ; un texte du modèle ne peut ni injecter de script ni de lien déguisé.
+- **2026-10-26 — Après la revue de la phase 4** :
+  - une analyse survit à sa discussion et compte toujours : supprimer puis recréer un bug ne rend pas d'analyse ; une réponse refusée ou coupée compte aussi (sinon une fiche qui pousse le modèle à l'échec offrirait des appels sans limite) ;
+  - file et worker `ia` dédiés : une analyse ne retient jamais un paiement ; 6 000 jetons et 90 secondes au plus par appel, un seul nouvel essai ;
+  - bornes tirées au hasard autour de la fiche, champs tronqués, masquage élargi (tableaux PHP, JSON, `.env`, adresses, en-têtes, Telegram, SendGrid, Slack, clés privées coupées) ;
+  - une fiche modifiée périme ses analyses ; une relance qui échoue laisse la bonne analyse affichée ; une analyse « en cours » depuis plus de 10 minutes ne bloque plus rien ;
+  - alerte de l'équipe une fois par heure au plus, y compris pour un modèle ou un paramètre refusés ;
+  - événements Reverb allégés (texte abrégé, analyse sans texte) : Reverb refuse les messages de plus de 10 Ko ;
+  - une limite propre à l'action (429) montre son propre message à l'écran.
+
+### Plateforme (phase 5)
+
+- **2026-10-26 — Une copie est épinglée sur un commit** : la version 1 garde le commit lu à la publication, chaque version suivante le sien ; une nouvelle copie part de la dernière version publiée. Raison : un client ne doit jamais changer de code sans l'avoir demandé.
+- **2026-10-26 — Une nouvelle version passe les contrôles d'une publication** (soukdev.json, docker-compose.yml, secrets), sur le worker `analyse-secrets` (Git et Docker, jamais derrière une analyse Trivy). Une seule à la fois par appli.
+- **2026-10-26 — Le client choisit quand appliquer** ; la copie s'arrête le temps de la mise à jour. Le `.env` garde les secrets générés et les valeurs du client ; une nouvelle variable « client » obligatoire est demandée au client avant de commencer.
+- **2026-10-26 — Sauvegarde des volumes avant, retour arrière automatique** si la nouvelle version est refusée ou ne répond pas à la sonde ; « echouee » (retour impossible) alerte l'équipe. Les archives passent par le shell du moteur (pas par la mémoire de PHP) et l'image PostgreSQL déjà utilisée (aucune nouvelle image) ; gardées 7 jours, la dernière toujours.
+- **2026-10-26 — Registre des migrations du backend intégré** (`soukdev.migrations`, hors du schéma exposé) : une mise à jour n'applique que les nouvelles migrations.
+- **2026-10-28 — Connexion des utilisateurs finaux par un code à 6 chiffres** (SMS ou e-mail), 10 minutes, 5 essais, 3 codes par quart d'heure et par destinataire ; échangé contre un JWT HS256 d'un jour (rôle `soukdev_utilisateur`, identifiant stable dans `sub`), signé du secret de la copie gardé chiffré. Les migrations du dev cloisonnent leurs lignes avec `soukdev.utilisateur_id()` dans des politiques RLS (démontré par Carnet).
+- **2026-10-28 — SMS simulé derrière `FournisseurSms`** (étape 0 restée sans réponse : aucun fournisseur choisi) ; lisible en développement sur `/simulateur/sms`. E-mail par Resend (déjà branché). Un envoi impossible rend 503 avec `Retry-After` et un message qui propose l'autre canal, jamais une 500.
+- **2026-10-28 — `/api/copies/*` ouvert à toute origine, sans cookies** : l'appli appelle la connexion depuis son propre domaine ; le CORS avec cookies du reste de l'API ne s'y applique pas.
+- **2026-10-28 — Sauvegarde quotidienne à chaud à 3 h 30** (base intégrée par `pg_dump`, autres volumes en archive, jamais les fichiers de la base en marche) et à la demande (3 par heure) ; le client liste et exporte (archive tar : `base.dump`, un tar.gz par volume) ; gardées 7 jours, la dernière toujours ; la fin arrive en direct par `deploiement.etat`.
+- **2026-10-28 — `search_path` du rôle soukdev fixé à public** : le schéma `soukdev` (registre, `utilisateur_id()`) porte le nom du rôle, et sans cela les tables des migrations du dev atterrissaient hors de l'API PostgREST.
+- **2026-10-28 — Après la revue du backend intégré** (8 constats, 7 corrigés, Docker toujours arrêté) :
+  - échange du code bridé à 20 essais par heure et par adresse IP (la clé publique est dans le `/config.js` de chaque copie) ; sans limite par destinataire, qui punirait la victime ;
+  - verdict unique « invalide ou expiré » pour un code faux, expiré ou absent (plus d'oracle d'activité) ; le 429 après 5 essais reste, comme toute limite de débit ;
+  - toute panne du fournisseur SMS rend 503 + `Retry-After`, comme la voie e-mail (le contrat ne connaît pas de 500 ici) ;
+  - nom d'appli sans retour à la ligne à la saisie (publication, modification), nettoyé à l'envoi du code (les noms déjà saisis partent aussi dans des sujets) ;
+  - codes de connexion expirés purgés chaque nuit ;
+  - « Mes copies » liste chaque sauvegarde gardée avec son export ; une demande sans nouvelle sauvegarde après 15 minutes affiche une erreur et rend le bouton, la liste relue détectant aussi le succès sans temps réel.
+- **2026-10-28 — Plusieurs serveurs** : une machine = un démon Docker joint par `DOCKER_HOST` (`MachineCible`, implémentation `MachineDocker` : local par défaut, `unix:///…` ou `tcp://…`, SSH et serverless plus tard) ; le clone reste sur le moteur, tout le reste (compose, sondes, migrations, sauvegardes, arrêts) vise le démon de la copie.
+- **2026-10-28 — Placement** : machine `active` et `joignable` avec le plus de mémoire libre (capacité déclarée, sinon mémoire sondée, moins les plafonds hébergés), sous verrou ; sans limite connue la machine passe devant (on ne refuse pas une copie faute de capacité déclarée) ; rien ne convient → `echec` explicite (et `incident` si payée).
+- **2026-10-28 — Maintenance = drain sans migration** : plus aucune nouvelle copie, celles qui tournent continuent ; retrait et changement de démon refusés (`409`) tant que des copies tournent dessus.
+- **2026-10-28 — Santé sondée par le moteur** (seul à parler à Docker) : toutes les 5 minutes et à la demande (`202`, état relu ensuite) ; l'API ne sonde jamais en direct (le conteneur API n'a pas le socket).
+- **2026-10-28 — Routage direct en v1** : Traefik central vise l'adresse du conteneur, donc les démons doivent partager l'espace réseau de l'hôte (vrai du DinD local) ; le bord par machine pour des VPS séparés se conçoit en phase 6, et `tcp://` sans TLS reste réservé au poste de développement.
+- **2026-10-28 — Second démon local en profil opt-in** (`docker compose --profile machines up -d dind`, réseau hôte, plages 10.200/10.201) : `docker compose up` seul ne lance pas de DinD privilégié.
+- **2026-10-29 — Après la revue des serveurs** (6 constats, 5 corrigés, captures en dette Docker) :
+  - un démon déjà enregistré est refusé en 422 (« Ce démon est déjà enregistré sur un autre serveur »), jamais en 500 ;
+  - en production, un `tcp://` distant sans TLS est refusé en 422 (seuls le démon local, `localhost`, `127.0.0.0/8` et `host.docker.internal` passent) ; le TLS par machine (`DOCKER_TLS_VERIFY`, certificats) se conçoit avec le bord par machine en phase 6 ;
+  - le placement élit et réserve (`machine_id`) dans la même transaction, machines puis copies occupantes verrouillées par id : deux lancements simultanés ne prennent pas la même dernière place, même à plusieurs workers ;
+  - sans capacité déclarée, le libre affiché et jaugé repose sur la mémoire sondée (« environ X libres (mémoire sondée) »), le contrat le dit ;
+  - l'état vide des serveurs utilise `EtatVide` (illustration `vide-serveurs`, action vers le formulaire).
+
+### Exploitation (phase 6)
+
+- **2026-10-29 — Signalements** : tout membre signale (20 par heure, un ouvert par cible, sinon 409) ; seuls hameçonnage, minage et contenu illégal réveillent l'équipe par e-mail, le reste attend dans `/admin/moderation`. Le résumé de la cible est calculé à la lecture : une cible supprimée ne casse pas la liste.
+- **2026-10-29 — Suspension d'un compte** : plus de connexion (GitHub, lien magique, démo) ni d'API, sauf la lecture de son propre compte (son motif) et la déconnexion ; l'équipe ne suspend jamais son propre compte. E-mail toujours envoyé (type `suspension`, obligatoire), contestation en réponse.
+- **2026-10-29 — Suspension d'une copie pour abus** : comme l'impayé (conteneurs arrêtés par le moteur, page neutre, volumes gardés), mais sans toucher à la facturation : une copie doublement suspendue ne repart qu'au paiement ET à la levée de l'équipe. Seule une copie en ligne se suspend.
+- **2026-10-29 — Production** : `docker-compose.prod.yml` (HTTPS Traefik + Let's Encrypt, worker et planificateur séparés, volumes `db`, `stockage`, `routes`, `letsencrypt`, `secrets`), front statique nginx (`VITE_API_BASE` absolu, même chemins `/api`), routes Traefik de la plateforme générées au démarrage avec le domaine validé. Les copies passent en TLS dès que `MOTEUR_URL_COPIE` est en `https://`.
+- **2026-10-29 — Surveillance et nettoyage** : file bloquée, disque plein et machines injoignables alertés toutes les heures (une fois par heure au plus par sujet) ; images et caches inutilisés depuis 7 jours purgés le dimanche (les images des copies en ligne ne partent jamais) ; journaux JSON (canal `json`, Traefik JSON).
+- **2026-10-29 — Sauvegardes** : base (`pg_dump`) + volumes + sommes SHA-256 chaque nuit, test de restauration mensuel dans des volumes jetables (sommes, migrations, tables, solde du grand livre), jamais sur la production.
+- **2026-10-29 — Multi-VPS (conception seule, sans second VPS réel)** : frontal TLS + proxy en bordure par VPS, VPN WireGuard entre VPS, TLS Docker par machine (certificats déposés via l'API), routes des bordures poussées en SSH (clé par machine, utilisateur restreint). Voir `docs/multi-vps.md`.
+- **2026-10-29 — Après la revue de la phase 6** (10 constats, 8 corrigés, 2 en dette Docker) :
+  - la sauvegarde de la base ne passe plus par un pipe (code de gzip masquant pg_dump) : dump dans un temporaire, refusé s'il est vide, puis compression ;
+  - un compte suspendu est refusé sur ses canaux privés Reverb (la session survit et `/broadcasting/auth` ignore le middleware des routes `api/`) ;
+  - décider d'un signalement et suspendre ou réactiver une copie pour abus se fait sous verrou dans une transaction (travail et e-mail après validation) ;
+  - un seul signalement ouvert par membre et par cible, garanti par un index unique partiel (la violation rend le même 409 que le contrôle applicatif) ;
+  - l'équipe peut suspendre un autre admin depuis l'interface (seul son propre compte reste interdit, comme l'API) ;
+  - chaque message d'une discussion et chaque événement porte son bouton « Signaler » (hors auteur) ; signaler une copie ou un compte passe par l'API (`docs/moderation.md`) ;
+  - le signalement expose `cible_chemin` (discussion parente d'un message, adresse de la copie, profil du compte) : la ligne admin mène à toutes les cibles ;
+  - le nettoyage hebdomadaire purge le démon local puis chaque distant joignable (les morts sont laissés à la sonde).
+  - Contrat : seul le schéma `Signalement` gagne `cible_chemin` (`string|null`) ; types régénérés.
+- **2026-11-01 — Second démon de test isolé** : jamais `network_mode: host` pour un second dockerd (il s'approprie `docker0` et les chaînes iptables de l'hôte). Il a son réseau (`10.199.0.2`), aucun port tcp (socket partagé dans un volume, groupe 2376 rejoint par le moteur), et `route-dind` pose une seule route `10.201.0.0/16` vers lui pour Traefik, comme le VPN routera les sous-réseaux des VPS.
+- **2026-11-01 — Traefik de production configuré en arguments seulement** : un fichier statique monté fait ignorer tous les arguments (le résolveur Let's Encrypt n'existait pas). Plus de `traefik.prod.yml` ; la sonde de santé reprend le point d'entrée ping en arguments.
+- **2026-11-01 — `scripts/prod.sh`** : toute commande de production passe par lui (Compose avec `--env-file backend/.env.prod`) ; `VITE_REVERB_KEY` n'est exigée qu'au build du front ; `APP_KEY` se génère avec `openssl` ; `backend/.env.prod` est ignoré par git.
+- **2026-11-01 — Refonte (phase 7)** : douze écrans d'avant la refonte redessinés avec le système, captures avant et après, ancien style supprimé (`ancien.css`, `shared/ui`, apparitions au défilement qui cachaient les contenus). Le « radar des talents » devient un champ « Votre besoin » qui classe les profils (le survol ne marche pas au doigt). Les visuels de l'accueil réutilisent les images déjà générées (aucune dépense) ; les photos chargées depuis le CDN d'Unsplash et l'image de connexion sans licence connue sont retirées.
+- **2026-11-01 — Choix exclusifs** : un groupe radio ARIA (`ChoixPastilles`, flèches et une seule tabulation) ; `PuceFiltre` (`aria-pressed`) reste réservé aux filtres cumulables (étiquettes, difficulté, stack).
+- **2026-11-01 — Actions réservées aux comptes** : un visiteur voit « Connectez-vous pour … » avant d'ouvrir le formulaire, plutôt qu'une erreur après l'avoir rempli.
+- **2026-11-01 — Montants** : `formaterFcfa` sépare les milliers par une espace insécable ordinaire, l'espace fine d'`Intl` (U+202F) s'effaçant en grand corps avec Outfit.
+- **2026-11-01 — Validation en français** : `lang/fr/validation.php` traduit toutes les règles de Laravel et nomme les champs de l'API ; la locale par défaut est `fr`.
+- **2026-11-01 — Sondes des serveurs sur leur file** : `SonderMachine` passe sur la file `sondes`, servie par un service à part (`sondes`, socket Docker monté, délai de 60 s) en dev et en production : une sonde demandée par l'équipe n'attend plus derrière une construction de copie (comme la file `analyse` pour la sécurité). La cause d'une sonde ratée est dite en français, sans le JSON du client Docker.
+- **2026-11-01 — Copies sur un domaine à part** : les copies (code des auteurs) sont servies sur `DOMAINE_COPIES`, jamais sous `DOMAINE` dont le cookie de session vaut pour tous les sous-domaines ; l'API refuse de servir en production si la configuration les mélange (`IsolementCopies`, vérifiée seulement en HTTP : `composer install` démarre Laravel sans `.env`). Écarté : un cookie limité à l'hôte de l'API, que le front sur `DOMAINE` ne pourrait plus lire pour le jeton CSRF.
+- **2026-11-01 — Proxy de confiance** : Laravel lit `X-Forwarded-*` quand la requête vient de la boucle locale ou d'un réseau privé (Traefik joint l'API par son port publié sur 127.0.0.1). Sans cela, une seule limite de débit pour tous les visiteurs et des liens signés relus en `http://`.
+- **2026-11-01 — Politique d'abus automatique** : minage présumé à 90 % de la formule pendant 12 relevés de 5 minutes d'affilée (une heure : une construction ou un pic ne suffisent pas), hameçonnage signalé sur une copie suspendu aussitôt (les visiteurs se font voler pendant l'examen), 3 suspensions automatiques par membre et par jour. Même suspension que celle de l'équipe, qui la lève. Le brief le demande ; la règle « on examine avant d'agir » vaut pour le reste.
+- **2026-11-01 — Lien magique confirmé** : le GET affiche l'adresse et un bouton, le POST consomme le lien (analyseurs de messagerie, connexion forcée à un autre compte), comme la confirmation du numéro de reversement.
+- **2026-11-01 — CSP du front par empreinte** : écrite au build (`scripts/csp-nginx.mjs`) avec l'empreinte des deux scripts en ligne de `index.html` et les origines de l'API et de Reverb ; `style-src 'unsafe-inline'` gardé (styles en ligne de la coquille, sans exécution possible). Les autres en-têtes (HSTS, nosniff, cadres) dans un middleware Traefik commun.
+- **2026-11-01 — Limites des copies** : six services au plus, `deploy` réduit aux limites (ni réplicas ni réservations, donc pas de carte graphique), journaux `local` 3 × 10 Mo réglés par la plateforme : les plafonds de la formule valent par conteneur.
+- **2026-11-01 — Performance mobile** : temps réel chargé à la demande et route préchargée dès le HTML (gains réels), mais l'accueil reste à 84–86 en mobile simulé : le premier affichage utile attend React. Le pré-rendu des pages publiques (rendu serveur puis hydratation) est le chemin vers 90 ; écarté pour cette version (risque de régression à la veille de la livraison), inscrit dans les limites connues.
+- **2026-11-03 — Limite générale de l'API** : 300 requêtes par minute, par compte (ou par adresse pour un visiteur), au lieu de 60. Un écran qui suit une construction se relit toutes les 4 s, et beaucoup d'abonnés mobiles d'Afrique de l'Ouest partagent une adresse (CGNAT) : 60 bloquait des membres honnêtes (vu dans les parcours). Les routes sensibles gardent leur limite propre (lien magique, paiements, IA, discussions, webhooks).
+- **2026-11-03 — Politique d'abus revue** : après la revue indépendante, l'hameçonnage ne suspend d'office qu'avec deux membres distincts inscrits depuis 7 jours (un seul compte, ou des comptes jetables, faisaient tomber la copie d'un client), 3 signalements comptés par membre et par jour, 10 suspensions d'office par jour pour toute la plateforme. Le minage se juge par conteneur (plafond de la formule) et non sur la somme de la copie, une tâche par machine.
+- **2026-11-03 — Création de canaux** : 3 par jour et par compte, un canal s'affichant chez tous les membres.

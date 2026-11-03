@@ -3,7 +3,6 @@
 namespace App\Moteur;
 
 use App\Moteur\Exceptions\LancementEchoue;
-use Illuminate\Support\Facades\Process;
 
 class LanceurCompose
 {
@@ -13,6 +12,10 @@ class LanceurCompose
     public function verifier(string $repertoire, string $nomService): string
     {
         $compose = $repertoire.DIRECTORY_SEPARATOR.'docker-compose.yml';
+
+        if (is_link($compose)) {
+            throw new LancementEchoue('docker-compose.yml ne doit pas être un lien symbolique.');
+        }
 
         if (! is_file($compose)) {
             throw new LancementEchoue('docker-compose.yml est absent à la racine du dépôt.');
@@ -82,7 +85,7 @@ class LanceurCompose
         return $noms;
     }
 
-    public function lancer(string $repertoire, string $copie, string $taille = 'petite'): void
+    public function lancer(string $repertoire, string $copie, string $taille = 'petite', ?MachineCible $machine = null): void
     {
         $this->verifierNomCopie($copie);
 
@@ -107,11 +110,11 @@ class LanceurCompose
 
         (new LimitesTaille)->ecrire($repertoire, $services, $taille);
 
-        $this->verifierConfigFinale($repertoire, $copie, $taille);
+        $this->verifierConfigFinale($repertoire, $copie, $taille, $machine);
 
         $env = $repertoire.DIRECTORY_SEPARATOR.'.env';
 
-        $resultat = Process::path($repertoire)
+        $resultat = Commande::pour($machine)->path($repertoire)
             ->timeout((int) config('moteur.compose_timeout'))
             ->run([
                 ...$this->argumentsCompose($repertoire, $copie),
@@ -122,7 +125,7 @@ class LanceurCompose
         $this->echouerSiComposeRate($resultat, 'Le lancement Docker Compose a échoué.');
     }
 
-    public function adresseService(string $repertoire, string $copie, string $service): string
+    public function adresseService(string $repertoire, string $copie, string $service, ?MachineCible $machine = null): string
     {
         $this->verifierNomCopie($copie);
 
@@ -130,7 +133,7 @@ class LanceurCompose
             throw new LancementEchoue('Le nom du service web est invalide.');
         }
 
-        $liste = Process::path($repertoire)
+        $liste = Commande::pour($machine)->path($repertoire)
             ->timeout(30)
             ->run(['docker', 'compose', '-p', $copie, 'ps', '-q', $service]);
 
@@ -144,7 +147,7 @@ class LanceurCompose
             throw new LancementEchoue("Le service « {$service} » n'a pas de conteneur.");
         }
 
-        $inspection = Process::timeout(30)->run([
+        $inspection = Commande::pour($machine)->timeout(30)->run([
             'docker', 'inspect', '-f', '{{json .NetworkSettings.Networks}}', $id,
         ]);
 
@@ -157,7 +160,7 @@ class LanceurCompose
 
     public function __construct(private ?RouteurCopies $routeur = null) {}
 
-    public function arreter(string $repertoire, string $copie): void
+    public function arreter(string $repertoire, string $copie, ?MachineCible $machine = null): void
     {
         $this->verifierNomCopie($copie);
 
@@ -168,11 +171,35 @@ class LanceurCompose
 
         // -v supprime aussi les volumes (dont la base intégrée), --rmi local les images construites.
         // Le dossier a pu disparaître : -p suffit à retrouver les conteneurs du projet.
-        $resultat = Process::path(is_dir($repertoire) ? $repertoire : sys_get_temp_dir())
+        $resultat = Commande::pour($machine)->path(is_dir($repertoire) ? $repertoire : sys_get_temp_dir())
             ->timeout((int) (function_exists('config') ? config('moteur.down_timeout', 120) : 120))
             ->run(['docker', 'compose', '-p', $copie, 'down', '-v', '--remove-orphans', '--rmi', 'local']);
 
         $this->echouerSiComposeRate($resultat, 'L\'arrêt Docker Compose a échoué.');
+    }
+
+    /** Suspension pour impayé : conteneurs arrêtés, volumes et images gardés pour la reprise. */
+    public function suspendre(string $repertoire, string $copie, ?MachineCible $machine = null): void
+    {
+        $this->verifierNomCopie($copie);
+
+        $resultat = Commande::pour($machine)->path(is_dir($repertoire) ? $repertoire : sys_get_temp_dir())
+            ->timeout((int) config('moteur.down_timeout', 120))
+            ->run(['docker', 'compose', '-p', $copie, 'stop']);
+
+        $this->echouerSiComposeRate($resultat, 'La suspension Docker Compose a échoué.');
+    }
+
+    /** Reprise après paiement : les mêmes conteneurs repartent, avec leurs données. */
+    public function reprendre(string $repertoire, string $copie, ?MachineCible $machine = null): void
+    {
+        $this->verifierNomCopie($copie);
+
+        $resultat = Commande::pour($machine)->path(is_dir($repertoire) ? $repertoire : sys_get_temp_dir())
+            ->timeout((int) config('moteur.compose_timeout', 600))
+            ->run(['docker', 'compose', '-p', $copie, 'start']);
+
+        $this->echouerSiComposeRate($resultat, 'La reprise Docker Compose a échoué.');
     }
 
     /**
@@ -196,11 +223,11 @@ class LanceurCompose
         return $arguments;
     }
 
-    private function verifierConfigFinale(string $repertoire, string $copie, string $taille): void
+    private function verifierConfigFinale(string $repertoire, string $copie, string $taille, ?MachineCible $machine = null): void
     {
         $env = $repertoire.DIRECTORY_SEPARATOR.'.env';
 
-        $resultat = Process::path($repertoire)
+        $resultat = Commande::pour($machine)->path($repertoire)
             ->timeout(30)
             ->run([
                 ...$this->argumentsCompose($repertoire, $copie),

@@ -14,8 +14,11 @@ use App\Http\Resources\CompteResource;
 use App\Http\Resources\DevResource;
 use App\Models\Appli;
 use App\Models\User;
+use App\Paiement\GrandLivre;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Validation\Rule;
 
 final class CompteController extends Controller
@@ -25,8 +28,16 @@ final class CompteController extends Controller
         return new CompteResource($request->user());
     }
 
-    public function tableau(Request $request): JsonResponse
+    /**
+     * Tableau de bord du dev : revenus réels tirés du grand livre (ses parts sur les factures
+     * payées), plus les vues et les copies de chaque appli.
+     */
+    public function tableau(Request $request, GrandLivre $grandLivre): JsonResponse
     {
+        $dev = $request->user();
+        $duMois = $grandLivre->encaisseDevParAppli($dev->id, now()->startOfMonth());
+        $total = $grandLivre->encaisseDevParAppli($dev->id);
+
         $applis = Appli::query()
             ->where('user_id', $request->user()->id)
             ->withCount([
@@ -37,40 +48,30 @@ final class CompteController extends Controller
             ])
             ->orderByDesc('id')
             ->get()
-            ->map(function (Appli $appli): array {
-                $prix = (int) $appli->prix;
-                $revenu = $appli->type_prix === 'mensuel'
-                    ? (int) $appli->copies_actives * $prix
-                    : (int) $appli->deploiements_total * $prix;
-
-                return [
-                    'app_id' => $appli->id,
-                    'nom' => (string) $appli->nom,
-                    'type_prix' => (string) $appli->type_prix,
-                    'prix' => $prix,
-                    'vues' => (int) $appli->vues,
-                    'copies_actives' => (int) $appli->copies_actives,
-                    'deploiements_total' => (int) $appli->deploiements_total,
-                    'revenu_estime' => $revenu,
-                ];
-            });
+            ->map(fn (Appli $appli): array => [
+                'app_id' => $appli->id,
+                'nom' => (string) $appli->nom,
+                'type_prix' => (string) $appli->type_prix,
+                'prix' => (int) $appli->prix,
+                'vues' => (int) $appli->vues,
+                'copies_actives' => (int) $appli->copies_actives,
+                'deploiements_total' => (int) $appli->deploiements_total,
+                'revenu_mois' => $duMois[$appli->id] ?? 0,
+                'revenu_total' => $total[$appli->id] ?? 0,
+            ]);
 
         return response()->json([
             'totaux' => [
                 'vues' => (int) $applis->sum('vues'),
                 'copies_actives' => (int) $applis->sum('copies_actives'),
-                'revenus_estimes_mensuels' => (int) $applis
-                    ->where('type_prix', 'mensuel')
-                    ->sum('revenu_estime'),
-                'revenus_estimes_uniques' => (int) $applis
-                    ->where('type_prix', 'unique')
-                    ->sum('revenu_estime'),
+                'revenus_mois' => $grandLivre->encaisseDev($dev->id, now()->startOfMonth()),
+                'revenus_total' => $grandLivre->encaisseDev($dev->id),
             ],
             'applis' => $applis->values(),
         ]);
     }
 
-    public function index(Request $request): JsonResponse
+    public function index(Request $request, ProfilCalcule $profils): AnonymousResourceCollection
     {
         $request->validate([
             'disponible' => ['sometimes', Rule::in(['true', 'false', '0', '1'])],
@@ -95,28 +96,23 @@ final class CompteController extends Controller
                 'pays',
                 $request->string('pays')->toString(),
             ))
-            ->orderByDesc('disponible')
+            // Du meilleur Souk Score au plus faible (copie rangée, rafraîchie à chaque action validée).
+            ->orderByDesc('souk_score')
             ->orderBy('name')
             ->paginate(Pagination::parPage($request))
-            ->through(function (User $compte): array {
-                $calcule = new ProfilCalcule;
+            ->through(fn (User $compte): array => [
+                ...DevResource::champs($compte),
+                'bio' => $compte->bio,
+                'competences' => array_values($compte->competences ?? []),
+                'specialites' => array_values($compte->specialites ?? []),
+                'disponible' => (bool) $compte->disponible,
+                ...$profils->range($compte),
+            ]);
 
-                return [
-                    ...DevResource::champs($compte),
-                    'bio' => $compte->bio,
-                    'competences' => array_values($compte->competences ?? []),
-                    'specialites' => array_values($compte->specialites ?? []),
-                    'disponible' => (bool) $compte->disponible,
-                    'stats' => $calcule->stats(),
-                    'reputation' => $calcule->reputation(),
-                    'souk_score' => $calcule->soukScore(),
-                ];
-            });
-
-        return response()->json($devs);
+        return JsonResource::collection($devs);
     }
 
-    public function dev(string $username, DepotsGithub $depots): JsonResponse
+    public function dev(string $username, DepotsGithub $depots, ProfilCalcule $profils): JsonResponse
     {
         $compte = User::query()->where('username', $username)->first();
 
@@ -124,7 +120,6 @@ final class CompteController extends Controller
             abort(404);
         }
 
-        $calcule = new ProfilCalcule;
         $applis = Appli::query()
             ->where('user_id', $compte->id)
             ->orderByDesc('id')
@@ -138,10 +133,9 @@ final class CompteController extends Controller
             'competences' => array_values($compte->competences ?? []),
             'specialites' => array_values($compte->specialites ?? []),
             'disponible' => $compte->disponible,
-            'stats' => $calcule->stats(),
-            'reputation' => $calcule->reputation(),
-            'souk_score' => $calcule->soukScore(),
-            'depots' => $depots->pour($compte->username),
+            ...$profils->pour($compte),
+            // Un compte de démo n'a pas de vrai compte GitHub derrière son identifiant.
+            'depots' => $compte->est_demo ? [] : $depots->pour($compte->username),
             'applis' => $applis,
         ]);
     }

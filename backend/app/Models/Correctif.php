@@ -31,6 +31,7 @@ class Correctif extends Model
     {
         return [
             'accepte' => 'boolean',
+            'accepte_le' => 'datetime',
         ];
     }
 

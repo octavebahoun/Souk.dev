@@ -1,6 +1,8 @@
 import axios from 'axios'
 
 const apiUrl = import.meta.env.VITE_API_URL
+// Production : l'API est sur un autre sous-domaine (https://api.$DOMAINE), figé au build.
+const baseApi = import.meta.env.VITE_API_BASE
 
 const options = {
   withCredentials: true,
@@ -15,7 +17,11 @@ export const client = axios.create({
 })
 
 // Toujours le proxy Vite vers Laravel, même si VITE_API_URL pointe vers Prism.
-export const clientLocal = axios.create(options)
+// En production, vers l'API absolue (mêmes chemins /api/…, cookies cross-sous-domaines).
+export const clientLocal = axios.create({
+  baseURL: baseApi || undefined,
+  ...options,
+})
 
 // Prism sert les chemins du contrat à la racine (/discussions).
 // Laravel les préfixe avec /api. Les routes web (CSRF, connexion) ne passent pas ici.

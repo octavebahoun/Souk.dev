@@ -1,15 +1,39 @@
 import { useState, type FormEvent } from 'react'
-import { Link, useParams } from 'react-router'
+import { useParams } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
+import { Award, BadgeCheck, ExternalLink, MapPin, Send, Star } from 'lucide-react'
+import { useSelonCompte } from '../../app/compte'
+import { useTitrePage } from '../../app/titre'
 import { lireMoi, messageAction } from '../echange/api'
 import { nomPays } from '../echange/texte'
+import { CarteAppli } from '../catalogue/CarteAppli'
+import { ModaleConnexion } from '../../app/ModaleConnexion'
 import { lireProfil, proposerMission, type ProfilDev } from './api'
+import {
+  Alerte,
+  Avatar,
+  Badge,
+  Bouton,
+  Carte,
+  Champ,
+  EnTeteCarte,
+  EtatErreur,
+  LienBouton,
+  Modale,
+  Saisie,
+  SaisieMontant,
+  Squelette,
+  ZoneTexte,
+  classesBouton,
+  cx,
+  useToast,
+} from '../../ui'
 
 const roles: Record<ProfilDev['specialites'][number], string> = {
   frontend: 'Frontend',
   backend: 'Backend',
   mobile: 'Mobile',
-  devops: 'Devops',
+  devops: 'DevOps',
   securite: 'Sécurité',
   data: 'Data',
 }
@@ -38,26 +62,12 @@ const badges = [
   { id: 'organisateur', nom: 'Organisateur', regle: '1 événement passé' },
 ] as const
 
-const places = [
-  'top-[6%] left-1/2 -translate-x-1/2',
-  'top-[22%] right-0',
-  'bottom-[18%] right-[6%]',
-  'bottom-[4%] left-1/2 -translate-x-1/2',
-  'top-[28%] left-0',
-  'top-[58%] left-[2%]',
-]
+const conteneur = 'mx-auto flex w-full max-w-site flex-col gap-6 px-4 py-8 tablette:px-6 bureau:px-8'
 
-function fcfa(valeur: number): string {
-  return `${new Intl.NumberFormat('fr-FR').format(valeur)} F`
-}
-
-function initiales(nom: string | null, username: string | null): string {
-  const source = (nom || username || '?').trim()
-  const mots = source.split(/[\s._-]+/).filter(Boolean)
-  if (mots.length >= 2) return `${mots[0][0]}${mots[1][0]}`.toUpperCase()
-  return source.slice(0, 2).toUpperCase()
-}
-
+/**
+ * Profil public d'un dev : qui il est, ce qu'il sait faire, la preuve (Souk Score, réputation,
+ * applis, dépôts), et une seule action pour un visiteur : lui proposer une mission.
+ */
 export function Profil() {
   const { username = '' } = useParams()
   const profil = useQuery({
@@ -66,221 +76,232 @@ export function Profil() {
     enabled: username.length > 0,
   })
   const moi = useQuery({ queryKey: ['moi'], queryFn: lireMoi })
+  const selonCompte = useSelonCompte()
+  const [mission, setMission] = useState(false)
+  const [ouvertures, setOuvertures] = useState(0)
+  const [connexion, setConnexion] = useState(false)
+  useTitrePage(profil.data?.nom || profil.data?.username || 'Profil')
 
   if (profil.isPending) {
-    return <div role="status" aria-label="Chargement du profil" className="squelette mx-auto mt-8 h-80 max-w-[1440px] rounded-[18px]" />
+    return (
+      <div role="status" aria-label="Chargement du profil" className={conteneur}>
+        <Squelette className="h-56 rounded-moyen" />
+        <Squelette className="h-24 rounded-moyen" />
+        <Squelette className="h-64 rounded-moyen" />
+      </div>
+    )
   }
 
   if (profil.isError || !profil.data) {
     return (
-      <div className="mx-auto flex max-w-[1440px] flex-col gap-3 px-4 py-10 min-[761px]:px-9">
-        <p role="alert" className="m-0">Ce profil est introuvable, ou le chargement a échoué.</p>
-        <button type="button" onClick={() => profil.refetch()} className="min-h-cible w-fit rounded-controle bg-accent px-4 font-semibold text-canvas">
-          Réessayer
-        </button>
+      <div className={conteneur}>
+        <EtatErreur titre="Profil indisponible" description="Ce profil est introuvable, ou le chargement a échoué." onReessayer={() => void profil.refetch()} />
       </div>
     )
   }
 
   const dev = profil.data
+  const nom = dev.nom || dev.username || 'Dev'
   const etoiles = dev.depots.reduce((somme, depot) => somme + depot.etoiles, 0)
   const note = dev.stats.note_moyenne
   const moiMeme = moi.data?.id === dev.id
 
   return (
-    <div className="reseau bg-page">
-      <div className="mx-auto flex max-w-[1440px] flex-col gap-6 px-4 py-7 min-[761px]:px-9">
-        <section className="relative overflow-hidden rounded-[18px] border border-white/80 bg-[linear-gradient(135deg,#ffffff_42%,#f3efe4_100%)] p-6 shadow-[0_10px_30px_rgba(15,23,42,0.04)] min-[861px]:p-8">
-          <div className="grid items-center gap-8 min-[861px]:grid-cols-[minmax(0,1fr)_340px]">
-            <div className="flex flex-col gap-3">
-              <span className="inline-flex w-fit items-center gap-2 rounded-full bg-[#DCFCE7] px-2.5 py-1 text-[11px] font-bold tracking-wide text-[#166534]">
-                <span className="size-1.5 rounded-full bg-[#16A34A]" />
-                BONJOUR, JE SUIS
-              </span>
-              <h1 className="m-0 text-4xl font-extrabold tracking-[-0.03em] min-[861px]:text-5xl">
-                {dev.nom || dev.username || 'Dev'}
+    <div className={conteneur}>
+      <Carte as="section" marge="large" aria-labelledby="titre-profil" className="grid gap-6 bureau:grid-cols-[minmax(0,1fr)_16rem] bureau:items-start">
+        <div className="flex flex-col gap-4 tablette:flex-row tablette:items-start tablette:gap-6">
+          <Avatar nom={nom} url={dev.avatar_url} taille="xl" />
+          <div className="flex min-w-0 flex-col gap-3">
+            <div className="flex flex-col gap-1">
+              <h1 id="titre-profil" className="m-0 text-titre-1 text-titre">
+                {nom}
               </h1>
-              <p className="m-0 text-lg text-ink">
-                Dev{' '}
-                <span className="font-bold text-accent">
-                  {dev.specialites.length > 0 ? dev.specialites.map((item) => roles[item].toLowerCase()).join(' & ') : 'sur Souk.dev'}
-                </span>
+              <p className="m-0 text-corps-l text-texte">
+                Dev {dev.specialites.length > 0 ? dev.specialites.map((item) => roles[item].toLowerCase()).join(' & ') : 'sur Souk.dev'}
+                {dev.username ? <span className="text-texte-doux"> · @{dev.username}</span> : null}
               </p>
-              <p className="m-0 max-w-[54ch] text-subtle">{dev.bio || 'Pas encore de bio.'}</p>
-              <p className="m-0 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-nav-texte">
-                <span className="inline-flex items-center gap-1.5">
-                  <Pin />
-                  {dev.pays ? nomPays(dev.pays) : 'Pays non renseigné'}
-                </span>
-                <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[13px] font-semibold ${dev.disponible ? 'bg-[#DCFCE7] text-[#166534]' : 'bg-chip text-subtle'}`}>
-                  <span className={`size-2 rounded-full ${dev.disponible ? 'bg-[#16A34A]' : 'bg-nav-doux'}`} />
-                  {dev.disponible ? 'Disponible pour une mission' : 'Pas disponible'}
-                </span>
-              </p>
-              <div className="mt-1 flex flex-wrap gap-2">
-                {moiMeme ? (
-                  <Link to="/tableau" className="inline-flex min-h-cible items-center rounded-controle bg-ink px-4 font-semibold text-canvas no-underline">
+            </div>
+            <p className="m-0 max-w-prose text-corps text-texte">{dev.bio || 'Ce dev n’a pas encore écrit de présentation.'}</p>
+            <div className="flex flex-wrap items-center gap-2 text-petit text-texte-doux">
+              <span className="inline-flex items-center gap-1.5">
+                <MapPin aria-hidden="true" className="size-4" />
+                {dev.pays ? nomPays(dev.pays) : 'Pays non renseigné'}
+              </span>
+              <Badge ton={dev.disponible ? 'succes' : 'neutre'}>{dev.disponible ? 'Disponible pour une mission' : 'Pas disponible'}</Badge>
+            </div>
+            {dev.competences.length > 0 ? (
+              <ul aria-label="Compétences" className="m-0 flex list-none flex-wrap gap-1.5 p-0">
+                {dev.competences.map((item) => (
+                  <li key={item}>
+                    <Badge ton="marque">{item}</Badge>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            <div className="mt-1 flex flex-col gap-2 tablette:flex-row tablette:items-center">
+              {moiMeme ? (
+                <>
+                  <LienBouton to="/profil">Modifier mon profil</LienBouton>
+                  <LienBouton to="/tableau" variante="contour">
                     Mon tableau de bord
-                  </Link>
-                ) : (
-                  <DemandeMission username={username} nom={dev.nom || dev.username || 'ce dev'} />
-                )}
-                {dev.github_url ? (
-                  <a href={dev.github_url} className="inline-flex min-h-cible items-center gap-2 rounded-controle border border-line bg-canvas px-4 font-semibold text-ink no-underline">
-                    <LienExterne />
-                    Voir mon GitHub
-                  </a>
-                ) : null}
-              </div>
-              {!moiMeme ? <p className="m-0 text-[12.5px] text-muted">Contacter un dev est gratuit.</p> : null}
+                  </LienBouton>
+                </>
+              ) : (
+                <Bouton
+                  icone={<Send aria-hidden="true" className="size-4" />}
+                  onClick={() =>
+                    void selonCompte(
+                      () => {
+                        setOuvertures((nombre) => nombre + 1)
+                        setMission(true)
+                      },
+                      () => setConnexion(true),
+                    )
+                  }
+                >
+                  Proposer une mission
+                </Bouton>
+              )}
+              {dev.github_url ? (
+                <a href={dev.github_url} target="_blank" rel="noreferrer" className={classesBouton('contour', 'md')}>
+                  Voir son GitHub
+                  <ExternalLink aria-hidden="true" className="size-4" />
+                  <span className="pour-lecteur"> (nouvel onglet)</span>
+                </a>
+              ) : null}
+              {!moiMeme ? <span className="text-petit text-texte-doux">Contacter un dev est gratuit.</span> : null}
             </div>
-            <Orbite dev={dev} />
           </div>
-        </section>
+        </div>
+        <div className="flex flex-col gap-2 rounded-moyen bg-surface-accent p-5">
+          <p className="m-0 text-etiquette text-sur-primaire-doux uppercase">Souk Score</p>
+          <p className="m-0 flex items-baseline gap-1.5">
+            <span className="chiffres text-affiche text-titre">{dev.souk_score.total}</span>
+            <span className="text-petit text-texte-doux">/ 1000</span>
+          </p>
+          <Badge ton="alerte" icone={<Award aria-hidden="true" className="size-3.5" />} className="self-start">
+            {niveaux[dev.reputation.niveau]} · {dev.reputation.xp.toLocaleString('fr-FR')} XP
+          </Badge>
+        </div>
+      </Carte>
 
-        <section className="grid gap-4 min-[861px]:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
-          <article className="rounded-[18px] border border-line bg-canvas p-6">
-            <h2 className="m-0 text-xl font-bold">À propos</h2>
-            <p className="m-0 mt-3 max-w-[58ch] text-subtle">{dev.bio || 'Ce dev n’a pas encore écrit de présentation.'}</p>
-            <div className="mt-4 flex flex-wrap gap-2">
-              {dev.specialites.map((item) => (
-                <span key={item} className="rounded-full bg-nav px-2.5 py-0.5 text-[13px] font-semibold text-accent">
-                  {roles[item]}
-                </span>
-              ))}
-            </div>
-          </article>
-          <div className="grid grid-cols-2 gap-3">
-            <Info titre="Nom" valeur={dev.nom || '—'} />
-            <Info titre="Pays" valeur={dev.pays ? nomPays(dev.pays) : '—'} />
-            <Info titre="Disponible" valeur={dev.disponible ? 'Libre pour une mission' : 'Pas en ce moment'} />
-            <Info titre="GitHub" valeur={dev.username ? `@${dev.username}` : '—'} />
-          </div>
-        </section>
+      <section aria-label="Statistiques" className="grid grid-cols-2 gap-3 tablette:grid-cols-5 [&>:last-child]:col-span-2 tablette:[&>:last-child]:col-span-1">
+        <Chiffre valeur={String(dev.stats.bugs_resolus)} legende={dev.stats.bugs_resolus >= 2 ? 'bugs résolus' : 'bug résolu'} />
+        <Chiffre valeur={String(dev.stats.applis_publiees)} legende={dev.stats.applis_publiees >= 2 ? 'applis publiées' : 'appli publiée'} />
+        <Chiffre valeur={String(dev.stats.missions_terminees)} legende={dev.stats.missions_terminees >= 2 ? 'missions terminées' : 'mission terminée'} />
+        <Chiffre valeur={note === null ? '—' : note.toLocaleString('fr-FR')} legende={note === null ? 'pas encore de note' : `note des clients (${dev.stats.nb_notes})`} />
+        <Chiffre valeur={String(etoiles)} legende="étoiles GitHub" />
+      </section>
 
-        <section aria-label="Statistiques" className="grid gap-3 min-[761px]:grid-cols-5">
-          <Chiffre valeur={String(dev.stats.bugs_resolus)} legende="bugs résolus" />
-          <Chiffre valeur={String(dev.stats.applis_publiees)} legende="appli publiée" />
-          <Chiffre valeur={String(dev.stats.missions_terminees)} legende="missions terminées" />
-          <Chiffre valeur={note === null ? '—' : note.toLocaleString('fr-FR')} legende={note === null ? 'pas encore de note' : `note des clients · ${dev.stats.nb_notes} notes`} />
-          <Chiffre valeur={String(etoiles)} legende="étoiles GitHub" />
-        </section>
+      <div className="grid gap-6 bureau:grid-cols-2">
+        <Carte as="section" aria-labelledby="titre-score" className="flex flex-col gap-4">
+          <EnTeteCarte titre={<span id="titre-score">Détail du Souk Score</span>} description="Calculé à partir d’actions validées par d’autres membres." />
+          <ul className="m-0 flex list-none flex-col gap-3 p-0">
+            {partsScore.map((part) => {
+              const valeur = dev.souk_score[part.cle]
+              const largeur = Math.min(100, Math.round((valeur / part.max) * 100))
+              return (
+                <li key={part.cle} className="flex flex-col gap-1.5">
+                  <div className="flex justify-between text-petit">
+                    <span className="font-medium text-titre">{part.nom}</span>
+                    <span className="chiffres text-texte-doux">
+                      {valeur} / {part.max}
+                    </span>
+                  </div>
+                  <div role="progressbar" aria-label={part.nom} aria-valuenow={valeur} aria-valuemin={0} aria-valuemax={part.max} className="h-2 overflow-hidden rounded-pastille bg-surface-douce">
+                    <div className="h-full rounded-pastille bg-primaire" style={{ width: `${largeur}%` }} />
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        </Carte>
+        <Carte as="section" aria-labelledby="titre-badges" className="flex flex-col gap-4">
+          <EnTeteCarte titre={<span id="titre-badges">Badges</span>} description={`${dev.reputation.badges.length} sur ${badges.length} obtenus.`} />
+          <ul className="m-0 grid list-none grid-cols-2 gap-2 p-0">
+            {badges.map((badge) => {
+              const obtenu = dev.reputation.badges.includes(badge.id)
+              return (
+                <li key={badge.id} className={cx('flex items-start gap-2 rounded-moyen border p-3', obtenu ? 'border-bordure-succes bg-fond-succes' : 'border-bordure bg-surface-douce')}>
+                  <BadgeCheck aria-hidden="true" className={cx('mt-0.5 size-4 shrink-0', obtenu ? 'text-succes' : 'text-texte-indice')} />
+                  <span className="flex flex-col">
+                    <span className={cx('text-petit font-medium', obtenu ? 'text-titre' : 'text-texte-doux')}>
+                      {badge.nom}
+                      <span className="pour-lecteur">{obtenu ? ' : obtenu' : ' : pas encore obtenu'}</span>
+                    </span>
+                    <span className="text-micro text-texte-doux">{badge.regle}</span>
+                  </span>
+                </li>
+              )
+            })}
+          </ul>
+        </Carte>
+      </div>
 
-        <section className="grid gap-4 min-[861px]:grid-cols-2">
-          <article className="rounded-[18px] border border-line bg-canvas p-6">
-            <div className="flex items-baseline justify-between gap-3">
-              <h2 className="m-0 text-xl font-bold">Souk Score</h2>
-              <span className="text-sm text-muted">sur 1000</span>
-            </div>
-            <p className="m-0 mt-2 text-5xl font-extrabold tracking-tight text-accent">{dev.souk_score.total}</p>
-            <ul className="m-0 mt-4 flex list-none flex-col gap-3 p-0">
-              {partsScore.map((part) => {
-                const valeur = dev.souk_score[part.cle]
-                const largeur = Math.min(100, Math.round((valeur / part.max) * 100))
-                return (
-                  <li key={part.cle}>
-                    <div className="mb-1 flex justify-between text-sm">
-                      <span className="font-semibold">{part.nom}</span>
-                      <span className="text-nav-texte">{valeur} / {part.max}</span>
-                    </div>
-                    <div className="h-2 overflow-hidden rounded-full bg-chip">
-                      <div className="h-full rounded-full bg-accent" style={{ width: `${largeur}%` }} />
-                    </div>
-                  </li>
-                )
-              })}
-            </ul>
-          </article>
-          <article className="rounded-[18px] border border-line bg-canvas p-6">
-            <h2 className="m-0 text-xl font-bold">Réputation</h2>
-            <div className="mt-3 flex flex-wrap items-center gap-3">
-              <span className="rounded-full bg-[#FFEDD5] px-3 py-1 text-sm font-semibold text-[#9A3412]">{niveaux[dev.reputation.niveau]}</span>
-              <strong className="text-[22px]">{dev.reputation.xp.toLocaleString('fr-FR')} XP</strong>
-            </div>
-            <ul className="m-0 mt-4 grid list-none grid-cols-2 gap-2 p-0">
-              {badges.map((badge) => {
-                const obtenu = dev.reputation.badges.includes(badge.id)
-                return (
-                  <li key={badge.id} className={`rounded-controle border px-3 py-2 ${obtenu ? 'border-line bg-canvas' : 'border-transparent bg-page text-muted'}`}>
-                    <div className="text-sm font-semibold">{badge.nom}</div>
-                    <div className="text-xs text-muted">{badge.regle}</div>
-                  </li>
-                )
-              })}
-            </ul>
-          </article>
-        </section>
-
-        <section className="flex flex-col gap-3">
-          <div className="flex items-baseline justify-between">
-            <h2 className="m-0 text-xl font-bold">Projets phares</h2>
-            <Link to="/store" className="text-sm font-semibold">Voir le Store →</Link>
-          </div>
-          {dev.applis.length === 0 ? <p className="m-0 text-muted">Aucune appli publiée.</p> : null}
-          <ul className="m-0 grid list-none gap-3 p-0">
+      <section aria-labelledby="titre-applis" className="flex flex-col gap-3">
+        <h2 id="titre-applis" className="m-0 text-titre-3 text-titre">
+          Applis publiées
+        </h2>
+        {dev.applis.length === 0 ? <p className="m-0 text-corps text-texte-doux">Aucune appli publiée pour le moment.</p> : null}
+        {dev.applis.length > 0 ? (
+          <ul className="m-0 grid list-none gap-5 p-0 tablette:grid-cols-2 bureau:grid-cols-3">
             {dev.applis.map((appli) => (
-              <li key={appli.id} className="flex flex-wrap items-center gap-4 rounded-[18px] border border-line bg-canvas p-4">
-                {appli.captures[0] ? (
-                  <img src={appli.captures[0].url} alt={`Capture de ${appli.nom}`} className="h-[92px] w-[150px] rounded-xl bg-page object-cover" />
-                ) : (
-                  <span className="grid h-[92px] w-[150px] place-items-center rounded-xl bg-page px-3 text-center text-xs text-muted">Aucune capture publiée</span>
-                )}
-                <div className="min-w-0 flex-1">
-                  <p className="m-0 text-xs font-semibold text-[#16A34A]">Publiée sur le Store</p>
-                  <h3 className="m-0 text-lg font-bold">{appli.nom}</h3>
-                  <p className="m-0 text-sm text-subtle">{appli.description}</p>
-                  <p className="m-0 mt-1 font-bold">
-                    {appli.prix === 0 ? 'Gratuit' : `${fcfa(appli.prix)}${appli.type_prix === 'mensuel' ? '/mois' : ''}`}
-                  </p>
-                </div>
+              <li key={appli.id} className="flex">
+                <CarteAppli appli={appli} niveau={3} />
               </li>
             ))}
           </ul>
-        </section>
+        ) : null}
+      </section>
 
-        <section className="flex flex-col gap-3">
-          <h2 className="m-0 text-xl font-bold">Dépôts GitHub publics</h2>
-          {dev.depots.length === 0 ? <p className="m-0 text-muted">Aucun dépôt public.</p> : null}
-          <ul className="m-0 grid list-none gap-3 p-0 min-[761px]:grid-cols-2">
+      <section aria-labelledby="titre-depots" className="flex flex-col gap-3">
+        <h2 id="titre-depots" className="m-0 text-titre-3 text-titre">
+          Dépôts GitHub publics
+        </h2>
+        {dev.depots.length === 0 ? <p className="m-0 text-corps text-texte-doux">Aucun dépôt public.</p> : null}
+        {dev.depots.length > 0 ? (
+          <ul className="m-0 grid list-none gap-3 p-0 tablette:grid-cols-2">
             {dev.depots.map((depot) => (
-              <li key={depot.url} className="rounded-[18px] border border-line bg-canvas p-4">
-                <a href={depot.url} className="font-bold">{depot.nom}</a>
-                {depot.description ? <p className="m-0 text-sm text-subtle">{depot.description}</p> : null}
-                <p className="m-0 text-sm text-muted">
-                  {depot.langage ? `${depot.langage} · ` : ''}★ {depot.etoiles}
+              <li key={depot.url} className="flex flex-col gap-1 rounded-moyen border border-bordure bg-surface p-4">
+                <a href={depot.url} target="_blank" rel="noreferrer" className="font-medium">
+                  {depot.nom}
+                  <span className="pour-lecteur"> (nouvel onglet)</span>
+                </a>
+                {depot.description ? <p className="m-0 text-petit text-texte">{depot.description}</p> : null}
+                <p className="m-0 flex items-center gap-1 text-petit text-texte-doux">
+                  {depot.langage ? `${depot.langage} · ` : ''}
+                  <Star aria-hidden="true" className="size-3.5" />
+                  <span className="chiffres">{depot.etoiles}</span>
+                  <span className="pour-lecteur"> étoiles</span>
                 </p>
               </li>
             ))}
           </ul>
-        </section>
-      </div>
+        ) : null}
+      </section>
+
+      {!moiMeme ? <DemandeMission key={ouvertures} username={username} nom={nom} ouverte={mission} onFermer={() => setMission(false)} /> : null}
+      <ModaleConnexion ouverte={connexion} onFermer={() => setConnexion(false)} action="proposer une mission" />
     </div>
   )
 }
 
-function Orbite({ dev }: { dev: ProfilDev }) {
+function Chiffre({ valeur, legende }: { valeur: string; legende: string }) {
   return (
-    <div className="relative mx-auto h-[300px] w-full max-w-[340px]">
-      <div aria-hidden="true" className="absolute inset-6 rounded-full border border-dashed border-[#D7DEEA]" />
-      <div className="absolute top-1/2 left-1/2 grid size-[168px] -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-4 border-white bg-[#FEF3C7] text-4xl font-extrabold text-[#92400E] shadow-[0_8px_24px_rgba(15,23,42,0.08)]">
-        {initiales(dev.nom, dev.username)}
-      </div>
-      {dev.competences.slice(0, 6).map((item, index) => (
-        <span key={item} className={`absolute rounded-full border border-line bg-canvas px-3 py-1 text-sm font-semibold shadow-sm ${places[index]}`}>
-          {item}
-        </span>
-      ))}
+    <div className="flex flex-col gap-0.5 rounded-moyen border border-bordure bg-surface p-4">
+      <p className="chiffres m-0 text-titre-2 text-titre">{valeur}</p>
+      <p className="m-0 text-petit text-texte-doux">{legende}</p>
     </div>
   )
 }
 
-function DemandeMission({ username, nom }: { username: string; nom: string }) {
-  const [ouvert, setOuvert] = useState(false)
+function DemandeMission({ username, nom, ouverte, onFermer }: { username: string; nom: string; ouverte: boolean; onFermer: () => void }) {
+  const toast = useToast()
   const [message, setMessage] = useState('')
   const [budget, setBudget] = useState('')
   const [delai, setDelai] = useState('')
   const [erreur, setErreur] = useState<string | null>(null)
-  const [envoye, setEnvoye] = useState(false)
+  const [erreurServeur, setErreurServeur] = useState<string | null>(null)
   const [envoi, setEnvoi] = useState(false)
 
   async function envoyer(evenement: FormEvent) {
@@ -291,90 +312,56 @@ function DemandeMission({ username, nom }: { username: string; nom: string }) {
     }
     setEnvoi(true)
     setErreur(null)
+    setErreurServeur(null)
     try {
       await proposerMission(username, {
         message: message.trim(),
-        budget: budget ? Number(budget) : undefined,
+        budget: budget ? Number(budget.replace(/\s/g, '')) : undefined,
         delai: delai || undefined,
       })
-      setEnvoye(true)
-      setOuvert(false)
+      toast.succes('Demande envoyée : elle apparaît dans Missions.')
+      setMessage('')
+      setBudget('')
+      setDelai('')
+      onFermer()
     } catch (erreurHttp) {
-      setErreur(messageAction(erreurHttp, '10 missions par heure. Réessayez plus tard.'))
+      setErreurServeur(messageAction(erreurHttp, '10 missions par heure. Réessayez plus tard.'))
     } finally {
       setEnvoi(false)
     }
   }
 
   return (
-    <>
-      <button type="button" onClick={() => setOuvert(true)} className="inline-flex min-h-cible items-center gap-2 rounded-controle bg-ink px-4 font-semibold text-canvas">
-        Proposer une mission
-        <span aria-hidden="true">→</span>
-      </button>
-      {envoye ? <span className="self-center text-sm font-semibold text-[#166534]">Demande envoyée.</span> : null}
-      {ouvert ? (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-ink/50 p-4">
-          <form role="dialog" aria-modal="true" aria-labelledby="titre-mission" onSubmit={(evenement) => void envoyer(evenement)} className="flex w-full max-w-[520px] flex-col gap-4 rounded-2xl bg-canvas p-6">
-            <h2 id="titre-mission" className="m-0 text-xl">Proposer une mission à {nom}</h2>
-            <label className="flex flex-col gap-1 text-sm font-semibold">
-              Votre besoin
-              <textarea value={message} onChange={(evenement) => setMessage(evenement.target.value)} rows={4} className="rounded-controle border border-line p-3 font-normal" />
-            </label>
-            <div className="grid gap-3 min-[761px]:grid-cols-2">
-              <label className="flex flex-col gap-1 text-sm font-semibold">
-                Budget (facultatif)
-                <input value={budget} inputMode="numeric" onChange={(evenement) => setBudget(evenement.target.value.replace(/\D/g, ''))} className="min-h-cible rounded-controle border border-line px-3 font-normal" placeholder="150000" />
-              </label>
-              <label className="flex flex-col gap-1 text-sm font-semibold">
-                Date souhaitée
-                <input type="date" value={delai} onChange={(evenement) => setDelai(evenement.target.value)} className="min-h-cible rounded-controle border border-line px-3 font-normal" />
-              </label>
-            </div>
-            {erreur ? <p role="alert" className="m-0 text-sm text-danger">{erreur}</p> : null}
-            <div className="flex justify-end gap-2">
-              <button type="button" onClick={() => setOuvert(false)} className="min-h-cible rounded-controle border border-line bg-canvas px-4 font-semibold">Annuler</button>
-              <button type="submit" disabled={envoi} className="min-h-cible rounded-controle bg-accent px-4 font-semibold text-canvas">Envoyer la demande</button>
-            </div>
-          </form>
+    <Modale
+      ouverte={ouverte}
+      onFermer={onFermer}
+      titre={`Proposer une mission à ${nom}`}
+      description="Privé : visible par vous et ce dev. Contacter un dev est gratuit."
+      pied={
+        <>
+          <Bouton variante="contour" onClick={onFermer}>
+            Annuler
+          </Bouton>
+          <Bouton type="submit" form="mission-profil" chargement={envoi}>
+            Envoyer la demande
+          </Bouton>
+        </>
+      }
+    >
+      <form id="mission-profil" onSubmit={(evenement) => void envoyer(evenement)} className="flex flex-col gap-4" noValidate>
+        <Champ libelle="Votre besoin" erreur={erreur}>
+          {(liaison) => <ZoneTexte {...liaison} rows={4} value={message} onChange={(evenement) => setMessage(evenement.target.value)} data-autofocus />}
+        </Champ>
+        <div className="grid gap-4 tablette:grid-cols-2">
+          <Champ libelle="Budget" facultatif>
+            {(liaison) => <SaisieMontant {...liaison} value={budget} onChange={(evenement) => setBudget(evenement.target.value.replace(/[^\d ]/g, ''))} placeholder="150 000" />}
+          </Champ>
+          <Champ libelle="Date souhaitée" facultatif>
+            {(liaison) => <Saisie {...liaison} type="date" value={delai} onChange={(evenement) => setDelai(evenement.target.value)} />}
+          </Champ>
         </div>
-      ) : null}
-    </>
-  )
-}
-
-function Info({ titre, valeur }: { titre: string; valeur: string }) {
-  return (
-    <article className="rounded-[16px] border border-line bg-canvas p-4">
-      <p className="m-0 text-xs text-muted">{titre}</p>
-      <p className="m-0 font-bold break-all">{valeur}</p>
-    </article>
-  )
-}
-
-function Chiffre({ valeur, legende }: { valeur: string; legende: string }) {
-  return (
-    <article className="rounded-[16px] border border-line bg-canvas px-4 py-4">
-      <p className="m-0 text-[26px] font-extrabold tracking-tight">{valeur}</p>
-      <p className="m-0 text-[13.5px] text-muted">{legende}</p>
-    </article>
-  )
-}
-
-function Pin() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-      <path d="M12 22s7-6.2 7-12a7 7 0 0 0-14 0c0 5.8 7 12 7 12z" />
-      <circle cx="12" cy="10" r="2.5" />
-    </svg>
-  )
-}
-
-function LienExterne() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-      <path d="M14 4h6v6M20 4l-9 9" />
-      <path d="M18 13v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h6" />
-    </svg>
+        {erreurServeur ? <Alerte ton="danger">{erreurServeur}</Alerte> : null}
+      </form>
+    </Modale>
   )
 }

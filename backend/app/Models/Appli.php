@@ -3,15 +3,24 @@
 namespace App\Models;
 
 use App\Enums\Profil;
+use App\Jobs\AnalyserDependances;
 use App\Jobs\MesurerMemoire;
+use Database\Factories\AppliFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 
 class Appli extends Model
 {
+    /** @use HasFactory<AppliFactory> */
+    use HasFactory, SoftDeletes;
+
     public const CATEGORIES = [
         'commerce', 'gestion', 'education', 'sante', 'finance',
         'association', 'restauration', 'autre',
@@ -46,11 +55,14 @@ class Appli extends Model
         return [
             'prix' => 'integer',
             'vues' => 'integer',
+            'avis_nombre' => 'integer',
+            'avis_somme' => 'integer',
             'stack' => 'array',
             'captures' => 'array',
             'variables_client' => 'array',
             'securite_problemes' => 'array',
             'securite_analyse_le' => 'datetime',
+            'securite_demande_le' => 'datetime',
             'memoire_max_mo' => 'integer',
             'mesure_jeton' => 'integer',
             'mesure_le' => 'datetime',
@@ -65,6 +77,63 @@ class Appli extends Model
     public function deploiements(): HasMany
     {
         return $this->hasMany(Deploiement::class);
+    }
+
+    /**
+     * @return HasMany<VersionAppli, $this>
+     */
+    public function versions(): HasMany
+    {
+        return $this->hasMany(VersionAppli::class);
+    }
+
+    /**
+     * La dernière version publiée : celle que reçoit une nouvelle copie, et que les autres peuvent appliquer.
+     *
+     * @return HasOne<VersionAppli, $this>
+     */
+    public function versionPubliee(): HasOne
+    {
+        return $this->hasOne(VersionAppli::class)->ofMany(['numero' => 'max'], fn ($versions) => $versions->where('statut', 'publiee'));
+    }
+
+    /**
+     * @return HasMany<AvisAppli, $this>
+     */
+    public function avis(): HasMany
+    {
+        return $this->hasMany(AvisAppli::class);
+    }
+
+    /**
+     * Seul un client qui a eu une copie payée de l'appli la note (jamais son auteur).
+     */
+    public function peutEtreNoteePar(User $compte): bool
+    {
+        return $this->user_id !== $compte->id
+            && Facture::query()
+                ->where('client_id', $compte->id)
+                ->where('statut', 'payee')
+                ->whereHas('abonnement', fn ($abonnement) => $abonnement->where('appli_id', $this->id))
+                ->exists();
+    }
+
+    /**
+     * Recalcule le nombre et la somme des notes depuis la table des avis : appelé dans la
+     * transaction qui verrouille l'appli, deux avis simultanés ne s'écrasent pas.
+     */
+    public function recalculerAvis(): void
+    {
+        static::withoutTimestamps(fn () => $this->forceFill([
+            'avis_nombre' => $this->avis()->count(),
+            'avis_somme' => (int) $this->avis()->sum('note'),
+        ])->saveQuietly());
+    }
+
+    /** Moyenne à une décimale, null sans avis. */
+    public function noteMoyenne(): ?float
+    {
+        return $this->avis_nombre > 0 ? round($this->avis_somme / $this->avis_nombre, 1) : null;
     }
 
     /**
@@ -84,6 +153,18 @@ class Appli extends Model
      * Remet la mesure à en_cours et lance le relevé en tâche de fond.
      * La taille choisie par le dev n'est pas modifiée.
      */
+    /** Analyse des dépendances (Trivy) sur le moteur ; le badge reste « en cours » jusqu'au résultat. */
+    public function demanderAnalyseSecurite(): void
+    {
+        $this->forceFill([
+            'securite_statut' => 'en_cours',
+            'securite_jeton' => (string) Str::uuid(),
+            'securite_demande_le' => now(),
+        ])->save();
+
+        AnalyserDependances::dispatch($this->id, (string) $this->securite_jeton);
+    }
+
     public function demanderMesure(): void
     {
         $this->forceFill([
@@ -169,6 +250,9 @@ class Appli extends Model
                 'pays' => $this->auteur->pays,
             ],
             'cree_le' => $this->created_at->toIso8601String(),
+            'note_moyenne' => $this->noteMoyenne(),
+            'nb_avis' => (int) $this->avis_nombre,
+            'version' => (int) ($this->versionPubliee?->numero ?? 1),
         ];
     }
 }

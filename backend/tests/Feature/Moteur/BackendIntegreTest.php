@@ -58,12 +58,55 @@ class BackendIntegreTest extends TestCase
                 true,
             ));
 
-            $this->assertCount(4, $scripts);
+            // La lecture du registre (psql -c) n'envoie rien sur l'entrée standard.
+            $scripts = array_values(array_filter($scripts, fn (string $script) => $script !== ''));
+            $this->assertCount(8, $scripts);
             $this->assertStringContainsString('soukdev_anon', $scripts[0]);
-            $this->assertStringContainsString('CREATE TABLE pharmacies', $scripts[1]);
-            $this->assertStringContainsString('CREATE TABLE ventes', $scripts[2]);
-            $this->assertStringContainsString('GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES', $scripts[3]);
+            $this->assertStringContainsString('soukdev.migrations', $scripts[1]);
+            // Le schéma soukdev porte le nom du rôle : les tables des migrations doivent aller dans public.
+            $this->assertStringContainsString('ALTER ROLE soukdev SET search_path TO public', $scripts[1]);
+            // Le rôle des utilisateurs connectés et soukdev.utilisateur_id() existent avant les migrations du dev.
+            $this->assertStringContainsString('soukdev.utilisateur_id()', $scripts[2]);
+            $this->assertStringContainsString('CREATE TABLE pharmacies', $scripts[3]);
+            $this->assertStringContainsString("INSERT INTO soukdev.migrations (nom) VALUES ('001_init.sql')", $scripts[4]);
+            $this->assertStringContainsString('CREATE TABLE ventes', $scripts[5]);
+            $this->assertStringContainsString("VALUES ('002_suite.sql')", $scripts[6]);
+            $this->assertStringContainsString('GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO soukdev_anon, soukdev_utilisateur', $scripts[7]);
             $this->assertTrue($relance);
+        } finally {
+            $this->supprimer($repertoire);
+        }
+    }
+
+    public function test_une_mise_a_jour_n_applique_que_les_nouvelles_migrations(): void
+    {
+        $repertoire = $this->depot();
+        file_put_contents($repertoire.'/db/002_suite.sql', "CREATE TABLE ventes (id int);\n");
+        config(['moteur.backend_tentatives' => 1]);
+        $scripts = [];
+        Process::fake(function (PendingProcess $process) use (&$scripts) {
+            $commande = $process->command;
+            if (in_array('-c', $commande, true)) {
+                return Process::result(output: "001_init.sql\n");
+            }
+            if (in_array('psql', $commande, true)) {
+                $scripts[] = (string) $process->input;
+            }
+
+            return Process::result();
+        });
+
+        try {
+            app(BackendIntegre::class)->appliquer(new CopieLocale(
+                'copie-integre',
+                $repertoire,
+                ['backend' => 'integre', 'migrations' => 'db', 'service_web' => ['nom' => 'front', 'port' => 3000]],
+                [],
+                true,
+            ));
+
+            $this->assertSame([], array_values(array_filter($scripts, fn (string $script) => str_contains($script, 'CREATE TABLE pharmacies'))));
+            $this->assertCount(1, array_filter($scripts, fn (string $script) => str_contains($script, 'CREATE TABLE ventes')));
         } finally {
             $this->supprimer($repertoire);
         }

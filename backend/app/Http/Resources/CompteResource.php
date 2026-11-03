@@ -18,20 +18,19 @@ final class CompteResource extends JsonResource
     {
         /** @var User $compte */
         $compte = $this->resource;
-        $calcule = new ProfilCalcule;
 
         return [
             ...DevResource::champs($compte),
             'email' => $compte->email,
             'github_lie' => $compte->github_lie,
             'est_admin' => $compte->est_admin,
+            'suspendu_le' => $compte->suspendu_le?->toIso8601String(),
+            'suspension_motif' => $compte->suspension_motif,
             'bio' => $compte->bio,
             'competences' => array_values($compte->competences ?? []),
             'specialites' => array_values($compte->specialites ?? []),
             'disponible' => $compte->disponible,
-            'stats' => $calcule->stats(),
-            'reputation' => $calcule->reputation(),
-            'souk_score' => $calcule->soukScore(),
+            ...app(ProfilCalcule::class)->pour($compte),
         ];
     }
 }

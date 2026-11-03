@@ -1,0 +1,5 @@
+# Appli cobaye du jeu de démo (écrite pour Souk.dev) : un carnet de commandes dont chaque
+# utilisateur se connecte par un code SMS et ne voit que ses notes (backend intégré, PostgREST).
+services:
+  web:
+    build: .

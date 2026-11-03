@@ -2,21 +2,25 @@
 
 namespace App\Http\Controllers;
 
+use App\Comptes\ProfilCalcule;
 use App\Models\Appli;
 use App\Moteur\Exceptions\DepotInvalide;
 use App\Moteur\Exceptions\LancementEchoue;
 use App\Moteur\Exceptions\ManifestInvalide;
 use App\Moteur\LimitesTaille;
 use App\Moteur\PublicationDepot;
+use App\Securite\VerificationSecrets;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Http\Response;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
 class AppliController extends Controller
 {
@@ -31,12 +35,12 @@ class AppliController extends Controller
             'pays' => ['sometimes', 'string', 'size:2', 'regex:/^[A-Z]{2}$/'],
             'prix_max' => ['sometimes', 'integer', 'min:0'],
             'type_prix' => ['sometimes', Rule::in(['mensuel', 'unique'])],
-            'tri' => ['sometimes', 'in:recent,prix_croissant,prix_decroissant'],
+            'tri' => ['sometimes', 'in:recent,prix_croissant,prix_decroissant,note'],
             'per_page' => ['sometimes', 'integer', 'min:1', 'max:50'],
         ]);
 
         $applis = Appli::query()
-            ->with('auteur')
+            ->with(['auteur', 'versionPubliee'])
             ->when($request->filled('q'), function ($requete) use ($request): void {
                 $terme = '%'.$request->string('q')->toString().'%';
                 $requete->where(function ($recherche) use ($terme): void {
@@ -81,8 +85,15 @@ class AppliController extends Controller
                 $request->input('tri') === 'prix_decroissant',
                 fn ($requete) => $requete->orderByDesc('prix')->orderByDesc('id'),
             )
+            // Moyenne bayésienne (trois avis fictifs à 3/5) : un seul 5/5 ne passe pas devant vingt avis à 4,7.
             ->when(
-                ! in_array($request->input('tri'), ['prix_croissant', 'prix_decroissant'], true),
+                $request->input('tri') === 'note',
+                fn ($requete) => $requete->orderByRaw('(avis_somme + 9.0) / (avis_nombre + 3) desc')
+                    ->orderByDesc('avis_nombre')
+                    ->orderByDesc('id'),
+            )
+            ->when(
+                ! in_array($request->input('tri'), ['prix_croissant', 'prix_decroissant', 'note'], true),
                 fn ($requete) => $requete->latest(),
             )
             ->paginate($request->integer('per_page', 20))
@@ -103,10 +114,14 @@ class AppliController extends Controller
         return response()->json(Appli::CATEGORIES);
     }
 
-    public function store(Request $request, PublicationDepot $depot): JsonResponse
+    public function store(Request $request, PublicationDepot $depot, VerificationSecrets $secrets, ProfilCalcule $profils): JsonResponse
     {
+        Gate::authorize('lierUnDepot');
+
         $donnees = $this->donnees($request);
-        $manifeste = $this->manifeste($donnees['depot_url'], $depot);
+        $lu = $this->depotLu($donnees['depot_url'], $depot);
+        $manifeste = $lu['manifeste'];
+        $this->sansSecret($donnees['depot_url'], $secrets);
 
         $appli = Appli::query()->create([
             'user_id' => $request->user()->id,
@@ -127,18 +142,27 @@ class AppliController extends Controller
             'captures' => $this->enregistrerCaptures($appli, $donnees['captures']),
         ])->save();
 
+        // Version 1 : le commit vérifié à la publication, celui que recevront les premières copies.
+        $appli->versions()->create(['numero' => 1, 'statut' => 'publiee'])
+            ->forceFill(['commit' => $lu['commit'], 'manifeste' => $manifeste])->save();
+
         $appli->demanderMesure();
+        $appli->demanderAnalyseSecurite();
+        $profils->rafraichir($request->user());
 
         return response()->json($appli->fresh()->versApi(), 201);
     }
 
-    public function verification(Request $request, PublicationDepot $depot): JsonResponse
+    public function verification(Request $request, PublicationDepot $depot, VerificationSecrets $secrets): JsonResponse
     {
+        Gate::authorize('lierUnDepot');
+
         $donnees = $request->validate([
-            'depot_url' => ['required', 'string', 'url', 'max:500'],
+            'depot_url' => ['required', 'string', 'url:http,https', 'max:500'],
         ]);
 
         $manifeste = $this->manifeste($donnees['depot_url'], $depot);
+        $this->sansSecret($donnees['depot_url'], $secrets);
 
         return response()->json([
             'service_web' => [
@@ -152,26 +176,27 @@ class AppliController extends Controller
 
     public function update(Request $request, Appli $appli): JsonResponse
     {
-        abort_unless($appli->user_id === $request->user()->id, 403);
+        Gate::authorize('update', $appli);
 
         $appli->fill($this->donneesModification($request))->save();
 
         return response()->json($appli->fresh()->versApi());
     }
 
-    public function destroy(Request $request, Appli $appli): Response
+    public function destroy(Appli $appli, ProfilCalcule $profils): Response
     {
-        abort_unless($appli->user_id === $request->user()->id, 403);
+        Gate::authorize('delete', $appli);
 
         Storage::disk('public')->deleteDirectory('captures/'.$appli->id);
         $appli->delete();
+        $profils->rafraichir($appli->auteur);
 
         return response()->noContent();
     }
 
     public function captures(Request $request, Appli $appli): JsonResponse
     {
-        abort_unless($appli->user_id === $request->user()->id, 403);
+        Gate::authorize('update', $appli);
 
         $donnees = $request->validate([
             'captures' => ['required', 'array', 'min:1', 'max:5'],
@@ -203,11 +228,11 @@ class AppliController extends Controller
     private function donnees(Request $request): array
     {
         $donnees = $request->validate([
-            'nom' => ['required', 'string', 'max:100'],
+            'nom' => ['required', 'string', 'max:100', 'not_regex:/[\r\n]/'],
             'description' => ['required', 'string', 'max:1000'],
             'categorie' => ['required', Rule::in(Appli::CATEGORIES)],
-            'depot_url' => ['required', 'string', 'url', 'max:500'],
-            'demo_url' => ['required', 'string', 'url', 'max:500'],
+            'depot_url' => ['required', 'string', 'url:http,https', 'max:500'],
+            'demo_url' => ['required', 'string', 'url:http,https', 'max:500'],
             'prix' => ['required', 'integer', 'min:0'],
             'type_prix' => ['required', Rule::in(['mensuel', 'unique'])],
             'taille' => ['required', Rule::in(['petite', 'moyenne', 'grande'])],
@@ -243,9 +268,10 @@ class AppliController extends Controller
     private function donneesModification(Request $request): array
     {
         $donnees = $request->validate([
-            'nom' => ['sometimes', 'string', 'max:100'],
+            // Le nom part dans des sujets d'e-mail : un retour à la ligne y est une injection d'en-tête.
+            'nom' => ['sometimes', 'string', 'max:100', 'not_regex:/[\r\n]/'],
             'description' => ['sometimes', 'string', 'max:1000'],
-            'demo_url' => ['sometimes', 'string', 'url', 'max:500'],
+            'demo_url' => ['sometimes', 'string', 'url:http,https', 'max:500'],
             'categorie' => ['sometimes', Rule::in(Appli::CATEGORIES)],
             'prix' => ['sometimes', 'integer', 'min:0'],
             'type_prix' => ['sometimes', Rule::in(['mensuel', 'unique'])],
@@ -275,13 +301,46 @@ class AppliController extends Controller
         return $donnees;
     }
 
+    /** Relance de l'analyse des dépendances par l'auteur, par exemple après une mise à jour. */
+    public function securite(Appli $appli): JsonResponse
+    {
+        Gate::authorize('update', $appli);
+
+        // Une analyse partie depuis moins de 30 minutes suit son cours ; au-delà, elle est relançable.
+        if ($appli->securite_statut === 'en_cours' && $appli->securite_demande_le?->gt(now()->subMinutes(30))) {
+            throw new ConflictHttpException('Une analyse est déjà en cours : son résultat arrive dans quelques minutes.');
+        }
+
+        $appli->demanderAnalyseSecurite();
+
+        return response()->json($appli->fresh()->versApi()['securite'], 202);
+    }
+
+    /** Un secret dans le dépôt bloque la publication (gitleaks, sur le moteur). */
+    private function sansSecret(string $url, VerificationSecrets $secrets): void
+    {
+        $trouves = $secrets->secrets($url);
+
+        if ($trouves !== []) {
+            throw ValidationException::withMessages(['depot_url' => VerificationSecrets::message($trouves)]);
+        }
+    }
+
     /**
      * @return array<string, mixed>
      */
     private function manifeste(string $url, PublicationDepot $depot): array
     {
+        return $this->depotLu($url, $depot)['manifeste'];
+    }
+
+    /**
+     * @return array{manifeste: array<string, mixed>, commit: string}
+     */
+    private function depotLu(string $url, PublicationDepot $depot): array
+    {
         try {
-            return $depot->lire($url);
+            return $depot->verifier($url);
         } catch (DepotInvalide|ManifestInvalide|LancementEchoue $exception) {
             throw ValidationException::withMessages([
                 'depot_url' => $exception->getMessage(),

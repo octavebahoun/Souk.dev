@@ -43,7 +43,7 @@ class ProxyCopieTest extends TestCase
     {
         $this->mock(LanceurCompose::class, function (MockInterface $mock) {
             $mock->shouldReceive('lancer')->once();
-            $mock->shouldReceive('adresseService')->once()->with('/tmp/d9', 'd9', 'web')->andReturn('172.20.0.5');
+            $mock->shouldReceive('adresseService')->once()->with('/tmp/d9', 'd9', 'web', null)->andReturn('172.20.0.5');
             $mock->shouldNotReceive('arreter');
         });
         $this->app->instance(SondeServiceWeb::class, new SondeServiceWeb(fn (string $hote, int $port) => $hote === '172.20.0.5' && $port === 3000, 1, 0));

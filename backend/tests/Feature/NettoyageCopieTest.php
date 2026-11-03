@@ -3,19 +3,23 @@
 namespace Tests\Feature;
 
 use App\Events\DeploiementEtat;
+use App\Jobs\ArreterDeploiement;
 use App\Models\Deploiement;
 use App\Models\User;
 use App\Moteur\Exceptions\LancementEchoue;
 use App\Moteur\LanceurCompose;
+use App\Moteur\MachineCible;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Queue;
+use Mockery;
 use Tests\TestCase;
 
 class NettoyageCopieTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_delete_rate_deux_fois_passe_en_echec_et_repond_503(): void
+    public function test_un_arret_rate_deux_fois_passe_en_echec_pour_etre_retente(): void
     {
         Event::fake([DeploiementEtat::class]);
         $client = User::factory()->create();
@@ -25,10 +29,12 @@ class NettoyageCopieTest extends TestCase
             $mock->shouldReceive('arreter')->twice()->andThrow(new LancementEchoue('daemon injoignable'));
         });
 
-        $this->actingAs($client)->deleteJson('/api/deployments/'.$deploiement->id)->assertStatus(503);
+        $this->actingAs($client)->deleteJson('/api/deployments/'.$deploiement->id)->assertAccepted();
 
-        $this->assertSame('echec', $deploiement->refresh()->etat);
-        Event::assertDispatched(DeploiementEtat::class);
+        $deploiement->refresh();
+        $this->assertSame('echec', $deploiement->etat);
+        $this->assertSame('L\'arrêt de la copie a échoué, il sera retenté.', $deploiement->erreur);
+        Event::assertDispatched(DeploiementEtat::class, fn (DeploiementEtat $event) => $event->payload['etat'] === 'arret_en_cours');
     }
 
     public function test_delete_est_idempotent(): void
@@ -39,7 +45,40 @@ class NettoyageCopieTest extends TestCase
 
         $this->mock(LanceurCompose::class, fn ($mock) => $mock->shouldNotReceive('arreter'));
 
-        $this->actingAs($client)->deleteJson('/api/deployments/'.$deploiement->id)->assertNoContent();
+        $this->actingAs($client)->deleteJson('/api/deployments/'.$deploiement->id)
+            ->assertAccepted()
+            ->assertJsonPath('etat', 'arrete');
+        $this->assertSame('arrete', $deploiement->refresh()->etat);
+    }
+
+    public function test_un_arret_survit_a_une_panne_de_reverb(): void
+    {
+        Queue::fake();
+        Event::listen(DeploiementEtat::class, fn () => throw new \RuntimeException('Reverb injoignable'));
+        $client = User::factory()->create();
+        $deploiement = $this->copie($client, 'en_ligne');
+
+        $this->actingAs($client)->deleteJson('/api/deployments/'.$deploiement->id)->assertAccepted();
+
+        $this->assertSame('arret_en_cours', $deploiement->refresh()->etat);
+        Queue::assertPushed(ArreterDeploiement::class, 1);
+
+        // Redemandé, l'arrêt est relancé au lieu d'être ignoré.
+        $this->actingAs($client)->deleteJson('/api/deployments/'.$deploiement->id)->assertAccepted();
+        Queue::assertPushed(ArreterDeploiement::class, 2);
+    }
+
+    public function test_un_arret_reste_en_cours_est_repris_par_le_nettoyage(): void
+    {
+        Event::fake([DeploiementEtat::class]);
+        $client = User::factory()->create();
+        $deploiement = $this->copie($client, 'arret_en_cours');
+        $deploiement->forceFill(['updated_at' => now()->subMinutes(30)])->saveQuietly();
+
+        $this->mock(LanceurCompose::class, fn ($mock) => $mock->shouldReceive('arreter')->once());
+
+        $this->artisan('moteur:nettoyer', ['--sans-orphelins' => true])->assertSuccessful();
+
         $this->assertSame('arrete', $deploiement->refresh()->etat);
     }
 
@@ -51,7 +90,7 @@ class NettoyageCopieTest extends TestCase
         $valide = $this->copie($client, 'en_ligne', now()->addHour());
 
         $this->mock(LanceurCompose::class, function ($mock) use ($expiree) {
-            $mock->shouldReceive('arreter')->once()->with('/tmp/copie-'.$expiree->id, 'd'.$expiree->id);
+            $mock->shouldReceive('arreter')->once()->with('/tmp/copie-'.$expiree->id, 'd'.$expiree->id, Mockery::type(MachineCible::class));
         });
 
         $this->artisan('moteur:nettoyer', ['--sans-orphelins' => true])->assertSuccessful();

@@ -56,6 +56,9 @@ return [
 
     'frontend_url' => env('FRONTEND_URL', 'http://localhost:5173'),
 
+    // Connexion aux comptes du jeu de démo (POST /auth/demo) : développement et tests seulement.
+    'demo_connexion' => (bool) env('DEMO_CONNEXION', false) && env('APP_ENV') !== 'production',
+
     /*
     |--------------------------------------------------------------------------
     | Application Timezone
@@ -69,6 +72,9 @@ return [
 
     'timezone' => 'UTC',
 
+    // Alertes d'exploitation et de paiement (paiement en double, écart de rapprochement…).
+    'admin_email' => env('ADMIN_EMAIL', env('MAIL_FROM_ADDRESS')),
+
     /*
     |--------------------------------------------------------------------------
     | Application Locale Configuration
@@ -80,7 +86,7 @@ return [
     |
     */
 
-    'locale' => env('APP_LOCALE', 'en'),
+    'locale' => env('APP_LOCALE', 'fr'),
 
     'fallback_locale' => env('APP_FALLBACK_LOCALE', 'en'),
 

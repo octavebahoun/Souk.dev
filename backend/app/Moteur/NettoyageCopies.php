@@ -1,0 +1,86 @@
+<?php
+
+namespace App\Moteur;
+
+use App\Http\Controllers\CopieTestController;
+use App\Models\Deploiement;
+
+/**
+ * Passage planifié du moteur : arrête les copies de test expirées (et retente les
+ * arrêts ratés), puis supprime les dossiers de copie sans déploiement actif.
+ */
+class NettoyageCopies
+{
+    public function __construct(
+        private NettoyeurCopie $nettoyeur,
+        private DossierCopie $dossier,
+    ) {}
+
+    /**
+     * @return array{arretees: int, ratees: int, orphelins: int}
+     */
+    public function executer(bool $orphelins = true): array
+    {
+        $arretees = 0;
+        $ratees = 0;
+
+        // Un arrêt resté en cours (job perdu, moteur redémarré) est repris après dix minutes.
+        Deploiement::query()
+            ->where('etat', 'arret_en_cours')
+            ->where('updated_at', '<=', now()->subMinutes(10))
+            ->orderBy('id')
+            ->each(function (Deploiement $deploiement) use (&$arretees, &$ratees): void {
+                $this->nettoyeur->arreter($deploiement) ? $arretees++ : $ratees++;
+            });
+
+        // Les copies en échec gardent expire_le : elles sont retentées au passage suivant.
+        Deploiement::query()
+            ->whereNotNull('expire_le')
+            ->where('expire_le', '<=', now())
+            ->whereIn('etat', [...CopieTestController::ETATS_ACTIFS, 'echec'])
+            ->orderBy('id')
+            ->each(function (Deploiement $deploiement) use (&$arretees, &$ratees): void {
+                $this->nettoyeur->arreter($deploiement) ? $arretees++ : $ratees++;
+            });
+
+        return [
+            'arretees' => $arretees,
+            'ratees' => $ratees,
+            'orphelins' => $orphelins ? $this->orphelins() : 0,
+        ];
+    }
+
+    private function orphelins(): int
+    {
+        $dossiers = $this->dossier->dossiersDeDeploiement();
+
+        if ($dossiers === []) {
+            return 0;
+        }
+
+        $actifs = Deploiement::query()
+            ->whereIn('id', array_keys($dossiers))
+            // Une copie suspendue pour impayé garde ses conteneurs arrêtés et ses volumes ; une copie
+            // en mise à jour a ses dossiers en mouvement : ni l'une ni l'autre n'est orpheline.
+            ->whereIn('etat', [...CopieTestController::ETATS_ACTIFS, 'suspendu', 'mise_a_jour'])
+            ->pluck('id')
+            ->all();
+
+        $machines = Deploiement::query()->whereIn('id', array_keys($dossiers))->with('machine')->get()->keyBy('id');
+
+        $supprimes = 0;
+
+        foreach ($dossiers as $id => $chemin) {
+            if (in_array($id, $actifs, true)) {
+                continue;
+            }
+
+            // down d'abord : un dossier orphelin peut encore avoir des conteneurs, sur sa machine.
+            if ($this->nettoyeur->liberer('d'.$id, $chemin, $id, $machines->get($id)?->cibleMachine())) {
+                $supprimes++;
+            }
+        }
+
+        return $supprimes;
+    }
+}

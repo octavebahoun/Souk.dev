@@ -3,6 +3,7 @@
 namespace Tests\Feature\Moteur;
 
 use App\Moteur\Durcissement;
+use App\Moteur\VerificateurCompose;
 
 /**
  * Imite la sortie de docker compose config une fois docker-compose.soukdev.yml fusionné.
@@ -22,6 +23,10 @@ trait ConfigDurcie
                 'cap_add' => Durcissement::capacites(),
                 'security_opt' => [Durcissement::SECURITE],
                 'networks' => [Durcissement::RESEAU => null],
+                'logging' => [
+                    'driver' => VerificateurCompose::JOURNAUX['driver'],
+                    'options' => ['max-size' => VerificateurCompose::JOURNAUX['max-size'], 'max-file' => VerificateurCompose::JOURNAUX['max-file']],
+                ],
             ];
         }
 

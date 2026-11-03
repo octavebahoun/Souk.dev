@@ -1,5 +1,6 @@
 import type { components } from '../../shared/types/api'
-import { cheminApi, cheminLaravel, client, clientLocal } from '../../shared/client'
+import { cheminLaravel, clientLocal } from '../../shared/client'
+import { formaterFcfa } from '../../ui/format'
 import { preparerCsrf } from '../../app/preparerCsrf'
 
 type Page<T> = components['schemas']['Pagination'] & { data: T[] }
@@ -17,6 +18,11 @@ export type Specialite = components['schemas']['Specialite']
 export type VerificationDepot = components['schemas']['VerificationDepot']
 export type Discussion = components['schemas']['Discussion']
 export type Message = components['schemas']['Message']
+export type AvisAppli = components['schemas']['AvisAppli']
+export type AvisAppliSaisie = components['schemas']['AvisAppliSaisie']
+export type PageAvis = Page<AvisAppli> & { peut_noter: boolean; mon_avis: AvisAppli | null }
+export type VersionAppli = components['schemas']['VersionAppli']
+export type Sauvegarde = components['schemas']['Sauvegarde']
 
 export const categories: { valeur: Categorie; libelle: string }[] = [
   { valeur: 'commerce', libelle: 'Commerce' },
@@ -33,8 +39,9 @@ export function libelleCategorie(valeur: Categorie): string {
   return categories.find((item) => item.valeur === valeur)?.libelle ?? valeur
 }
 
+/** Montant FCFA du catalogue : la mise en forme commune (espace insécable lisible en grand corps). */
 export function fcfa(valeur: number): string {
-  return `${new Intl.NumberFormat('fr-FR').format(valeur)} F`
+  return formaterFcfa(valeur)
 }
 
 async function page<T>(promesse: Promise<{ data: Page<T> }>): Promise<Page<T>> {
@@ -53,6 +60,18 @@ export async function lireAppli(id: number): Promise<Appli> {
   return data
 }
 
+export function listerAvisAppli(id: number, pageNum = 1) {
+  return page<AvisAppli>(clientLocal.get(cheminLaravel(`/apps/${id}/avis`), { params: pageNum > 1 ? { page: pageNum } : undefined })) as Promise<PageAvis>
+}
+
+export async function noterAppli(id: number, saisie: AvisAppliSaisie, modification: boolean): Promise<AvisAppli> {
+  await preparerCsrf()
+  const { data } = modification
+    ? await clientLocal.patch<AvisAppli>(cheminLaravel(`/apps/${id}/avis`), saisie)
+    : await clientLocal.post<AvisAppli>(cheminLaravel(`/apps/${id}/avis`), saisie)
+  return data
+}
+
 export function listerEvenements(pageNum = 1) {
   return page<Evenement>(clientLocal.get(cheminLaravel('/events'), { params: pageNum > 1 ? { page: pageNum } : undefined }))
 }
@@ -62,6 +81,21 @@ export async function creerEvenement(corps: EvenementCreation): Promise<Evenemen
   const { data } = await clientLocal.post<Evenement>(cheminLaravel('/events'), corps)
   if (!data || typeof data.id !== 'number') throw new Error('Réponse vide')
   return data
+}
+
+export type EvenementModification = components['schemas']['EvenementModification']
+
+export async function modifierEvenement(id: number, corps: EvenementModification): Promise<Evenement> {
+  await preparerCsrf()
+  const { data } = await clientLocal.patch<Evenement>(cheminLaravel(`/events/${id}`), corps)
+  if (!data || typeof data.id !== 'number') throw new Error('Réponse vide')
+  return data
+}
+
+/** Annule l'événement : les inscrits reçoivent un e-mail. */
+export async function annulerEvenement(id: number): Promise<void> {
+  await preparerCsrf()
+  await clientLocal.delete(cheminLaravel(`/events/${id}`))
 }
 
 export async function inscrire(id: number): Promise<void> {
@@ -82,13 +116,46 @@ export function listerCopies() {
   return page<Deploiement>(clientLocal.get(cheminLaravel('/deployments'), { params: { type: 'client' } }))
 }
 
+export function listerVersions(appId: number) {
+  return page<VersionAppli>(clientLocal.get(cheminLaravel(`/apps/${appId}/versions`), { params: { per_page: 50 } }))
+}
+
+export async function publierVersion(appId: number, corps: { ref?: string; notes: string }): Promise<VersionAppli> {
+  await preparerCsrf()
+  const { data } = await clientLocal.post<VersionAppli>(cheminLaravel(`/apps/${appId}/versions`), corps)
+  return data
+}
+
+export async function mettreAJourCopie(id: number, corps: { variables?: Record<string, string> } = {}): Promise<Deploiement> {
+  await preparerCsrf()
+  const { data } = await clientLocal.post<Deploiement>(cheminLaravel(`/deployments/${id}/mise-a-jour`), corps)
+  return data
+}
+
+export async function sauvegarderCopie(id: number): Promise<void> {
+  await preparerCsrf()
+  await clientLocal.post(cheminLaravel(`/deployments/${id}/sauvegardes`))
+}
+
+/** Sauvegardes gardées de la copie (7 jours), la plus récente d'abord. */
+export async function listerSauvegardes(id: number): Promise<Sauvegarde[]> {
+  const { data } = await clientLocal.get<{ data: Sauvegarde[] }>(cheminLaravel(`/deployments/${id}/sauvegardes`))
+  if (!data || !Array.isArray(data.data)) throw new Error('Réponse vide')
+  return data.data
+}
+
+/** Adresse d'export d'une sauvegarde (téléchargement direct, la session suffit). */
+export function lienSauvegarde(id: number, identifiant: string): string {
+  return cheminLaravel(`/deployments/${id}/sauvegardes/${identifiant}`)
+}
+
 export async function arreterCopie(id: number): Promise<void> {
   await preparerCsrf()
   await clientLocal.delete(cheminLaravel(`/deployments/${id}`))
 }
 
 export function listerDevs(params: Record<string, string | boolean | undefined>) {
-  return page<DevResume>(client.get(cheminApi('/devs'), { params }))
+  return page<DevResume>(clientLocal.get(cheminLaravel('/devs'), { params }))
 }
 
 export async function verifierDepot(depotUrl: string): Promise<VerificationDepot> {
@@ -171,4 +238,12 @@ export async function deployerAppli(id: number, variables: Record<string, string
   const { data } = await clientLocal.post<Deploiement>(cheminLaravel(`/apps/${id}/deployments`), { variables })
   if (!data || typeof data.id !== 'number') throw new Error('Réponse vide')
   return data
+}
+
+export type AppModification = components['schemas']['AppModification']
+
+/** Modifier une appli (auteur) : la formule ne vaut que pour les nouveaux déploiements. */
+export async function modifierAppli(id: number, corps: AppModification): Promise<void> {
+  await preparerCsrf()
+  await clientLocal.patch(cheminLaravel(`/apps/${id}`), corps)
 }

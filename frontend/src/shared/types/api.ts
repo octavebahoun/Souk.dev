@@ -76,13 +76,33 @@ export interface paths {
         parameters: {
             query?: never;
             header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        /** Web. Lien reçu par email : page de confirmation (bouton « Me connecter »), sans consommer le lien. Un analyseur de messagerie qui ouvre le lien ne le grille donc pas. */
+        get: operations["afficherLienMagique"];
+        put?: never;
+        /** Web. Bouton de la page de confirmation ; consomme le lien (usage unique, limité dans le temps) et ouvre la session */
+        post: operations["utiliserLienMagique"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/demo": {
+        parameters: {
+            query?: never;
+            header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Web. Lien reçu par email, à usage unique et limité dans le temps ; ouvre la session */
-        get: operations["utiliserLienMagique"];
+        get?: never;
         put?: never;
-        post?: never;
+        /** Web. Développement et tests de bout en bout seulement (DEMO_CONNEXION=true, jamais en production) : ouvre la session d'un compte du jeu de démo */
+        post: operations["connexionDemo"];
         delete?: never;
         options?: never;
         head?: never;
@@ -148,7 +168,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Mon tableau de bord de dev (vues, copies actives, revenus estimés, par appli et au total) */
+        /** Mon tableau de bord de dev (vues, copies actives, revenus réels encaissés, par appli et au total) */
         get: operations["getDashboard"];
         put?: never;
         post?: never;
@@ -284,6 +304,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/apps/{id}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        /** Versions d'une appli, la plus récente d'abord (publiques une fois vérifiées ; l'auteur voit aussi celles en vérification ou refusées) */
+        get: operations["listAppVersions"];
+        put?: never;
+        /** Publier une nouvelle version (auteur) : une branche, un tag ou un commit du dépôt, vérifié comme à la publication (soukdev.json, docker-compose.yml, secrets) ; les clients sont prévenus et choisissent quand l'appliquer */
+        post: operations["createAppVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/apps/{id}/securite": {
         parameters: {
             query?: never;
@@ -295,12 +335,33 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Relancer l'analyse de sécurité (auteur uniquement), par exemple après avoir corrigé une dépendance */
+        /** Relancer l'analyse de sécurité (auteur uniquement), par exemple après avoir corrigé une dépendance ; 409 si une analyse est partie il y a moins de 30 minutes */
         post: operations["rescanAppSecurity"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/apps/{id}/avis": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        /** Avis des clients sur une appli (publics), les plus récents d'abord ; avec la session, ce que le compte connecté peut faire */
+        get: operations["listAvisAppli"];
+        put?: never;
+        /** Noter une appli, de 1 à 5 : seulement un client qui en a eu une copie payée, un avis par client et par appli */
+        post: operations["noterAppli"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Modifier son propre avis sur l'appli */
+        patch: operations["modifierAvisAppli"];
         trace?: never;
     };
     "/categories": {
@@ -348,7 +409,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Lancer un déploiement client (répond tout de suite avec l'état en_file). Paiement du serveur : mécanisme en attente (voir DECISIONS.md). */
+        /** Commander une copie : crée l'abonnement et sa première facture (hébergement du mois, plus le prix de l'appli). La copie reste en attente_paiement et ne démarre qu'une fois la facture payée (POST /factures/{id}/paiement). */
         post: operations["createDeployment"];
         delete?: never;
         options?: never;
@@ -386,8 +447,110 @@ export interface paths {
         get: operations["getDeployment"];
         put?: never;
         post?: never;
-        /** Arrêter un déploiement */
+        /**
+         * Arrêter un déploiement
+         * @description L'arrêt tourne en arrière-plan sur le moteur : l'état passe à arret_en_cours, puis à arrete (conteneurs, volumes et dossier supprimés), diffusé par Reverb. Si Docker refuse deux fois, le déploiement passe en echec avec son message et l'arrêt est retenté par le nettoyage planifié. Déjà arrêté ou en cours d'arrêt : rien ne change.
+         */
         delete: operations["deleteDeployment"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/deployments/{id}/sauvegardes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        /** Sauvegardes de la copie (client propriétaire), la plus récente d'abord ; gardées 7 jours */
+        get: operations["listDeploymentBackups"];
+        put?: never;
+        /** Sauvegarder la copie maintenant, à chaud (client propriétaire ; 3 par heure) */
+        post: operations["createDeploymentBackup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/deployments/{id}/sauvegardes/{sauvegarde}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+                sauvegarde: string;
+            };
+            cookie?: never;
+        };
+        /** Exporter une sauvegarde : une archive tar (base du backend intégré au format pg_dump, et chaque volume en tar.gz) */
+        get: operations["downloadDeploymentBackup"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/copies/{cle}/auth/code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Clé publique de la copie (SOUKDEV_CLE_PUBLIQUE dans son environnement) */
+                cle: components["parameters"]["CleCopie"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Connexion des utilisateurs d'une appli au backend intégré : envoie un code à 6 chiffres par SMS ou par e-mail (appelée par l'appli, depuis le navigateur) */
+        post: operations["sendEndUserCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/copies/{cle}/auth/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Clé publique de la copie (SOUKDEV_CLE_PUBLIQUE dans son environnement) */
+                cle: components["parameters"]["CleCopie"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Échange le code contre un jeton valable une journée pour l'API du backend intégré de la copie (rôle soukdev_utilisateur, identifiant dans sub) */
+        post: operations["createEndUserSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/deployments/{id}/mise-a-jour": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Appliquer une nouvelle version à sa copie (client propriétaire) : volumes sauvegardés, redéploiement, retour automatique à la version précédente si la nouvelle ne démarre pas */
+        post: operations["updateDeployment"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -483,8 +646,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Demander l'avis de Souk AI (auteur uniquement, discussion avec l'étiquette bug ; 3 par jour)
-         * @description L'analyse tourne en arrière-plan ; son résultat arrive par Reverb et dans le champ analyse_ia de la discussion. Une nouvelle demande remplace l'analyse précédente. 409 si une analyse est déjà en cours.
+         * Demander l'avis de Souk AI (auteur uniquement, discussion avec l'étiquette bug ; 3 par 24 heures)
+         * @description L'analyse tourne en arrière-plan chez DeepSeek ; son résultat arrive par Reverb (analyse_ia.terminee sur discussion.{id}) et dans le champ analyse_ia de la discussion. Une nouvelle demande remplace l'analyse précédente ; une fiche modifiée périme l'analyse. 409 si une analyse est déjà en cours (moins de 10 minutes) ; 429 (avec Retry-After) au-delà de 3 demandes en 24 heures (les pannes du fournisseur ne comptent pas, 6 tentatives au plus). Les clés repérées dans la fiche sont masquées avant l'envoi.
          */
         post: operations["createAnalyseIa"];
         delete?: never;
@@ -523,7 +686,7 @@ export interface paths {
         /** Liste des canaux */
         get: operations["listCanaux"];
         put?: never;
-        /** Créer un canal */
+        /** Créer un canal (3 par jour et par compte) */
         post: operations["createCanal"];
         delete?: never;
         options?: never;
@@ -798,6 +961,679 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/factures": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Mes factures (écran « Mes paiements »), les plus récentes d'abord */
+        get: operations["listFactures"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/factures/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        /** Une facture, ses lignes et ses tentatives de paiement (client de la facture uniquement) */
+        get: operations["getFacture"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/factures/{id}/paiement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ouvrir une session de paiement SasPay pour la facture (Mobile Money ou carte). Le montant vient de la facture, jamais du navigateur ; les frais de paiement s'ajoutent (ADD_ON). Rediriger le client vers checkout_url. */
+        post: operations["payerFacture"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/factures/{id}/verification": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Revérifier tout de suite auprès de SasPay le dernier paiement de la facture (page de retour de paiement). Si SasPay confirme SUCCESS, la facture passe payee et la copie démarre (ou reprend). */
+        post: operations["verifierFacture"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/paiement/facture/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Web. Lien de paiement signé, envoyé par e-mail (rappel avant échéance) : ouvre une session SasPay et redirige vers sa page, sans connexion. Facture déjà payée : redirection vers « Mes paiements ». */
+        get: operations["lienPaiementFacture"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/webhooks/saspay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Événements SasPay (transaction.success, transaction.failed…). Signature X-Webhook-Signature (HMAC SHA-256 de « {timestamp}.{corps brut} ») vérifiée, horodatage de plus de 300 secondes refusé. Traitement idempotent qui revérifie toujours l'état par l'API SasPay avant de changer quoi que ce soit. */
+        post: operations["webhookSasPay"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/simulateur/saspay/{session}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session: string;
+            };
+            cookie?: never;
+        };
+        /** Web. Développement et tests seulement (passerelle simulée, jamais en production) : page de paiement qui imite celle de SasPay. */
+        get: operations["pageSimulateurSasPay"];
+        put?: never;
+        /** Web. Développement et tests seulement : issue du paiement simulé (succes, echec ou attente) ; envoie un vrai webhook signé, puis renvoie vers return_url après un succès. */
+        post: operations["choisirSimulateurSasPay"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/revenus": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Mes revenus de dev : solde dû (parts encaissées moins reversements), totaux, reversement en cours, coordonnées Mobile Money */
+        get: operations["getRevenus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/revenus/mouvements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Mouvements de mon solde (parts encaissées, reversements, corrections), les plus récents d'abord */
+        get: operations["listMouvements"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/revenus/reversements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Mes reversements, les plus récents d'abord */
+        get: operations["listReversements"];
+        put?: never;
+        /** Demander le reversement de tout mon solde sur mon Mobile Money (5 000 F au moins, coordonnées confirmées, un seul reversement en cours). Sans demande, le solde est reversé chaque mois. Les frais sont pris sur la marge de Souk.dev, jamais sur le solde. */
+        post: operations["demanderReversement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Centre de notifications du compte, les plus récentes d'abord, avec le nombre de non lues */
+        get: operations["listNotifications"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/notifications/lecture": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Tout marquer comme lu */
+        post: operations["lireToutesNotifications"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/notifications/{notification}/lecture": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                notification: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Marquer une notification comme lue (celle d'un autre compte répond 404) */
+        post: operations["lireNotification"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/preferences-notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Réglages par type, dans Souk.dev et par e-mail */
+        get: operations["lirePreferencesNotifications"];
+        /** Changer les réglages ; un type absent garde les siens, un e-mail obligatoire reste envoyé */
+        put: operations["modifierPreferencesNotifications"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/coordonnees-reversement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Mes coordonnées Mobile Money de reversement (numéro masqué) */
+        get: operations["getCoordonneesReversement"];
+        /** Saisir ou changer mes coordonnées Mobile Money (numéro saisi deux fois). Elles ne servent qu'après confirmation par le lien envoyé à mon adresse e-mail. */
+        put: operations["enregistrerCoordonneesReversement"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reversement/confirmer/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        /** Web. Lien reçu par e-mail : page qui montre le numéro masqué et un bouton de confirmation (un analyseur de liens qui ouvre la page ne confirme rien) */
+        get: operations["afficherConfirmationReversement"];
+        put?: never;
+        /** Web. Bouton de la page de confirmation (jeton CSRF de la session) ; confirme le numéro puis redirige vers « Mes revenus » */
+        post: operations["confirmerCoordonneesReversement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/copie-suspendue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Web. Page servie par Traefik sur le sous-domaine d'une copie suspendue pour impayé (neutre : rien sur la facture) */
+        get: operations["pageCopieSuspendue"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reseaux-mobile-money": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Réseaux Mobile Money acceptés pour un reversement, par pays */
+        get: operations["listReseauxMobileMoney"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/finances": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Vue financière (admin) sur une période, tirée du grand livre */
+        get: operations["getFinancesAdmin"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/factures": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Toutes les factures (admin), filtrables par statut */
+        get: operations["listFacturesAdmin"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/factures/{id}/avoir": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Saisir un avoir (admin) après un remboursement fait depuis le tableau de bord SasPay (SasPay n'a pas d'API de remboursement). Le grand livre reçoit des écritures inverses ; rien n'est modifié. */
+        post: operations["creerAvoir"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/paiements/{id}/remboursement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Noter le remboursement d'un paiement en double (admin), fait depuis le tableau de bord SasPay : le grand livre solde le trop-perçu dû au client. Seulement pour un paiement encore à rembourser. */
+        post: operations["rembourserTropPercu"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/reversements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Tous les reversements (admin) */
+        get: operations["listReversementsAdmin"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/rapprochements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Rapprochements quotidiens avec les transactions SasPay et leurs écarts (admin) */
+        get: operations["listRapprochements"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/machines": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Serveurs Docker du moteur, avec leur état et leur santé (admin) */
+        get: operations["listMachines"];
+        put?: never;
+        /** Enregistrer un serveur Docker (admin). La santé est sondée aussitôt par le moteur, qui seul parle à Docker. */
+        post: operations["creerMachine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/machines/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        /** Un serveur et sa santé (admin) */
+        get: operations["lireMachine"];
+        put?: never;
+        post?: never;
+        /** Retirer un serveur (admin). Refusé tant que des copies y tournent. */
+        delete: operations["supprimerMachine"];
+        options?: never;
+        head?: never;
+        /** Renommer, redimensionner ou basculer en maintenance (admin). En maintenance : plus aucune nouvelle copie, celles qui tournent continuent. Le démon ne change pas tant que des copies tournent dessus. */
+        patch: operations["modifierMachine"];
+        trace?: never;
+    };
+    "/admin/machines/{id}/sonde": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Relancer la sonde de santé d'un serveur (admin). Le moteur la passe aussitôt ; cette réponse garde l'état stocké, à relire. */
+        post: operations["sonderMachine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/signalements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Signaler un contenu ou un comportement à l'équipe (20 par heure) */
+        post: operations["createSignalement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/signalements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Signalements reçus (admin), filtrables par statut */
+        get: operations["listSignalements"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/signalements/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        /** Un signalement et sa cible (admin) */
+        get: operations["lireSignalement"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/signalements/{id}/traiter": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Marquer un signalement comme traité (admin), après avoir agi (suppression, suspension) */
+        post: operations["traiterSignalement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/signalements/{id}/rejeter": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Rejeter un signalement non fondé (admin) */
+        post: operations["rejeterSignalement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/comptes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Comptes inscrits (admin), cherchables, filtrables par suspension */
+        get: operations["listComptesAdmin"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/comptes/{id}/suspension": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Suspendre un compte (admin) : il ne peut plus se connecter ni appeler l’API. Jamais son propre compte. */
+        post: operations["suspendreCompte"];
+        /** Lever la suspension d'un compte (admin) */
+        delete: operations["leverSuspensionCompte"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/deployments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Toutes les copies (admin), filtrables par état ou suspension pour abus */
+        get: operations["listDeploymentsAdmin"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/deployments/{id}/suspension": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Suspendre une copie pour abus (admin, ex. minage ou hameçonnage) : conteneurs arrêtés par le moteur, page neutre, volumes gardés */
+        post: operations["suspendreCopie"];
+        /** Réactiver une copie suspendue pour abus (admin) : les conteneurs repartent avec leurs données */
+        delete: operations["reactiverCopie"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/canaux/{canal}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Slug du canal */
+                canal: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Supprimer un canal vide (admin). Refusé tant que des discussions l'utilisent. */
+        delete: operations["supprimerCanal"];
+        options?: never;
+        head?: never;
+        /** Renommer ou décrire un canal (admin) */
+        patch: operations["modifierCanal"];
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -839,7 +1675,10 @@ export interface components {
             pays: components["schemas"]["Pays"] | null;
             /** @description Identifiant GitHub ; null si GitHub non lié */
             username: string | null;
-            /** Format: uri */
+            /**
+             * Format: uri-reference
+             * @description Adresse absolue (avatar GitHub) ou chemin servi par l'API (/storage/…)
+             */
             avatar_url: string | null;
             /** Format: uri */
             github_url: string | null;
@@ -866,6 +1705,13 @@ export interface components {
             /** @description Obligatoire pour publier une appli ou proposer un correctif */
             github_lie: boolean;
             est_admin: boolean;
+            /**
+             * Format: date-time
+             * @description Suspension par l’équipe (modération) ; null si le compte est actif
+             */
+            suspendu_le: string | null;
+            /** @description Motif de la suspension, visible par le compte concerné */
+            suspension_motif: string | null;
         };
         LienMagiqueDemande: {
             /** Format: email */
@@ -884,15 +1730,15 @@ export interface components {
         };
         /** @enum {string} */
         Specialite: "frontend" | "backend" | "mobile" | "devops" | "securite" | "data";
-        /** @description Les revenus sont ESTIMÉS à partir des copies et des prix, tant que le paiement via Datacloud n'est pas en place. Le profil (stats, réputation, Souk Score) se lit avec GET /me. */
+        /** @description Revenus réels, tirés du grand livre (parts du dev sur les factures payées). Le profil (stats, réputation, Souk Score) se lit avec GET /me ; le solde et les reversements avec GET /me/revenus. */
         TableauDeBord: {
             totaux: {
                 vues: number;
                 copies_actives: number;
-                /** @description FCFA par mois : somme, pour les applis mensuelles, de copies actives × prix */
-                revenus_estimes_mensuels: number;
-                /** @description FCFA au total : somme, pour les applis à paiement unique, de déploiements clients × prix */
-                revenus_estimes_uniques: number;
+                /** @description FCFA encaissés ce mois-ci pour le dev, toutes applis */
+                revenus_mois: number;
+                /** @description FCFA encaissés pour le dev depuis le début */
+                revenus_total: number;
             };
             applis: components["schemas"]["StatsApp"][];
         };
@@ -901,21 +1747,23 @@ export interface components {
             nom: string;
             type_prix: components["schemas"]["TypePrix"];
             prix: number;
-            /** @description Visiteurs uniques par jour */
+            /** @description Visiteurs uniques par jour, cumulés */
             vues: number;
             /** @description Copies clients en ligne en ce moment */
             copies_actives: number;
             /** @description Copies clients lancées depuis la publication */
             deploiements_total: number;
-            /** @description mensuel : copies actives × prix (par mois) ; unique : déploiements total × prix (au total) */
-            revenu_estime: number;
+            /** @description FCFA encaissés ce mois-ci pour cette appli */
+            revenu_mois: number;
+            /** @description FCFA encaissés pour cette appli depuis la publication */
+            revenu_total: number;
         };
         /** @description Score sur 1000 qui mesure la qualité et l'activité récente (l'XP, elle, cumule tout depuis l'arrivée). Calculé par la plateforme ; les compétences déclarées ne comptent pas. total = somme des cinq parts. */
         SoukScore: {
             total: number;
-            /** @description 25 par bug résolu (correctif accepté) */
+            /** @description 25 par bug résolu (correctif accepté), plafonné à 250 */
             entraide: number;
-            /** @description 50 par appli publiée */
+            /** @description 50 par appli publiée, plafonné à 200 */
             projets: number;
             /** @description note moyenne / 5 × 150 (0 sans note), plus 25 par mission terminée plafonné à 100 */
             clients: number;
@@ -968,13 +1816,19 @@ export interface components {
             readme?: string | null;
         };
         App: {
+            /** @description Numéro de la dernière version publiée (1 : la publication) */
+            version: number;
+            /** @description Moyenne des avis des clients (1 à 5, une décimale) ; null sans avis */
+            note_moyenne: number | null;
+            /** @description Nombre d'avis de clients */
+            nb_avis: number;
             id: number;
             nom: string;
             description: string;
             /** @description README du dépôt en Markdown */
             readme?: string | null;
             categorie: components["schemas"]["Categorie"];
-            /** @description Prix de l'appli en FCFA */
+            /** @description Prix de l'appli en FCFA, par mois ou une seule fois selon type_prix ; 0 = gratuit */
             prix: number;
             type_prix: components["schemas"]["TypePrix"];
             taille: components["schemas"]["Taille"];
@@ -983,7 +1837,7 @@ export interface components {
             demo_url: string;
             /** Format: uri */
             depot_url: string;
-            /** @description Captures d'écran ; la première sert de couverture sur la carte du store */
+            /** @description Captures d'écran ; la première sert de couverture sur la carte du store (au moins une à la publication, voir CapturesEnvoi) */
             captures: components["schemas"]["Capture"][];
             stack: components["schemas"]["Techno"][];
             /**
@@ -1042,7 +1896,7 @@ export interface components {
         MesureMemoire: {
             /** @enum {string} */
             statut: "en_cours" | "terminee" | "echec";
-            /** @description Pic de mémoire mesuré */
+            /** @description Pic de mémoire mesuré, en Mo ; null tant que la mesure n'est pas finie */
             memoire_max_mo: number | null;
             taille_recommandee: components["schemas"]["Taille"] | null;
             /** Format: date-time */
@@ -1051,10 +1905,10 @@ export interface components {
         /** @description Analyse des dépendances du dépôt (Trivy). Secrets et docker-compose.yml dangereux bloquent la publication et n'apparaissent donc jamais ici. */
         Securite: {
             /**
-             * @description verifie = badge vert « Security Checked » ; problemes = badge orange « Problèmes détectés »
+             * @description verifie = badge vert « Security Checked » ; problemes = badge orange « Problèmes détectés » ; echec = l'analyse n'a pas pu se faire (dépôt devenu inaccessible, outil indisponible) : l'auteur la relance
              * @enum {string}
              */
-            statut: "en_cours" | "verifie" | "problemes";
+            statut: "en_cours" | "verifie" | "problemes" | "echec";
             /**
              * Format: date-time
              * @description null tant que la première analyse n'est pas finie
@@ -1072,7 +1926,7 @@ export interface components {
             version: string;
             /** @enum {string} */
             gravite: "faible" | "moyenne" | "haute" | "critique";
-            /** @description Première version sans la faille */
+            /** @description Première version sans la faille, si elle existe */
             version_corrigee: string | null;
         };
         /** @description Dépôt valide. En cas d'erreur (dépôt privé ou introuvable, docker-compose.yml absent, soukdev.json invalide, secret trouvé dans le dépôt, docker-compose.yml dangereux : privileged, volumes de l'hôte, network_mode host, ports publiés), réponse 422 avec le détail par champ. */
@@ -1122,8 +1976,11 @@ export interface components {
              * @enum {string}
              */
             type: "client" | "test" | "correctif";
-            /** @enum {string} */
-            etat: "en_file" | "construction" | "demarrage" | "en_ligne" | "echec" | "arrete";
+            /**
+             * @description Copie client : attente_paiement jusqu'au paiement de la première facture. Puis en_file → construction → demarrage → en_ligne ; echec à n'importe quelle étape ; suspendu après 7 jours de facture impayée (réactivée au paiement) ; mise_a_jour pendant l'application d'une nouvelle version (retour à en_ligne, sur la nouvelle version ou la précédente) ; arret_en_cours puis arrete après DELETE /deployments/{id} ou 30 jours de suspension
+             * @enum {string}
+             */
+            etat: "attente_paiement" | "en_file" | "construction" | "demarrage" | "en_ligne" | "echec" | "suspendu" | "mise_a_jour" | "arret_en_cours" | "arrete";
             /**
              * Format: uri
              * @description Renseignée quand l'état est en_ligne
@@ -1133,6 +1990,101 @@ export interface components {
             erreur: string | null;
             /** Format: date-time */
             cree_le: string;
+            /** @description Facturation de la copie client ; null pour une copie de test ou une version corrigée (gratuites) */
+            abonnement: components["schemas"]["Abonnement"] | null;
+            /** @description La facture à régler pour démarrer ou garder la copie ; null si tout est payé */
+            facture_a_payer: components["schemas"]["FactureResume"] | null;
+            /** @description Numéro de la version de l'appli que la copie fait tourner ; null pour une copie de test */
+            version: number | null;
+            /** @description Version publiée plus récente que celle de la copie (copie client seulement), à appliquer quand le client le choisit */
+            version_disponible: components["schemas"]["VersionResume"] | null;
+            /** @description Dernière mise à jour demandée pour cette copie */
+            mise_a_jour: components["schemas"]["MiseAJour"] | null;
+            /** @description La sauvegarde la plus récente (copie client), à exporter depuis « Mes copies » */
+            derniere_sauvegarde: components["schemas"]["Sauvegarde"] | null;
+            /** @description Serveur qui héberge la copie ; null tant qu'elle attend son paiement (pas encore placée) */
+            machine_nom: string | null;
+            /** @description Motif de la suspension pour abus par l’équipe (minage, hameçonnage…) ; null si la copie n’est pas suspendue par l’équipe */
+            suspension_admin_motif: string | null;
+        };
+        Sauvegarde: {
+            identifiant: string;
+            /**
+             * @description quotidienne : chaque nuit, à chaud ; mise_a_jour : avant l'application d'une version, copie arrêtée ; manuelle : demandée par le client
+             * @enum {string}
+             */
+            type: "quotidienne" | "mise_a_jour" | "manuelle";
+            /** Format: date-time */
+            cree_le: string;
+            /** @description Octets */
+            taille: number;
+        };
+        DemandeCodeConnexion: {
+            /** @enum {string} */
+            canal: "sms" | "email";
+            /** @description Numéro au format international (+229…) pour un SMS, adresse pour un e-mail */
+            destinataire: string;
+        };
+        SessionUtilisateurFinal: {
+            /** @description JWT pour l'API du backend intégré (en-tête Authorization: Bearer) */
+            jeton: string;
+            /** Format: date-time */
+            expire_le: string;
+            utilisateur: {
+                /**
+                 * Format: uuid
+                 * @description Identifiant stable de l'utilisateur dans cette copie (soukdev.utilisateur_id() en SQL)
+                 */
+                id: string;
+                /** @enum {string} */
+                canal: "sms" | "email";
+                /** @description Numéro ou adresse masqués */
+                destinataire: string;
+            };
+        };
+        VersionResume: {
+            numero: number;
+            /** @description Ce qui change, écrit par l'auteur */
+            notes: string | null;
+            /** Format: date-time */
+            cree_le: string;
+        };
+        MiseAJour: {
+            /**
+             * @description reussie : la copie tourne sur la nouvelle version ; retablie : la nouvelle version n'a pas démarré, la copie est revenue à la précédente avec ses données ; echouee : le retour n'a pas pu se faire (l'équipe est prévenue)
+             * @enum {string}
+             */
+            statut: "en_file" | "en_cours" | "reussie" | "retablie" | "echouee";
+            de_version: number | null;
+            vers_version: number;
+            /** @description Ce qui a empêché la nouvelle version de démarrer */
+            erreur: string | null;
+            /** Format: date-time */
+            cree_le: string;
+            /** Format: date-time */
+            termine_le: string | null;
+        };
+        VersionAppli: {
+            id: number;
+            /** @description 1 : la publication */
+            numero: number;
+            /** @description Branche, tag ou commit demandé par l'auteur ; null pour la publication */
+            ref: string | null;
+            /** @description Commit vérifié (40 caractères hexadécimaux) ; null avant la vérification */
+            commit: string | null;
+            notes: string | null;
+            /** @enum {string} */
+            statut: "verification" | "publiee" | "refusee";
+            /** @description Raison du refus (soukdev.json, docker-compose.yml, secret…) */
+            erreur: string | null;
+            /** Format: date-time */
+            cree_le: string;
+        };
+        VersionCreation: {
+            /** @description Branche, tag ou commit ; par défaut la branche du dépôt publié */
+            ref?: string;
+            /** @description Ce qui change pour les clients */
+            notes: string;
         };
         DeploiementCreation: {
             /** @description Valeurs des variables_client de l'appli, ex. {"PHARMACIE_NOM": "Pharmacie du Port"} */
@@ -1336,6 +2288,413 @@ export interface components {
             /** Format: date */
             delai?: string;
         };
+        /** @description Facturation d'une copie client, à date anniversaire : l'hébergement chaque mois, plus le prix de l'appli chaque mois (mensuel) ou une seule fois (unique). */
+        Abonnement: {
+            /**
+             * @description en_attente : première facture pas encore payée ; en_retard : échéance passée, 7 jours de grâce ; suspendu : copie arrêtée, réactivée au paiement ; incident : copie payée qui n'a pas pu démarrer, plus aucune facture tant que l'équipe n'a pas réglé le problème ; resilie : arrêt définitif après 30 jours de suspension
+             * @enum {string}
+             */
+            statut: "en_attente" | "actif" | "en_retard" | "suspendu" | "incident" | "resilie";
+            formule: components["schemas"]["Taille"];
+            /** @description FCFA par mois, figé à la commande */
+            montant_hebergement: number;
+            /** @description FCFA, figé à la commande ; 0 pour une appli gratuite */
+            prix_appli: number;
+            type_prix: components["schemas"]["TypePrix"];
+            /** Format: date */
+            prochaine_echeance: string | null;
+            /** Format: date-time */
+            suspendu_le: string | null;
+        };
+        /** @enum {string} */
+        StatutFacture: "a_payer" | "payee" | "annulee" | "remboursee";
+        FactureResume: {
+            id: number;
+            /** @description ex. SD-2026-000123 */
+            numero: string;
+            /** @description FCFA, hors frais de paiement (ajoutés par SasPay) */
+            montant_total: number;
+            /** Format: date */
+            echeance_le: string;
+            statut: components["schemas"]["StatutFacture"];
+        };
+        LigneFacture: {
+            /** @description ex. « Hébergement, formule moyenne, du 25 octobre au 24 novembre » */
+            libelle: string;
+            montant: number;
+        };
+        Facture: {
+            id: number;
+            numero: string;
+            deploiement_id: number;
+            app_nom: string;
+            /** Format: date */
+            periode_debut: string;
+            /** Format: date */
+            periode_fin: string;
+            /** Format: date-time */
+            emise_le: string;
+            /** Format: date */
+            echeance_le: string;
+            montant_hebergement: number;
+            montant_appli: number;
+            /** @description FCFA, ce que reçoit Souk.dev ; les frais de paiement (ADD_ON) s'ajoutent côté client */
+            montant_total: number;
+            /** @description Somme des avoirs */
+            montant_rembourse: number;
+            statut: components["schemas"]["StatutFacture"];
+            /** Format: date-time */
+            payee_le: string | null;
+            lignes: components["schemas"]["LigneFacture"][];
+            /** @description Tentatives de paiement, la plus récente d'abord */
+            paiements: components["schemas"]["Paiement"][];
+        };
+        Paiement: {
+            id: number;
+            /**
+             * @description Reflet du statut SasPay revérifié par l'API (PENDING, SUCCESS, FAILED ; annule pour une session expirée ou annulée)
+             * @enum {string}
+             */
+            statut: "en_attente" | "reussi" | "echoue" | "annule";
+            /** @description Montant demandé (celui de la facture) */
+            montant: number;
+            /** @description Frais de paiement ajoutés par SasPay (ADD_ON), connus après vérification */
+            frais_client: number | null;
+            /** @description Ce qu'a réellement payé le client */
+            montant_debite: number | null;
+            /** @description Référence SasPay de la transaction */
+            reference: string | null;
+            /** Format: date-time */
+            cree_le: string;
+            /** Format: date-time */
+            verifie_le: string | null;
+        };
+        SessionPaiement: {
+            paiement: components["schemas"]["Paiement"];
+            /**
+             * Format: uri
+             * @description Page de paiement hébergée par SasPay
+             */
+            checkout_url: string;
+        };
+        Revenus: {
+            /** @description FCFA dû au dev : ses parts encaissées moins ses reversements (et corrections) */
+            solde: number;
+            /** @description Parts encaissées depuis le début */
+            encaisse_total: number;
+            /** @description Parts encaissées ce mois-ci */
+            encaisse_mois: number;
+            reverse_total: number;
+            /** @description Solde minimal pour un reversement à la demande (5 000 F) */
+            seuil_demande: number;
+            peut_demander: boolean;
+            /** @description Pourquoi la demande est impossible (solde trop bas, coordonnées non confirmées, reversement en cours) */
+            raison_blocage: string | null;
+            reversement_en_cours: components["schemas"]["Reversement"] | null;
+            /**
+             * Format: date
+             * @description Reversement mensuel automatique
+             */
+            prochain_reversement_le: string;
+            coordonnees: components["schemas"]["CoordonneesReversement"] | null;
+        };
+        /** @description Une écriture du grand livre sur le compte du dev, vue par lui : positive quand il gagne, négative quand il est payé */
+        Mouvement: {
+            id: number;
+            /** @enum {string} */
+            type: "encaissement" | "reversement" | "reversement_annule" | "avoir";
+            montant: number;
+            libelle: string;
+            /** Format: date-time */
+            cree_le: string;
+        };
+        Reversement: {
+            id: number;
+            /** @description Montant reçu par le dev, entier ; les frais sont à la charge de Souk.dev */
+            montant: number;
+            /** @enum {string} */
+            statut: "en_attente" | "reussi" | "echoue";
+            /** @description Code réseau, ex. mtn_bj */
+            reseau: string;
+            /** @description ex. +229 01 •• •• 50 50 */
+            numero_masque: string;
+            /** @enum {string} */
+            declenchement: "mensuel" | "demande";
+            /** Format: date-time */
+            cree_le: string;
+            /** Format: date-time */
+            verifie_le: string | null;
+            erreur: string | null;
+        };
+        ReversementAdmin: components["schemas"]["Reversement"] & {
+            dev: components["schemas"]["Dev"];
+            /** @description Frais de reversement payés par Souk.dev */
+            frais: number | null;
+        };
+        CoordonneesReversement: {
+            pays: components["schemas"]["Pays"];
+            reseau: string;
+            numero_masque: string;
+            /** @description Faux tant que le lien envoyé par e-mail n'a pas été ouvert ; aucun reversement avant */
+            confirme: boolean;
+            /** Format: date-time */
+            confirme_le: string | null;
+        };
+        CoordonneesReversementSaisie: {
+            pays: components["schemas"]["Pays"];
+            /** @description Code d'un réseau de GET /reseaux-mobile-money, du même pays */
+            reseau: string;
+            /** @description Numéro local ou international, ex. 0197505050 ou +2290197505050 */
+            numero: string;
+            numero_confirmation: string;
+        };
+        ReseauMobileMoney: {
+            /** @description Code SasPay, ex. mtn_bj */
+            code: string;
+            /** @description ex. MTN MoMo */
+            nom: string;
+            pays: components["schemas"]["Pays"];
+        };
+        /** @description Tiré du grand livre (entiers FCFA). marge = revenus_hebergement − frais (reversements et encaissements) − avoirs côté hébergement. */
+        Finances: {
+            /** Format: date */
+            debut: string;
+            /** Format: date */
+            fin: string;
+            /** @description Montants encaissés sur la période */
+            encaissements: number;
+            revenus_hebergement: number;
+            /** @description Parts des devs encaissées sur la période */
+            parts_devs: number;
+            /** @description Versé aux devs sur la période */
+            reversements: number;
+            frais_reversement: number;
+            avoirs: number;
+            marge: number;
+            /** @description Dû aux devs aujourd'hui, tous comptes confondus */
+            solde_devs: number;
+            /** @description Ce que le compte SasPay devrait contenir d'après le grand livre */
+            solde_saspay_attendu: number;
+            factures_impayees: number;
+            copies_suspendues: number;
+            /** @description Paiements en double encore à rembourser aux clients (tous, quelle que soit la période) */
+            trop_percus: components["schemas"]["TropPercu"][];
+        };
+        /** @description Un paiement reçu pour une facture déjà payée ou annulée : l'argent est dû au client */
+        TropPercu: {
+            paiement_id: number;
+            facture_id: number;
+            facture_numero: string;
+            /** @description FCFA à rendre au client */
+            montant: number;
+            /** @description Référence SasPay du paiement en double */
+            reference: string | null;
+            /** Format: date-time */
+            recu_le: string;
+            rembourse: boolean;
+        };
+        /** @enum {string} */
+        TypeNotification: "correctif_propose" | "correctif_accepte" | "message_mission" | "echeance" | "suspension" | "mise_a_jour" | "reversement";
+        /** @description Diffusée aussi en direct : événement notification.creee sur le canal privé utilisateur.{id} */
+        Notification: {
+            /** Format: uuid */
+            id: string;
+            type: components["schemas"]["TypeNotification"];
+            titre: string;
+            texte: string;
+            /** @description Chemin du front vers l'écran concerné (/paiements/12…) */
+            lien: string | null;
+            lue: boolean;
+            /** Format: date-time */
+            cree_le: string;
+        };
+        PreferencesNotifications: {
+            types: {
+                type: components["schemas"]["TypeNotification"];
+                libelle: string;
+                description: string;
+                /** @description Dans le centre de notifications de Souk.dev */
+                application: boolean;
+                email: boolean;
+                /** @description L'e-mail part quoi qu'il arrive (suspension : prévient avant la suppression des données) */
+                email_obligatoire: boolean;
+            }[];
+        };
+        PreferencesNotificationsSaisie: {
+            preferences: {
+                type: components["schemas"]["TypeNotification"];
+                application: boolean;
+                email: boolean;
+            }[];
+        };
+        /** @description Avis d'un client sur une appli dont il a eu une copie payée */
+        AvisAppli: {
+            id: number;
+            note: number;
+            commentaire: string | null;
+            auteur: components["schemas"]["Dev"];
+            /** Format: date-time */
+            cree_le: string;
+            /** Format: date-time */
+            modifie_le: string;
+        };
+        AvisAppliSaisie: {
+            note: number;
+            commentaire?: string | null;
+        };
+        AvoirCreation: {
+            montant_hebergement: number;
+            montant_appli: number;
+            motif: string;
+        };
+        Avoir: {
+            id: number;
+            /** @description ex. AV-2026-000004 */
+            numero: string;
+            facture_id: number;
+            montant_hebergement: number;
+            montant_appli: number;
+            montant_total: number;
+            motif: string;
+            /** Format: date-time */
+            cree_le: string;
+        };
+        Rapprochement: {
+            id: number;
+            /** Format: date */
+            jour: string;
+            /** @description Transactions entrantes réussies chez SasPay ce jour-là */
+            transactions_saspay: number;
+            /** @description Paiements réussis enregistrés chez Souk.dev ce jour-là */
+            paiements_locaux: number;
+            /** @description corrige : paiement réussi resté en attente ici (webhook perdu), rattrapé par la vérification ; les autres types demandent un humain (e-mail à l'admin) */
+            ecarts: {
+                /** @enum {string} */
+                type: "corrige" | "inconnue_localement" | "montant_different" | "absente_chez_saspay" | "verification_impossible";
+                /** @description Transaction SasPay, ou paiement n° … chez Souk.dev */
+                reference: string;
+                /** @description Ce qui a été constaté, en clair */
+                detail: string;
+            }[];
+            /** Format: date-time */
+            cree_le: string;
+        };
+        /**
+         * @description maintenance : plus aucune nouvelle copie n'y part (drain), celles qui tournent continuent
+         * @enum {string}
+         */
+        EtatMachine: "active" | "maintenance";
+        Machine: {
+            id: number;
+            /** @description Nom choisi par l'équipe, ex. locale */
+            nom: string;
+            /** @description Démon Docker visé (DOCKER_HOST) : unix:///… ou tcp://hôte:port ; null = démon local (socket) */
+            hote_docker: string | null;
+            etat: components["schemas"]["EtatMachine"];
+            /** @description Faux depuis la dernière sonde ratée : le placement l'évite */
+            joignable: boolean;
+            /** @description Lue par la dernière sonde réussie */
+            version_docker: string | null;
+            /** @description Mémoire du démon, lue par la sonde (Mo) */
+            memoire_totale_mo: number | null;
+            /** @description Mémoire réservée aux copies (Mo), déclarée par l'équipe ; null = sans limite déclarée */
+            capacite_mo: number | null;
+            /** @description Plafonds des copies qui y tournent (Mo) */
+            memoire_reservee_mo: number;
+            /** @description Capacité utile (déclarée, sinon sondée) moins réservée (Mo) ; null si aucune limite connue */
+            memoire_libre_mo: number | null;
+            /** @description Copies hébergées (ni arrêtées, ni en échec) */
+            copies: number;
+            /** @description Raison courte de la dernière sonde ratée */
+            sonde_erreur: string | null;
+            /** Format: date-time */
+            sondee_le: string | null;
+        };
+        MachineCreation: {
+            nom: string;
+            /** @description unix:///… ou tcp://hôte:port ; null = démon local */
+            hote_docker?: string | null;
+            /** @description Mémoire réservée aux copies (Mo) ; null = sans limite déclarée */
+            capacite_mo?: number | null;
+        };
+        MachineModification: {
+            nom?: string;
+            hote_docker?: string | null;
+            capacite_mo?: number | null;
+            etat?: components["schemas"]["EtatMachine"];
+        };
+        /**
+         * @description Ce qui est signalé : une discussion, un message, une appli, une copie (déploiement), un compte ou un événement
+         * @enum {string}
+         */
+        CibleSignalement: "discussion" | "message" | "appli" | "copie" | "compte" | "evenement";
+        /**
+         * @description Motif du signalement : spam, abus (harcèlement, insulte), hameçonnage, minage de cryptomonnaie, contenu illégal, autre
+         * @enum {string}
+         */
+        MotifSignalement: "spam" | "abus" | "hameconnage" | "minage" | "contenu_illegal" | "autre";
+        /**
+         * @description ouvert : en attente de l’équipe ; traite : fondé, action faite ; rejete : non fondé
+         * @enum {string}
+         */
+        StatutSignalement: "ouvert" | "traite" | "rejete";
+        SignalementCreation: {
+            cible: components["schemas"]["CibleSignalement"];
+            /** @description Identifiant de la cible (compte : identifiant du compte) */
+            cible_id: number;
+            motif: components["schemas"]["MotifSignalement"];
+            /** @description Ce qui pose problème, avec des faits vérifiables */
+            details?: string;
+        };
+        Signalement: {
+            id: number;
+            cible: components["schemas"]["CibleSignalement"];
+            cible_id: number;
+            /** @description Résumé lisible de la cible pour l’équipe (titre, nom, adresse…) */
+            cible_resume: string;
+            /** @description Chemin du front vers la cible (ou adresse de la copie) ; null sans page (cible supprimée, copie sans adresse, compte sans GitHub) */
+            cible_chemin: string | null;
+            motif: components["schemas"]["MotifSignalement"];
+            details: string | null;
+            statut: components["schemas"]["StatutSignalement"];
+            signale_par: components["schemas"]["Dev"];
+            /** Format: date-time */
+            cree_le: string;
+            traite_par: components["schemas"]["Dev"] | null;
+            /** Format: date-time */
+            traite_le: string | null;
+            /** @description Note de l’équipe sur sa décision */
+            note: string | null;
+        };
+        SignalementDecision: {
+            /** @description Ce qui a été fait (suppression, suspension…) ou pourquoi le signalement est rejeté */
+            note?: string;
+        };
+        SuspensionCreation: {
+            /** @description Motif de la suspension, visible par le compte concerné */
+            motif: string;
+        };
+        /** @description Un compte vu par l’équipe (liste, suspension) */
+        CompteAdmin: {
+            id: number;
+            nom: string | null;
+            username: string | null;
+            /** Format: email */
+            email: string | null;
+            /** @enum {string} */
+            profil: "dev" | "client";
+            est_admin: boolean;
+            /** Format: date-time */
+            cree_le: string;
+            /** Format: date-time */
+            suspendu_le: string | null;
+            suspension_motif: string | null;
+        };
+        CanalModification: {
+            nom?: string;
+            description?: string | null;
+            pays?: components["schemas"]["Pays"] | null;
+        };
         Evenement: {
             id: number;
             titre: string;
@@ -1397,6 +2756,15 @@ export interface components {
         };
     };
     responses: {
+        /** @description L'en-tête Idempotency-Key est obligatoire : cette opération déplace de l'argent */
+        CleIdempotenceManquante: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Erreur"];
+            };
+        };
         /** @description Non connecté */
         NonConnecte: {
             headers: {
@@ -1462,11 +2830,26 @@ export interface components {
                 "application/json": components["schemas"]["Erreur"];
             };
         };
+        /** @description Service momentanément indisponible (la vérification du dépôt n'a pas répondu à temps) ; le message dit quoi faire */
+        Indisponible: {
+            headers: {
+                /** @description Secondes à attendre avant de réessayer */
+                "Retry-After"?: number;
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Erreur"];
+            };
+        };
     };
     parameters: {
+        /** @description Clé publique de la copie (SOUKDEV_CLE_PUBLIQUE dans son environnement) */
+        CleCopie: string;
         Id: number;
         /** @description Numéro de page (commence à 1) */
         Page: number;
+        /** @description Identifiant unique de l'intention (un UUID). Rejouée avec la même clé, la requête renvoie la réponse d'origine au lieu de recommencer. */
+        CleIdempotence: string;
         /** @description Éléments par page (50 maximum) */
         ParPage: number;
     };
@@ -1561,6 +2944,35 @@ export interface operations {
             429: components["responses"]["TropDeRequetes"];
         };
     };
+    afficherLienMagique: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Page de confirmation (HTML), avec l'adresse du compte qui va s'ouvrir */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/html": string;
+                };
+            };
+            /** @description Lien expiré ou déjà utilisé (page HTML, ou JSON si demandé) */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     utiliserLienMagique: {
         parameters: {
             query?: never;
@@ -1579,13 +2991,55 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Lien expiré ou déjà utilisé */
+            /** @description Compte suspendu (page HTML, ou JSON si demandé) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Lien expiré ou déjà utilisé (page HTML, ou JSON si demandé) */
             410: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            419: components["responses"]["CsrfInvalide"];
+        };
+    };
+    connexionDemo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description Identifiant d'un compte de démo, ex. soukdemo-awa */
+                    compte: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Session ouverte */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Connexion de démo désactivée, ou compte inconnu ou hors du jeu de démo */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            419: components["responses"]["CsrfInvalide"];
+            422: components["responses"]["Invalide"];
         };
     };
     logout: {
@@ -1815,7 +3269,7 @@ export interface operations {
                 prix_max?: number;
                 type_prix?: components["schemas"]["TypePrix"];
                 /** @description Par défaut, les plus récentes d'abord */
-                tri?: "recent" | "prix_croissant" | "prix_decroissant";
+                tri?: "recent" | "prix_croissant" | "prix_decroissant" | "note";
             };
             header?: never;
             path?: never;
@@ -1870,6 +3324,8 @@ export interface operations {
             };
             419: components["responses"]["CsrfInvalide"];
             422: components["responses"]["Invalide"];
+            429: components["responses"]["TropDeRequetes"];
+            503: components["responses"]["Indisponible"];
         };
     };
     verifyAppRepo: {
@@ -1910,6 +3366,7 @@ export interface operations {
             419: components["responses"]["CsrfInvalide"];
             422: components["responses"]["Invalide"];
             429: components["responses"]["TropDeRequetes"];
+            503: components["responses"]["Indisponible"];
         };
     };
     getApp: {
@@ -2020,6 +3477,69 @@ export interface operations {
             422: components["responses"]["Invalide"];
         };
     };
+    listAppVersions: {
+        parameters: {
+            query?: {
+                /** @description Numéro de page (commence à 1) */
+                page?: components["parameters"]["Page"];
+                /** @description Éléments par page (50 maximum) */
+                per_page?: components["parameters"]["ParPage"];
+            };
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Versions */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pagination"] & {
+                        data: components["schemas"]["VersionAppli"][];
+                    };
+                };
+            };
+            404: components["responses"]["Introuvable"];
+        };
+    };
+    createAppVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VersionCreation"];
+            };
+        };
+        responses: {
+            /** @description Version en vérification */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VersionAppli"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+            404: components["responses"]["Introuvable"];
+            409: components["responses"]["Conflit"];
+            419: components["responses"]["CsrfInvalide"];
+            422: components["responses"]["Invalide"];
+            429: components["responses"]["TropDeRequetes"];
+        };
+    };
     rescanAppSecurity: {
         parameters: {
             query?: never;
@@ -2040,9 +3560,108 @@ export interface operations {
                     "application/json": components["schemas"]["Securite"];
                 };
             };
+            401: components["responses"]["NonConnecte"];
             403: components["responses"]["Interdit"];
             404: components["responses"]["Introuvable"];
+            409: components["responses"]["Conflit"];
             419: components["responses"]["CsrfInvalide"];
+            429: components["responses"]["TropDeRequetes"];
+        };
+    };
+    listAvisAppli: {
+        parameters: {
+            query?: {
+                /** @description Numéro de page (commence à 1) */
+                page?: components["parameters"]["Page"];
+                /** @description Éléments par page (50 maximum) */
+                per_page?: components["parameters"]["ParPage"];
+            };
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Avis */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pagination"] & {
+                        data: components["schemas"]["AvisAppli"][];
+                        /** @description Le compte connecté a eu une copie payée de l'appli et ne l'a pas encore notée */
+                        peut_noter: boolean;
+                        mon_avis: components["schemas"]["AvisAppli"] | null;
+                    };
+                };
+            };
+            404: components["responses"]["Introuvable"];
+        };
+    };
+    noterAppli: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AvisAppliSaisie"];
+            };
+        };
+        responses: {
+            /** @description Avis publié */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AvisAppli"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+            404: components["responses"]["Introuvable"];
+            409: components["responses"]["Conflit"];
+            419: components["responses"]["CsrfInvalide"];
+            422: components["responses"]["Invalide"];
+            429: components["responses"]["TropDeRequetes"];
+        };
+    };
+    modifierAvisAppli: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AvisAppliSaisie"];
+            };
+        };
+        responses: {
+            /** @description Avis modifié */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AvisAppli"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            404: components["responses"]["Introuvable"];
+            419: components["responses"]["CsrfInvalide"];
+            422: components["responses"]["Invalide"];
             429: components["responses"]["TropDeRequetes"];
         };
     };
@@ -2101,7 +3720,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Déploiement mis en file ; les changements d'état arrivent par Reverb */
+            /** @description Copie commandée, en attente du paiement de facture_a_payer ; les changements d'état arrivent par Reverb */
             202: {
                 headers: {
                     [name: string]: unknown;
@@ -2182,25 +3801,199 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Déploiement arrêté (conteneurs, volumes et dossier supprimés) ; aussi si déjà arrêté */
-            204: {
+            /** @description Arrêt demandé ; le déploiement tel qu'il est maintenant */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Deploiement"];
+                };
+            };
+            403: components["responses"]["Interdit"];
+            404: components["responses"]["Introuvable"];
+            419: components["responses"]["CsrfInvalide"];
+        };
+    };
+    listDeploymentBackups: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sauvegardes */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Sauvegarde"][];
+                    };
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            404: components["responses"]["Introuvable"];
+        };
+    };
+    createDeploymentBackup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sauvegarde en file ; elle apparaît dans la liste une fois écrite */
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            403: components["responses"]["Interdit"];
+            401: components["responses"]["NonConnecte"];
             404: components["responses"]["Introuvable"];
+            409: components["responses"]["Conflit"];
             419: components["responses"]["CsrfInvalide"];
-            /** @description Arrêt Docker impossible après deux essais ; le déploiement passe en echec et sera retenté */
-            503: {
+            429: components["responses"]["TropDeRequetes"];
+        };
+    };
+    downloadDeploymentBackup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+                sauvegarde: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Archive de la sauvegarde */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Erreur"];
+                    "application/x-tar": string;
                 };
             };
+            401: components["responses"]["NonConnecte"];
+            404: components["responses"]["Introuvable"];
+        };
+    };
+    sendEndUserCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Clé publique de la copie (SOUKDEV_CLE_PUBLIQUE dans son environnement) */
+                cle: components["parameters"]["CleCopie"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DemandeCodeConnexion"];
+            };
+        };
+        responses: {
+            /** @description Code envoyé (même si le destinataire est nouveau) */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description Secondes de validité du code */
+                        expire_dans: number;
+                    };
+                };
+            };
+            404: components["responses"]["Introuvable"];
+            422: components["responses"]["Invalide"];
+            429: components["responses"]["TropDeRequetes"];
+            503: components["responses"]["Indisponible"];
+        };
+    };
+    createEndUserSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Clé publique de la copie (SOUKDEV_CLE_PUBLIQUE dans son environnement) */
+                cle: components["parameters"]["CleCopie"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DemandeCodeConnexion"] & {
+                    code: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Session ouverte */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionUtilisateurFinal"];
+                };
+            };
+            404: components["responses"]["Introuvable"];
+            422: components["responses"]["Invalide"];
+            429: components["responses"]["TropDeRequetes"];
+        };
+    };
+    updateDeployment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /** @description Numéro de la version ; par défaut la dernière publiée */
+                    version?: number;
+                    /** @description Valeurs des nouvelles variables « client » que demande cette version */
+                    variables?: {
+                        [key: string]: string;
+                    };
+                };
+            };
+        };
+        responses: {
+            /** @description Mise à jour en file ; la copie passe à l'état mise_a_jour */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Deploiement"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            404: components["responses"]["Introuvable"];
+            409: components["responses"]["Conflit"];
+            419: components["responses"]["CsrfInvalide"];
+            422: components["responses"]["Invalide"];
+            429: components["responses"]["TropDeRequetes"];
         };
     };
     listDiscussions: {
@@ -2438,7 +4231,17 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * @description L'auteur accepte que la fiche du bug et son code partent chez le fournisseur (DeepSeek)
+                     * @constant
+                     */
+                    consentement: true;
+                };
+            };
+        };
         responses: {
             /** @description Analyse mise en file */
             202: {
@@ -2449,12 +4252,14 @@ export interface operations {
                     "application/json": components["schemas"]["AnalyseIa"];
                 };
             };
+            401: components["responses"]["NonConnecte"];
             403: components["responses"]["Interdit"];
             404: components["responses"]["Introuvable"];
             409: components["responses"]["Conflit"];
             419: components["responses"]["CsrfInvalide"];
             422: components["responses"]["Invalide"];
             429: components["responses"]["TropDeRequetes"];
+            503: components["responses"]["Indisponible"];
         };
     };
     deleteMessage: {
@@ -2558,6 +4363,7 @@ export interface operations {
             401: components["responses"]["NonConnecte"];
             419: components["responses"]["CsrfInvalide"];
             422: components["responses"]["Invalide"];
+            429: components["responses"]["TropDeRequetes"];
         };
     };
     listEtiquettes: {
@@ -3145,6 +4951,1382 @@ export interface operations {
             403: components["responses"]["Interdit"];
             404: components["responses"]["Introuvable"];
             409: components["responses"]["Conflit"];
+            419: components["responses"]["CsrfInvalide"];
+            422: components["responses"]["Invalide"];
+        };
+    };
+    listFactures: {
+        parameters: {
+            query?: {
+                statut?: components["schemas"]["StatutFacture"];
+                /** @description Numéro de page (commence à 1) */
+                page?: components["parameters"]["Page"];
+                /** @description Éléments par page (50 maximum) */
+                per_page?: components["parameters"]["ParPage"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Liste de mes factures */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pagination"] & {
+                        data: components["schemas"]["Facture"][];
+                    };
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+        };
+    };
+    getFacture: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description La facture */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Facture"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            404: components["responses"]["Introuvable"];
+        };
+    };
+    payerFacture: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Identifiant unique de l'intention (un UUID). Rejouée avec la même clé, la requête renvoie la réponse d'origine au lieu de recommencer. */
+                "Idempotency-Key": components["parameters"]["CleIdempotence"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Session ouverte */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionPaiement"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            404: components["responses"]["Introuvable"];
+            409: components["responses"]["Conflit"];
+            419: components["responses"]["CsrfInvalide"];
+            428: components["responses"]["CleIdempotenceManquante"];
+            429: components["responses"]["TropDeRequetes"];
+            /** @description Le prestataire de paiement est indisponible ; réessayer dans quelques minutes */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+        };
+    };
+    verifierFacture: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description La facture, à jour */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Facture"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            404: components["responses"]["Introuvable"];
+            419: components["responses"]["CsrfInvalide"];
+            429: components["responses"]["TropDeRequetes"];
+        };
+    };
+    lienPaiementFacture: {
+        parameters: {
+            query: {
+                signature: string;
+                expires: number;
+            };
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Redirection vers la page de paiement SasPay, ou vers le front */
+            302: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Lien invalide ou expiré */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: components["responses"]["Introuvable"];
+        };
+    };
+    webhookSasPay: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Webhook-Signature": string;
+                "X-Webhook-Timestamp": number;
+                "X-Webhook-Event"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    event: string;
+                    data: {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+        responses: {
+            /** @description Événement reçu (traité en arrière-plan) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Corps illisible */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Signature invalide ou horodatage hors tolérance */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    pageSimulateurSasPay: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Page HTML du simulateur */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Simulateur désactivé ou session inconnue */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    choisirSimulateurSasPay: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/x-www-form-urlencoded": {
+                    /** @enum {string} */
+                    issue: "succes" | "echec" | "attente";
+                    /** @description Code réseau choisi, ex. mtn_bj */
+                    reseau?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Page de résultat (échec ou attente) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Paiement réussi, retour vers return_url */
+            302: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Simulateur désactivé ou session inconnue */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            419: components["responses"]["CsrfInvalide"];
+        };
+    };
+    getRevenus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Mes revenus */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Revenus"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+        };
+    };
+    listMouvements: {
+        parameters: {
+            query?: {
+                /** @description Numéro de page (commence à 1) */
+                page?: components["parameters"]["Page"];
+                /** @description Éléments par page (50 maximum) */
+                per_page?: components["parameters"]["ParPage"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Mouvements */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pagination"] & {
+                        data: components["schemas"]["Mouvement"][];
+                    };
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+        };
+    };
+    listReversements: {
+        parameters: {
+            query?: {
+                /** @description Numéro de page (commence à 1) */
+                page?: components["parameters"]["Page"];
+                /** @description Éléments par page (50 maximum) */
+                per_page?: components["parameters"]["ParPage"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Reversements */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pagination"] & {
+                        data: components["schemas"]["Reversement"][];
+                    };
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+        };
+    };
+    demanderReversement: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Identifiant unique de l'intention (un UUID). Rejouée avec la même clé, la requête renvoie la réponse d'origine au lieu de recommencer. */
+                "Idempotency-Key": components["parameters"]["CleIdempotence"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Reversement initié ; son état se suit dans la liste */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Reversement"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            409: components["responses"]["Conflit"];
+            419: components["responses"]["CsrfInvalide"];
+            422: components["responses"]["Invalide"];
+            428: components["responses"]["CleIdempotenceManquante"];
+            429: components["responses"]["TropDeRequetes"];
+        };
+    };
+    listNotifications: {
+        parameters: {
+            query?: {
+                filtre?: "toutes" | "non_lues";
+                /** @description Numéro de page (commence à 1) */
+                page?: components["parameters"]["Page"];
+                /** @description Éléments par page (50 maximum) */
+                per_page?: components["parameters"]["ParPage"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Notifications */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pagination"] & {
+                        data: components["schemas"]["Notification"][];
+                        /** @description Nombre total de notifications non lues */
+                        non_lues: number;
+                    };
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            422: components["responses"]["Invalide"];
+        };
+    };
+    lireToutesNotifications: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Toutes les notifications sont lues */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["NonConnecte"];
+            419: components["responses"]["CsrfInvalide"];
+        };
+    };
+    lireNotification: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                notification: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Notification lue */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Notification"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            404: components["responses"]["Introuvable"];
+            419: components["responses"]["CsrfInvalide"];
+        };
+    };
+    lirePreferencesNotifications: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Réglages */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreferencesNotifications"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+        };
+    };
+    modifierPreferencesNotifications: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PreferencesNotificationsSaisie"];
+            };
+        };
+        responses: {
+            /** @description Réglages enregistrés */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreferencesNotifications"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            419: components["responses"]["CsrfInvalide"];
+            422: components["responses"]["Invalide"];
+        };
+    };
+    getCoordonneesReversement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Coordonnées, ou null si aucune n'est saisie */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CoordonneesReversement"] | null;
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+        };
+    };
+    enregistrerCoordonneesReversement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CoordonneesReversementSaisie"];
+            };
+        };
+        responses: {
+            /** @description Coordonnées enregistrées, en attente de confirmation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CoordonneesReversement"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            419: components["responses"]["CsrfInvalide"];
+            422: components["responses"]["Invalide"];
+            429: components["responses"]["TropDeRequetes"];
+        };
+    };
+    afficherConfirmationReversement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Page HTML de confirmation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Lien expiré ou déjà utilisé, redirection vers « Mes revenus » */
+            302: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    confirmerCoordonneesReversement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Coordonnées confirmées (ou lien expiré), redirection vers le front */
+            302: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Jeton CSRF absent ou expiré */
+            419: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    pageCopieSuspendue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Page HTML « service momentanément indisponible », avec Retry-After */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listReseauxMobileMoney: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Les réseaux */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReseauMobileMoney"][];
+                };
+            };
+        };
+    };
+    getFinancesAdmin: {
+        parameters: {
+            query?: {
+                debut?: string;
+                fin?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Finances */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Finances"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+        };
+    };
+    listFacturesAdmin: {
+        parameters: {
+            query?: {
+                statut?: components["schemas"]["StatutFacture"];
+                /** @description Numéro de page (commence à 1) */
+                page?: components["parameters"]["Page"];
+                /** @description Éléments par page (50 maximum) */
+                per_page?: components["parameters"]["ParPage"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Factures */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pagination"] & {
+                        data: components["schemas"]["Facture"][];
+                    };
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+        };
+    };
+    creerAvoir: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Identifiant unique de l'intention (un UUID). Rejouée avec la même clé, la requête renvoie la réponse d'origine au lieu de recommencer. */
+                "Idempotency-Key": components["parameters"]["CleIdempotence"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AvoirCreation"];
+            };
+        };
+        responses: {
+            /** @description Avoir enregistré */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Avoir"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+            404: components["responses"]["Introuvable"];
+            409: components["responses"]["Conflit"];
+            419: components["responses"]["CsrfInvalide"];
+            422: components["responses"]["Invalide"];
+            428: components["responses"]["CleIdempotenceManquante"];
+        };
+    };
+    rembourserTropPercu: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Identifiant unique de l'intention (un UUID). Rejouée avec la même clé, la requête renvoie la réponse d'origine au lieu de recommencer. */
+                "Idempotency-Key": components["parameters"]["CleIdempotence"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description ex. « remboursé par SasPay le 26 octobre, référence … » */
+                    motif: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Remboursement noté */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TropPercu"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+            404: components["responses"]["Introuvable"];
+            409: components["responses"]["Conflit"];
+            419: components["responses"]["CsrfInvalide"];
+            422: components["responses"]["Invalide"];
+            428: components["responses"]["CleIdempotenceManquante"];
+        };
+    };
+    listReversementsAdmin: {
+        parameters: {
+            query?: {
+                /** @description Numéro de page (commence à 1) */
+                page?: components["parameters"]["Page"];
+                /** @description Éléments par page (50 maximum) */
+                per_page?: components["parameters"]["ParPage"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Reversements */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pagination"] & {
+                        data: components["schemas"]["ReversementAdmin"][];
+                    };
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+        };
+    };
+    listRapprochements: {
+        parameters: {
+            query?: {
+                /** @description Numéro de page (commence à 1) */
+                page?: components["parameters"]["Page"];
+                /** @description Éléments par page (50 maximum) */
+                per_page?: components["parameters"]["ParPage"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Rapprochements */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pagination"] & {
+                        data: components["schemas"]["Rapprochement"][];
+                    };
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+        };
+    };
+    listMachines: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Machines */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Machine"][];
+                    };
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+        };
+    };
+    creerMachine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MachineCreation"];
+            };
+        };
+        responses: {
+            /** @description Machine enregistrée */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Machine"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+            419: components["responses"]["CsrfInvalide"];
+            422: components["responses"]["Invalide"];
+        };
+    };
+    lireMachine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Machine */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Machine"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+            404: components["responses"]["Introuvable"];
+        };
+    };
+    supprimerMachine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Machine retirée */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+            404: components["responses"]["Introuvable"];
+            409: components["responses"]["Conflit"];
+            419: components["responses"]["CsrfInvalide"];
+        };
+    };
+    modifierMachine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MachineModification"];
+            };
+        };
+        responses: {
+            /** @description Machine modifiée */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Machine"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+            404: components["responses"]["Introuvable"];
+            409: components["responses"]["Conflit"];
+            419: components["responses"]["CsrfInvalide"];
+            422: components["responses"]["Invalide"];
+        };
+    };
+    sonderMachine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sonde demandée */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Machine"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+            404: components["responses"]["Introuvable"];
+            419: components["responses"]["CsrfInvalide"];
+        };
+    };
+    createSignalement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignalementCreation"];
+            };
+        };
+        responses: {
+            /** @description Signalement reçu */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Signalement"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+            409: components["responses"]["Conflit"];
+            419: components["responses"]["CsrfInvalide"];
+            422: components["responses"]["Invalide"];
+            429: components["responses"]["TropDeRequetes"];
+        };
+    };
+    listSignalements: {
+        parameters: {
+            query?: {
+                statut?: components["schemas"]["StatutSignalement"];
+                /** @description Numéro de page (commence à 1) */
+                page?: components["parameters"]["Page"];
+                /** @description Éléments par page (50 maximum) */
+                per_page?: components["parameters"]["ParPage"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Signalements */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pagination"] & {
+                        data: components["schemas"]["Signalement"][];
+                    };
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+        };
+    };
+    lireSignalement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Signalement */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Signalement"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+            404: components["responses"]["Introuvable"];
+        };
+    };
+    traiterSignalement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["SignalementDecision"];
+            };
+        };
+        responses: {
+            /** @description Signalement traité */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Signalement"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+            404: components["responses"]["Introuvable"];
+            409: components["responses"]["Conflit"];
+            419: components["responses"]["CsrfInvalide"];
+            422: components["responses"]["Invalide"];
+        };
+    };
+    rejeterSignalement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["SignalementDecision"];
+            };
+        };
+        responses: {
+            /** @description Signalement rejeté */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Signalement"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+            404: components["responses"]["Introuvable"];
+            409: components["responses"]["Conflit"];
+            419: components["responses"]["CsrfInvalide"];
+            422: components["responses"]["Invalide"];
+        };
+    };
+    listComptesAdmin: {
+        parameters: {
+            query?: {
+                /** @description Cherche dans le nom, le pseudo et l'e-mail */
+                recherche?: string;
+                /** @description Seulement les comptes suspendus */
+                suspendus?: boolean;
+                /** @description Numéro de page (commence à 1) */
+                page?: components["parameters"]["Page"];
+                /** @description Éléments par page (50 maximum) */
+                per_page?: components["parameters"]["ParPage"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Comptes */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pagination"] & {
+                        data: components["schemas"]["CompteAdmin"][];
+                    };
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+        };
+    };
+    suspendreCompte: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SuspensionCreation"];
+            };
+        };
+        responses: {
+            /** @description Compte suspendu */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompteAdmin"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+            404: components["responses"]["Introuvable"];
+            409: components["responses"]["Conflit"];
+            419: components["responses"]["CsrfInvalide"];
+            422: components["responses"]["Invalide"];
+        };
+    };
+    leverSuspensionCompte: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Suspension levée */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompteAdmin"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+            404: components["responses"]["Introuvable"];
+            409: components["responses"]["Conflit"];
+            419: components["responses"]["CsrfInvalide"];
+        };
+    };
+    listDeploymentsAdmin: {
+        parameters: {
+            query?: {
+                etat?: string;
+                /** @description Seulement les copies suspendues pour abus */
+                suspension_admin?: boolean;
+                /** @description Numéro de page (commence à 1) */
+                page?: components["parameters"]["Page"];
+                /** @description Éléments par page (50 maximum) */
+                per_page?: components["parameters"]["ParPage"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Copies */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pagination"] & {
+                        data: components["schemas"]["Deploiement"][];
+                    };
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+        };
+    };
+    suspendreCopie: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SuspensionCreation"];
+            };
+        };
+        responses: {
+            /** @description Copie suspendue */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Deploiement"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+            404: components["responses"]["Introuvable"];
+            409: components["responses"]["Conflit"];
+            419: components["responses"]["CsrfInvalide"];
+            422: components["responses"]["Invalide"];
+        };
+    };
+    reactiverCopie: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Copie réactivée */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Deploiement"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+            404: components["responses"]["Introuvable"];
+            409: components["responses"]["Conflit"];
+            419: components["responses"]["CsrfInvalide"];
+        };
+    };
+    supprimerCanal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Slug du canal */
+                canal: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Canal supprimé */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+            404: components["responses"]["Introuvable"];
+            409: components["responses"]["Conflit"];
+            419: components["responses"]["CsrfInvalide"];
+        };
+    };
+    modifierCanal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Slug du canal */
+                canal: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CanalModification"];
+            };
+        };
+        responses: {
+            /** @description Canal modifié */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Canal"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+            404: components["responses"]["Introuvable"];
             419: components["responses"]["CsrfInvalide"];
             422: components["responses"]["Invalide"];
         };

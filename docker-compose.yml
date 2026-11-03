@@ -1,0 +1,346 @@
+# Plateforme Souk.dev en développement : `docker compose up`, à froid, démarre tout.
+#
+#   Front      http://localhost:5173  (Vite, proxy vers l'API)
+#   API        http://localhost:8000
+#   Reverb     ws://localhost:8080
+#   Copies     http://{copie}.localhost (Traefik, port 80)
+#
+# Les secrets internes (PostgreSQL, Reverb) sont générés au premier démarrage dans le
+# volume « secrets ». Les clés externes (SasPay, DeepSeek, Resend, GitHub) restent dans
+# backend/.env, jamais commité. Seul le service « moteur » reçoit le socket Docker.
+
+name: soukdev
+
+x-php: &php
+  image: soukdev-php:dev
+  build:
+    context: ./backend
+    target: dev
+  init: true
+  restart: unless-stopped
+  working_dir: /app
+  volumes:
+    - ./backend:/app
+    - ./openapi.yaml:/openapi.yaml:ro
+    - secrets:/run/soukdev:ro
+  environment: &php-env
+    APP_URL: http://localhost:8000
+    FRONTEND_URL: http://localhost:5173
+    DB_CONNECTION: pgsql
+    DB_HOST: db
+    DB_PORT: "5432"
+    DB_DATABASE: soukdev
+    DB_USERNAME: soukdev
+    QUEUE_CONNECTION: database
+    CACHE_STORE: database
+    SESSION_DRIVER: database
+    BROADCAST_CONNECTION: reverb
+    REVERB_HOST: reverb
+    REVERB_PORT: "8080"
+    REVERB_SCHEME: http
+    REVERB_ALLOWED_ORIGINS: localhost
+    LOG_CHANNEL: stderr
+    MOTEUR_PROXY_ROUTES: /app/storage/app/private/proxy
+    # Développement seulement : connexion aux comptes du jeu de démo (tests de bout en bout).
+    DEMO_CONNEXION: "true"
+    # Paiement simulé par défaut (parcours réussis) ; PAIEMENT_PASSERELLE=saspay docker compose up -d
+    # pour l'API réelle, où les paiements de ce compte échouent volontairement.
+    PAIEMENT_PASSERELLE: ${PAIEMENT_PASSERELLE:-simulee}
+    SIMULATEUR_WEBHOOK_URL: http://api:8000/api/webhooks/saspay
+    # Développement seulement : dépôts locaux des applis cobayes du jeu de démo (php artisan demo:miroirs).
+    MOTEUR_MIROIRS: /app/storage/app/private/miroirs
+  networks: [interne]
+  depends_on: &php-depends
+    db:
+      condition: service_healthy
+    init:
+      condition: service_completed_successfully
+
+services:
+  secrets:
+    image: soukdev-php:dev
+    build:
+      context: ./backend
+      target: dev
+    entrypoint: ["sh", "/app/docker/secrets.sh"]
+    restart: "no"
+    network_mode: none
+    volumes:
+      - ./backend:/app:ro
+      - secrets:/run/soukdev
+      - secrets_publics:/run/soukdev-public
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    entrypoint: ["sh", "-c", "export POSTGRES_PASSWORD=\"$$(cat /run/soukdev/db_password)\" && exec docker-entrypoint.sh postgres"]
+    environment:
+      POSTGRES_DB: soukdev
+      POSTGRES_USER: soukdev
+    volumes:
+      - db:/var/lib/postgresql/data
+      - secrets:/run/soukdev:ro
+    networks: [interne]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U soukdev -d soukdev"]
+      interval: 3s
+      timeout: 5s
+      retries: 30
+    depends_on:
+      secrets:
+        condition: service_completed_successfully
+
+  init:
+    <<: *php
+    command: ["sh", "/app/docker/init.sh"]
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api:
+    <<: *php
+    command: ["frankenphp", "php-server", "--listen", ":8000", "--root", "public/"]
+    # Seul service joignable depuis le conteneur front (réseau « web »).
+    networks: [interne, web]
+    ports:
+      - "127.0.0.1:8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/up"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  worker:
+    <<: *php
+    command: ["php", "artisan", "queue:work", "--queue=paiements,default", "--sleep=1", "--tries=3", "--timeout=120"]
+    healthcheck:
+      test: ["CMD", "php", "docker/sante.php", "worker"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Moteur de déploiement : clone, docker compose, sondes, analyses de sécurité.
+  moteur:
+    <<: *php
+    command: ["php", "artisan", "queue:work", "--queue=moteur", "--sleep=2", "--tries=1", "--timeout=1200"]
+    volumes:
+      - ./backend:/app
+      - ./openapi.yaml:/openapi.yaml:ro
+      - secrets:/run/soukdev:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Socket du second démon local (profil « machines ») : unix:///run/dind/docker.sock.
+      - dind-socket:/run/dind
+    healthcheck:
+      test: ["CMD", "php", "docker/sante.php", "worker"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Sondes des serveurs (docker info, quelques secondes) : file « sondes », à part du moteur, pour
+  # qu'une sonde demandée par l'équipe n'attende pas derrière une construction de copie.
+  sondes:
+    <<: *php
+    command: ["php", "artisan", "queue:work", "--queue=sondes", "--sleep=2", "--tries=1", "--timeout=60"]
+    volumes:
+      - ./backend:/app
+      - ./openapi.yaml:/openapi.yaml:ro
+      - secrets:/run/soukdev:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - dind-socket:/run/dind
+    healthcheck:
+      test: ["CMD", "php", "docker/sante.php", "worker"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Sécurité avant publication (gitleaks, Trivy) dans des conteneurs jetables : file « analyse »,
+  # à part du moteur, pour qu'une publication n'attende jamais derrière un déploiement.
+  analyse:
+    <<: *php
+    command: ["php", "artisan", "queue:work", "--queue=analyse", "--sleep=1", "--tries=1", "--timeout=1200"]
+    volumes:
+      - ./backend:/app
+      - ./openapi.yaml:/openapi.yaml:ro
+      - secrets:/run/soukdev:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test: ["CMD", "php", "docker/sante.php", "worker"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Recherche de secrets (gitleaks) avant publication : son propre worker, pour qu'une vérification
+  # n'attende jamais derrière une longue analyse Trivy de la file « analyse ».
+  analyse-secrets:
+    <<: *php
+    command: ["php", "artisan", "queue:work", "--queue=secrets", "--sleep=1", "--tries=1", "--timeout=700"]
+    volumes:
+      - ./backend:/app
+      - ./openapi.yaml:/openapi.yaml:ro
+      - secrets:/run/soukdev:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test: ["CMD", "php", "docker/sante.php", "worker"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Souk AI : les analyses (quelques secondes chez DeepSeek) ont leur worker, jamais devant les paiements.
+  ia:
+    <<: *php
+    command: ["php", "artisan", "queue:work", "--queue=ia", "--sleep=1", "--tries=1", "--timeout=150"]
+    healthcheck:
+      test: ["CMD", "php", "docker/sante.php", "worker"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  reverb:
+    <<: *php
+    command: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=8080"]
+    ports:
+      - "127.0.0.1:8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/up"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  scheduler:
+    <<: *php
+    command: ["php", "artisan", "schedule:work"]
+    healthcheck:
+      test: ["CMD", "php", "docker/sante.php", "planificateur"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+
+  # Reverse proxy des copies : réseau de l'hôte pour joindre l'adresse déjà sondée
+  # du service web, sans partager de réseau avec les copies (voir infra/proxy/).
+  traefik:
+    image: traefik:v3.3.4
+    network_mode: host
+    restart: unless-stopped
+    read_only: true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - ./infra/proxy/traefik.dev.yml:/etc/traefik/traefik.yml:ro
+      - ./backend/storage/app/private/proxy:/routes:ro
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    depends_on:
+      init:
+        condition: service_completed_successfully
+
+  front:
+    image: node:24-alpine
+    init: true
+    restart: unless-stopped
+    working_dir: /app
+    command: ["sh", "/app/scripts/dev-conteneur.sh"]
+    environment:
+      VITE_PROXY_CIBLE: http://api:8000
+      VITE_REVERB_HOST: localhost
+      VITE_REVERB_PORT: "8080"
+      VITE_REVERB_SCHEME: http
+    # Paquets npm d'inconnus : pas de secret (seulement la clé publique Reverb), pas d'accès à la base.
+    volumes:
+      - ./frontend:/app
+      - front_node_modules:/app/node_modules
+      - secrets_publics:/run/soukdev-public:ro
+    networks: [web]
+    ports:
+      - "127.0.0.1:5173:5173"
+    healthcheck:
+      test: ["CMD", "wget", "-qO", "/dev/null", "http://127.0.0.1:5173/"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    depends_on:
+      secrets:
+        condition: service_completed_successfully
+      api:
+        condition: service_started
+
+  # Second démon Docker local, pour tester le placement sur deux machines
+  # (docs/machines.md) : `docker compose --profile machines up -d dind route-dind`, puis enregistrer
+  # unix:///run/dind/docker.sock dans /admin/serveurs. Profil opt-in : `docker compose up`
+  # seul ne le lance pas. Développement uniquement, jamais en production.
+  dind:
+    image: docker:28-dind
+    profiles: [machines]
+    # Jamais network_mode: host : deux démons dans le même espace réseau se disputent docker0
+    # et les chaînes iptables (le 1er novembre, le second a effacé les règles du démon de
+    # l'hôte et coupé la sortie réseau de tous ses conteneurs). Il garde son propre réseau,
+    # à adresse fixe : l'hôte (donc Traefik) route le sous-réseau des copies vers lui.
+    networks:
+      machines:
+        ipv4_address: 10.199.0.2
+    privileged: true
+    restart: "no"
+    environment:
+      DOCKER_TLS_CERTDIR: ""
+    command:
+      - dockerd
+      - --host=unix:///var/run/docker.sock
+      # Aucun port tcp : sans TLS, quiconque le joint a la main sur l'hôte. Le moteur passe par
+      # ce socket, partagé dans un volume.
+      - --host=unix:///run/dind/docker.sock
+      # Groupe du socket, rejoint par le moteur (backend/docker/entrypoint.sh).
+      - --group=2376
+      - --bip=10.200.1.1/24
+      - --fixed-cidr=10.200.1.0/24
+      - --default-address-pool=base=10.201.0.0/16,size=24
+      # Traefik vise l'adresse du conteneur de la copie, comme sur la machine locale : les
+      # réseaux des copies acceptent ce trafic routé (pas de port publié sur ce démon).
+      - --default-network-opt=bridge=com.docker.network.bridge.gateway_mode_ipv4=nat-unprotected
+    volumes:
+      - dind:/var/lib/docker
+      - dind-socket:/run/dind
+    healthcheck:
+      test: ["CMD", "docker", "info"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  # Route de l'hôte vers les copies du second démon (10.201.0.0/16 via 10.199.0.2), comme le
+  # VPN route les sous-réseaux des VPS en production (docs/multi-vps.md). Une seule route,
+  # posée puis le conteneur s'arrête ; elle disparaît avec le réseau « machines ».
+  route-dind:
+    image: alpine:3.20
+    profiles: [machines]
+    network_mode: host
+    cap_drop: [ALL]
+    cap_add: [NET_ADMIN]
+    restart: "no"
+    command: ["ip", "route", "replace", "10.201.0.0/16", "via", "10.199.0.2"]
+    depends_on:
+      dind:
+        condition: service_healthy
+
+networks:
+  interne:
+  web:
+  # Second démon de développement (profil « machines ») : sous-réseau fixe, hors du LAN.
+  machines:
+    ipam:
+      config:
+        - subnet: 10.199.0.0/24
+
+volumes:
+  db:
+  secrets:
+  secrets_publics:
+  front_node_modules:
+  dind:
+  dind-socket:

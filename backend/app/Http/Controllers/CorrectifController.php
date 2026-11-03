@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Comptes\ProfilCalcule;
 use App\Echange\Diffuseur;
 use App\Events\CorrectifAccepte;
 use App\Events\CorrectifPropose;
@@ -21,6 +22,8 @@ use App\Moteur\DepotGithub;
 use App\Moteur\Exceptions\DepotInvalide;
 use App\Moteur\LimitesTaille;
 use App\Moteur\SourceCopieTest;
+use App\Notifications\CorrectifRecu;
+use App\Notifications\CorrectifRetenu;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -46,12 +49,10 @@ final class CorrectifController extends Controller
 
     public function store(CreerCorrectifRequest $request, Discussion $discussion, Diffuseur $diffuseur): JsonResponse
     {
+        Gate::authorize('lierUnDepot');
+
         /** @var User $auteur */
         $auteur = $request->user();
-
-        if (! $auteur->github_lie) {
-            abort(403, 'GitHub n\'est pas lié à ce compte.');
-        }
 
         $correctif = $discussion->correctifs()->create([
             'user_id' => $auteur->id,
@@ -62,14 +63,16 @@ final class CorrectifController extends Controller
         ]);
         $correctif->setRelation('auteur', $auteur);
         $diffuseur->envoyer(new CorrectifPropose($correctif));
+        if ($discussion->user_id !== $auteur->id) {
+            $discussion->auteur?->notify(new CorrectifRecu($correctif));
+        }
 
         return (new CorrectifResource($correctif))->response()->setStatusCode(201);
     }
 
-    public function accepter(Correctif $correctif, Diffuseur $diffuseur): CorrectifResource
+    public function accepter(Correctif $correctif, Diffuseur $diffuseur, ProfilCalcule $profils): CorrectifResource
     {
-        $discussion = $correctif->discussion()->firstOrFail();
-        Gate::authorize('update', $discussion);
+        Gate::authorize('accepter', $correctif);
 
         $discussion = DB::transaction(function () use ($correctif): Discussion {
             $discussion = Discussion::query()->whereKey($correctif->discussion_id)->lockForUpdate()->firstOrFail();
@@ -85,6 +88,7 @@ final class CorrectifController extends Controller
             }
 
             $correctif->accepte = true;
+            $correctif->accepte_le = now();
             $correctif->save();
             $discussion->resolue = true;
             $discussion->save();
@@ -93,9 +97,13 @@ final class CorrectifController extends Controller
         });
 
         $correctif->refresh()->load('auteur');
+        $profils->rafraichir($correctif->auteur);
         $discussion->load(['auteur', 'canal'])->loadCount('messages');
         $diffuseur->envoyer(new CorrectifAccepte($correctif));
         $diffuseur->envoyer(new DiscussionModifiee($discussion));
+        if ($correctif->user_id !== $discussion->user_id) {
+            $correctif->auteur->notify(new CorrectifRetenu($correctif));
+        }
 
         return new CorrectifResource($correctif);
     }
@@ -105,7 +113,7 @@ final class CorrectifController extends Controller
      */
     public function deployer(Request $request, Correctif $correctif): JsonResponse
     {
-        abort_unless($correctif->user_id === $request->user()->id, 403, 'Seul l\'auteur du correctif peut déployer sa version corrigée.');
+        Gate::authorize('deployer', $correctif);
 
         $actif = Deploiement::query()
             ->where('correctif_id', $correctif->id)

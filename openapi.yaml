@@ -29,6 +29,11 @@ tags:
   - name: Correctifs
   - name: Missions
   - name: Événements
+  - name: Paiements
+  - name: Revenus
+  - name: Notifications
+  - name: Backend intégré
+  - name: Administration
 
 security:
   - session: []
@@ -106,21 +111,61 @@ paths:
 
   /auth/lien-magique/{token}:
     servers: [{ url: / }]
+    parameters:
+      - name: token
+        in: path
+        required: true
+        schema: { type: string }
     get:
       tags: [Comptes]
-      operationId: utiliserLienMagique
-      summary: Web. Lien reçu par email, à usage unique et limité dans le temps ; ouvre la session
+      operationId: afficherLienMagique
+      summary: "Web. Lien reçu par email : page de confirmation (bouton « Me connecter »), sans consommer le lien. Un analyseur de messagerie qui ouvre le lien ne le grille donc pas."
       security: []
-      parameters:
-        - name: token
-          in: path
-          required: true
-          schema: { type: string }
+      responses:
+        '200':
+          description: Page de confirmation (HTML), avec l'adresse du compte qui va s'ouvrir
+          content:
+            text/html:
+              schema: { type: string }
+        '410':
+          description: Lien expiré ou déjà utilisé (page HTML, ou JSON si demandé)
+    post:
+      tags: [Comptes]
+      operationId: utiliserLienMagique
+      summary: Web. Bouton de la page de confirmation ; consomme le lien (usage unique, limité dans le temps) et ouvre la session
+      security: []
       responses:
         '302':
           description: Session ouverte, redirection vers le front (Store pour un client)
+        '403':
+          description: Compte suspendu (page HTML, ou JSON si demandé)
         '410':
-          description: Lien expiré ou déjà utilisé
+          description: Lien expiré ou déjà utilisé (page HTML, ou JSON si demandé)
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+
+  /auth/demo:
+    servers: [{ url: / }]
+    post:
+      tags: [Comptes]
+      operationId: connexionDemo
+      summary: "Web. Développement et tests de bout en bout seulement (DEMO_CONNEXION=true, jamais en production) : ouvre la session d'un compte du jeu de démo"
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [compte]
+              properties:
+                compte: { type: string, description: "Identifiant d'un compte de démo, ex. soukdemo-awa" }
+      responses:
+        '204':
+          description: Session ouverte
+        '404':
+          description: Connexion de démo désactivée, ou compte inconnu ou hors du jeu de démo
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+        '422': { $ref: '#/components/responses/Invalide' }
 
   /logout:
     post:
@@ -197,7 +242,7 @@ paths:
     get:
       tags: [Comptes]
       operationId: getDashboard
-      summary: Mon tableau de bord de dev (vues, copies actives, revenus estimés, par appli et au total)
+      summary: Mon tableau de bord de dev (vues, copies actives, revenus réels encaissés, par appli et au total)
       responses:
         '200':
           description: Le tableau de bord
@@ -332,7 +377,7 @@ paths:
         - name: tri
           in: query
           description: Par défaut, les plus récentes d'abord
-          schema: { type: string, enum: [recent, prix_croissant, prix_decroissant], default: recent }
+          schema: { type: string, enum: [recent, prix_croissant, prix_decroissant, note], default: recent, description: "note : les mieux notées par leurs clients d'abord" }
       responses:
         '200':
           description: Liste des applis
@@ -368,6 +413,8 @@ paths:
         '422': { $ref: '#/components/responses/Invalide' }
         '403': { description: 'GitHub non lié au compte (obligatoire pour publier)', content: { application/json: { schema: { $ref: '#/components/schemas/Erreur' } } } }
         '419': { $ref: '#/components/responses/CsrfInvalide' }
+        '429': { $ref: '#/components/responses/TropDeRequetes' }
+        '503': { $ref: '#/components/responses/Indisponible' }
 
   /apps/verification:
     post:
@@ -394,6 +441,7 @@ paths:
         '422': { $ref: '#/components/responses/Invalide' }
         '429': { $ref: '#/components/responses/TropDeRequetes' }
         '419': { $ref: '#/components/responses/CsrfInvalide' }
+        '503': { $ref: '#/components/responses/Indisponible' }
 
   /apps/{id}:
     parameters:
@@ -469,23 +517,141 @@ paths:
         '422': { $ref: '#/components/responses/Invalide' }
         '419': { $ref: '#/components/responses/CsrfInvalide' }
 
+  /apps/{id}/versions:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Applis]
+      operationId: listAppVersions
+      summary: Versions d'une appli, la plus récente d'abord (publiques une fois vérifiées ; l'auteur voit aussi celles en vérification ou refusées)
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/ParPage'
+      responses:
+        '200':
+          description: Versions
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Pagination'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data: { type: array, items: { $ref: '#/components/schemas/VersionAppli' } }
+        '404': { $ref: '#/components/responses/Introuvable' }
+    post:
+      tags: [Applis]
+      operationId: createAppVersion
+      summary: "Publier une nouvelle version (auteur) : une branche, un tag ou un commit du dépôt, vérifié comme à la publication (soukdev.json, docker-compose.yml, secrets) ; les clients sont prévenus et choisissent quand l'appliquer"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/VersionCreation' }
+      responses:
+        '202':
+          description: Version en vérification
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VersionAppli' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '409': { $ref: '#/components/responses/Conflit' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+        '422': { $ref: '#/components/responses/Invalide' }
+        '429': { $ref: '#/components/responses/TropDeRequetes' }
+
   /apps/{id}/securite:
     parameters:
       - $ref: '#/components/parameters/Id'
     post:
       tags: [Applis]
       operationId: rescanAppSecurity
-      summary: Relancer l'analyse de sécurité (auteur uniquement), par exemple après avoir corrigé une dépendance
+      summary: Relancer l'analyse de sécurité (auteur uniquement), par exemple après avoir corrigé une dépendance ; 409 si une analyse est partie il y a moins de 30 minutes
       responses:
         '202':
           description: Analyse mise en file ; le statut passe à en_cours
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Securite' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
         '403': { $ref: '#/components/responses/Interdit' }
+        '409': { $ref: '#/components/responses/Conflit' }
         '404': { $ref: '#/components/responses/Introuvable' }
         '429': { $ref: '#/components/responses/TropDeRequetes' }
         '419': { $ref: '#/components/responses/CsrfInvalide' }
+
+  /apps/{id}/avis:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Applis]
+      operationId: listAvisAppli
+      summary: Avis des clients sur une appli (publics), les plus récents d'abord ; avec la session, ce que le compte connecté peut faire
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/ParPage'
+      responses:
+        '200':
+          description: Avis
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Pagination'
+                  - type: object
+                    required: [data, peut_noter, mon_avis]
+                    properties:
+                      data: { type: array, items: { $ref: '#/components/schemas/AvisAppli' } }
+                      peut_noter: { type: boolean, description: "Le compte connecté a eu une copie payée de l'appli et ne l'a pas encore notée" }
+                      mon_avis: { oneOf: [{ $ref: '#/components/schemas/AvisAppli' }, { type: 'null' }] }
+        '404': { $ref: '#/components/responses/Introuvable' }
+    post:
+      tags: [Applis]
+      operationId: noterAppli
+      summary: "Noter une appli, de 1 à 5 : seulement un client qui en a eu une copie payée, un avis par client et par appli"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AvisAppliSaisie' }
+      responses:
+        '201':
+          description: Avis publié
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AvisAppli' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '409': { $ref: '#/components/responses/Conflit' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+        '422': { $ref: '#/components/responses/Invalide' }
+        '429': { $ref: '#/components/responses/TropDeRequetes' }
+    patch:
+      tags: [Applis]
+      operationId: modifierAvisAppli
+      summary: Modifier son propre avis sur l'appli
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AvisAppliSaisie' }
+      responses:
+        '200':
+          description: Avis modifié
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AvisAppli' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+        '422': { $ref: '#/components/responses/Invalide' }
+        '429': { $ref: '#/components/responses/TropDeRequetes' }
 
   /categories:
     get:
@@ -524,7 +690,7 @@ paths:
     post:
       tags: [Déploiements]
       operationId: createDeployment
-      summary: "Lancer un déploiement client (répond tout de suite avec l'état en_file). Paiement du serveur : mécanisme en attente (voir DECISIONS.md)."
+      summary: "Commander une copie : crée l'abonnement et sa première facture (hébergement du mois, plus le prix de l'appli). La copie reste en attente_paiement et ne démarre qu'une fois la facture payée (POST /factures/{id}/paiement)."
       requestBody:
         required: true
         content:
@@ -532,7 +698,7 @@ paths:
             schema: { $ref: '#/components/schemas/DeploiementCreation' }
       responses:
         '202':
-          description: Déploiement mis en file ; les changements d'état arrivent par Reverb
+          description: Copie commandée, en attente du paiement de facture_a_payer ; les changements d'état arrivent par Reverb
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Deploiement' }
@@ -589,19 +755,162 @@ paths:
       tags: [Déploiements]
       operationId: deleteDeployment
       summary: Arrêter un déploiement
+      description: >-
+        L'arrêt tourne en arrière-plan sur le moteur : l'état passe à arret_en_cours, puis à arrete
+        (conteneurs, volumes et dossier supprimés), diffusé par Reverb. Si Docker refuse deux fois,
+        le déploiement passe en echec avec son message et l'arrêt est retenté par le nettoyage planifié.
+        Déjà arrêté ou en cours d'arrêt : rien ne change.
       responses:
-        '204':
-          description: Déploiement arrêté (conteneurs, volumes et dossier supprimés) ; aussi si déjà arrêté
-        '403': { $ref: '#/components/responses/Interdit' }
-        '404': { $ref: '#/components/responses/Introuvable' }
-        '503':
-          description: Arrêt Docker impossible après deux essais ; le déploiement passe en echec et sera retenté
+        '202':
+          description: Arrêt demandé ; le déploiement tel qu'il est maintenant
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Erreur' }
+              schema: { $ref: '#/components/schemas/Deploiement' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
         '419': { $ref: '#/components/responses/CsrfInvalide' }
 
   # ───────────── Discussions ─────────────
+
+  /deployments/{id}/sauvegardes:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Déploiements]
+      operationId: listDeploymentBackups
+      summary: Sauvegardes de la copie (client propriétaire), la plus récente d'abord ; gardées 7 jours
+      responses:
+        '200':
+          description: Sauvegardes
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Sauvegarde' } }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+    post:
+      tags: [Déploiements]
+      operationId: createDeploymentBackup
+      summary: Sauvegarder la copie maintenant, à chaud (client propriétaire ; 3 par heure)
+      responses:
+        '202': { description: Sauvegarde en file ; elle apparaît dans la liste une fois écrite }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '409': { $ref: '#/components/responses/Conflit' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+        '429': { $ref: '#/components/responses/TropDeRequetes' }
+
+  /deployments/{id}/sauvegardes/{sauvegarde}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+      - name: sauvegarde
+        in: path
+        required: true
+        schema: { type: string, pattern: '^\d{8}-\d{6}$' }
+    get:
+      tags: [Déploiements]
+      operationId: downloadDeploymentBackup
+      summary: "Exporter une sauvegarde : une archive tar (base du backend intégré au format pg_dump, et chaque volume en tar.gz)"
+      responses:
+        '200':
+          description: Archive de la sauvegarde
+          content:
+            application/x-tar:
+              schema: { type: string, format: binary }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+
+  /copies/{cle}/auth/code:
+    parameters:
+      - $ref: '#/components/parameters/CleCopie'
+    post:
+      tags: [Backend intégré]
+      operationId: sendEndUserCode
+      summary: "Connexion des utilisateurs d'une appli au backend intégré : envoie un code à 6 chiffres par SMS ou par e-mail (appelée par l'appli, depuis le navigateur)"
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DemandeCodeConnexion' }
+      responses:
+        '202':
+          description: Code envoyé (même si le destinataire est nouveau)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [expire_dans]
+                properties:
+                  expire_dans: { type: integer, description: Secondes de validité du code }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '422': { $ref: '#/components/responses/Invalide' }
+        '429': { $ref: '#/components/responses/TropDeRequetes' }
+        '503': { $ref: '#/components/responses/Indisponible' }
+
+  /copies/{cle}/auth/session:
+    parameters:
+      - $ref: '#/components/parameters/CleCopie'
+    post:
+      tags: [Backend intégré]
+      operationId: createEndUserSession
+      summary: "Échange le code contre un jeton valable une journée pour l'API du backend intégré de la copie (rôle soukdev_utilisateur, identifiant dans sub)"
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/DemandeCodeConnexion'
+                - type: object
+                  required: [code]
+                  properties:
+                    code: { type: string, pattern: '^\d{6}$' }
+      responses:
+        '200':
+          description: Session ouverte
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SessionUtilisateurFinal' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '422': { $ref: '#/components/responses/Invalide' }
+        '429': { $ref: '#/components/responses/TropDeRequetes' }
+
+  /deployments/{id}/mise-a-jour:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [Déploiements]
+      operationId: updateDeployment
+      summary: "Appliquer une nouvelle version à sa copie (client propriétaire) : volumes sauvegardés, redéploiement, retour automatique à la version précédente si la nouvelle ne démarre pas"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                version: { type: integer, description: Numéro de la version ; par défaut la dernière publiée }
+                variables:
+                  type: object
+                  additionalProperties: { type: string }
+                  description: Valeurs des nouvelles variables « client » que demande cette version
+      responses:
+        '202':
+          description: Mise à jour en file ; la copie passe à l'état mise_a_jour
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Deploiement' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '409': { $ref: '#/components/responses/Conflit' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+        '422': { $ref: '#/components/responses/Invalide' }
+        '429': { $ref: '#/components/responses/TropDeRequetes' }
   /discussions:
     get:
       tags: [Discussions]
@@ -779,22 +1088,39 @@ paths:
     post:
       tags: [Discussions]
       operationId: createAnalyseIa
-      summary: Demander l'avis de Souk AI (auteur uniquement, discussion avec l'étiquette bug ; 3 par jour)
+      summary: Demander l'avis de Souk AI (auteur uniquement, discussion avec l'étiquette bug ; 3 par 24 heures)
       description: >-
-        L'analyse tourne en arrière-plan ; son résultat arrive par Reverb et dans le champ analyse_ia
-        de la discussion. Une nouvelle demande remplace l'analyse précédente. 409 si une analyse est déjà en cours.
+        L'analyse tourne en arrière-plan chez DeepSeek ; son résultat arrive par Reverb (analyse_ia.terminee sur
+        discussion.{id}) et dans le champ analyse_ia de la discussion. Une nouvelle demande remplace l'analyse
+        précédente ; une fiche modifiée périme l'analyse. 409 si une analyse est déjà en cours (moins de
+        10 minutes) ; 429 (avec Retry-After) au-delà de 3 demandes en 24 heures (les pannes du fournisseur ne
+        comptent pas, 6 tentatives au plus). Les clés repérées dans la fiche sont masquées avant l'envoi.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [consentement]
+              properties:
+                consentement:
+                  type: boolean
+                  const: true
+                  description: L'auteur accepte que la fiche du bug et son code partent chez le fournisseur (DeepSeek)
       responses:
         '202':
           description: Analyse mise en file
           content:
             application/json:
               schema: { $ref: '#/components/schemas/AnalyseIa' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
         '403': { $ref: '#/components/responses/Interdit' }
         '404': { $ref: '#/components/responses/Introuvable' }
         '409': { $ref: '#/components/responses/Conflit' }
         '422': { $ref: '#/components/responses/Invalide' }
         '429': { $ref: '#/components/responses/TropDeRequetes' }
         '419': { $ref: '#/components/responses/CsrfInvalide' }
+        '503': { $ref: '#/components/responses/Indisponible' }
 
   /messages/{id}:
     parameters:
@@ -851,7 +1177,7 @@ paths:
     post:
       tags: [Discussions]
       operationId: createCanal
-      summary: Créer un canal
+      summary: Créer un canal (3 par jour et par compte)
       requestBody:
         required: true
         content:
@@ -865,6 +1191,7 @@ paths:
               schema: { $ref: '#/components/schemas/Canal' }
         '401': { $ref: '#/components/responses/NonConnecte' }
         '422': { $ref: '#/components/responses/Invalide' }
+        '429': { $ref: '#/components/responses/TropDeRequetes' }
         '419': { $ref: '#/components/responses/CsrfInvalide' }
 
   /etiquettes:
@@ -1292,6 +1619,1025 @@ paths:
         '409': { $ref: '#/components/responses/Conflit' }
         '419': { $ref: '#/components/responses/CsrfInvalide' }
 
+  # ───────────── Paiements ─────────────
+  /factures:
+    get:
+      tags: [Paiements]
+      operationId: listFactures
+      summary: Mes factures (écran « Mes paiements »), les plus récentes d'abord
+      parameters:
+        - name: statut
+          in: query
+          schema: { $ref: '#/components/schemas/StatutFacture' }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/ParPage'
+      responses:
+        '200':
+          description: Liste de mes factures
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Pagination'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Facture' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+
+  /factures/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Paiements]
+      operationId: getFacture
+      summary: Une facture, ses lignes et ses tentatives de paiement (client de la facture uniquement)
+      responses:
+        '200':
+          description: La facture
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Facture' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+
+  /factures/{id}/paiement:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [Paiements]
+      operationId: payerFacture
+      summary: "Ouvrir une session de paiement SasPay pour la facture (Mobile Money ou carte). Le montant vient de la facture, jamais du navigateur ; les frais de paiement s'ajoutent (ADD_ON). Rediriger le client vers checkout_url."
+      parameters:
+        - $ref: '#/components/parameters/CleIdempotence'
+      responses:
+        '428': { $ref: '#/components/responses/CleIdempotenceManquante' }
+        '201':
+          description: Session ouverte
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SessionPaiement' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '409': { $ref: '#/components/responses/Conflit' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+        '429': { $ref: '#/components/responses/TropDeRequetes' }
+        '503':
+          description: Le prestataire de paiement est indisponible ; réessayer dans quelques minutes
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Erreur' }
+
+  /factures/{id}/verification:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [Paiements]
+      operationId: verifierFacture
+      summary: "Revérifier tout de suite auprès de SasPay le dernier paiement de la facture (page de retour de paiement). Si SasPay confirme SUCCESS, la facture passe payee et la copie démarre (ou reprend)."
+      responses:
+        '200':
+          description: La facture, à jour
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Facture' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+        '429': { $ref: '#/components/responses/TropDeRequetes' }
+
+  /paiement/facture/{id}:
+    servers: [{ url: / }]
+    get:
+      tags: [Paiements]
+      operationId: lienPaiementFacture
+      summary: "Web. Lien de paiement signé, envoyé par e-mail (rappel avant échéance) : ouvre une session SasPay et redirige vers sa page, sans connexion. Facture déjà payée : redirection vers « Mes paiements »."
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - name: signature
+          in: query
+          required: true
+          schema: { type: string }
+        - name: expires
+          in: query
+          required: true
+          schema: { type: integer }
+      responses:
+        '302':
+          description: Redirection vers la page de paiement SasPay, ou vers le front
+        '403':
+          description: Lien invalide ou expiré
+        '404': { $ref: '#/components/responses/Introuvable' }
+
+  /webhooks/saspay:
+    post:
+      tags: [Paiements]
+      operationId: webhookSasPay
+      summary: "Événements SasPay (transaction.success, transaction.failed…). Signature X-Webhook-Signature (HMAC SHA-256 de « {timestamp}.{corps brut} ») vérifiée, horodatage de plus de 300 secondes refusé. Traitement idempotent qui revérifie toujours l'état par l'API SasPay avant de changer quoi que ce soit."
+      security: []
+      parameters:
+        - name: X-Webhook-Signature
+          in: header
+          required: true
+          schema: { type: string }
+        - name: X-Webhook-Timestamp
+          in: header
+          required: true
+          schema: { type: integer }
+        - name: X-Webhook-Event
+          in: header
+          required: false
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [event, data]
+              properties:
+                event: { type: string }
+                data: { type: object, additionalProperties: true }
+      responses:
+        '200':
+          description: Événement reçu (traité en arrière-plan)
+        '400':
+          description: Corps illisible
+        '401':
+          description: Signature invalide ou horodatage hors tolérance
+
+  /simulateur/saspay/{session}:
+    servers: [{ url: / }]
+    parameters:
+      - name: session
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Paiements]
+      operationId: pageSimulateurSasPay
+      summary: "Web. Développement et tests seulement (passerelle simulée, jamais en production) : page de paiement qui imite celle de SasPay."
+      security: []
+      responses:
+        '200':
+          description: Page HTML du simulateur
+        '404':
+          description: Simulateur désactivé ou session inconnue
+    post:
+      tags: [Paiements]
+      operationId: choisirSimulateurSasPay
+      summary: "Web. Développement et tests seulement : issue du paiement simulé (succes, echec ou attente) ; envoie un vrai webhook signé, puis renvoie vers return_url après un succès."
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [issue]
+              properties:
+                issue: { type: string, enum: [succes, echec, attente] }
+                reseau: { type: string, description: 'Code réseau choisi, ex. mtn_bj' }
+      responses:
+        '200':
+          description: Page de résultat (échec ou attente)
+        '302':
+          description: Paiement réussi, retour vers return_url
+        '404':
+          description: Simulateur désactivé ou session inconnue
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+
+  # ───────────── Revenus ─────────────
+  /me/revenus:
+    get:
+      tags: [Revenus]
+      operationId: getRevenus
+      summary: "Mes revenus de dev : solde dû (parts encaissées moins reversements), totaux, reversement en cours, coordonnées Mobile Money"
+      responses:
+        '200':
+          description: Mes revenus
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Revenus' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+
+  /me/revenus/mouvements:
+    get:
+      tags: [Revenus]
+      operationId: listMouvements
+      summary: Mouvements de mon solde (parts encaissées, reversements, corrections), les plus récents d'abord
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/ParPage'
+      responses:
+        '200':
+          description: Mouvements
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Pagination'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Mouvement' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+
+  /me/revenus/reversements:
+    get:
+      tags: [Revenus]
+      operationId: listReversements
+      summary: Mes reversements, les plus récents d'abord
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/ParPage'
+      responses:
+        '200':
+          description: Reversements
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Pagination'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Reversement' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+    post:
+      tags: [Revenus]
+      operationId: demanderReversement
+      summary: "Demander le reversement de tout mon solde sur mon Mobile Money (5 000 F au moins, coordonnées confirmées, un seul reversement en cours). Sans demande, le solde est reversé chaque mois. Les frais sont pris sur la marge de Souk.dev, jamais sur le solde."
+      parameters:
+        - $ref: '#/components/parameters/CleIdempotence'
+      responses:
+        '428': { $ref: '#/components/responses/CleIdempotenceManquante' }
+        '202':
+          description: Reversement initié ; son état se suit dans la liste
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Reversement' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '409': { $ref: '#/components/responses/Conflit' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+        '422': { $ref: '#/components/responses/Invalide' }
+        '429': { $ref: '#/components/responses/TropDeRequetes' }
+
+  /me/notifications:
+    get:
+      tags: [Notifications]
+      operationId: listNotifications
+      summary: Centre de notifications du compte, les plus récentes d'abord, avec le nombre de non lues
+      parameters:
+        - name: filtre
+          in: query
+          schema: { type: string, enum: [toutes, non_lues], default: toutes }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/ParPage'
+      responses:
+        '200':
+          description: Notifications
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Pagination'
+                  - type: object
+                    required: [data, non_lues]
+                    properties:
+                      data: { type: array, items: { $ref: '#/components/schemas/Notification' } }
+                      non_lues: { type: integer, description: Nombre total de notifications non lues }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '422': { $ref: '#/components/responses/Invalide' }
+
+  /me/notifications/lecture:
+    post:
+      tags: [Notifications]
+      operationId: lireToutesNotifications
+      summary: Tout marquer comme lu
+      responses:
+        '204': { description: Toutes les notifications sont lues }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+
+  /me/notifications/{notification}/lecture:
+    parameters:
+      - name: notification
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Notifications]
+      operationId: lireNotification
+      summary: Marquer une notification comme lue (celle d'un autre compte répond 404)
+      responses:
+        '200':
+          description: Notification lue
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Notification' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+
+  /me/preferences-notifications:
+    get:
+      tags: [Notifications]
+      operationId: lirePreferencesNotifications
+      summary: Réglages par type, dans Souk.dev et par e-mail
+      responses:
+        '200':
+          description: Réglages
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PreferencesNotifications' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+    put:
+      tags: [Notifications]
+      operationId: modifierPreferencesNotifications
+      summary: "Changer les réglages ; un type absent garde les siens, un e-mail obligatoire reste envoyé"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PreferencesNotificationsSaisie' }
+      responses:
+        '200':
+          description: Réglages enregistrés
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PreferencesNotifications' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+        '422': { $ref: '#/components/responses/Invalide' }
+
+  /me/coordonnees-reversement:
+    get:
+      tags: [Revenus]
+      operationId: getCoordonneesReversement
+      summary: Mes coordonnées Mobile Money de reversement (numéro masqué)
+      responses:
+        '200':
+          description: Coordonnées, ou null si aucune n'est saisie
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/CoordonneesReversement'
+                  - type: 'null'
+        '401': { $ref: '#/components/responses/NonConnecte' }
+    put:
+      tags: [Revenus]
+      operationId: enregistrerCoordonneesReversement
+      summary: "Saisir ou changer mes coordonnées Mobile Money (numéro saisi deux fois). Elles ne servent qu'après confirmation par le lien envoyé à mon adresse e-mail."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CoordonneesReversementSaisie' }
+      responses:
+        '200':
+          description: Coordonnées enregistrées, en attente de confirmation
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CoordonneesReversement' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+        '422': { $ref: '#/components/responses/Invalide' }
+        '429': { $ref: '#/components/responses/TropDeRequetes' }
+
+  /reversement/confirmer/{token}:
+    servers: [{ url: / }]
+    parameters:
+      - name: token
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      tags: [Revenus]
+      operationId: afficherConfirmationReversement
+      summary: "Web. Lien reçu par e-mail : page qui montre le numéro masqué et un bouton de confirmation (un analyseur de liens qui ouvre la page ne confirme rien)"
+      security: []
+      responses:
+        '200':
+          description: Page HTML de confirmation
+        '302':
+          description: Lien expiré ou déjà utilisé, redirection vers « Mes revenus »
+    post:
+      tags: [Revenus]
+      operationId: confirmerCoordonneesReversement
+      summary: Web. Bouton de la page de confirmation (jeton CSRF de la session) ; confirme le numéro puis redirige vers « Mes revenus »
+      security: []
+      responses:
+        '302':
+          description: Coordonnées confirmées (ou lien expiré), redirection vers le front
+        '419':
+          description: Jeton CSRF absent ou expiré
+
+  /copie-suspendue:
+    servers: [{ url: / }]
+    get:
+      tags: [Paiements]
+      operationId: pageCopieSuspendue
+      summary: "Web. Page servie par Traefik sur le sous-domaine d'une copie suspendue pour impayé (neutre : rien sur la facture)"
+      security: []
+      responses:
+        '503':
+          description: Page HTML « service momentanément indisponible », avec Retry-After
+
+  /reseaux-mobile-money:
+    get:
+      tags: [Revenus]
+      operationId: listReseauxMobileMoney
+      summary: Réseaux Mobile Money acceptés pour un reversement, par pays
+      security: []
+      responses:
+        '200':
+          description: Les réseaux
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ReseauMobileMoney' }
+
+  # ───────────── Administration (finances) ─────────────
+  /admin/finances:
+    get:
+      tags: [Administration]
+      operationId: getFinancesAdmin
+      summary: Vue financière (admin) sur une période, tirée du grand livre
+      parameters:
+        - name: debut
+          in: query
+          schema: { type: string, format: date }
+        - name: fin
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: Finances
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Finances' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+
+  /admin/factures:
+    get:
+      tags: [Administration]
+      operationId: listFacturesAdmin
+      summary: Toutes les factures (admin), filtrables par statut
+      parameters:
+        - name: statut
+          in: query
+          schema: { $ref: '#/components/schemas/StatutFacture' }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/ParPage'
+      responses:
+        '200':
+          description: Factures
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Pagination'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Facture' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+
+  /admin/factures/{id}/avoir:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [Administration]
+      operationId: creerAvoir
+      summary: "Saisir un avoir (admin) après un remboursement fait depuis le tableau de bord SasPay (SasPay n'a pas d'API de remboursement). Le grand livre reçoit des écritures inverses ; rien n'est modifié."
+      parameters:
+        - $ref: '#/components/parameters/CleIdempotence'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AvoirCreation' }
+      responses:
+        '428': { $ref: '#/components/responses/CleIdempotenceManquante' }
+        '201':
+          description: Avoir enregistré
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Avoir' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '409': { $ref: '#/components/responses/Conflit' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+        '422': { $ref: '#/components/responses/Invalide' }
+
+  /admin/paiements/{id}/remboursement:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [Administration]
+      operationId: rembourserTropPercu
+      summary: "Noter le remboursement d'un paiement en double (admin), fait depuis le tableau de bord SasPay : le grand livre solde le trop-perçu dû au client. Seulement pour un paiement encore à rembourser."
+      parameters:
+        - $ref: '#/components/parameters/CleIdempotence'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [motif]
+              properties:
+                motif: { type: string, maxLength: 500, description: "ex. « remboursé par SasPay le 26 octobre, référence … »" }
+      responses:
+        '428': { $ref: '#/components/responses/CleIdempotenceManquante' }
+        '201':
+          description: Remboursement noté
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TropPercu' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '409': { $ref: '#/components/responses/Conflit' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+        '422': { $ref: '#/components/responses/Invalide' }
+
+  /admin/reversements:
+    get:
+      tags: [Administration]
+      operationId: listReversementsAdmin
+      summary: Tous les reversements (admin)
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/ParPage'
+      responses:
+        '200':
+          description: Reversements
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Pagination'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/ReversementAdmin' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+
+  /admin/rapprochements:
+    get:
+      tags: [Administration]
+      operationId: listRapprochements
+      summary: Rapprochements quotidiens avec les transactions SasPay et leurs écarts (admin)
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/ParPage'
+      responses:
+        '200':
+          description: Rapprochements
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Pagination'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Rapprochement' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+
+  /admin/machines:
+    get:
+      tags: [Administration]
+      operationId: listMachines
+      summary: Serveurs Docker du moteur, avec leur état et leur santé (admin)
+      responses:
+        '200':
+          description: Machines
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Machine' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+    post:
+      tags: [Administration]
+      operationId: creerMachine
+      summary: "Enregistrer un serveur Docker (admin). La santé est sondée aussitôt par le moteur, qui seul parle à Docker."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MachineCreation' }
+      responses:
+        '201':
+          description: Machine enregistrée
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Machine' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+        '422': { $ref: '#/components/responses/Invalide' }
+
+  /admin/machines/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Administration]
+      operationId: lireMachine
+      summary: Un serveur et sa santé (admin)
+      responses:
+        '200':
+          description: Machine
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Machine' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+    patch:
+      tags: [Administration]
+      operationId: modifierMachine
+      summary: "Renommer, redimensionner ou basculer en maintenance (admin). En maintenance : plus aucune nouvelle copie, celles qui tournent continuent. Le démon ne change pas tant que des copies tournent dessus."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MachineModification' }
+      responses:
+        '200':
+          description: Machine modifiée
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Machine' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '409': { $ref: '#/components/responses/Conflit' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+        '422': { $ref: '#/components/responses/Invalide' }
+    delete:
+      tags: [Administration]
+      operationId: supprimerMachine
+      summary: Retirer un serveur (admin). Refusé tant que des copies y tournent.
+      responses:
+        '204':
+          description: Machine retirée
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '409': { $ref: '#/components/responses/Conflit' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+
+  /admin/machines/{id}/sonde:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [Administration]
+      operationId: sonderMachine
+      summary: "Relancer la sonde de santé d'un serveur (admin). Le moteur la passe aussitôt ; cette réponse garde l'état stocké, à relire."
+      responses:
+        '202':
+          description: Sonde demandée
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Machine' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+
+  # ───────────── Modération ─────────────
+  /signalements:
+    post:
+      tags: [Administration]
+      operationId: createSignalement
+      summary: Signaler un contenu ou un comportement à l'équipe (20 par heure)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SignalementCreation' }
+      responses:
+        '201':
+          description: Signalement reçu
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Signalement' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '409': { $ref: '#/components/responses/Conflit' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+        '422': { $ref: '#/components/responses/Invalide' }
+        '429': { $ref: '#/components/responses/TropDeRequetes' }
+
+  /admin/signalements:
+    get:
+      tags: [Administration]
+      operationId: listSignalements
+      summary: Signalements reçus (admin), filtrables par statut
+      parameters:
+        - name: statut
+          in: query
+          schema: { $ref: '#/components/schemas/StatutSignalement' }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/ParPage'
+      responses:
+        '200':
+          description: Signalements
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Pagination'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Signalement' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+
+  /admin/signalements/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Administration]
+      operationId: lireSignalement
+      summary: Un signalement et sa cible (admin)
+      responses:
+        '200':
+          description: Signalement
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Signalement' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+
+  /admin/signalements/{id}/traiter:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [Administration]
+      operationId: traiterSignalement
+      summary: Marquer un signalement comme traité (admin), après avoir agi (suppression, suspension)
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SignalementDecision' }
+      responses:
+        '200':
+          description: Signalement traité
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Signalement' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '409': { $ref: '#/components/responses/Conflit' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+        '422': { $ref: '#/components/responses/Invalide' }
+
+  /admin/signalements/{id}/rejeter:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [Administration]
+      operationId: rejeterSignalement
+      summary: Rejeter un signalement non fondé (admin)
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SignalementDecision' }
+      responses:
+        '200':
+          description: Signalement rejeté
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Signalement' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '409': { $ref: '#/components/responses/Conflit' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+        '422': { $ref: '#/components/responses/Invalide' }
+
+  /admin/comptes:
+    get:
+      tags: [Administration]
+      operationId: listComptesAdmin
+      summary: Comptes inscrits (admin), cherchables, filtrables par suspension
+      parameters:
+        - name: recherche
+          in: query
+          description: Cherche dans le nom, le pseudo et l'e-mail
+          schema: { type: string }
+        - name: suspendus
+          in: query
+          description: Seulement les comptes suspendus
+          schema: { type: boolean }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/ParPage'
+      responses:
+        '200':
+          description: Comptes
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Pagination'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/CompteAdmin' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+
+  /admin/comptes/{id}/suspension:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [Administration]
+      operationId: suspendreCompte
+      summary: 'Suspendre un compte (admin) : il ne peut plus se connecter ni appeler l’API. Jamais son propre compte.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SuspensionCreation' }
+      responses:
+        '200':
+          description: Compte suspendu
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CompteAdmin' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '409': { $ref: '#/components/responses/Conflit' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+        '422': { $ref: '#/components/responses/Invalide' }
+    delete:
+      tags: [Administration]
+      operationId: leverSuspensionCompte
+      summary: Lever la suspension d'un compte (admin)
+      responses:
+        '200':
+          description: Suspension levée
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CompteAdmin' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '409': { $ref: '#/components/responses/Conflit' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+
+  /admin/deployments:
+    get:
+      tags: [Administration]
+      operationId: listDeploymentsAdmin
+      summary: Toutes les copies (admin), filtrables par état ou suspension pour abus
+      parameters:
+        - name: etat
+          in: query
+          schema: { type: string }
+        - name: suspension_admin
+          in: query
+          description: Seulement les copies suspendues pour abus
+          schema: { type: boolean }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/ParPage'
+      responses:
+        '200':
+          description: Copies
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Pagination'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Deploiement' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+
+  /admin/deployments/{id}/suspension:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [Administration]
+      operationId: suspendreCopie
+      summary: 'Suspendre une copie pour abus (admin, ex. minage ou hameçonnage) : conteneurs arrêtés par le moteur, page neutre, volumes gardés'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SuspensionCreation' }
+      responses:
+        '200':
+          description: Copie suspendue
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Deploiement' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '409': { $ref: '#/components/responses/Conflit' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+        '422': { $ref: '#/components/responses/Invalide' }
+    delete:
+      tags: [Administration]
+      operationId: reactiverCopie
+      summary: 'Réactiver une copie suspendue pour abus (admin) : les conteneurs repartent avec leurs données'
+      responses:
+        '200':
+          description: Copie réactivée
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Deploiement' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '409': { $ref: '#/components/responses/Conflit' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+
+  /admin/canaux/{canal}:
+    parameters:
+      - name: canal
+        in: path
+        required: true
+        description: Slug du canal
+        schema: { type: string }
+    patch:
+      tags: [Administration]
+      operationId: modifierCanal
+      summary: Renommer ou décrire un canal (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CanalModification' }
+      responses:
+        '200':
+          description: Canal modifié
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Canal' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+        '422': { $ref: '#/components/responses/Invalide' }
+    delete:
+      tags: [Administration]
+      operationId: supprimerCanal
+      summary: Supprimer un canal vide (admin). Refusé tant que des discussions l'utilisent.
+      responses:
+        '204':
+          description: Canal supprimé
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '409': { $ref: '#/components/responses/Conflit' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+
 components:
   securitySchemes:
     session:
@@ -1301,6 +2647,12 @@ components:
       description: 'Session Laravel Sanctum (SPA), cookie fixé par SESSION_COOKIE. Requêtes POST, PATCH et DELETE : en-tête X-XSRF-TOKEN obligatoire.'
 
   parameters:
+    CleCopie:
+      name: cle
+      in: path
+      required: true
+      description: Clé publique de la copie (SOUKDEV_CLE_PUBLIQUE dans son environnement)
+      schema: { type: string, format: uuid }
     Id:
       name: id
       in: path
@@ -1313,6 +2665,13 @@ components:
       description: Numéro de page (commence à 1)
       schema: { type: integer, minimum: 1, default: 1 }
 
+    CleIdempotence:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: "Identifiant unique de l'intention (un UUID). Rejouée avec la même clé, la requête renvoie la réponse d'origine au lieu de recommencer."
+      schema: { type: string, maxLength: 100 }
+
     ParPage:
       name: per_page
       in: query
@@ -1320,6 +2679,11 @@ components:
       schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
 
   responses:
+    CleIdempotenceManquante:
+      description: "L'en-tête Idempotency-Key est obligatoire : cette opération déplace de l'argent"
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Erreur' }
     NonConnecte:
       description: Non connecté
       content:
@@ -1358,6 +2722,16 @@ components:
 
     TropDeRequetes:
       description: Limite de débit atteinte
+      headers:
+        Retry-After:
+          description: Secondes à attendre avant de réessayer
+          schema: { type: integer }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Erreur' }
+
+    Indisponible:
+      description: Service momentanément indisponible (la vérification du dépôt n'a pas répondu à temps) ; le message dit quoi faire
       headers:
         Retry-After:
           description: Secondes à attendre avant de réessayer
@@ -1421,7 +2795,7 @@ components:
             - $ref: '#/components/schemas/Pays'
             - type: 'null'
         username: { type: [string, 'null'], description: 'Identifiant GitHub ; null si GitHub non lié' }
-        avatar_url: { type: [string, 'null'], format: uri }
+        avatar_url: { type: [string, 'null'], format: uri-reference, description: "Adresse absolue (avatar GitHub) ou chemin servi par l'API (/storage/…)" }
         github_url: { type: [string, 'null'], format: uri }
         profil:
           type: string
@@ -1459,11 +2833,13 @@ components:
         - $ref: '#/components/schemas/Dev'
         - $ref: '#/components/schemas/ProfilPublic'
         - type: object
-          required: [email, github_lie, est_admin]
+          required: [email, github_lie, est_admin, suspendu_le, suspension_motif]
           properties:
             email: { type: [string, 'null'], format: email }
             github_lie: { type: boolean, description: Obligatoire pour publier une appli ou proposer un correctif }
             est_admin: { type: boolean }
+            suspendu_le: { type: [string, 'null'], format: date-time, description: 'Suspension par l’équipe (modération) ; null si le compte est actif' }
+            suspension_motif: { type: [string, 'null'], description: 'Motif de la suspension, visible par le compte concerné' }
 
     LienMagiqueDemande:
       type: object
@@ -1497,33 +2873,34 @@ components:
 
     TableauDeBord:
       type: object
-      description: "Les revenus sont ESTIMÉS à partir des copies et des prix, tant que le paiement via Datacloud n'est pas en place. Le profil (stats, réputation, Souk Score) se lit avec GET /me."
+      description: "Revenus réels, tirés du grand livre (parts du dev sur les factures payées). Le profil (stats, réputation, Souk Score) se lit avec GET /me ; le solde et les reversements avec GET /me/revenus."
       required: [totaux, applis]
       properties:
         totaux:
           type: object
-          required: [vues, copies_actives, revenus_estimes_mensuels, revenus_estimes_uniques]
+          required: [vues, copies_actives, revenus_mois, revenus_total]
           properties:
             vues: { type: integer }
             copies_actives: { type: integer }
-            revenus_estimes_mensuels: { type: integer, description: "FCFA par mois : somme, pour les applis mensuelles, de copies actives × prix" }
-            revenus_estimes_uniques: { type: integer, description: "FCFA au total : somme, pour les applis à paiement unique, de déploiements clients × prix" }
+            revenus_mois: { type: integer, description: "FCFA encaissés ce mois-ci pour le dev, toutes applis" }
+            revenus_total: { type: integer, description: "FCFA encaissés pour le dev depuis le début" }
         applis:
           type: array
           items: { $ref: '#/components/schemas/StatsApp' }
 
     StatsApp:
       type: object
-      required: [app_id, nom, type_prix, prix, vues, copies_actives, deploiements_total, revenu_estime]
+      required: [app_id, nom, type_prix, prix, vues, copies_actives, deploiements_total, revenu_mois, revenu_total]
       properties:
         app_id: { type: integer }
         nom: { type: string }
         type_prix: { $ref: '#/components/schemas/TypePrix' }
         prix: { type: integer }
-        vues: { type: integer, description: Visiteurs uniques par jour, cumulés }
+        vues: { type: integer, description: "Visiteurs uniques par jour, cumulés" }
         copies_actives: { type: integer, description: Copies clients en ligne en ce moment }
         deploiements_total: { type: integer, description: Copies clients lancées depuis la publication }
-        revenu_estime: { type: integer, description: "mensuel : copies actives × prix (par mois) ; unique : déploiements total × prix (au total)" }
+        revenu_mois: { type: integer, description: FCFA encaissés ce mois-ci pour cette appli }
+        revenu_total: { type: integer, description: FCFA encaissés pour cette appli depuis la publication }
 
     SoukScore:
       type: object
@@ -1531,8 +2908,8 @@ components:
       required: [total, entraide, projets, clients, securite, activite]
       properties:
         total: { type: integer, minimum: 0, maximum: 1000 }
-        entraide: { type: integer, minimum: 0, maximum: 250, description: 25 par bug résolu (correctif accepté), plafonné à 250 }
-        projets: { type: integer, minimum: 0, maximum: 200, description: 50 par appli publiée, plafonné à 200 }
+        entraide: { type: integer, minimum: 0, maximum: 250, description: "25 par bug résolu (correctif accepté), plafonné à 250" }
+        projets: { type: integer, minimum: 0, maximum: 200, description: "50 par appli publiée, plafonné à 200" }
         clients: { type: integer, minimum: 0, maximum: 250, description: "note moyenne / 5 × 150 (0 sans note), plus 25 par mission terminée plafonné à 100" }
         securite: { type: integer, minimum: 0, maximum: 150, description: "part des applis du dev au badge Security Checked × 150 (0 sans appli)" }
         activite: { type: integer, minimum: 0, maximum: 150, description: "15 par action validée sur les 30 derniers jours (correctif accepté, appli publiée, mission terminée, événement organisé passé), plafonné à 150" }
@@ -1604,14 +2981,17 @@ components:
     # ───────────── Applis ─────────────
     App:
       type: object
-      required: [id, nom, description, categorie, prix, type_prix, taille, mesure, demo_url, depot_url, captures, stack, backend, variables_client, securite, auteur, cree_le]
+      required: [id, nom, description, categorie, prix, type_prix, taille, mesure, demo_url, depot_url, captures, stack, backend, variables_client, securite, auteur, cree_le, note_moyenne, nb_avis, version]
       properties:
+        version: { type: integer, description: "Numéro de la dernière version publiée (1 : la publication)" }
+        note_moyenne: { type: [number, 'null'], description: "Moyenne des avis des clients (1 à 5, une décimale) ; null sans avis" }
+        nb_avis: { type: integer, description: Nombre d'avis de clients }
         id: { type: integer }
         nom: { type: string }
         description: { type: string }
         readme: { type: [string, 'null'], description: README du dépôt en Markdown }
         categorie: { $ref: '#/components/schemas/Categorie' }
-        prix: { type: integer, minimum: 0, description: Prix de l'appli en FCFA, par mois ou une seule fois selon type_prix ; 0 = gratuit }
+        prix: { type: integer, minimum: 0, description: "Prix de l'appli en FCFA, par mois ou une seule fois selon type_prix ; 0 = gratuit" }
         type_prix: { $ref: '#/components/schemas/TypePrix' }
         taille: { $ref: '#/components/schemas/Taille' }
         mesure: { $ref: '#/components/schemas/MesureMemoire' }
@@ -1619,8 +2999,7 @@ components:
         depot_url: { type: string, format: uri }
         captures:
           type: array
-          description: Captures d'écran ; la première sert de couverture sur la carte du store
-          minItems: 1
+          description: "Captures d'écran ; la première sert de couverture sur la carte du store (au moins une à la publication, voir CapturesEnvoi)"
           maxItems: 5
           items: { $ref: '#/components/schemas/Capture' }
         stack:
@@ -1698,7 +3077,7 @@ components:
         statut:
           type: string
           enum: [en_cours, terminee, echec]
-        memoire_max_mo: { type: [integer, 'null'], description: Pic de mémoire mesuré, en Mo ; null tant que la mesure n'est pas finie }
+        memoire_max_mo: { type: [integer, 'null'], description: "Pic de mémoire mesuré, en Mo ; null tant que la mesure n'est pas finie" }
         taille_recommandee:
           oneOf:
             - $ref: '#/components/schemas/Taille'
@@ -1712,8 +3091,8 @@ components:
       properties:
         statut:
           type: string
-          enum: [en_cours, verifie, problemes]
-          description: "verifie = badge vert « Security Checked » ; problemes = badge orange « Problèmes détectés »"
+          enum: [en_cours, verifie, problemes, echec]
+          description: "verifie = badge vert « Security Checked » ; problemes = badge orange « Problèmes détectés » ; echec = l'analyse n'a pas pu se faire (dépôt devenu inaccessible, outil indisponible) : l'auteur la relance"
         analyse_le: { type: [string, 'null'], format: date-time, description: null tant que la première analyse n'est pas finie }
         problemes:
           type: array
@@ -1728,7 +3107,7 @@ components:
         paquet: { type: string, description: 'ex. laravel/framework' }
         version: { type: string, description: Version utilisée par le dépôt }
         gravite: { type: string, enum: [faible, moyenne, haute, critique] }
-        version_corrigee: { type: [string, 'null'], description: Première version sans la faille, si elle existe }
+        version_corrigee: { type: [string, 'null'], description: "Première version sans la faille, si elle existe" }
 
     VerificationDepot:
       type: object
@@ -1788,7 +3167,7 @@ components:
     # ───────────── Déploiements ─────────────
     Deploiement:
       type: object
-      required: [id, app_id, app_nom, taille, type, etat, url, erreur, cree_le]
+      required: [id, app_id, app_nom, taille, type, etat, url, erreur, cree_le, abonnement, facture_a_payer, version, version_disponible, mise_a_jour, derniere_sauvegarde, machine_nom, suspension_admin_motif]
       properties:
         id: { type: integer }
         app_id: { type: [integer, 'null'], description: "null pour une copie de test lancée depuis le depot_url d'une discussion, sans appli publiée" }
@@ -1803,7 +3182,8 @@ components:
           description: Copie d'un client, copie de test d'une discussion, ou version corrigée
         etat:
           type: string
-          enum: [en_file, construction, demarrage, en_ligne, echec, arrete]
+          enum: [attente_paiement, en_file, construction, demarrage, en_ligne, echec, suspendu, mise_a_jour, arret_en_cours, arrete]
+          description: "Copie client : attente_paiement jusqu'au paiement de la première facture. Puis en_file → construction → demarrage → en_ligne ; echec à n'importe quelle étape ; suspendu après 7 jours de facture impayée (réactivée au paiement) ; mise_a_jour pendant l'application d'une nouvelle version (retour à en_ligne, sur la nouvelle version ou la précédente) ; arret_en_cours puis arrete après DELETE /deployments/{id} ou 30 jours de suspension"
         url:
           type: [string, 'null']
           format: uri
@@ -1812,6 +3192,116 @@ components:
           type: [string, 'null']
           description: Message lisible quand l'état est echec
         cree_le: { type: string, format: date-time }
+        abonnement:
+          description: Facturation de la copie client ; null pour une copie de test ou une version corrigée (gratuites)
+          oneOf:
+            - $ref: '#/components/schemas/Abonnement'
+            - type: 'null'
+        facture_a_payer:
+          description: La facture à régler pour démarrer ou garder la copie ; null si tout est payé
+          oneOf:
+            - $ref: '#/components/schemas/FactureResume'
+            - type: 'null'
+        version:
+          type: [integer, 'null']
+          description: Numéro de la version de l'appli que la copie fait tourner ; null pour une copie de test
+        version_disponible:
+          description: Version publiée plus récente que celle de la copie (copie client seulement), à appliquer quand le client le choisit
+          oneOf:
+            - $ref: '#/components/schemas/VersionResume'
+            - type: 'null'
+        mise_a_jour:
+          description: Dernière mise à jour demandée pour cette copie
+          oneOf:
+            - $ref: '#/components/schemas/MiseAJour'
+            - type: 'null'
+        derniere_sauvegarde:
+          description: La sauvegarde la plus récente (copie client), à exporter depuis « Mes copies »
+          oneOf:
+            - $ref: '#/components/schemas/Sauvegarde'
+            - type: 'null'
+        machine_nom:
+          type: [string, 'null']
+          description: "Serveur qui héberge la copie ; null tant qu'elle attend son paiement (pas encore placée)"
+        suspension_admin_motif:
+          type: [string, 'null']
+          description: 'Motif de la suspension pour abus par l’équipe (minage, hameçonnage…) ; null si la copie n’est pas suspendue par l’équipe'
+
+    Sauvegarde:
+      type: object
+      required: [identifiant, type, cree_le, taille]
+      properties:
+        identifiant: { type: string, pattern: '^\d{8}-\d{6}$' }
+        type: { type: string, enum: [quotidienne, mise_a_jour, manuelle], description: "quotidienne : chaque nuit, à chaud ; mise_a_jour : avant l'application d'une version, copie arrêtée ; manuelle : demandée par le client" }
+        cree_le: { type: string, format: date-time }
+        taille: { type: integer, description: Octets }
+
+    DemandeCodeConnexion:
+      type: object
+      required: [canal, destinataire]
+      properties:
+        canal: { type: string, enum: [sms, email] }
+        destinataire: { type: string, maxLength: 254, description: "Numéro au format international (+229…) pour un SMS, adresse pour un e-mail" }
+
+    SessionUtilisateurFinal:
+      type: object
+      required: [jeton, expire_le, utilisateur]
+      properties:
+        jeton: { type: string, description: "JWT pour l'API du backend intégré (en-tête Authorization: Bearer)" }
+        expire_le: { type: string, format: date-time }
+        utilisateur:
+          type: object
+          required: [id, canal, destinataire]
+          properties:
+            id: { type: string, format: uuid, description: "Identifiant stable de l'utilisateur dans cette copie (soukdev.utilisateur_id() en SQL)" }
+            canal: { type: string, enum: [sms, email] }
+            destinataire: { type: string, description: Numéro ou adresse masqués }
+
+    VersionResume:
+      type: object
+      required: [numero, notes, cree_le]
+      properties:
+        numero: { type: integer }
+        notes: { type: [string, 'null'], description: "Ce qui change, écrit par l'auteur" }
+        cree_le: { type: string, format: date-time }
+
+    MiseAJour:
+      type: object
+      required: [statut, de_version, vers_version, erreur, cree_le, termine_le]
+      properties:
+        statut:
+          type: string
+          enum: [en_file, en_cours, reussie, retablie, echouee]
+          description: "reussie : la copie tourne sur la nouvelle version ; retablie : la nouvelle version n'a pas démarré, la copie est revenue à la précédente avec ses données ; echouee : le retour n'a pas pu se faire (l'équipe est prévenue)"
+        de_version: { type: [integer, 'null'] }
+        vers_version: { type: integer }
+        erreur: { type: [string, 'null'], description: Ce qui a empêché la nouvelle version de démarrer }
+        cree_le: { type: string, format: date-time }
+        termine_le: { type: [string, 'null'], format: date-time }
+
+    VersionAppli:
+      type: object
+      required: [id, numero, ref, commit, notes, statut, erreur, cree_le]
+      properties:
+        id: { type: integer }
+        numero: { type: integer, description: "1 : la publication" }
+        ref: { type: [string, 'null'], description: "Branche, tag ou commit demandé par l'auteur ; null pour la publication" }
+        commit: { type: [string, 'null'], description: Commit vérifié (40 caractères hexadécimaux) ; null avant la vérification }
+        notes: { type: [string, 'null'] }
+        statut: { type: string, enum: [verification, publiee, refusee] }
+        erreur: { type: [string, 'null'], description: "Raison du refus (soukdev.json, docker-compose.yml, secret…)" }
+        cree_le: { type: string, format: date-time }
+
+    VersionCreation:
+      type: object
+      required: [notes]
+      properties:
+        ref:
+          type: string
+          maxLength: 200
+          pattern: '^[A-Za-z0-9._/-]+$'
+          description: Branche, tag ou commit ; par défaut la branche du dépôt publié
+        notes: { type: string, minLength: 3, maxLength: 2000, description: Ce qui change pour les clients }
 
     DeploiementCreation:
       type: object
@@ -2052,6 +3542,448 @@ components:
         message: { type: string, maxLength: 5000 }
         budget: { type: integer, minimum: 0 }
         delai: { type: string, format: date }
+
+    # ───────────── Paiements ─────────────
+    Abonnement:
+      type: object
+      description: "Facturation d'une copie client, à date anniversaire : l'hébergement chaque mois, plus le prix de l'appli chaque mois (mensuel) ou une seule fois (unique)."
+      required: [statut, formule, montant_hebergement, prix_appli, type_prix, prochaine_echeance, suspendu_le]
+      properties:
+        statut:
+          type: string
+          enum: [en_attente, actif, en_retard, suspendu, incident, resilie]
+          description: "en_attente : première facture pas encore payée ; en_retard : échéance passée, 7 jours de grâce ; suspendu : copie arrêtée, réactivée au paiement ; incident : copie payée qui n'a pas pu démarrer, plus aucune facture tant que l'équipe n'a pas réglé le problème ; resilie : arrêt définitif après 30 jours de suspension"
+        formule: { $ref: '#/components/schemas/Taille' }
+        montant_hebergement: { type: integer, description: "FCFA par mois, figé à la commande" }
+        prix_appli: { type: integer, description: "FCFA, figé à la commande ; 0 pour une appli gratuite" }
+        type_prix: { $ref: '#/components/schemas/TypePrix' }
+        prochaine_echeance: { type: [string, 'null'], format: date }
+        suspendu_le: { type: [string, 'null'], format: date-time }
+
+    StatutFacture:
+      type: string
+      enum: [a_payer, payee, annulee, remboursee]
+
+    FactureResume:
+      type: object
+      required: [id, numero, montant_total, echeance_le, statut]
+      properties:
+        id: { type: integer }
+        numero: { type: string, description: 'ex. SD-2026-000123' }
+        montant_total: { type: integer, description: "FCFA, hors frais de paiement (ajoutés par SasPay)" }
+        echeance_le: { type: string, format: date }
+        statut: { $ref: '#/components/schemas/StatutFacture' }
+
+    LigneFacture:
+      type: object
+      required: [libelle, montant]
+      properties:
+        libelle: { type: string, description: "ex. « Hébergement, formule moyenne, du 25 octobre au 24 novembre »" }
+        montant: { type: integer }
+
+    Facture:
+      type: object
+      required: [id, numero, deploiement_id, app_nom, periode_debut, periode_fin, emise_le, echeance_le, montant_hebergement, montant_appli, montant_total, montant_rembourse, statut, payee_le, lignes, paiements]
+      properties:
+        id: { type: integer }
+        numero: { type: string }
+        deploiement_id: { type: integer }
+        app_nom: { type: string }
+        periode_debut: { type: string, format: date }
+        periode_fin: { type: string, format: date }
+        emise_le: { type: string, format: date-time }
+        echeance_le: { type: string, format: date }
+        montant_hebergement: { type: integer }
+        montant_appli: { type: integer }
+        montant_total: { type: integer, description: "FCFA, ce que reçoit Souk.dev ; les frais de paiement (ADD_ON) s'ajoutent côté client" }
+        montant_rembourse: { type: integer, description: Somme des avoirs }
+        statut: { $ref: '#/components/schemas/StatutFacture' }
+        payee_le: { type: [string, 'null'], format: date-time }
+        lignes:
+          type: array
+          items: { $ref: '#/components/schemas/LigneFacture' }
+        paiements:
+          type: array
+          description: Tentatives de paiement, la plus récente d'abord
+          items: { $ref: '#/components/schemas/Paiement' }
+
+    Paiement:
+      type: object
+      required: [id, statut, montant, frais_client, montant_debite, reference, cree_le, verifie_le]
+      properties:
+        id: { type: integer }
+        statut:
+          type: string
+          enum: [en_attente, reussi, echoue, annule]
+          description: "Reflet du statut SasPay revérifié par l'API (PENDING, SUCCESS, FAILED ; annule pour une session expirée ou annulée)"
+        montant: { type: integer, description: Montant demandé (celui de la facture) }
+        frais_client: { type: [integer, 'null'], description: "Frais de paiement ajoutés par SasPay (ADD_ON), connus après vérification" }
+        montant_debite: { type: [integer, 'null'], description: Ce qu'a réellement payé le client }
+        reference: { type: [string, 'null'], description: Référence SasPay de la transaction }
+        cree_le: { type: string, format: date-time }
+        verifie_le: { type: [string, 'null'], format: date-time }
+
+    SessionPaiement:
+      type: object
+      required: [paiement, checkout_url]
+      properties:
+        paiement: { $ref: '#/components/schemas/Paiement' }
+        checkout_url: { type: string, format: uri, description: Page de paiement hébergée par SasPay }
+
+    # ───────────── Revenus ─────────────
+    Revenus:
+      type: object
+      required: [solde, encaisse_total, encaisse_mois, reverse_total, seuil_demande, peut_demander, raison_blocage, reversement_en_cours, prochain_reversement_le, coordonnees]
+      properties:
+        solde: { type: integer, description: "FCFA dû au dev : ses parts encaissées moins ses reversements (et corrections)" }
+        encaisse_total: { type: integer, description: Parts encaissées depuis le début }
+        encaisse_mois: { type: integer, description: Parts encaissées ce mois-ci }
+        reverse_total: { type: integer }
+        seuil_demande: { type: integer, description: Solde minimal pour un reversement à la demande (5 000 F) }
+        peut_demander: { type: boolean }
+        raison_blocage: { type: [string, 'null'], description: "Pourquoi la demande est impossible (solde trop bas, coordonnées non confirmées, reversement en cours)" }
+        reversement_en_cours:
+          oneOf:
+            - $ref: '#/components/schemas/Reversement'
+            - type: 'null'
+        prochain_reversement_le: { type: string, format: date, description: Reversement mensuel automatique }
+        coordonnees:
+          oneOf:
+            - $ref: '#/components/schemas/CoordonneesReversement'
+            - type: 'null'
+
+    Mouvement:
+      type: object
+      description: "Une écriture du grand livre sur le compte du dev, vue par lui : positive quand il gagne, négative quand il est payé"
+      required: [id, type, montant, libelle, cree_le]
+      properties:
+        id: { type: integer }
+        type:
+          type: string
+          enum: [encaissement, reversement, reversement_annule, avoir]
+        montant: { type: integer }
+        libelle: { type: string }
+        cree_le: { type: string, format: date-time }
+
+    Reversement:
+      type: object
+      required: [id, montant, statut, reseau, numero_masque, declenchement, cree_le, verifie_le, erreur]
+      properties:
+        id: { type: integer }
+        montant: { type: integer, description: "Montant reçu par le dev, entier ; les frais sont à la charge de Souk.dev" }
+        statut:
+          type: string
+          enum: [en_attente, reussi, echoue]
+        reseau: { type: string, description: 'Code réseau, ex. mtn_bj' }
+        numero_masque: { type: string, description: 'ex. +229 01 •• •• 50 50' }
+        declenchement:
+          type: string
+          enum: [mensuel, demande]
+        cree_le: { type: string, format: date-time }
+        verifie_le: { type: [string, 'null'], format: date-time }
+        erreur: { type: [string, 'null'] }
+
+    ReversementAdmin:
+      allOf:
+        - $ref: '#/components/schemas/Reversement'
+        - type: object
+          required: [dev, frais]
+          properties:
+            dev: { $ref: '#/components/schemas/Dev' }
+            frais: { type: [integer, 'null'], description: Frais de reversement payés par Souk.dev }
+
+    CoordonneesReversement:
+      type: object
+      required: [pays, reseau, numero_masque, confirme, confirme_le]
+      properties:
+        pays: { $ref: '#/components/schemas/Pays' }
+        reseau: { type: string }
+        numero_masque: { type: string }
+        confirme: { type: boolean, description: "Faux tant que le lien envoyé par e-mail n'a pas été ouvert ; aucun reversement avant" }
+        confirme_le: { type: [string, 'null'], format: date-time }
+
+    CoordonneesReversementSaisie:
+      type: object
+      required: [pays, reseau, numero, numero_confirmation]
+      properties:
+        pays: { $ref: '#/components/schemas/Pays' }
+        reseau: { type: string, description: 'Code d''un réseau de GET /reseaux-mobile-money, du même pays' }
+        numero: { type: string, maxLength: 20, description: 'Numéro local ou international, ex. 0197505050 ou +2290197505050' }
+        numero_confirmation: { type: string, maxLength: 20 }
+
+    ReseauMobileMoney:
+      type: object
+      required: [code, nom, pays]
+      properties:
+        code: { type: string, description: 'Code SasPay, ex. mtn_bj' }
+        nom: { type: string, description: 'ex. MTN MoMo' }
+        pays: { $ref: '#/components/schemas/Pays' }
+
+    # ───────────── Administration (finances) ─────────────
+    Finances:
+      type: object
+      description: "Tiré du grand livre (entiers FCFA). marge = revenus_hebergement − frais (reversements et encaissements) − avoirs côté hébergement."
+      required: [debut, fin, encaissements, revenus_hebergement, parts_devs, reversements, frais_reversement, avoirs, marge, solde_devs, solde_saspay_attendu, factures_impayees, copies_suspendues, trop_percus]
+      properties:
+        debut: { type: string, format: date }
+        fin: { type: string, format: date }
+        encaissements: { type: integer, description: Montants encaissés sur la période }
+        revenus_hebergement: { type: integer }
+        parts_devs: { type: integer, description: Parts des devs encaissées sur la période }
+        reversements: { type: integer, description: Versé aux devs sur la période }
+        frais_reversement: { type: integer }
+        avoirs: { type: integer }
+        marge: { type: integer }
+        solde_devs: { type: integer, description: "Dû aux devs aujourd'hui, tous comptes confondus" }
+        solde_saspay_attendu: { type: integer, description: "Ce que le compte SasPay devrait contenir d'après le grand livre" }
+        factures_impayees: { type: integer }
+        copies_suspendues: { type: integer }
+        trop_percus:
+          type: array
+          description: Paiements en double encore à rembourser aux clients (tous, quelle que soit la période)
+          items: { $ref: '#/components/schemas/TropPercu' }
+
+    TropPercu:
+      type: object
+      description: "Un paiement reçu pour une facture déjà payée ou annulée : l'argent est dû au client"
+      required: [paiement_id, facture_id, facture_numero, montant, reference, recu_le, rembourse]
+      properties:
+        paiement_id: { type: integer }
+        facture_id: { type: integer }
+        facture_numero: { type: string }
+        montant: { type: integer, description: FCFA à rendre au client }
+        reference: { type: [string, 'null'], description: Référence SasPay du paiement en double }
+        recu_le: { type: string, format: date-time }
+        rembourse: { type: boolean }
+
+    TypeNotification:
+      type: string
+      enum: [correctif_propose, correctif_accepte, message_mission, echeance, suspension, mise_a_jour, reversement]
+
+    Notification:
+      type: object
+      description: "Diffusée aussi en direct : événement notification.creee sur le canal privé utilisateur.{id}"
+      required: [id, type, titre, texte, lien, lue, cree_le]
+      properties:
+        id: { type: string, format: uuid }
+        type: { $ref: '#/components/schemas/TypeNotification' }
+        titre: { type: string }
+        texte: { type: string }
+        lien: { type: [string, 'null'], description: "Chemin du front vers l'écran concerné (/paiements/12…)" }
+        lue: { type: boolean }
+        cree_le: { type: string, format: date-time }
+
+    PreferencesNotifications:
+      type: object
+      required: [types]
+      properties:
+        types:
+          type: array
+          items:
+            type: object
+            required: [type, libelle, description, application, email, email_obligatoire]
+            properties:
+              type: { $ref: '#/components/schemas/TypeNotification' }
+              libelle: { type: string }
+              description: { type: string }
+              application: { type: boolean, description: Dans le centre de notifications de Souk.dev }
+              email: { type: boolean }
+              email_obligatoire: { type: boolean, description: "L'e-mail part quoi qu'il arrive (suspension : prévient avant la suppression des données)" }
+
+    PreferencesNotificationsSaisie:
+      type: object
+      required: [preferences]
+      properties:
+        preferences:
+          type: array
+          items:
+            type: object
+            required: [type, application, email]
+            properties:
+              type: { $ref: '#/components/schemas/TypeNotification' }
+              application: { type: boolean }
+              email: { type: boolean }
+
+    AvisAppli:
+      type: object
+      description: Avis d'un client sur une appli dont il a eu une copie payée
+      required: [id, note, commentaire, auteur, cree_le, modifie_le]
+      properties:
+        id: { type: integer }
+        note: { type: integer, minimum: 1, maximum: 5 }
+        commentaire: { type: [string, 'null'], maxLength: 1000 }
+        auteur: { $ref: '#/components/schemas/Dev' }
+        cree_le: { type: string, format: date-time }
+        modifie_le: { type: string, format: date-time }
+
+    AvisAppliSaisie:
+      type: object
+      required: [note]
+      properties:
+        note: { type: integer, minimum: 1, maximum: 5 }
+        commentaire: { type: [string, 'null'], maxLength: 1000 }
+
+    AvoirCreation:
+      type: object
+      required: [montant_hebergement, montant_appli, motif]
+      properties:
+        montant_hebergement: { type: integer, minimum: 0 }
+        montant_appli: { type: integer, minimum: 0 }
+        motif: { type: string, maxLength: 500 }
+
+    Avoir:
+      type: object
+      required: [id, numero, facture_id, montant_hebergement, montant_appli, montant_total, motif, cree_le]
+      properties:
+        id: { type: integer }
+        numero: { type: string, description: 'ex. AV-2026-000004' }
+        facture_id: { type: integer }
+        montant_hebergement: { type: integer }
+        montant_appli: { type: integer }
+        montant_total: { type: integer }
+        motif: { type: string }
+        cree_le: { type: string, format: date-time }
+
+    Rapprochement:
+      type: object
+      required: [id, jour, transactions_saspay, paiements_locaux, ecarts, cree_le]
+      properties:
+        id: { type: integer }
+        jour: { type: string, format: date }
+        transactions_saspay: { type: integer, description: Transactions entrantes réussies chez SasPay ce jour-là }
+        paiements_locaux: { type: integer, description: Paiements réussis enregistrés chez Souk.dev ce jour-là }
+        ecarts:
+          type: array
+          description: "corrige : paiement réussi resté en attente ici (webhook perdu), rattrapé par la vérification ; les autres types demandent un humain (e-mail à l'admin)"
+          items:
+            type: object
+            required: [type, reference, detail]
+            properties:
+              type: { type: string, enum: [corrige, inconnue_localement, montant_different, absente_chez_saspay, verification_impossible] }
+              reference: { type: string, description: "Transaction SasPay, ou paiement n° … chez Souk.dev" }
+              detail: { type: string, description: "Ce qui a été constaté, en clair" }
+        cree_le: { type: string, format: date-time }
+
+    EtatMachine:
+      type: string
+      enum: [active, maintenance]
+      description: "maintenance : plus aucune nouvelle copie n'y part (drain), celles qui tournent continuent"
+
+    Machine:
+      type: object
+      required: [id, nom, hote_docker, etat, joignable, version_docker, memoire_totale_mo, capacite_mo, memoire_reservee_mo, memoire_libre_mo, copies, sonde_erreur, sondee_le]
+      properties:
+        id: { type: integer }
+        nom: { type: string, description: "Nom choisi par l'équipe, ex. locale" }
+        hote_docker: { type: [string, 'null'], description: "Démon Docker visé (DOCKER_HOST) : unix:///… ou tcp://hôte:port ; null = démon local (socket)" }
+        etat: { $ref: '#/components/schemas/EtatMachine' }
+        joignable: { type: boolean, description: "Faux depuis la dernière sonde ratée : le placement l'évite" }
+        version_docker: { type: [string, 'null'], description: "Lue par la dernière sonde réussie" }
+        memoire_totale_mo: { type: [integer, 'null'], description: "Mémoire du démon, lue par la sonde (Mo)" }
+        capacite_mo: { type: [integer, 'null'], description: "Mémoire réservée aux copies (Mo), déclarée par l'équipe ; null = sans limite déclarée" }
+        memoire_reservee_mo: { type: integer, description: "Plafonds des copies qui y tournent (Mo)" }
+        memoire_libre_mo: { type: [integer, 'null'], description: "Capacité utile (déclarée, sinon sondée) moins réservée (Mo) ; null si aucune limite connue" }
+        copies: { type: integer, description: "Copies hébergées (ni arrêtées, ni en échec)" }
+        sonde_erreur: { type: [string, 'null'], description: "Raison courte de la dernière sonde ratée" }
+        sondee_le: { type: [string, 'null'], format: date-time }
+
+    MachineCreation:
+      type: object
+      required: [nom]
+      properties:
+        nom: { type: string, maxLength: 64 }
+        hote_docker: { type: [string, 'null'], maxLength: 255, description: "unix:///… ou tcp://hôte:port ; null = démon local" }
+        capacite_mo: { type: [integer, 'null'], minimum: 512, maximum: 1048576, description: "Mémoire réservée aux copies (Mo) ; null = sans limite déclarée" }
+
+    MachineModification:
+      type: object
+      properties:
+        nom: { type: string, maxLength: 64 }
+        hote_docker: { type: [string, 'null'], maxLength: 255 }
+        capacite_mo: { type: [integer, 'null'], minimum: 512, maximum: 1048576 }
+        etat: { $ref: '#/components/schemas/EtatMachine' }
+
+    # ───────────── Modération ─────────────
+    CibleSignalement:
+      type: string
+      enum: [discussion, message, appli, copie, compte, evenement]
+      description: 'Ce qui est signalé : une discussion, un message, une appli, une copie (déploiement), un compte ou un événement'
+
+    MotifSignalement:
+      type: string
+      enum: [spam, abus, hameconnage, minage, contenu_illegal, autre]
+      description: 'Motif du signalement : spam, abus (harcèlement, insulte), hameçonnage, minage de cryptomonnaie, contenu illégal, autre'
+
+    StatutSignalement:
+      type: string
+      enum: [ouvert, traite, rejete]
+      description: 'ouvert : en attente de l’équipe ; traite : fondé, action faite ; rejete : non fondé'
+
+    SignalementCreation:
+      type: object
+      required: [cible, cible_id, motif]
+      properties:
+        cible: { $ref: '#/components/schemas/CibleSignalement' }
+        cible_id: { type: integer, description: 'Identifiant de la cible (compte : identifiant du compte)' }
+        motif: { $ref: '#/components/schemas/MotifSignalement' }
+        details: { type: string, maxLength: 2000, description: 'Ce qui pose problème, avec des faits vérifiables' }
+
+    Signalement:
+      type: object
+      required: [id, cible, cible_id, cible_resume, cible_chemin, motif, details, statut, signale_par, cree_le, traite_par, traite_le, note]
+      properties:
+        id: { type: integer }
+        cible: { $ref: '#/components/schemas/CibleSignalement' }
+        cible_id: { type: integer }
+        cible_resume: { type: string, description: 'Résumé lisible de la cible pour l’équipe (titre, nom, adresse…)' }
+        cible_chemin: { type: [string, 'null'], description: 'Chemin du front vers la cible (ou adresse de la copie) ; null sans page (cible supprimée, copie sans adresse, compte sans GitHub)' }
+        motif: { $ref: '#/components/schemas/MotifSignalement' }
+        details: { type: [string, 'null'] }
+        statut: { $ref: '#/components/schemas/StatutSignalement' }
+        signale_par: { $ref: '#/components/schemas/Dev' }
+        cree_le: { type: string, format: date-time }
+        traite_par:
+          oneOf:
+            - $ref: '#/components/schemas/Dev'
+            - type: 'null'
+        traite_le: { type: [string, 'null'], format: date-time }
+        note: { type: [string, 'null'], description: 'Note de l’équipe sur sa décision' }
+
+    SignalementDecision:
+      type: object
+      properties:
+        note: { type: string, maxLength: 2000, description: 'Ce qui a été fait (suppression, suspension…) ou pourquoi le signalement est rejeté' }
+
+    SuspensionCreation:
+      type: object
+      required: [motif]
+      properties:
+        motif: { type: string, maxLength: 500, description: 'Motif de la suspension, visible par le compte concerné' }
+
+    CompteAdmin:
+      type: object
+      description: Un compte vu par l’équipe (liste, suspension)
+      required: [id, nom, username, email, profil, est_admin, cree_le, suspendu_le, suspension_motif]
+      properties:
+        id: { type: integer }
+        nom: { type: [string, 'null'] }
+        username: { type: [string, 'null'] }
+        email: { type: [string, 'null'], format: email }
+        profil: { type: string, enum: [dev, client] }
+        est_admin: { type: boolean }
+        cree_le: { type: string, format: date-time }
+        suspendu_le: { type: [string, 'null'], format: date-time }
+        suspension_motif: { type: [string, 'null'] }
+
+    CanalModification:
+      type: object
+      properties:
+        nom: { type: string, maxLength: 50 }
+        description: { type: [string, 'null'], maxLength: 300 }
+        pays:
+          oneOf:
+            - $ref: '#/components/schemas/Pays'
+            - type: 'null'
 
     # ───────────── Événements ─────────────
     Evenement:

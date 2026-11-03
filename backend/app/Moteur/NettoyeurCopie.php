@@ -29,7 +29,7 @@ class NettoyeurCopie
             return true;
         }
 
-        if (! $this->liberer($deploiement->copie, $deploiement->repertoire, $deploiement->id)) {
+        if (! $this->liberer($deploiement->copie, $deploiement->repertoire, $deploiement->id, $deploiement->cibleMachine())) {
             $deploiement->changerEtat('echec', erreur: 'L\'arrêt de la copie a échoué, il sera retenté.');
 
             return false;
@@ -43,10 +43,10 @@ class NettoyeurCopie
     /**
      * Libère les conteneurs et le dossier sans toucher à l'état (utile après un échec).
      */
-    public function liberer(?string $copie, ?string $repertoire, ?int $deploiementId = null): bool
+    public function liberer(?string $copie, ?string $repertoire, ?int $deploiementId = null, ?MachineCible $machine = null): bool
     {
         if (is_string($copie) && $copie !== '' && is_string($repertoire) && $repertoire !== '') {
-            if (! $this->descendre($repertoire, $copie, $deploiementId)) {
+            if (! $this->descendre($repertoire, $copie, $deploiementId, $machine)) {
                 return false;
             }
         }
@@ -60,13 +60,13 @@ class NettoyeurCopie
         return true;
     }
 
-    private function descendre(string $repertoire, string $copie, ?int $deploiementId): bool
+    private function descendre(string $repertoire, string $copie, ?int $deploiementId, ?MachineCible $machine = null): bool
     {
         $tentatives = max(1, (int) (function_exists('config') ? config('moteur.arret_tentatives', 2) : 2));
 
         for ($essai = 1; $essai <= $tentatives; $essai++) {
             try {
-                $this->lanceur->arreter($repertoire, $copie);
+                $this->lanceur->arreter($repertoire, $copie, $machine);
 
                 return true;
             } catch (Throwable $exception) {

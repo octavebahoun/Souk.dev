@@ -36,7 +36,16 @@ final class LienMagiqueTest extends TestCase
         // Pas de compte tant que le lien n'est pas ouvert.
         $this->assertDatabaseCount('users', 0);
 
+        // Ouvrir le lien (un analyseur de messagerie le fait) ne consomme rien : une page demande un clic.
         $this->get('/auth/lien-magique/'.$token)
+            ->assertOk()
+            ->assertSee('client@example.com')
+            ->assertSee('Me connecter');
+        $this->get('/auth/lien-magique/'.$token)->assertOk();
+        $this->assertGuest();
+        $this->assertDatabaseCount('users', 0);
+
+        $this->post('/auth/lien-magique/'.$token)
             ->assertRedirect('http://localhost:5173/store');
 
         $this->assertAuthenticated();
@@ -46,9 +55,12 @@ final class LienMagiqueTest extends TestCase
             'github_lie' => false,
         ]);
 
-        $this->getJson('/auth/lien-magique/'.$token)
+        $this->postJson('/auth/lien-magique/'.$token)
             ->assertStatus(410)
             ->assertJsonPath('message', 'Lien expiré ou déjà utilisé.');
+        $this->get('/auth/lien-magique/'.$token)
+            ->assertStatus(410)
+            ->assertSee('Ce lien a expiré ou a déjà servi');
     }
 
     public function test_la_reponse_est_la_meme_si_le_compte_existe_deja(): void
@@ -107,6 +119,7 @@ final class LienMagiqueTest extends TestCase
         $this->travel(16)->minutes();
 
         $this->getJson('/auth/lien-magique/'.$token)->assertStatus(410);
+        $this->post('/auth/lien-magique/'.$token)->assertStatus(410)->assertSee('Demander un nouveau lien');
         $this->assertGuest();
     }
 }

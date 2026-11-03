@@ -1,12 +1,14 @@
+import { EnTetePage } from '../ui'
+
 type PageEnAttenteProps = {
   titre: string
 }
 
+/** Écran provisoire d'une route branchée plus tard (connexion, profil, tableau : voir brancherComptes). */
 export function PageEnAttente({ titre }: PageEnAttenteProps) {
   return (
-    <main className="mx-auto max-w-[1200px] px-6 py-10">
-      <h1 className="m-0 text-[30px] font-bold tracking-tight text-ink">{titre}</h1>
-      <p className="mt-3 text-muted">Cet écran arrive dans une prochaine étape.</p>
-    </main>
+    <div className="mx-auto w-full max-w-site px-4 py-8 tablette:px-6 bureau:px-8">
+      <EnTetePage titre={titre} description="Cet écran arrive dans une prochaine étape." />
+    </div>
   )
 }

@@ -17,6 +17,7 @@ class RouteurCopies
     public function __construct(
         private string $dossier,
         private string $urlCopie,
+        private string $pageSuspendue = 'http://127.0.0.1:8000',
     ) {}
 
     public static function depuisConfig(): self
@@ -24,6 +25,7 @@ class RouteurCopies
         return new self(
             (string) config('moteur.proxy_routes') ?: storage_path('app/private/proxy'),
             (string) config('moteur.url_copie'),
+            (string) config('moteur.page_suspendue'),
         );
     }
 
@@ -49,26 +51,93 @@ class RouteurCopies
             throw new LancementEchoue('Le port du service web est invalide.');
         }
 
+        $domaine = $this->domaine($copie);
+        $cible = str_contains($hote, ':') ? "[{$hote}]" : $hote;
+
+        return $this->ecrire($copie, implode("\n", [
+            'http:',
+            '  routers:',
+            "    {$copie}:",
+            "      rule: \"Host(`{$domaine}`)\"",
+            "      service: {$copie}",
+            ...$this->lignesTls(),
+            '  services:',
+            "    {$copie}:",
+            '      loadBalancer:',
+            '        servers:',
+            "          - url: \"http://{$cible}:{$port}\"",
+        ])."\n");
+    }
+
+    /**
+     * Copie suspendue pour impayé : son sous-domaine affiche la page « copie suspendue » de la
+     * plateforme (jamais une erreur du proxy), le temps que le client paie.
+     */
+    public function publierPageSuspendue(string $copie): string
+    {
+        $this->verifierNomCopie($copie);
+        $domaine = $this->domaine($copie);
+        $page = rtrim($this->pageSuspendue, '/');
+
+        if (preg_match('#^https?://[A-Za-z0-9.-]+(:\d{1,5})?$#', $page) !== 1) {
+            throw new LancementEchoue('L\'adresse de la page « copie suspendue » est invalide (voir MOTEUR_PAGE_SUSPENDUE).');
+        }
+
+        return $this->ecrire($copie, implode("\n", [
+            'http:',
+            '  routers:',
+            "    {$copie}:",
+            "      rule: \"Host(`{$domaine}`)\"",
+            "      service: {$copie}",
+            ...$this->lignesTls(),
+            '      middlewares:',
+            "        - {$copie}-suspendue",
+            '  middlewares:',
+            "    {$copie}-suspendue:",
+            '      replacePath:',
+            '        path: "/copie-suspendue"',
+            '  services:',
+            "    {$copie}:",
+            '      loadBalancer:',
+            '        servers:',
+            "          - url: \"{$page}\"",
+        ])."\n");
+    }
+
+    /**
+     * En production, les copies sont servies en HTTPS (MOTEUR_URL_COPIE en https://) : le routeur
+     * écoute le point d'entrée sécurisé et demande son certificat à Let's Encrypt. En développement
+     * (http://{copie}.localhost), rien : Traefik sert le HTTP seul.
+     *
+     * @return list<string>
+     */
+    private function lignesTls(): array
+    {
+        if (parse_url($this->urlCopie, PHP_URL_SCHEME) !== 'https') {
+            return [];
+        }
+
+        return [
+            '      entryPoints:',
+            '        - websecure',
+            '      tls:',
+            '        certResolver: letsencrypt',
+        ];
+    }
+
+    private function domaine(string $copie): string
+    {
         $domaine = parse_url($this->url($copie), PHP_URL_HOST);
 
         if (! is_string($domaine) || preg_match('/^[a-z0-9.-]+$/', $domaine) !== 1) {
             throw new LancementEchoue('Le sous-domaine de la copie est invalide (voir MOTEUR_URL_COPIE).');
         }
 
-        $cible = str_contains($hote, ':') ? "[{$hote}]" : $hote;
-        $yaml = implode("\n", [
-            'http:',
-            '  routers:',
-            "    {$copie}:",
-            "      rule: \"Host(`{$domaine}`)\"",
-            "      service: {$copie}",
-            '  services:',
-            "    {$copie}:",
-            '      loadBalancer:',
-            '        servers:',
-            "          - url: \"http://{$cible}:{$port}\"",
-        ])."\n";
+        return $domaine;
+    }
 
+    private function ecrire(string $copie, string $yaml): string
+    {
         if (! is_dir($this->dossier) && ! @mkdir($this->dossier, 0755, true) && ! is_dir($this->dossier)) {
             throw new LancementEchoue('Impossible de créer le dossier des routes du proxy.');
         }

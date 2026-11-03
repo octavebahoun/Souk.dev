@@ -31,12 +31,34 @@
         <env name="DB_DATABASE" value=":memory:" force="true"/>
         <env name="DB_URL" value="" force="true"/>
         <env name="MAIL_MAILER" value="array" force="true"/>
+        <env name="IA_FOURNISSEUR" value="simulee" force="true"/>
+        <env name="DEMO_CONNEXION" value="false" force="true"/>
         <env name="QUEUE_CONNECTION" value="sync" force="true"/>
         <env name="SESSION_DRIVER" value="array" force="true"/>
         <env name="REVERB_APP_KEY" value="valeur-de-test" force="true"/>
         <env name="REVERB_APP_SECRET" value="valeur-de-test" force="true"/>
         <env name="REVERB_APP_ID" value="soukdev" force="true"/>
+        <!-- Jamais la vraie API SasPay dans les tests (la clé de backend/.env est une clé de production). -->
+        <env name="PAIEMENT_PASSERELLE" value="simulee" force="true"/>
+        <env name="SASPAY_SECRET_KEY" value="" force="true"/>
+        <env name="SASPAY_WEBHOOK_SECRET" value="secret-webhook-de-test" force="true"/>
+        <env name="SASPAY_BASE_URL" value="https://saspay.test/api/v1" force="true"/>
+        <env name="REVERSEMENTS_REELS" value="false" force="true"/>
+        <env name="SIMULATEUR_WEBHOOK_URL" value="http://localhost:8000/api/webhooks/saspay" force="true"/>
+        <env name="ADMIN_EMAIL" value="admin@exemple.test" force="true"/>
+        <env name="MOTEUR_DELAI_PROXY" value="0" force="true"/>
+        <server name="PAIEMENT_PASSERELLE" value="simulee"/>
+        <server name="SASPAY_SECRET_KEY" value=""/>
+        <server name="SASPAY_WEBHOOK_SECRET" value="secret-webhook-de-test"/>
+        <server name="SASPAY_BASE_URL" value="https://saspay.test/api/v1"/>
+        <server name="REVERSEMENTS_REELS" value="false"/>
+        <server name="SIMULATEUR_WEBHOOK_URL" value="http://localhost:8000/api/webhooks/saspay"/>
+        <server name="ADMIN_EMAIL" value="admin@exemple.test"/>
+        <server name="IA_FOURNISSEUR" value="simulee"/>
+        <server name="DEEPSEEK_API_KEY" value=""/>
+        <server name="MOTEUR_DELAI_PROXY" value="0"/>
         <server name="BROADCAST_CONNECTION" value="null"/>
+        <server name="DEMO_CONNEXION" value="false"/>
         <server name="CACHE_STORE" value="array"/>
         <server name="DB_CONNECTION" value="sqlite"/>
         <server name="DB_DATABASE" value=":memory:"/>

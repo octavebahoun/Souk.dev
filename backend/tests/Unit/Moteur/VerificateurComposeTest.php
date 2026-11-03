@@ -52,7 +52,7 @@ YAML);
     public function test_refuse_privileged(): void
     {
         $this->expectException(LancementEchoue::class);
-        $this->expectExceptionMessage('Le service « web » est privileged.');
+        $this->expectExceptionMessage('Le service « web » est privileged.');
 
         $this->verificateur->verifier(<<<'YAML'
 services:
@@ -210,6 +210,11 @@ YAML);
             'network_mode bridge partagé' => ["services:\n  web:\n    image: nginx\n    network_mode: bridge\n", 'network_mode'],
             'réseau réservé à la racine' => ["services:\n  web:\n    image: nginx\nnetworks:\n  soukdev-copie:\n    driver: bridge\n", 'réservé'],
             'réseau réservé dans un service' => ["services:\n  web:\n    image: nginx\n    networks:\n      - soukdev-copie\n", 'réservé'],
+            'placement imposé' => ["services:\n  web:\n    image: nginx\n    deploy:\n      placement:\n        constraints: [node.role == manager]\n", 'deploy.placement'],
+            'réplicas' => ["services:\n  web:\n    image: nginx\n    deploy:\n      replicas: 20\n", 'deploy.replicas'],
+            'réservations (cartes graphiques)' => ["services:\n  web:\n    image: nginx\n    deploy:\n      resources:\n        reservations:\n          devices:\n            - capabilities: [gpu]\n", 'deploy.resources.reservations'],
+            'journaux réglés par le dépôt' => ["services:\n  web:\n    image: nginx\n    logging:\n      driver: none\n", 'logging'],
+            'sept services' => ["services:\n".implode('', array_map(fn (int $i) => "  s{$i}:\n    image: nginx\n", range(1, 7))), '6 au plus'],
         ];
     }
 
@@ -248,7 +253,7 @@ YAML);
     public function test_refuse_un_document_json_privileged(): void
     {
         $this->expectException(LancementEchoue::class);
-        $this->expectExceptionMessage('Le service « web » est privileged.');
+        $this->expectExceptionMessage('Le service « web » est privileged.');
 
         $this->verificateur->verifierDocument([
             'services' => [
@@ -275,6 +280,7 @@ YAML);
             $this->assertStringContainsString('cap_drop: ALL', $exception->getMessage());
             $this->assertStringContainsString('no-new-privileges', $exception->getMessage());
             $this->assertStringContainsString('réseau de la copie', $exception->getMessage());
+            $this->assertStringContainsString('plafond de journaux', $exception->getMessage());
         }
     }
 
@@ -290,10 +296,33 @@ YAML);
                     'cap_add' => ['CHOWN', 'SETUID'],
                     'security_opt' => ['no-new-privileges:true'],
                     'networks' => ['soukdev-copie' => null],
+                    'logging' => ['driver' => 'local', 'options' => ['max-size' => '10m', 'max-file' => '3']],
+                    // Sortie réelle de docker compose config (2.40) : placement vide ajouté.
+                    'deploy' => ['resources' => ['limits' => ['cpus' => 0.5, 'memory' => '536870912', 'pids' => 256]], 'placement' => []],
                 ],
             ],
             'networks' => ['soukdev-copie' => ['driver' => 'bridge']],
         ], 'petite');
+
+        $this->expectNotToPerformAssertions();
+    }
+
+    public function test_les_services_du_backend_integre_ne_comptent_pas_dans_la_limite(): void
+    {
+        $service = [
+            'image' => 'nginx:alpine',
+            'pids_limit' => 256,
+            'cap_drop' => ['ALL'],
+            'security_opt' => ['no-new-privileges:true'],
+            'networks' => ['soukdev-copie' => null],
+            'logging' => ['driver' => 'local', 'options' => ['max-size' => '10m', 'max-file' => '3']],
+        ];
+        $services = [];
+        foreach (['web', 'worker', 'cache', 'files', 'cron', 'mail', 'soukdev-db', 'soukdev-api'] as $nom) {
+            $services[$nom] = $service;
+        }
+
+        $this->verificateur->verifierDocument(['services' => $services, 'networks' => ['soukdev-copie' => null]], 'petite');
 
         $this->expectNotToPerformAssertions();
     }

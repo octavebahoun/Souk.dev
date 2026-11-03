@@ -5,13 +5,25 @@ namespace App\Models;
 use App\Events\CopieTestEtat;
 use App\Events\CorrectifEtat;
 use App\Events\DeploiementEtat;
+use App\Jobs\ArreterDeploiement;
 use App\Moteur\DepotGithub;
 use App\Moteur\Exceptions\DepotInvalide;
+use App\Moteur\MachineCible;
+use App\Moteur\MachineDocker;
+use App\Moteur\SauvegardeVolumes;
+use Database\Factories\DeploiementFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Throwable;
 
 class Deploiement extends Model
 {
+    /** @use HasFactory<DeploiementFactory> */
+    use HasFactory;
+
     protected $table = 'deploiements';
 
     protected $fillable = [
@@ -31,6 +43,8 @@ class Deploiement extends Model
         'expire_le',
     ];
 
+    protected $hidden = ['backend_secret'];
+
     protected function casts(): array
     {
         return [
@@ -39,13 +53,57 @@ class Deploiement extends Model
             'discussion_id' => 'integer',
             'correctif_id' => 'integer',
             'variables' => 'array',
+            // Secret de l'API du backend intégré : signe les jetons des utilisateurs de l'appli.
+            'backend_secret' => 'encrypted',
             'expire_le' => 'datetime',
         ];
     }
 
+    /** L'appli, même retirée du store : ses clients gardent leur copie. */
     public function appli(): BelongsTo
     {
-        return $this->belongsTo(Appli::class);
+        return $this->belongsTo(Appli::class)->withTrashed();
+    }
+
+    /**
+     * @return BelongsTo<VersionAppli, $this>
+     */
+    public function version(): BelongsTo
+    {
+        return $this->belongsTo(VersionAppli::class, 'version_id');
+    }
+
+    /**
+     * @return HasMany<MiseAJour, $this>
+     */
+    public function misesAJour(): HasMany
+    {
+        return $this->hasMany(MiseAJour::class);
+    }
+
+    /**
+     * @return HasOne<MiseAJour, $this>
+     */
+    public function derniereMiseAJour(): HasOne
+    {
+        return $this->hasOne(MiseAJour::class)->latestOfMany();
+    }
+
+    /** Une version publiée plus récente que celle de la copie client, à appliquer quand le client le choisit. */
+    public function versionDisponible(): ?VersionAppli
+    {
+        if ($this->type !== 'client' || $this->appli === null) {
+            return null;
+        }
+
+        $publiee = $this->appli->versionPubliee;
+
+        return $publiee !== null && $publiee->numero > (int) $this->version?->numero ? $publiee : null;
+    }
+
+    public function abonnement(): HasOne
+    {
+        return $this->hasOne(Abonnement::class);
     }
 
     public function discussion(): BelongsTo
@@ -63,11 +121,27 @@ class Deploiement extends Model
         return $this->belongsTo(User::class, 'user_id');
     }
 
+    public function machine(): BelongsTo
+    {
+        return $this->belongsTo(Machine::class);
+    }
+
+    /** Le démon Docker qui héberge la copie (le démon local tant qu'elle n'est pas placée). */
+    public function cibleMachine(): MachineCible
+    {
+        return $this->machine?->cible() ?? new MachineDocker(null);
+    }
+
     public function changerEtat(string $etat, ?string $url = null, ?string $erreur = null): bool
     {
         $this->refresh();
 
         if ($this->etat === 'arrete' && $etat !== 'arrete') {
+            return false;
+        }
+
+        // Un arrêt demandé ne peut plus être annulé par le lancement en cours.
+        if ($this->etat === 'arret_en_cours' && ! in_array($etat, ['arrete', 'echec'], true)) {
             return false;
         }
 
@@ -93,23 +167,57 @@ class Deploiement extends Model
         return true;
     }
 
+    /**
+     * Demande l'arrêt de la copie au moteur, seul à parler à Docker (voir ArreterDeploiement).
+     * Le job part avant toute diffusion : une panne de Reverb ne laisse jamais un arrêt sans job.
+     * Redemandé alors qu'il est en cours, l'arrêt est relancé (le moteur est idempotent).
+     */
+    public function demanderArret(): void
+    {
+        $this->refresh();
+
+        if ($this->etat === 'arrete') {
+            return;
+        }
+
+        if ($this->etat !== 'arret_en_cours') {
+            $this->forceFill(['etat' => 'arret_en_cours'])->save();
+        }
+
+        ArreterDeploiement::dispatch($this->id);
+        $this->diffuser();
+    }
+
+    public function estEnCoursArret(): bool
+    {
+        return in_array($this->etat, ['arrete', 'arret_en_cours'], true);
+    }
+
+    /**
+     * Pousse l'état par Reverb. Une panne de Reverb ne casse jamais un changement d'état :
+     * l'état est déjà en base, le front le relit à la prochaine requête.
+     */
     public function diffuser(): void
     {
         $this->loadMissing('appli');
 
-        event(new DeploiementEtat($this->id, $this->versApi()));
+        try {
+            event(new DeploiementEtat($this->id, $this->versApi()));
 
-        // La copie de test et la version corrigée se suivent aussi sur la discussion, publique.
-        if ($this->type === 'test' && $this->discussion_id !== null) {
-            event(new CopieTestEtat($this->discussion_id, $this->versApi()));
-        }
-
-        if ($this->type === 'correctif' && $this->correctif_id !== null) {
-            $correctif = $this->correctif()->first();
-
-            if ($correctif !== null) {
-                event(new CorrectifEtat($correctif));
+            // La copie de test et la version corrigée se suivent aussi sur la discussion, publique.
+            if ($this->type === 'test' && $this->discussion_id !== null) {
+                event(new CopieTestEtat($this->discussion_id, $this->versApi()));
             }
+
+            if ($this->type === 'correctif' && $this->correctif_id !== null) {
+                $correctif = $this->correctif()->first();
+
+                if ($correctif !== null) {
+                    event(new CorrectifEtat($correctif));
+                }
+            }
+        } catch (Throwable $exception) {
+            report($exception);
         }
     }
 
@@ -124,11 +232,11 @@ class Deploiement extends Model
     }
 
     /**
-     * @return array{id: int, app_id: int|null, app_nom: string, taille: string, type: string, etat: string, url: string|null, erreur: string|null, cree_le: string}
+     * @return array<string, mixed>
      */
     public function versApi(): array
     {
-        $this->loadMissing('appli');
+        $this->loadMissing(['appli.versionPubliee', 'version', 'derniereMiseAJour', 'machine']);
 
         return [
             'id' => $this->id,
@@ -140,6 +248,35 @@ class Deploiement extends Model
             'url' => $this->url,
             'erreur' => $this->erreur,
             'cree_le' => $this->created_at->toIso8601String(),
+            'abonnement' => $this->type === 'client' ? $this->abonnement?->versApi() : null,
+            'facture_a_payer' => $this->factureAPayer(),
+            'version' => $this->version?->numero,
+            'version_disponible' => $this->versionDisponible()?->resume(),
+            'mise_a_jour' => $this->derniereMiseAJour?->versApi(),
+            'derniere_sauvegarde' => $this->type === 'client' && $this->copie !== null ? app(SauvegardeVolumes::class)->derniere((string) $this->copie) : null,
+            'machine_nom' => $this->machine?->nom,
+            'suspension_admin_motif' => $this->suspension_admin_motif,
+        ];
+    }
+
+    /**
+     * @return array{id: int, numero: string, montant_total: int, echeance_le: string, statut: string}|null
+     */
+    private function factureAPayer(): ?array
+    {
+        if ($this->type !== 'client') {
+            return null;
+        }
+
+        $this->loadMissing('abonnement.facturesAPayer');
+        $facture = $this->abonnement?->facturesAPayer->first();
+
+        return $facture === null ? null : [
+            'id' => $facture->id,
+            'numero' => (string) $facture->numero,
+            'montant_total' => $facture->montant_total,
+            'echeance_le' => $facture->echeance_le->toDateString(),
+            'statut' => $facture->statut,
         ];
     }
 

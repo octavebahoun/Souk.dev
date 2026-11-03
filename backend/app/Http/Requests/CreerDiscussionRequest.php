@@ -31,7 +31,7 @@ final class CreerDiscussionRequest extends FormRequest
             'canal' => ['required_without:app_id', 'prohibits:app_id', 'string', 'exists:canaux,slug'],
             'app_id' => ['required_without:canal', 'prohibits:canal', 'integer', new AppPubliee],
             'depot_url' => ['sometimes', 'nullable', 'string', new DepotGithub],
-            'demo_url' => ['sometimes', 'nullable', 'url'],
+            'demo_url' => ['sometimes', 'nullable', 'url:http,https'],
             'etiquettes' => ['sometimes', 'array'],
             'etiquettes.*' => ['string', Rule::enum(Etiquette::class)],
             'bug' => ['sometimes', 'array'],

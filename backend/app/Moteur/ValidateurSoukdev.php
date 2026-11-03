@@ -12,6 +12,10 @@ final class ValidateurSoukdev
      */
     public function validerFichier(string $chemin): array
     {
+        if (is_link($chemin)) {
+            throw new ManifestInvalide('soukdev.json ne doit pas être un lien symbolique.');
+        }
+
         if (! is_file($chemin)) {
             throw new ManifestInvalide('soukdev.json est absent à la racine du dépôt.');
         }

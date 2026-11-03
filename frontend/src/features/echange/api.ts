@@ -1,7 +1,8 @@
 import axios from 'axios'
 import type { components, operations } from '../../shared/types/api'
-import { cheminApi, cheminLaravel, client, clientLocal } from '../../shared/client'
+import { cheminLaravel, clientLocal } from '../../shared/client'
 import type { FiltresFil } from './filtres'
+import { preparerCsrf } from '../../app/preparerCsrf'
 
 export type Discussion = components['schemas']['Discussion']
 export type Canal = components['schemas']['Canal']
@@ -110,7 +111,7 @@ export async function creerMessage(id: number, corps: MessageCreation): Promise<
 }
 
 export async function lancerCopieTest(id: number): Promise<Deploiement> {
-  const { data } = await client.post<Deploiement>(cheminApi(`/discussions/${id}/copie-test`))
+  const { data } = await clientLocal.post<Deploiement>(cheminLaravel(`/discussions/${id}/copie-test`))
   if (!data || typeof data.id !== 'number') throw new Error('Réponse vide')
   return data
 }
@@ -120,7 +121,8 @@ export async function arreterDeploiement(id: number): Promise<void> {
 }
 
 export async function demanderAnalyse(id: number): Promise<AnalyseIa> {
-  const { data } = await client.post<AnalyseIa>(cheminApi(`/discussions/${id}/analyse-ia`))
+  await preparerCsrf()
+  const { data } = await clientLocal.post<AnalyseIa>(cheminLaravel(`/discussions/${id}/analyse-ia`), { consentement: true })
   if (!data || typeof data.statut !== 'string') throw new Error('Réponse vide')
   return data
 }
@@ -140,7 +142,7 @@ export async function creerCorrectif(id: number, corps: CorrectifCreation): Prom
 }
 
 export async function deployerCorrectif(id: number): Promise<Deploiement> {
-  const { data } = await client.post<Deploiement>(cheminApi(`/correctifs/${id}/deploiement`))
+  const { data } = await clientLocal.post<Deploiement>(cheminLaravel(`/correctifs/${id}/deploiement`))
   if (!data || typeof data.id !== 'number') throw new Error('Réponse vide')
   return data
 }
@@ -187,4 +189,25 @@ export function lireErreurHttp(erreur: unknown, secours = 'La publication a éch
   }
 
   return { statut, message, champs }
+}
+
+export type CanalCreation = components['schemas']['CanalCreation']
+
+export async function creerCanal(corps: CanalCreation): Promise<Canal> {
+  await preparerCsrf()
+  const { data } = await clientLocal.post<Canal>(cheminLaravel('/canaux'), corps)
+  if (!data || typeof data.slug !== 'string') throw new Error('Réponse vide')
+  return data
+}
+
+/** Supprimer une discussion (son auteur ou l'équipe de modération). */
+export async function supprimerDiscussion(id: number): Promise<void> {
+  await preparerCsrf()
+  await clientLocal.delete(cheminLaravel(`/discussions/${id}`))
+}
+
+/** Supprimer un message (son auteur ou l'équipe de modération). */
+export async function supprimerMessage(id: number): Promise<void> {
+  await preparerCsrf()
+  await clientLocal.delete(cheminLaravel(`/messages/${id}`))
 }

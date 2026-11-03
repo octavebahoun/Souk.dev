@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Jobs\MesurerMemoire;
 use App\Models\Appli;
 use App\Models\User;
+use App\Securite\VerificationSecrets;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Process\PendingProcess;
@@ -12,18 +13,27 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use Mockery\MockInterface;
 use Tests\TestCase;
 
 class PublicationAppliTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // La recherche de secrets tourne sur le moteur (voir SecuriteDepotTest) : ici, un dépôt sans secret.
+        $this->mock(VerificationSecrets::class, fn (MockInterface $mock) => $mock->shouldReceive('secrets')->andReturn([]));
+    }
+
     public function test_la_publication_lance_la_mesure_en_tache_de_fond(): void
     {
         Queue::fake();
         Storage::fake('public');
         $this->simulerDepot();
-        $utilisateur = User::factory()->create();
+        $utilisateur = User::factory()->github()->create();
 
         $reponse = $this->actingAs($utilisateur)->post('/api/apps', $this->payload(), [
             'Accept' => 'application/json',
@@ -66,7 +76,7 @@ class PublicationAppliTest extends TestCase
         Storage::fake('public');
         $this->simulerDepot(compose: "services:\n  front:\n    image: nginx:alpine\n    privileged: true\n");
 
-        $this->actingAs(User::factory()->create())
+        $this->actingAs(User::factory()->github()->create())
             ->post('/api/apps', $this->payload(), ['Accept' => 'application/json'])
             ->assertStatus(422)
             ->assertJsonValidationErrors('depot_url');
@@ -81,7 +91,7 @@ class PublicationAppliTest extends TestCase
         Storage::fake('public');
         $this->simulerDepot(manifeste: ['version' => 2]);
 
-        $this->actingAs(User::factory()->create())
+        $this->actingAs(User::factory()->github()->create())
             ->post('/api/apps', $this->payload(), ['Accept' => 'application/json'])
             ->assertStatus(422)
             ->assertJsonValidationErrors('depot_url');
@@ -109,6 +119,11 @@ class PublicationAppliTest extends TestCase
         Process::fake(function (PendingProcess $process) use ($manifeste, $compose) {
             if (($process->command[0] ?? '') !== 'git') {
                 return Process::result(errorOutput: 'inattendu', exitCode: 1);
+            }
+
+            // Le commit lu après le clonage (version 1 de l'appli).
+            if (($process->command[1] ?? '') === 'rev-parse') {
+                return Process::result(str_repeat('a', 40));
             }
 
             $destination = $process->command[array_key_last($process->command)];

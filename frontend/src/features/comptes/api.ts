@@ -28,3 +28,18 @@ export async function lireTableau(): Promise<TableauDeBord> {
   if (!data || !data.totaux || !Array.isArray(data.applis)) throw new Error('Réponse vide')
   return data
 }
+
+export type CompteModification = components['schemas']['CompteModification']
+
+export async function modifierProfil(corps: CompteModification): Promise<Compte> {
+  await preparerCsrf()
+  const { data } = await clientLocal.patch<Compte>(cheminLaravel('/me'), corps)
+  if (!data || typeof data.id !== 'number') throw new Error('Réponse vide')
+  return data
+}
+
+/** Développement seulement (DEMO_CONNEXION=true, 404 en production) : session d'un compte de démo. */
+export async function connexionDemo(compte: string): Promise<void> {
+  await preparerCsrf()
+  await clientLocal.post('/auth/demo', { compte })
+}

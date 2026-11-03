@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Modal } from '../../shared/ui/Modal'
+import { ExternalLink, Play, Square } from 'lucide-react'
+import { Alerte, Bouton, Carte, EnTeteCarte, Etapes, Modale, classesBouton, type Etape } from '../../ui'
 import {
   arreterDeploiement,
   lancerCopieTest,
@@ -9,17 +10,31 @@ import {
   type Discussion,
 } from './api'
 
-const boutonSecond =
-  'inline-flex min-h-cible items-center justify-center gap-2 rounded-controle border border-line bg-canvas px-4 font-semibold text-ink'
-const boutonAccent =
-  'inline-flex min-h-cible items-center justify-center rounded-controle bg-accent px-4 font-semibold text-canvas disabled:opacity-60'
-
 const etapes = [
   ['en_file', 'En file'],
   ['construction', 'Construction'],
   ['demarrage', 'Démarrage'],
   ['en_ligne', 'En ligne'],
 ] as const
+
+/** Étapes de la copie de test, pour le composant Etapes du système. */
+function etapesCopie(copie: Deploiement): Etape[] {
+  const rang = etapes.findIndex(([etat]) => etat === copie.etat)
+  return etapes.map(([etat, libelle], index) => ({
+    id: etat,
+    libelle,
+    etat:
+      copie.etat === 'echec' && index === Math.max(0, rang)
+        ? 'echec'
+        : rang === -1
+          ? copie.etat === 'en_ligne' ? 'terminee' : 'a_venir'
+          : index < rang || (index === rang && etat === 'en_ligne')
+            ? 'terminee'
+            : index === rang
+              ? 'en_cours'
+              : 'a_venir',
+  }))
+}
 
 function adresseVisible(url: string): string {
   try {
@@ -33,6 +48,7 @@ function adresseVisible(url: string): string {
 function messageCopie(copie: Deploiement): string {
   if (copie.etat === 'echec') return copie.erreur || 'La copie a échoué.'
   if (copie.etat === 'arrete') return 'Copie arrêtée.'
+  if (copie.etat === 'arret_en_cours') return 'Arrêt de la copie en cours.'
   if (copie.etat === 'en_ligne') return 'La copie tourne.'
   return 'La copie avance. La page se met à jour toute seule.'
 }
@@ -45,6 +61,7 @@ type CadreDemoProps = {
 export function CadreDemo({ discussion, auteur }: CadreDemoProps) {
   const client = useQueryClient()
   const [confirmer, setConfirmer] = useState(false)
+  const [confirmerArret, setConfirmerArret] = useState(false)
   const [erreur, setErreur] = useState<string | null>(null)
   const fermer = useCallback(() => setConfirmer(false), [])
   const copie = discussion.copie_test
@@ -52,7 +69,7 @@ export function CadreDemo({ discussion, auteur }: CadreDemoProps) {
   const cadre = demo || (copie?.etat === 'en_ligne' ? copie.url : null)
   const peutLancer = auteur && !copie && (discussion.depot_url !== null || discussion.app_id !== null)
   const peutArreter =
-    auteur && copie !== null && copie.etat !== 'echec' && copie.etat !== 'arrete'
+    auteur && copie !== null && copie.etat !== 'echec' && copie.etat !== 'arrete' && copie.etat !== 'arret_en_cours'
 
   const lancer = useMutation({
     mutationFn: () => lancerCopieTest(discussion.id),
@@ -70,6 +87,7 @@ export function CadreDemo({ discussion, auteur }: CadreDemoProps) {
     mutationFn: () => arreterDeploiement(copie?.id ?? 0),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: ['discussion', discussion.id] })
+      setConfirmerArret(false)
       setErreur(null)
     },
     onError: (recue) => setErreur(messageAction(recue, '3 copies de test par heure.')),
@@ -77,99 +95,123 @@ export function CadreDemo({ discussion, auteur }: CadreDemoProps) {
 
   if (!discussion.depot_url && !cadre && !copie && !peutLancer) return null
 
+  // Une démo en http:// ne s'affiche pas dans la page (contenu mixte, CSP du front) : un lien suffit.
+  // La copie de test, servie par la plateforme, s'encadre toujours.
+  const encadrable = cadre !== null && (cadre.startsWith('https://') || cadre === copie?.url)
+
   return (
-    <section aria-labelledby="titre-projet" className="verre flex flex-col gap-4 rounded-carte p-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 id="titre-projet" className="m-0 text-[17px] font-bold">
-          Le projet
-        </h2>
-        {discussion.depot_url ? (
-          <a
-            href={discussion.depot_url}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex min-h-cible items-center rounded-controle border border-line bg-page px-3 font-mono text-[13px] text-ink"
-          >
-            {adresseVisible(discussion.depot_url)}
-          </a>
-        ) : null}
-      </div>
+    <Carte as="section" aria-labelledby="titre-projet" className="flex flex-col gap-4">
+      <EnTeteCarte
+        titre={<span id="titre-projet">Le projet</span>}
+        action={
+          discussion.depot_url ? (
+            <a href={discussion.depot_url} target="_blank" rel="noreferrer" className={classesBouton('contour', 'sm')}>
+              <span className="max-w-56 truncate font-mono">{adresseVisible(discussion.depot_url)}</span>
+              <ExternalLink aria-hidden="true" className="size-3.5" />
+              <span className="pour-lecteur"> (nouvel onglet)</span>
+            </a>
+          ) : undefined
+        }
+      />
 
       {!cadre ? (
-        <p className="m-0 rounded-xl border border-dashed border-line bg-page px-4 py-6 text-center text-sm text-muted">
+        <p className="m-0 rounded-moyen border border-dashed border-bordure bg-surface-douce px-4 py-6 text-center text-petit text-texte-doux">
           Aucun lien d’application en ligne n’a été renseigné dans cette discussion.
         </p>
-      ) : null}
-      {cadre ? (
-        <div className="overflow-hidden rounded-controle border border-line">
-          <div className="flex items-center gap-2 border-b border-line bg-[#EEF2F9] px-3 py-2">
-            <span className="min-w-0 flex-1 truncate rounded-md bg-canvas px-2.5 py-0.5 font-mono text-[12.5px] text-subtle">
-              {adresseVisible(cadre)}
-            </span>
-            <span className="text-xs text-muted">Démo externe · isolée</span>
+      ) : !encadrable ? (
+        <p className="m-0 rounded-moyen border border-dashed border-bordure bg-surface-douce px-4 py-6 text-center text-petit text-texte-doux">
+          Cette démo n’est pas servie en HTTPS : elle ne peut pas s’afficher dans la page. Ouvrez-la dans un onglet.
+        </p>
+      ) : (
+        <div className="overflow-hidden rounded-moyen border border-bordure">
+          <div className="flex items-center gap-2 border-b border-bordure bg-surface-douce px-3 py-2">
+            <span className="min-w-0 flex-1 truncate rounded-petit bg-surface px-2.5 py-0.5 font-mono text-petit text-texte">{adresseVisible(cadre)}</span>
+            <span className="text-petit text-texte-doux">Démo externe · isolée</span>
           </div>
-          <iframe title="Démo isolée" src={cadre} sandbox="allow-scripts allow-forms" referrerPolicy="no-referrer" className="h-64 w-full max-w-full border-0 bg-canvas" />
+          <iframe title="Démo isolée" src={cadre} sandbox="allow-scripts allow-forms" referrerPolicy="no-referrer" className="h-72 w-full max-w-full border-0 bg-surface" />
         </div>
-      ) : null}
+      )}
 
-      <div className="flex flex-wrap items-center gap-2.5">
-        {cadre ? (
-          <a href={cadre} target="_blank" rel="noreferrer" className={boutonSecond}>
-            Ouvrir dans un onglet
-          </a>
-        ) : null}
-        {peutLancer ? (
-          <button type="button" onClick={() => setConfirmer(true)} className={`${boutonSecond} border-accent text-accent`}>
-            Lancer une copie de test
-          </button>
-        ) : null}
-      </div>
-
-      {copie ? (
-        <div className="flex flex-col gap-3 rounded-controle border border-line bg-page p-4" role="status">
-          <h3 className="m-0 text-[15px] font-bold">Copie de test</h3>
-          <ol aria-label="Étapes de la copie" className="m-0 flex list-none flex-wrap gap-x-4 gap-y-2 p-0">
-            {etapes.map(([etat, libelle]) => (
-              <li key={etat} aria-current={copie.etat === etat ? 'step' : undefined} className={copie.etat === etat ? 'font-bold text-accent' : 'text-muted'}>
-                {libelle}
-              </li>
-            ))}
-          </ol>
-          <p className="m-0 text-sm">{messageCopie(copie)}</p>
-          {copie.etat === 'en_ligne' && copie.url ? (
-            <a href={copie.url} target="_blank" rel="noreferrer" className={boutonAccent}>
-              Ouvrir la copie
+      {cadre || peutLancer ? (
+        <div className="flex flex-wrap items-center gap-2">
+          {cadre ? (
+            <a href={cadre} target="_blank" rel="noreferrer" className={classesBouton('contour', 'md')}>
+              Ouvrir dans un onglet
+              <ExternalLink aria-hidden="true" className="size-4" />
+              <span className="pour-lecteur"> (nouvel onglet)</span>
             </a>
           ) : null}
-          {peutArreter ? (
-            <button type="button" onClick={() => arreter.mutate()} disabled={arreter.isPending} className={`${boutonSecond} border-danger text-danger`}>
-              Arrêter la copie
-            </button>
+          {peutLancer ? (
+            <Bouton variante="secondaire" icone={<Play aria-hidden="true" className="size-4" />} onClick={() => setConfirmer(true)}>
+              Lancer une copie de test
+            </Bouton>
           ) : null}
         </div>
       ) : null}
 
-      {erreur ? (
-        <p role="alert" className="m-0 text-sm text-danger">
-          {erreur}
-        </p>
+      {copie ? (
+        <div className="flex flex-col gap-3 rounded-moyen border border-bordure bg-surface-douce p-4" role="status">
+          <h3 className="m-0 text-corps font-semibold text-titre">Copie de test</h3>
+          <Etapes libelle="Étapes de la copie" etapes={etapesCopie(copie)} orientation="horizontale" />
+          <p className="m-0 text-petit text-texte">{messageCopie(copie)}</p>
+          <div className="flex flex-wrap gap-2">
+            {copie.etat === 'en_ligne' && copie.url ? (
+              <a href={copie.url} target="_blank" rel="noreferrer" className={classesBouton('primaire', 'md')}>
+                Ouvrir la copie
+                <ExternalLink aria-hidden="true" className="size-4" />
+                <span className="pour-lecteur"> (nouvel onglet)</span>
+              </a>
+            ) : null}
+            {peutArreter ? (
+              <Bouton variante="retrait" icone={<Square aria-hidden="true" className="size-4" />} onClick={() => setConfirmerArret(true)}>
+                Arrêter la copie
+              </Bouton>
+            ) : null}
+          </div>
+        </div>
       ) : null}
 
-      {confirmer ? (
-        <Modal titre="Lancer une copie de test ?" onFermer={fermer}>
-          <p className="m-0 text-subtle">
-            Souk.dev lance une copie à partir du dépôt ou de l’appli jointe. Rien ne part tout seul : 3 copies par heure.
-          </p>
-          <div className="flex flex-wrap justify-end gap-2">
-            <button type="button" onClick={fermer} className={boutonSecond}>
+      {erreur ? <Alerte ton="danger">{erreur}</Alerte> : null}
+
+      <Modale
+        ouverte={confirmerArret}
+        onFermer={() => setConfirmerArret(false)}
+        taille="petite"
+        titre="Arrêter la copie de test ?"
+        description="Ses conteneurs s’arrêtent et ses données sont supprimées. Vous pourrez en relancer une autre."
+        pied={
+          <>
+            <Bouton variante="contour" onClick={() => setConfirmerArret(false)}>
               Annuler
-            </button>
-            <button type="button" onClick={() => lancer.mutate()} disabled={lancer.isPending} className={boutonAccent}>
+            </Bouton>
+            <Bouton variante="danger" chargement={arreter.isPending} onClick={() => arreter.mutate()}>
+              Arrêter la copie
+            </Bouton>
+          </>
+        }
+      >
+        {null}
+      </Modale>
+
+      <Modale
+        ouverte={confirmer}
+        onFermer={fermer}
+        taille="petite"
+        titre="Lancer une copie de test ?"
+        description="Souk.dev lance une copie à partir du dépôt ou de l’appli jointe. Rien ne part tout seul : 3 copies par heure."
+        pied={
+          <>
+            <Bouton variante="contour" onClick={fermer}>
+              Annuler
+            </Bouton>
+            <Bouton chargement={lancer.isPending} onClick={() => lancer.mutate()}>
               Lancer la copie
-            </button>
-          </div>
-        </Modal>
-      ) : null}
-    </section>
+            </Bouton>
+          </>
+        }
+      >
+        {null}
+      </Modale>
+    </Carte>
   )
 }

@@ -3,6 +3,8 @@
 .env
 .env.backup
 .env.production
+# Clés de production de l'opérateur (docker-compose.prod.yml) : jamais commitées.
+.env.prod
 .phpactor.json
 .phpunit.result.cache
 /.codex

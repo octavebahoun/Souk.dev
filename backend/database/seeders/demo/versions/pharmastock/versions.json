@@ -1,0 +1,4 @@
+[
+  { "branche": "v2", "depuis": "main", "message": "Export PDF des ventes du jour" },
+  { "branche": "casse", "depuis": "v2", "message": "Version volontairement cassée (démo du retour arrière)" }
+]

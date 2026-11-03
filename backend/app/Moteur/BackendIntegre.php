@@ -3,7 +3,6 @@
 namespace App\Moteur;
 
 use App\Moteur\Exceptions\LancementEchoue;
-use Illuminate\Support\Facades\Process;
 use Throwable;
 
 /**
@@ -26,7 +25,7 @@ class BackendIntegre
      * @param  array<string, string>  $env
      * @return array<string, string>
      */
-    public function completerEnv(string $repertoire, array $manifeste, array $env): array
+    public function completerEnv(string $repertoire, array $manifeste, array $env, ?string $clePublique = null): array
     {
         if (($manifeste['backend'] ?? '') !== 'integre') {
             return $env;
@@ -35,7 +34,7 @@ class BackendIntegre
         $this->fichiers->lister($repertoire, (string) ($manifeste['migrations'] ?? ''));
         $services = $this->servicesDev($repertoire);
 
-        foreach (['SOUKDEV_URL', 'SOUKDEV_CLE'] as $nom) {
+        foreach (['SOUKDEV_URL', 'SOUKDEV_CLE', 'SOUKDEV_AUTH_URL', 'SOUKDEV_CLE_PUBLIQUE'] as $nom) {
             if (array_key_exists($nom, $env)) {
                 throw new LancementEchoue("La variable {$nom} est réservée au backend intégré.");
             }
@@ -44,12 +43,10 @@ class BackendIntegre
         $motDePasse = bin2hex(random_bytes(24));
         $secret = bin2hex(random_bytes(24));
         $cle = $this->cle($secret, 'soukdev_anon');
-        $this->ecrireCompose($repertoire, $motDePasse, $secret, $cle, $services);
+        $connexion = $this->connexion($clePublique);
+        $this->ecrireCompose($repertoire, $motDePasse, $secret, $cle, $services, $connexion);
 
-        $env['SOUKDEV_URL'] = 'http://soukdev-api:3000';
-        $env['SOUKDEV_CLE'] = $cle;
-
-        return $env;
+        return [...$env, 'SOUKDEV_URL' => 'http://soukdev-api:3000', 'SOUKDEV_CLE' => $cle, ...$connexion];
     }
 
     public function appliquer(CopieLocale $copie): void
@@ -60,19 +57,113 @@ class BackendIntegre
 
         $this->attendre($copie);
         $this->executer($copie, $this->roleAnon(), 'role');
+        // Le registre des migrations est hors du schéma public : PostgREST ne l'expose pas. Ce schéma
+        // porte le nom du rôle : sans search_path fixé, « "$user", public » rangerait les tables des
+        // migrations dans soukdev, hors de l'API.
+        $this->executer($copie, 'CREATE SCHEMA IF NOT EXISTS soukdev; CREATE TABLE IF NOT EXISTS soukdev.migrations (nom text PRIMARY KEY, appliquee_le timestamptz NOT NULL DEFAULT now()); ALTER ROLE soukdev SET search_path TO public;', 'registre');
+        $this->executer($copie, $this->roleUtilisateur(), 'utilisateurs');
+        $deja = $this->migrationsAppliquees($copie);
 
+        // Une nouvelle version n'applique que ses nouvelles migrations, dans l'ordre des fichiers.
         foreach ($this->fichiers->lister($copie->repertoire, (string) $copie->manifeste['migrations']) as $fichier) {
+            $nom = basename($fichier);
+            if (in_array($nom, $deja, true)) {
+                continue;
+            }
+
             $contenu = file_get_contents($fichier);
 
             if ($contenu === false) {
-                throw new LancementEchoue(basename($fichier).' est illisible.');
+                throw new LancementEchoue($nom.' est illisible.');
             }
 
-            $this->executer($copie, $contenu, basename($fichier));
+            $this->executer($copie, $contenu, $nom);
+            $this->executer($copie, "INSERT INTO soukdev.migrations (nom) VALUES ('".str_replace("'", "''", $nom)."');", $nom);
         }
 
         $this->executer($copie, $this->droitsAnon(), 'droits');
         $this->rechargerApi($copie);
+    }
+
+    /**
+     * Mise à jour d'une copie « integre » : la même base (mot de passe, secret JWT, clé) pour le
+     * nouveau code ; seuls les services du nouveau docker-compose.yml reçoivent l'adresse et la clé.
+     *
+     * @param  array<string, mixed>  $manifeste
+     * @param  array<string, string>  $env
+     * @return array<string, string>
+     */
+    public function reconduire(string $ancien, string $nouveau, array $manifeste, array $env): array
+    {
+        if (($manifeste['backend'] ?? '') !== 'integre') {
+            return $env;
+        }
+
+        $compose = (string) @file_get_contents($ancien.DIRECTORY_SEPARATOR.'docker-compose.backend.yml');
+        if (preg_match('/POSTGRES_PASSWORD: "([0-9a-f]{48})"/', $compose, $motDePasse) !== 1
+            || preg_match('/PGRST_JWT_SECRET: "([0-9a-f]{48})"/', $compose, $secret) !== 1
+            || preg_match('/SOUKDEV_CLE: "([A-Za-z0-9._-]+)"/', $compose, $cle) !== 1) {
+            throw new LancementEchoue('Le backend intégré de la copie est illisible : la mise à jour ne peut pas garder sa base.');
+        }
+
+        $connexion = [];
+        foreach (['SOUKDEV_AUTH_URL', 'SOUKDEV_CLE_PUBLIQUE'] as $nom) {
+            if (preg_match('/'.$nom.': "([^"\n]+)"/', $compose, $valeur) === 1) {
+                $connexion[$nom] = $valeur[1];
+            }
+        }
+
+        $this->fichiers->lister($nouveau, (string) ($manifeste['migrations'] ?? ''));
+        $this->ecrireCompose($nouveau, $motDePasse[1], $secret[1], $cle[1], $this->servicesDev($nouveau), $connexion);
+
+        return [...$env, 'SOUKDEV_URL' => 'http://soukdev-api:3000', 'SOUKDEV_CLE' => $cle[1], ...$connexion];
+    }
+
+    /** Le secret de l'API de la copie (null sans backend intégré), gardé chiffré par la plateforme. */
+    public function secretDe(string $repertoire): ?string
+    {
+        $compose = (string) @file_get_contents($repertoire.DIRECTORY_SEPARATOR.'docker-compose.backend.yml');
+
+        return preg_match('/PGRST_JWT_SECRET: "([0-9a-f]{48})"/', $compose, $secret) === 1 ? $secret[1] : null;
+    }
+
+    /**
+     * Adresse de connexion des utilisateurs de l'appli (code par SMS ou e-mail), et la clé publique de la copie.
+     *
+     * @return array<string, string>
+     */
+    private function connexion(?string $clePublique): array
+    {
+        if ($clePublique === null || preg_match('/^[0-9a-f-]{36}$/', $clePublique) !== 1) {
+            return [];
+        }
+
+        $api = rtrim((string) (function_exists('config') ? config('app.url') : ''), '/');
+
+        return [
+            'SOUKDEV_AUTH_URL' => $api.'/api/copies/'.$clePublique.'/auth',
+            'SOUKDEV_CLE_PUBLIQUE' => $clePublique,
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function migrationsAppliquees(CopieLocale $copie): array
+    {
+        $resultat = Commande::pour($copie->machine)->path($copie->repertoire)
+            ->timeout(60)
+            ->run([
+                ...$this->lanceur->argumentsCompose($copie->repertoire, $copie->id),
+                'exec', '-T', 'soukdev-db',
+                'psql', '-U', 'soukdev', '-d', 'soukdev', '-tA', '-c', 'SELECT nom FROM soukdev.migrations',
+            ]);
+
+        if ($resultat->failed()) {
+            throw new LancementEchoue('Le registre des migrations du backend intégré est illisible.');
+        }
+
+        return array_values(array_filter(array_map('trim', explode("\n", $resultat->output()))));
     }
 
     /**
@@ -101,7 +192,7 @@ class BackendIntegre
     /**
      * @param  list<string>  $services
      */
-    private function ecrireCompose(string $repertoire, string $motDePasse, string $secret, string $cle, array $services): void
+    private function ecrireCompose(string $repertoire, string $motDePasse, string $secret, string $cle, array $services, array $connexion = []): void
     {
         $postgres = $this->image(self::IMAGE_POSTGRES, 'moteur.backend_image_postgres');
         $postgrest = $this->image(self::IMAGE_POSTGREST, 'moteur.backend_image_postgrest');
@@ -144,6 +235,9 @@ YAML;
             $yaml .= "    environment:\n";
             $yaml .= "      SOUKDEV_URL: \"http://soukdev-api:3000\"\n";
             $yaml .= "      SOUKDEV_CLE: \"{$cle}\"\n";
+            foreach ($connexion as $nom => $valeur) {
+                $yaml .= "      {$nom}: \"{$valeur}\"\n";
+            }
         }
 
         $chemin = $repertoire.DIRECTORY_SEPARATOR.'docker-compose.backend.yml';
@@ -158,7 +252,7 @@ YAML;
         $tentatives = $this->tentatives();
 
         for ($essai = 1; $essai <= $tentatives; $essai++) {
-            $resultat = Process::path($copie->repertoire)
+            $resultat = Commande::pour($copie->machine)->path($copie->repertoire)
                 ->timeout(15)
                 ->run([
                     ...$this->lanceur->argumentsCompose($copie->repertoire, $copie->id),
@@ -180,7 +274,7 @@ YAML;
 
     private function executer(CopieLocale $copie, string $sql, string $nom): void
     {
-        $resultat = Process::path($copie->repertoire)
+        $resultat = Commande::pour($copie->machine)->path($copie->repertoire)
             ->input($sql)
             ->timeout(60)
             ->run([
@@ -196,7 +290,7 @@ YAML;
 
     private function rechargerApi(CopieLocale $copie): void
     {
-        $resultat = Process::path($copie->repertoire)
+        $resultat = Commande::pour($copie->machine)->path($copie->repertoire)
             ->timeout(60)
             ->run([
                 ...$this->lanceur->argumentsCompose($copie->repertoire, $copie->id),
@@ -227,8 +321,33 @@ SQL;
     private function droitsAnon(): string
     {
         return <<<'SQL'
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO soukdev_anon;
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO soukdev_anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO soukdev_anon, soukdev_utilisateur;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO soukdev_anon, soukdev_utilisateur;
+SQL;
+    }
+
+    /**
+     * Les utilisateurs connectés par code (jeton signé par la plateforme, rôle soukdev_utilisateur) :
+     * les migrations du dev filtrent leurs lignes avec soukdev.utilisateur_id() dans des politiques RLS.
+     */
+    private function roleUtilisateur(): string
+    {
+        return <<<'SQL'
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'soukdev_utilisateur') THEN
+        CREATE ROLE soukdev_utilisateur NOLOGIN;
+    END IF;
+END
+$$;
+GRANT soukdev_utilisateur TO soukdev;
+GRANT USAGE ON SCHEMA public, soukdev TO soukdev_utilisateur, soukdev_anon;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO soukdev_utilisateur;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO soukdev_utilisateur;
+CREATE OR REPLACE FUNCTION soukdev.utilisateur_id() RETURNS uuid LANGUAGE sql STABLE AS $$
+    SELECT nullif(current_setting('request.jwt.claims', true)::json->>'sub', '')::uuid
+$$;
+GRANT EXECUTE ON FUNCTION soukdev.utilisateur_id() TO soukdev_utilisateur, soukdev_anon;
 SQL;
     }
 

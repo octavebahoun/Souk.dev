@@ -16,6 +16,7 @@ Le back diffuse avec Laravel Reverb, le front écoute avec Laravel Echo.
 |---|---|---|
 | `deploiement.{id}` | privé | Le compte qui a lancé le déploiement |
 | `mission.{id}` | privé | Le client et l'auteur de la mission |
+| `utilisateur.{id}` | privé | Le compte lui-même (ses factures, ses notifications) |
 | `discussions` | public | Tout le monde (le fil) |
 | `discussion.{id}` | public | Tout le monde (les discussions sont publiques) |
 | `evenement.{id}` | public | Tout le monde |
@@ -24,10 +25,12 @@ Le back diffuse avec Laravel Reverb, le front écoute avec Laravel Echo.
 
 | Canal | Événement | Payload (schéma OpenAPI) | Quand |
 |---|---|---|---|
-| `deploiement.{id}` | `deploiement.etat` | `Deploiement` | À chaque changement d'état : `en_file` → `construction` → `demarrage` → `en_ligne` ou `echec` ; `arrete` après un arrêt |
+| `deploiement.{id}` | `deploiement.etat` | `Deploiement` | À chaque changement d'état : `en_file` → `construction` → `demarrage` → `en_ligne` ou `echec` ; `arret_en_cours` puis `arrete` après un arrêt ; et à la fin d'une sauvegarde (même état, `derniere_sauvegarde` changée) |
 | `mission.{id}` | `message.cree` | `Message` | Nouveau message dans le fil privé |
-| `discussions` | `discussion.creee` | `Discussion` | Nouvelle discussion ; le front filtre lui-même par canal ou étiquette |
-| `discussion.{id}` | `discussion.modifiee` | `Discussion` | L'auteur modifie la discussion (y compris `resolue`, ou acceptation d'un correctif) |
+| `utilisateur.{id}` | `facture.modifiee` | `Facture` | Une facture du compte change (émise, payée après vérification par l'API SasPay, annulée, remboursée) |
+| `utilisateur.{id}` | `notification.creee` | `Notification` | Une notification arrive dans le centre (selon les préférences du compte) : la cloche se met à jour sans recharger |
+| `discussions` | `discussion.creee` | `Discussion` (texte et code abrégés à 500 caractères, analyse sans texte) | Nouvelle discussion ; le front filtre lui-même par canal ou étiquette |
+| `discussion.{id}` | `discussion.modifiee` | `Discussion` (abrégée comme ci-dessus) | L'auteur modifie la discussion (y compris `resolue`, ou acceptation d'un correctif) |
 | `discussion.{id}` | `discussion.supprimee` | `{ "id": integer }` | Suppression par l'auteur ou un admin |
 | `discussion.{id}` | `message.cree` | `Message` | Nouvelle réponse |
 | `discussion.{id}` | `message.modifie` | `Message` | L'auteur modifie son message |
@@ -36,6 +39,7 @@ Le back diffuse avec Laravel Reverb, le front écoute avec Laravel Echo.
 | `discussion.{id}` | `correctif.propose` | `Correctif` | Nouveau correctif proposé |
 | `discussion.{id}` | `correctif.etat` | `Correctif` | Changement d'état du déploiement d'un correctif, **seulement si son auteur l'a lancé** |
 | `discussion.{id}` | `correctif.accepte` | `Correctif` | L'auteur de la discussion accepte un correctif (un seul par discussion) |
+| `discussion.{id}` | `analyse_ia.terminee` | `AnalyseIa` sans `texte` | L'analyse Souk AI demandée par l'auteur est prête (`prete`) ou indisponible (`echec`) ; la page relit la discussion (le texte dépasserait la taille d'un message Reverb) |
 | `evenement.{id}` | `inscriptions.maj` | `{ "nb_inscrits": integer }` | Inscription ou désinscription |
 | `evenement.{id}` | `evenement.modifie` | `Evenement` (avec `lien` à `null`) | L'organisateur modifie l'événement |
 | `evenement.{id}` | `evenement.annule` | `{ "id": integer }` | Suppression par l'organisateur ou un admin ; les inscrits sont aussi prévenus hors ligne |

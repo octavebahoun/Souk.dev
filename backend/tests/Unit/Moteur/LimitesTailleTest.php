@@ -18,6 +18,7 @@ class LimitesTailleTest extends TestCase
             $this->assertSame(<<<'YAML'
 services:
   front:
+    restart: unless-stopped
     mem_limit: 512m
     memswap_limit: 512m
     cpus: "0.5"
@@ -38,11 +39,17 @@ services:
       - NET_BIND_SERVICE
       - SETGID
       - SETUID
+    logging:
+      driver: local
+      options:
+        max-size: 10m
+        max-file: "3"
     security_opt:
       - "no-new-privileges:true"
     networks:
       soukdev-copie: {}
   db:
+    restart: unless-stopped
     mem_limit: 512m
     memswap_limit: 512m
     cpus: "0.5"
@@ -63,6 +70,11 @@ services:
       - NET_BIND_SERVICE
       - SETGID
       - SETUID
+    logging:
+      driver: local
+      options:
+        max-size: 10m
+        max-file: "3"
     security_opt:
       - "no-new-privileges:true"
     networks:

@@ -1,0 +1,4 @@
+# Appli cobaye du jeu de démo (écrite pour Souk.dev, aucune donnée réelle) : un site statique.
+services:
+  web:
+    build: .
