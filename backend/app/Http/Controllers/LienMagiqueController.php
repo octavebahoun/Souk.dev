@@ -72,7 +72,7 @@ final class LienMagiqueController extends Controller
     {
         if ($request->expectsJson()) {
             return response()->json([
-                'message' => $etat === 'suspendu' ? 'Compte suspendu : '.$motif : 'Lien expiré ou déjà utilisé.',
+                'message' => $etat === 'suspendu' ? 'Compte suspendu : '.$motif : 'Lien expiré ou déjà utilisé.',
             ], $statut);
         }
 

@@ -298,7 +298,7 @@ final class ModerationTest extends TestCase
 
         $this->postJson('/auth/lien-magique/'.$token)
             ->assertForbidden()
-            ->assertJsonPath('message', 'Compte suspendu : Spam.');
+            ->assertJsonPath('message', "Compte suspendu\u{00A0}: Spam.");
         $this->assertGuest();
     }
 

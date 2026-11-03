@@ -66,7 +66,7 @@ final class SignalementController extends Controller
             ->exists();
 
         if ($existe) {
-            throw new ConflictHttpException('Vous avez déjà signalé ce contenu : l’équipe l’examine.');
+            throw new ConflictHttpException('Vous avez déjà signalé ce contenu : l’équipe l’examine.');
         }
 
         // Le contrôle ci-dessus ne voit pas un doublon créé entre-temps (double-clic,
@@ -74,7 +74,7 @@ final class SignalementController extends Controller
         try {
             $signalement = Signalement::query()->create([...$donnees, 'user_id' => $request->user()->id]);
         } catch (UniqueConstraintViolationException) {
-            throw new ConflictHttpException('Vous avez déjà signalé ce contenu : l’équipe l’examine.');
+            throw new ConflictHttpException('Vous avez déjà signalé ce contenu : l’équipe l’examine.');
         }
         $signalement->refresh();
 
@@ -85,9 +85,9 @@ final class SignalementController extends Controller
                 "Signalement {$signalement->motif} : {$signalement->cible} #{$signalement->cible_id}",
                 [
                     $signalement->cibleResume(),
-                    'Motif : '.$signalement->motif,
+                    'Motif : '.$signalement->motif,
                     $suspendue
-                        ? 'La copie est suspendue en attendant votre examen (politique d’abus) : réactivez-la si le signalement n’est pas fondé.'
+                        ? 'La copie est suspendue en attendant votre examen (politique d’abus) : réactivez-la si le signalement n’est pas fondé.'
                         : 'À examiner dans l’administration.',
                 ],
                 '/admin/moderation',
@@ -120,7 +120,7 @@ final class SignalementController extends Controller
             return false;
         }
 
-        return $suspension->suspendre($deploiement, 'Hameçonnage signalé : copie suspendue en attendant l’examen de l’équipe.') === SuspensionAbus::SUSPENDUE;
+        return $suspension->suspendre($deploiement, 'Hameçonnage signalé : copie suspendue en attendant l’examen de l’équipe.') === SuspensionAbus::SUSPENDUE;
     }
 
     public function index(Request $request): AnonymousResourceCollection

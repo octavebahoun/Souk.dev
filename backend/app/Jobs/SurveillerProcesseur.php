@@ -74,15 +74,15 @@ class SurveillerProcesseur implements ShouldQueue
         }
 
         Cache::forget($cle);
-        $motif = 'Minage présumé : processeur saturé pendant plus d’une heure.';
+        $motif = 'Minage présumé : processeur saturé pendant plus d’une heure.';
 
         if ($suspension->suspendre($deploiement, $motif) !== SuspensionAbus::SUSPENDUE) {
             return;
         }
 
         Log::warning('moderation: copie suspendue pour minage présumé', ['deploiement' => $deploiement->id, 'coeurs' => $coeurs]);
-        AlerteAdmin::envoyer("Copie #{$deploiement->id} suspendue : minage présumé", [
-            "La copie {$deploiement->copie} utilise son processeur à plus de 90 % depuis une heure : elle est suspendue (politique d’abus).",
+        AlerteAdmin::envoyer("Copie #{$deploiement->id} suspendue : minage présumé", [
+            "La copie {$deploiement->copie} utilise son processeur à plus de 90 % depuis une heure : elle est suspendue (politique d’abus).",
             'Vérifiez et réactivez-la depuis l’administration si c’est une charge légitime.',
         ], '/admin/moderation');
     }

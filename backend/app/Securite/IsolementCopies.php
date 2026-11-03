@@ -31,7 +31,7 @@ class IsolementCopies
             $domaine = strtolower((string) $domaine);
 
             if ($hoteCopie === $domaine || str_ends_with($hoteCopie, '.'.$domaine)) {
-                return "Les copies ({$hoteCopie}) partagent le domaine {$domaine} de la plateforme : la session des membres leur serait envoyée. Servez-les sur un domaine à part (DOMAINE_COPIES).";
+                return "Les copies ({$hoteCopie}) partagent le domaine {$domaine} de la plateforme : la session des membres leur serait envoyée. Servez-les sur un domaine à part (DOMAINE_COPIES).";
             }
         }
 
