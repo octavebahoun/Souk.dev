@@ -30,7 +30,7 @@ const lots: Lot[] = [
       return ['/', '/store', '/store?tri=note', `/store/${appli}`, '/echange', `/echange/${bug}`, '/devs', '/devs/soukdemo-awa', '/evenements', '/connexion', '/legal/cgu', '/legal/cgv', '/legal/confidentialite', '/legal/abus', '/page-inconnue']
     },
   },
-  { compte: 'soukdemo-awa', pages: async () => ['/tableau', '/copies', '/publier', '/missions', '/revenus', '/notifications', '/notifications/reglages'] },
+  { compte: 'soukdemo-awa', pages: async () => ['/tableau', '/profil', '/copies', '/publier', '/missions', '/revenus', '/notifications', '/notifications/reglages'] },
   {
     compte: 'soukdemo-pharmacie',
     pages: async (page) => {
