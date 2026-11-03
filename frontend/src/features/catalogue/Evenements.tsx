@@ -237,10 +237,10 @@ function CarteEvenement({
       <div className="flex shrink-0 flex-row items-center justify-between gap-2 border-t border-bordure pt-3 tablette:flex-col tablette:items-end tablette:justify-start tablette:border-t-0 tablette:pt-0">
         {!passe && organisateur && onModifier && onAnnuler ? (
           <div className="flex flex-wrap gap-2 tablette:justify-end">
-            <Bouton variante="contour" onClick={onModifier}>
+            <Bouton variante="contour" aria-label={`Modifier « ${item.titre} »`} onClick={onModifier}>
               Modifier
             </Bouton>
-            <Bouton variante="fantome" onClick={onAnnuler}>
+            <Bouton variante="retrait" aria-label={`Annuler l’événement « ${item.titre} »`} onClick={onAnnuler}>
               Annuler l’événement
             </Bouton>
           </div>

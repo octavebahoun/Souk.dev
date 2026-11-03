@@ -92,7 +92,7 @@ courbe `cubic-bezier(0.2, 0.7, 0.2, 1)`, seulement sur `transform` et `opacity`.
 
 | Composant | Rôle et règles |
 |---|---|
-| `Bouton`, `LienBouton` | Variantes `primaire`, `secondaire`, `fantome`, `danger` ; tailles `sm` (32 px), `md` (40 px, 44 px sur mobile), `lg` (48 px). État `chargement` (indicateur + `aria-busy`), désactivé tant qu'un formulaire est incomplet. Une icône à gauche au plus. |
+| `Bouton`, `LienBouton` | Variantes `primaire`, `secondaire`, `contour`, `fantome`, `retrait` (action destructrice en retrait : texte rouge, sans fond), `danger` (bouton plein, pour confirmer) ; tailles `sm` (32 px), `md` (40 px, 44 px sur mobile), `lg` (48 px). État `chargement` (indicateur + `aria-busy`), désactivé tant qu'un formulaire est incomplet. Une icône à gauche au plus. |
 | `Champ` | Étiquette toujours visible, aide sous le champ, erreur reliée par `aria-describedby` et `aria-invalid`, texte qui dit quoi faire. Variantes texte, zone de texte, liste, prix (FCFA). |
 | `CaseACocher`, `Interrupteur`, `ChoixCartes` | Choix binaires et choix parmi peu d'options (formule d'hébergement, réseau Mobile Money). |
 | `PuceFiltre` | Filtre à bascule en pastille (catégorie, étiquette, difficulté, stack), `aria-pressed`, 44 px sur mobile. |

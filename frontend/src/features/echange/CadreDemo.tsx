@@ -95,6 +95,10 @@ export function CadreDemo({ discussion, auteur }: CadreDemoProps) {
 
   if (!discussion.depot_url && !cadre && !copie && !peutLancer) return null
 
+  // Une démo en http:// ne s'affiche pas dans la page (contenu mixte, CSP du front) : un lien suffit.
+  // La copie de test, servie par la plateforme, s'encadre toujours.
+  const encadrable = cadre !== null && (cadre.startsWith('https://') || cadre === copie?.url)
+
   return (
     <Carte as="section" aria-labelledby="titre-projet" className="flex flex-col gap-4">
       <EnTeteCarte
@@ -113,6 +117,10 @@ export function CadreDemo({ discussion, auteur }: CadreDemoProps) {
       {!cadre ? (
         <p className="m-0 rounded-moyen border border-dashed border-bordure bg-surface-douce px-4 py-6 text-center text-petit text-texte-doux">
           Aucun lien d’application en ligne n’a été renseigné dans cette discussion.
+        </p>
+      ) : !encadrable ? (
+        <p className="m-0 rounded-moyen border border-dashed border-bordure bg-surface-douce px-4 py-6 text-center text-petit text-texte-doux">
+          Cette démo n’est pas servie en HTTPS : elle ne peut pas s’afficher dans la page. Ouvrez-la dans un onglet.
         </p>
       ) : (
         <div className="overflow-hidden rounded-moyen border border-bordure">
@@ -155,7 +163,7 @@ export function CadreDemo({ discussion, auteur }: CadreDemoProps) {
               </a>
             ) : null}
             {peutArreter ? (
-              <Bouton variante="contour" className="text-danger" icone={<Square aria-hidden="true" className="size-4" />} onClick={() => setConfirmerArret(true)}>
+              <Bouton variante="retrait" icone={<Square aria-hidden="true" className="size-4" />} onClick={() => setConfirmerArret(true)}>
                 Arrêter la copie
               </Bouton>
             ) : null}

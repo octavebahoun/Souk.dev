@@ -2,7 +2,7 @@ import { cx } from './cx'
 
 /** Classes partagées : boutons (et liens qui en ont l'allure), contrôles de formulaire. */
 
-export type VarianteBouton = 'primaire' | 'secondaire' | 'contour' | 'fantome' | 'danger'
+export type VarianteBouton = 'primaire' | 'secondaire' | 'contour' | 'fantome' | 'retrait' | 'danger'
 export type TailleBouton = 'sm' | 'md' | 'lg'
 
 export const baseBouton =
@@ -15,6 +15,8 @@ export const variantesBouton: Record<VarianteBouton, string> = {
   secondaire: 'bg-primaire-doux text-sur-primaire-doux hover:bg-primaire-doux-survol',
   contour: 'border border-bordure-champ bg-surface text-titre shadow-1 hover:bg-surface-douce',
   fantome: 'text-texte hover:bg-surface-douce hover:text-titre',
+  // Action destructrice en retrait (supprimer, annuler, arrêter) : rouge sans fond, confirmée ensuite.
+  retrait: 'text-danger hover:bg-fond-danger',
   danger: 'bg-danger-solide text-sur-couleur shadow-1 hover:brightness-95',
 }
 

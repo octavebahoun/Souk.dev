@@ -206,7 +206,7 @@ function DiscussionChargee({
                   </Bouton>
                 )
               ) : null}
-              <Bouton variante="fantome" icone={<Trash2 aria-hidden="true" className="size-4" />} onClick={onSupprimer}>
+              <Bouton variante="retrait" className="tablette:ml-3" icone={<Trash2 aria-hidden="true" className="size-4" />} onClick={onSupprimer}>
                 Supprimer
               </Bouton>
             </div>

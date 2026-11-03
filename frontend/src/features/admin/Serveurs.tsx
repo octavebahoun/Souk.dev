@@ -153,7 +153,7 @@ function CarteMachine({ machine }: { machine: Machine }) {
         <Bouton variante="fantome" taille="sm" onClick={() => setCible('modification')}>
           Modifier
         </Bouton>
-        <Bouton variante="fantome" taille="sm" className="text-danger" onClick={() => setCible('retrait')}>
+        <Bouton variante="retrait" taille="sm" onClick={() => setCible('retrait')}>
           Retirer
         </Bouton>
       </div>

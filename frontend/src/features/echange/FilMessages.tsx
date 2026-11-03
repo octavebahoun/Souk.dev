@@ -112,7 +112,7 @@ export function FilMessages({ discussionId, auteurId, page, onPage, connecteId, 
                       <span className="ml-auto flex items-center gap-1">
                         {connecteId !== message.auteur.id ? <Signaler cible="message" cibleId={message.id} etiquette="ce message" /> : null}
                         {moderateur || connecteId === message.auteur.id ? (
-                          <BoutonIcone libelle={`Supprimer le message de ${nom}`} onClick={() => setASupprimer(message.id)}>
+                          <BoutonIcone libelle={`Supprimer le message de ${nom}`} variante="retrait" onClick={() => setASupprimer(message.id)}>
                             <Trash2 aria-hidden="true" className="size-4" />
                           </BoutonIcone>
                         ) : null}
