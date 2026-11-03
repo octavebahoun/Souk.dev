@@ -26,7 +26,11 @@ function echoPrive(): Promise<ConnexionReverb | null> {
         .then((reponse) => rappel(null, reponse.data))
         .catch((erreur: Error) => rappel(erreur, null))
     },
-  }))
+  })).then((echo) => {
+    // Un échec (bibliothèque introuvable, Reverb absent) n'est pas gardé : le prochain écran réessaie.
+    if (!echo) connexion = undefined
+    return echo
+  })
 
   return connexion
 }

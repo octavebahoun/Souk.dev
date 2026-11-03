@@ -6,13 +6,17 @@ import { correspond, type FiltresFil } from './filtres'
 
 /**
  * Ouvre une connexion le temps qu'un écran est affiché : brancher la reçoit une fois ouverte,
- * la fonction rendue la ferme (même si elle s'ouvre après le départ de l'écran).
+ * la fonction rendue la ferme (même si elle s'ouvre après le départ de l'écran). Sans connexion
+ * (Reverb absent, bibliothèque introuvable), siIndisponible prévient l'écran, qui relit l'API.
  */
-function pendantLAffichage(brancher: (echo: ConnexionReverb) => () => void): () => void {
+function pendantLAffichage(brancher: (echo: ConnexionReverb) => () => void, siIndisponible?: () => void): () => void {
   let actif = true
   let debrancher: (() => void) | undefined
   void ouvrirReverb().then((echo) => {
-    if (!echo) return
+    if (!echo) {
+      if (actif) siIndisponible?.()
+      return
+    }
     if (!actif) {
       echo.disconnect()
       return
@@ -29,11 +33,11 @@ function pendantLAffichage(brancher: (echo: ConnexionReverb) => () => void): () 
   }
 }
 
-export function ecouterNouvellesDiscussions(recevoir: (discussion: Discussion) => void): () => void {
+export function ecouterNouvellesDiscussions(recevoir: (discussion: Discussion) => void, siIndisponible?: () => void): () => void {
   return pendantLAffichage((echo) => {
     echo.channel('discussions').listen('.discussion.creee', recevoir)
     return () => echo.leave('discussions')
-  })
+  }, siIndisponible)
 }
 
 function ecouterUneDiscussion(id: number, client: QueryClient, onSupprimee: () => void): () => void {
@@ -91,6 +95,8 @@ export function useDiscussionDirect(id: number, actif: boolean): boolean {
 
 export function useBandeau(filtres: FiltresFil) {
   const [nouvelles, setNouvelles] = useState<Discussion[]>([])
+  // En direct tant que Reverb répond ; sinon le fil se relit toutes les 15 secondes.
+  const [direct, setDirect] = useState(reverbConfigure)
   const filtresCourants = useRef(filtres)
 
   useEffect(() => {
@@ -98,14 +104,17 @@ export function useBandeau(filtres: FiltresFil) {
   }, [filtres])
 
   useEffect(() => {
-    return ecouterNouvellesDiscussions((discussion) => {
-      if (!correspond(discussion, filtresCourants.current)) return
-      setNouvelles((liste) => (liste.some((item) => item.id === discussion.id) ? liste : [...liste, discussion]))
-    })
+    return ecouterNouvellesDiscussions(
+      (discussion) => {
+        if (!correspond(discussion, filtresCourants.current)) return
+        setNouvelles((liste) => (liste.some((item) => item.id === discussion.id) ? liste : [...liste, discussion]))
+      },
+      () => setDirect(false),
+    )
   }, [])
 
   useEffect(() => {
-    if (reverbConfigure()) return
+    if (direct) return
     let ignore = false
     const connus = new Set<number>()
     let premier = true
@@ -137,7 +146,7 @@ export function useBandeau(filtres: FiltresFil) {
       ignore = true
       window.clearInterval(timer)
     }
-  }, [])
+  }, [direct])
 
   const visibles = nouvelles.filter((discussion) => correspond(discussion, filtres))
 
