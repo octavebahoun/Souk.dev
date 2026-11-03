@@ -27,11 +27,20 @@ class IsolementCopies
             ...array_map(self::hote(...), $urlsPlateforme),
         ]);
 
+        // Domaine commun des copies : l'adresse sans le nom de la copie (x.souk-apps.net → souk-apps.net).
+        $baseCopies = str_contains($hoteCopie, '.') ? substr($hoteCopie, strpos($hoteCopie, '.') + 1) : $hoteCopie;
+
         foreach ($domaines as $domaine) {
             $domaine = strtolower((string) $domaine);
 
             if ($hoteCopie === $domaine || str_ends_with($hoteCopie, '.'.$domaine)) {
                 return "Les copies ({$hoteCopie}) partagent le domaine {$domaine} de la plateforme : la session des membres leur serait envoyée. Servez-les sur un domaine à part (DOMAINE_COPIES).";
+            }
+
+            // L'inverse aussi : la plateforme sous le domaine des copies (DOMAINE=app.souk.dev,
+            // DOMAINE_COPIES=souk.dev) laisserait une copie poser des cookies sur la plateforme.
+            if ($domaine === $baseCopies || str_ends_with($domaine, '.'.$baseCopies)) {
+                return "La plateforme ({$domaine}) est sous le domaine des copies ({$baseCopies}) : une copie pourrait lui poser des cookies. Prenez deux domaines distincts (DOMAINE et DOMAINE_COPIES).";
             }
         }
 

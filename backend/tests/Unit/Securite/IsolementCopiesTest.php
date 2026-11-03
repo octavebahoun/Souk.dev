@@ -32,4 +32,12 @@ class IsolementCopiesTest extends TestCase
     {
         $this->assertNull(IsolementCopies::probleme('https://{copie}.monsouk.dev', '.souk.dev', self::PLATEFORME));
     }
+
+    public function test_la_plateforme_sous_le_domaine_des_copies_est_refusee(): void
+    {
+        $probleme = IsolementCopies::probleme('https://{copie}.souk.dev', '.app.souk.dev', ['https://app.souk.dev', 'https://api.app.souk.dev']);
+
+        $this->assertNotNull($probleme);
+        $this->assertStringContainsString('domaine des copies', $probleme);
+    }
 }
