@@ -57,6 +57,11 @@ final class CompteTest extends TestCase
             ->assertJsonPath('message', 'Non connecté.');
     }
 
+    public function test_un_visiteur_recoit_401_meme_sans_demander_du_json(): void
+    {
+        $this->get('/api/me')->assertUnauthorized()->assertJsonPath('message', 'Non connecté.');
+    }
+
     public function test_le_tableau_de_bord_montre_les_revenus_reels_du_grand_livre(): void
     {
         $compte = User::factory()->github()->create();

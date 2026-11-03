@@ -47,6 +47,11 @@ return Application::configure(basePath: dirname(__DIR__))
         HandleCors::skipWhen(fn (Request $request) => $request->is('api/copies/*'));
         $middleware->prepend(CorsCopies::class);
         $middleware->statefulApi();
+        // Pas de page de connexion côté API : un visiteur reçoit 401 en JSON, même sans
+        // Accept: application/json (sinon Laravel cherche une route « login » et répond 500).
+        $middleware->redirectGuestsTo(fn (Request $request) => $request->is('api/*', 'broadcasting/*')
+            ? null
+            : rtrim((string) config('app.frontend_url'), '/').'/connexion');
         $middleware->api(append: [
             'throttle:60,1',
         ]);
