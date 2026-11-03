@@ -6,8 +6,8 @@ Journal de l'agent, tenu à jour en continu (voir `BRIEF.md`, section 1).
 ## Où on en est
 
 - **Branche** : `saas-complet`, partie de `main` (la PR #28 `fin-mvp` y est fusionnée).
-- **Phase en cours** : 8 — Release. Phase 7 close le 1er novembre : douze écrans redessinés, ancien style supprimé, revue indépendante corrigée (15 constats), 25 parcours sur 25.
-- **Tâche suivante** : phase 8, audit (sécurité, performance mobile, accessibilité), README, docs/ et RELEASE_NOTES.md.
+- **Phase en cours** : aucune — les huit phases sont livrées. Phase 8 (release) close le 3 novembre : audit de sécurité (9 constats), revue indépendante (13 constats), écrans et parcours qui manquaient au brief, README, `docs/architecture.md`, `RELEASE_NOTES.md` ; 30 parcours sur 30.
+- **Tâche suivante** : rien d'engagé. Ce qui attend l'utilisateur ou une version suivante est dans « Problèmes ouverts » et dans les limites connues de `RELEASE_NOTES.md`.
 
 ## Étape 0 (25 octobre)
 
@@ -181,7 +181,28 @@ Contrat : seul le schéma `Signalement` gagne `cible_chemin` ; types régénér�
 15. Faible : hiérarchie et détails → « Proposer une mission » secondaire sur chaque carte, arrêt d'une copie de test confirmé, « (nouvel onglet) » lu sur les liens externes restants ; la `Modale` ferme sur Échap même quand le focus a quitté le panneau.
 
 ### Phase 8 — Release
-- [ ] Audit sécurité, performance, accessibilité ; documentation ; `RELEASE_NOTES.md`
+- [x] Audit sécurité (3 novembre) : sous-agent neuf sur tout le produit, 9 constats. Critique : le cookie de session (`.DOMAINE`) partait vers les copies `{copie}.DOMAINE`, qui font tourner le code des auteurs → copies sur `DOMAINE_COPIES`, l'API refuse de servir sinon. Élevé : aucun proxy de confiance (une seule limite de débit pour tous, liens signés en http) → `trustProxies`. Moyens : réplicas, réservations et services sans limite, journaux sans plafond, aucun en-tête de sécurité → six services, `deploy` réduit aux limites, journaux 3 × 10 Mo, CSP par empreinte, HSTS, refus des cadres ; isolation noyau documentée (userns-remap ou gVisor à poser). Faibles : schémas d'URL, lien magique consommé par un GET, devise en minuscules → corrigés. `follow-redirects` (haute) mis à jour.
+- [x] Fonctions du brief sans écran ou absentes (carte des fonctions par un sous-agent) : « Mon profil », création de canal, modification et annulation d'événement, suppression d'une discussion ou d'un message, mémoire mesurée et formule recommandée, politique d'abus automatique (minage, hameçonnage), session de démo en développement.
+- [x] Parcours qui manquaient (section 10, étape 4) : `e2e/communaute.spec.ts`, 6 tests à l'écran (discussion et copie de test, correctif proposé, accepté puis lancé, mission notée, événement créé, modifié, annulé, avis, profil et canal, suppression par l'équipe, publication depuis le formulaire). Ils ont trouvé : un clic juste après l'arrivée sur une page prenait un membre pour un visiteur ; l'état d'une version corrigée restait figé ; la limite générale de l'API (60/min) bloquait un membre qui suit sa copie → 300/min.
+- [x] Performance : temps réel chargé à la demande (−26 ko compressés au premier chargement), route et image préchargées dès le HTML. Mobile toujours sous 90 sur les pages publiques (voir Vérifications) : pré-rendu à faire, inscrit dans les limites.
+- [x] Documentation : README réécrit (captures, installation en moins de 10 minutes, comptes de démo), `docs/architecture.md`, `RELEASE_NOTES.md`, ancien brief rangé dans `docs/brief-concours.md`.
+- [x] Revue indépendante de la phase (sous-agent neuf, code et docs) : 13 constats, voir plus bas.
+
+#### Revue indépendante de la phase 8 (13 constats, tous traités)
+
+1. Élevé : un seul signalement d'hameçonnage suspendait la copie d'un client → deux membres distincts inscrits depuis 7 jours, 3 signalements par membre et par jour, 10 suspensions d'office par jour.
+2. Élevé : la CSP de l'API (`form-action 'self'`) bloquait la redirection après « Me connecter » et la confirmation d'un numéro → front permis.
+3. Moyen : le minage comparait la somme des conteneurs au plafond d'un seul → conteneur le plus chargé.
+4. Moyen : la limite de six services comptait les services du backend intégré dans la configuration finale → comptée sur le dépôt seulement.
+5. Faible : actions destructrices neutres et collées à l'action principale (la classe rouge perdait contre la variante) → variante `retrait`, noms accessibles précis.
+6. Faible : création de canaux sans limite propre → 3 par jour et par compte.
+7. Faible : isolement des copies vérifié dans un seul sens → les deux.
+8. Faible : messages du vérificateur sans espaces insécables → 92 corrigés.
+9. Faible : docs inexactes ou inachevées (notes de version, WCAG affirmé, images du README, préchargement, « refuse de démarrer ») → corrigées.
+10. Faible : commentaires et texte de « Mon profil » → corrigés, description selon le profil.
+11. Faible : relevé du processeur de toutes les machines dans une seule tâche (délai de 60 s) → une tâche par machine.
+12. Faible : démo en http:// en cadre blanc → lien vers un onglet.
+13. Faible : temps réel sans repli si la bibliothèque ne se charge pas → relecture, échec non gardé.
 
 ## Pages (but, action principale, ce qui doit sauter aux yeux)
 
@@ -282,6 +303,14 @@ Contrat : seul le schéma `Signalement` gagne `cible_chemin` ; types régénér�
 | 2026-11-01 | 7 | Lighthouse 12, build de production, pages publiques à froid (accueil, Store, fiche) | bureau : 100/100/96, 99/100/96, 99/100/96 ; mobile simulé : performance 86, 81, 75 (accessibilité 100). Les 96 viennent du 401 attendu de `/api/me` pour un visiteur, compté comme erreur de console |
 | 2026-11-01 | 7 | Lighthouse 12, pages connectées (commande, « Mes copies ») via un Chromium où la session de démo est ouverte (`--port`, `--disable-storage-reset`) | bureau : 97/100/100 et 100/100/100 ; mobile : 95 et 98, mais cache chaud (profil conservé) : chiffres optimistes. La première tentative avec un en-tête Cookie mesurait en fait la page déconnectée (401), écartée |
 | 2026-11-01 | 7 | Parcours E2E après la revue de la phase 7 | 25/25 (confiance relancé seul après un premier chargement de Vite trop lent juste après des modifications : 3/3). « Deux machines » échouait dans la suite complète : la sonde attendait derrière les constructions de copies dans la file `moteur` et ne tournait qu'après le nettoyage du test (« socket introuvable ») → file et service `sondes` à part, en dev comme en production |
+| 2026-11-03 | 8 | Pint, ESLint, `tsc`, PHPUnit, Vitest | 0 erreur ; 658 tests PHPUnit, 50 Vitest |
+| 2026-11-03 | 8 | `composer audit`, `npm audit` | composer : aucune faille. npm : `follow-redirects` (haute) corrigée ; restent 15 moyennes dans les outils de développement seulement (minimatch sous eslint, license-checker, openapi-typescript) |
+| 2026-11-03 | 8 | Parcours Playwright, suite complète | 30/30 (dont les 6 nouveaux de la communauté), axe sans violation sérieuse sur chaque écran visité. Après les corrections de la revue : 29/30, « une version qui ne démarre pas revient » attendait un état de quelques secondes → test corrigé, 2/2 |
+| 2026-11-03 | 8 | CSP du front contre les 25 pages du parcours (build de production servi avec l'en-tête) | aucune violation hors images servies en `http://` en développement (en `https://` en production) |
+| 2026-11-03 | 8 | Captures 3 tailles × 2 thèmes, jeu de démo rechargé | 198 captures (33 pages), nouveaux écrans regardés en clair et sombre ; « Arrêter la copie » et les autres retraits passés au rouge |
+| 2026-11-03 | 8 | Lighthouse 12, build de production | bureau : accueil 99/100/96, Store 99/100/96, fiche 98/100/96, commande 99/100/100, Mes copies 100/100/100 (le 96 : le 401 attendu de `/api/me` pour un visiteur). Mobile simulé : accueil 78, Store 75, fiche 72 (TBT 400–550 ms, machine chargée par les copies) ; commande 99 et Mes copies 96 en session ouverte (cache chaud, optimiste). Pages connectées mesurées sur le port 5173 (seul port accepté par Sanctum en dev), le serveur Vite arrêté le temps de la mesure |
+| 2026-11-03 | 8 | Redémarrage de l'hôte | Docker relancé par l'utilisateur ; un serveur Python occupait le port 8000 (arrêté avec son accord) ; l'API, née pendant l'échec du port, n'était pas branchée au réseau du front (502 après 5 s) → recréée. Compose 2.40 ajoute `placement: {}` à la configuration finale → accepté (sections vides) |
+| 2026-11-03 | 8 | Démarrage à froid sur volumes vides | non refait : il partagerait le dossier des copies avec la plateforme en place (voir 26 octobre). Dernier le 1er novembre ; le redémarrage complet de l'hôte ci-dessus a rejoué le démarrage des 16 services |
 
 ## Problèmes ouverts
 
@@ -290,7 +319,7 @@ Contrat : seul le schéma `Signalement` gagne `cible_chemin` ; types régénér�
 - Tunnel public pour le webhook SasPay : refusé par le mode auto de Claude Code, en attente de l'utilisateur.
 - Déploiement réel d'un dépôt GitHub (`octavebahoun/marchilearnia`) : refusé par le mode auto (« code externe »). À autoriser par l'utilisateur ; en attendant, le moteur est vérifié avec une appli locale écrite par l'agent.
 
-- Performance Lighthouse sur mobile simulé (Moto G, 4G lente) : après la refonte, 75 (fiche) à 86 (accueil), contre 66 à 79 avant ; reste sous 90. Mesure initiale : entre 66 (fiche) et 79 pour une appli 100 % JavaScript, alors que le bureau est à 98. Gains déjà faits : animations chargées à part, coquille statique. Pistes pour l'audit de la phase 8 : pré-rendu des pages publiques, CSS critique en ligne, données de la page demandées plus tôt, poids de react-router et d'axios.
+- Performance Lighthouse sur mobile simulé (Moto G, 4G lente) : 72 à 78 sur les pages publiques au 3 novembre (84 à 86 sur une machine moins chargée le 1er), sous 90. Le premier affichage utile attend React : le pré-rendu des pages publiques est le chemin, écarté pour cette version (DECISIONS, 1er novembre). Historique : Mesure initiale : entre 66 (fiche) et 79 pour une appli 100 % JavaScript, alors que le bureau est à 98. Gains déjà faits : animations chargées à part, coquille statique. Pistes pour l'audit de la phase 8 : pré-rendu des pages publiques, CSS critique en ligne, données de la page demandées plus tôt, poids de react-router et d'axios.
 - Le compte SasPay fourni affiche le nom marchand « Gentube » sur la page de paiement : un compte au nom de Souk.dev sera nécessaire avant le lancement.
 - 26 octobre : deux plateformes lancées sur le même dossier de copies (vérification à froid) se nettoient l'une l'autre ; une copie de test de la plateforme habituelle a été arrêtée. Sans conséquence (jeu de démo) ; à ne pas reproduire.
 - 28 octobre (résolu le 1er novembre) : Docker arrêté sur le poste pendant le backend intégré (démon inactif, `sudo` interdit pour le relancer). La vérification Docker (suite en conteneur, démarrage à froid, Playwright dont `backend-integre.spec.ts`, captures 3 tailles × 2 thèmes, axe, Lighthouse) reste à faire avant de clore la phase 5 ; le parcours est écrit et relu, pas exécuté. Les 7 autres constats de la revue sont corrigés et testés ; le constat Docker (élevé) est revérifié toujours bloqué le 28 octobre au soir.
