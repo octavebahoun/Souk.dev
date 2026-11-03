@@ -37,8 +37,11 @@ async function appliquer(page: Page, copie: number, numero: number) {
   const carte = page.getByRole('article', { name: 'PharmaStock' }).filter({ hasText: `d${copie}.localhost` })
   await expect(carte.getByText(`Version ${numero} disponible`)).toBeVisible({ timeout: 30_000 })
   await carte.getByRole('button', { name: 'Mettre à jour' }).click()
-  await page.getByRole('dialog', { name: new RegExp(`version ${numero}`) }).getByRole('button', { name: 'Mettre à jour' }).click()
-  await expect(carte.getByText(`Passage à la version ${numero} en cours`)).toBeVisible()
+  const confirmation = page.getByRole('dialog', { name: new RegExp(`version ${numero}`) })
+  await confirmation.getByRole('button', { name: 'Mettre à jour' }).click()
+  // L'état « Passage à la version … en cours » peut ne durer qu'un instant (une version cassée
+  // échoue vite) : on attend la prise en compte, puis chaque test vérifie le résultat final.
+  await expect(confirmation).toBeHidden()
   return carte
 }
 
