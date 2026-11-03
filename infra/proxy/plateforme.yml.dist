@@ -38,10 +38,12 @@ http:
         frameDeny: true
         referrerPolicy: strict-origin-when-cross-origin
         permissionsPolicy: "camera=(), microphone=(), geolocation=(), payment=()"
-    # L'API ne sert que du JSON et quelques pages sans script (confirmation d'un numéro…).
+    # L'API ne sert que du JSON et quelques pages sans script (lien magique, confirmation d'un
+    # numéro). Leurs formulaires renvoient ensuite vers le front : form-action doit l'autoriser,
+    # les navigateurs l'appliquent aussi à la redirection qui suit l'envoi.
     csp-api:
       headers:
-        contentSecurityPolicy: "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"
+        contentSecurityPolicy: "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; form-action 'self' https://__DOMAINE__; frame-ancestors 'none'; base-uri 'none'"
 
   services:
     # Traefik est sur le réseau de l'hôte : il joint les ports publiés sur la boucle locale.
