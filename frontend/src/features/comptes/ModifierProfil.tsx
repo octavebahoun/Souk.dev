@@ -39,8 +39,8 @@ const BIO_MAX = 500
 const COMPETENCES_MAX = 10
 
 /**
- * Mon profil : ce que voient les entreprises qui cherchent un dev (pays, bio, compétences,
- * spécialités, disponibilité). Seuls les champs modifiés partent à l'API.
+ * Mon profil : pays et bio pour tous ; compétences, spécialités et disponibilité pour un dev
+ * (ce que voient les entreprises qui cherchent un dev). Le formulaire envoie ses valeurs en entier.
  */
 export function ModifierProfil() {
   useTitrePage('Mon profil')
@@ -49,7 +49,7 @@ export function ModifierProfil() {
   const entete = (
     <EnTetePage
       titre="Mon profil"
-      description="Ce que voient les entreprises qui cherchent un dev, et les membres de l’Échange."
+      description={moi.data?.profil === 'client' ? 'Votre pays et quelques mots sur votre activité, pour les devs avec qui vous échangez.' : 'Ce que voient les entreprises qui cherchent un dev, et les membres de l’Échange.'}
       actions={moi.data?.username ? <LienBouton to={`/devs/${moi.data.username}`} variante="contour">Voir mon profil public</LienBouton> : undefined}
     />
   )
@@ -84,7 +84,7 @@ export function ModifierProfil() {
   return (
     <div className="flex flex-col gap-6">
       {entete}
-      {/* Remonté à chaque version du compte : le formulaire repart des valeurs enregistrées. */}
+      {/* Un formulaire par compte : il part des valeurs enregistrées, puis garde la saisie en cours. */}
       <Formulaire key={moi.data.id} compte={moi.data} />
     </div>
   )

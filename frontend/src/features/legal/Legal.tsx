@@ -158,8 +158,8 @@ export function PolitiqueAbus() {
       <Titre>1. Interdits</Titre>
       <Liste
         elements={[
-          'minage de cryptomonnaie : une copie dont le processeur reste saturé (90 % de sa formule) pendant une heure est suspendue automatiquement ;',
-          'hameçonnage et fraude : une copie signalée pour hameçonnage est suspendue aussitôt, le temps que l’équipe examine (elle la rétablit si le signalement n’est pas fondé) ;',
+          'minage de cryptomonnaie : une copie dont un conteneur reste au maximum de son processeur (90 % de sa formule) pendant une heure est suspendue automatiquement ;',
+          'hameçonnage et fraude : une copie signalée pour hameçonnage par deux membres distincts est suspendue aussitôt, le temps que l’équipe examine (elle la rétablit si les signalements ne sont pas fondés) ;',
           'spam, harcèlement, insultes, contenus illégaux, atteintes aux droits d’autrui.',
         ]}
       />
