@@ -139,8 +139,9 @@ des événements : [REVERB.md](../REVERB.md).
   revenus, comptes, admin…), avec ses écrans et son `api.ts` (appels typés par le contrat).
 - `ui/` : le système de design (tokens dans `index.css`, composants accessibles) ; un écran
   n'utilise que lui ([design.md](design.md)).
-- Chargement : chaque route est un morceau à part, préchargé dès le HTML pour la page demandée
-  (`vite.precharger.ts`) ; une coquille statique s'affiche avant le JavaScript.
+- Chargement : chaque route est un morceau à part ; pour les pages les plus visitées (accueil,
+  Store, fiche, commande, Mes copies, Mes paiements), le HTML précharge ce morceau et l'image
+  principale (`vite.precharger.ts`). Une coquille statique s'affiche avant le JavaScript.
 
 ## Les tests
 
