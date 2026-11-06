@@ -1,4 +1,4 @@
-import { Bell, Briefcase, CalendarDays, CreditCard, Flag, Gauge, HardDrive, LayoutGrid, MessagesSquare, Package, Server, Settings, Shield, UserRound, Users, Wallet, type LucideIcon } from 'lucide-react'
+import { Bell, Briefcase, CalendarDays, CreditCard, Flag, Gauge, HardDrive, LayoutGrid, MessagesSquare, Package, Server, Shield, UserRound, Users, Wallet, type LucideIcon } from 'lucide-react'
 import type { components } from '../shared/types/api'
 import { t } from '../i18n'
 
@@ -38,12 +38,6 @@ export const liensEspace: LienNavigation[] = [
   { vers: '/admin/serveurs', libelle: t.navigation.serveurs, icone: HardDrive, visible: admin },
   { vers: '/admin/moderation', libelle: t.navigation.moderation, icone: Flag, visible: admin },
 ]
-
-/** Écrans à venir dans l'espace, gardés ici pour l'ordre de la navigation. */
-export const liensEspaceAVenir = {
-  parametres: { vers: '/parametres', libelle: t.navigation.parametres, icone: Settings },
-  administration: { vers: '/admin', libelle: t.navigation.administration, icone: Shield },
-}
 
 export function liensVisibles(liens: LienNavigation[], compte: Compte | null): LienNavigation[] {
   return liens.filter((lien) => !lien.visible || lien.visible(compte))

@@ -4,8 +4,6 @@ import { Fournisseurs } from './Fournisseurs'
 import { Layout } from './Layout'
 import { LayoutEspace } from './LayoutEspace'
 import { PageIntrouvable } from './PageIntrouvable'
-import { PageEnAttente } from './PageEnAttente'
-import { brancherComptes } from '../features/comptes/brancher'
 
 export function creerRoutes(): RouteObject[] {
   const routes: RouteObject[] = [
@@ -22,13 +20,13 @@ export function creerRoutes(): RouteObject[] {
         children: [
           // Pages publiques, dans la coquille du site (thème clair ou sombre).
           { index: true, lazy: async () => ({ Component: (await import('../features/accueil/Accueil')).Accueil }) },
-          { path: '/connexion', element: <PageEnAttente titre="Connexion" /> },
+          { path: '/connexion', lazy: async () => ({ Component: (await import('../features/comptes/Connexion')).Connexion }) },
           { path: '/store', lazy: async () => ({ Component: (await import('../features/catalogue/Store')).Store }) },
           { path: '/echange', lazy: async () => ({ Component: (await import('../features/echange/Fil')).Fil }) },
           { path: '/echange/:id', lazy: async () => ({ Component: (await import('../features/echange/PageDiscussion')).PageDiscussion }) },
           { path: '/devs', lazy: async () => ({ Component: (await import('../features/catalogue/Recherche')).Recherche }) },
           { path: '/evenements', lazy: async () => ({ Component: (await import('../features/catalogue/Evenements')).Evenements }) },
-          { path: '/devs/:username', element: <PageEnAttente titre="Profil" /> },
+          { path: '/devs/:username', lazy: async () => ({ Component: (await import('../features/comptes/Profil')).Profil }) },
           { path: '/store/:id', lazy: async () => ({ Component: (await import('../features/catalogue/Fiche')).Fiche }) },
           { path: '/store/:id/deployer', lazy: async () => ({ Component: (await import('../features/paiements/Commande')).Commande }) },
           { path: '/paiement/retour', lazy: async () => ({ Component: (await import('../features/paiements/RetourPaiement')).RetourPaiement }) },
@@ -46,8 +44,8 @@ export function creerRoutes(): RouteObject[] {
           {
             element: <LayoutEspace />,
             children: [
-              { path: '/tableau', element: <PageEnAttente titre="Tableau de bord" /> },
-              { path: '/profil', element: <PageEnAttente titre="Mon profil" /> },
+              { path: '/tableau', lazy: async () => ({ Component: (await import('../features/comptes/Tableau')).Tableau }) },
+              { path: '/profil', lazy: async () => ({ Component: (await import('../features/comptes/ModifierProfil')).ModifierProfil }) },
               { path: '/missions', lazy: async () => ({ Component: (await import('../features/catalogue/Missions')).Missions }) },
               { path: '/publier', lazy: async () => ({ Component: (await import('../features/catalogue/Publier')).Publier }) },
               { path: '/copies', lazy: async () => ({ Component: (await import('../features/deploiements/MesCopies')).MesCopies }) },
@@ -66,7 +64,6 @@ export function creerRoutes(): RouteObject[] {
     ],
   },
   ]
-  brancherComptes(routes)
   return routes
 }
 
