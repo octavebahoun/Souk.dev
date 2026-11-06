@@ -37,8 +37,10 @@ export function useDeconnexion() {
   return async function deconnecter() {
     await preparerCsrf()
     await clientLocal.post('/logout').catch(() => undefined)
-    cache.clear()
-    await cache.invalidateQueries({ queryKey: ['moi'] })
+    // Le compte passe à null en place : l'en-tête, déjà affiché, l'apprend tout de suite.
+    // clear() le détacherait du cache et il garderait l'ancien compte (avatar, cloche).
+    cache.setQueryData(['moi'], null)
+    cache.removeQueries({ predicate: (requete) => requete.queryKey[0] !== 'moi' })
     void naviguer('/')
   }
 }
