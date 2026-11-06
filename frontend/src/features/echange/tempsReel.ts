@@ -7,7 +7,8 @@ import { correspond, type FiltresFil } from './filtres'
 /**
  * Ouvre une connexion le temps qu'un écran est affiché : brancher la reçoit une fois ouverte,
  * la fonction rendue la ferme (même si elle s'ouvre après le départ de l'écran). Sans connexion
- * (Reverb absent, bibliothèque introuvable), siIndisponible prévient l'écran, qui relit l'API.
+ * (Reverb absent, bibliothèque introuvable, serveur injoignable), siIndisponible prévient
+ * l'écran, qui relit l'API.
  */
 function pendantLAffichage(brancher: (echo: ConnexionReverb) => () => void, siIndisponible?: () => void): () => void {
   let actif = true
@@ -21,8 +22,16 @@ function pendantLAffichage(brancher: (echo: ConnexionReverb) => () => void, siIn
       echo.disconnect()
       return
     }
+    // Serveur Reverb injoignable : pusher-js passe à « unavailable » (après ~10 s) et réessaie
+    // en silence. L'écran ne doit pas attendre des événements qui n'arrivent pas.
+    const connexion = echo.connector.pusher.connection
+    const surEtat = ({ current }: { current: string }) => {
+      if (actif && (current === 'unavailable' || current === 'failed')) siIndisponible?.()
+    }
+    connexion.bind('state_change', surEtat)
     const quitter = brancher(echo)
     debrancher = () => {
+      connexion.unbind('state_change', surEtat)
       quitter()
       echo.disconnect()
     }
@@ -40,8 +49,8 @@ export function ecouterNouvellesDiscussions(recevoir: (discussion: Discussion) =
   }, siIndisponible)
 }
 
-function ecouterUneDiscussion(id: number, client: QueryClient, onSupprimee: () => void): () => void {
-  return pendantLAffichage((echo) => brancherDiscussion(echo, id, client, onSupprimee))
+function ecouterUneDiscussion(id: number, client: QueryClient, onSupprimee: () => void, siIndisponible: () => void): () => void {
+  return pendantLAffichage((echo) => brancherDiscussion(echo, id, client, onSupprimee), siIndisponible)
 }
 
 function brancherDiscussion(echo: ConnexionReverb, id: number, client: QueryClient, onSupprimee: () => void): () => void {
@@ -84,11 +93,23 @@ function brancherDiscussion(echo: ConnexionReverb, id: number, client: QueryClie
 export function useDiscussionDirect(id: number, actif: boolean): boolean {
   const client = useQueryClient()
   const [supprimeeId, setSupprimeeId] = useState<number | null>(null)
+  // Sans temps réel (Reverb absent ou injoignable), la discussion se relit toutes les 15 secondes.
+  const [sansDirect, setSansDirect] = useState(false)
 
   useEffect(() => {
     if (!actif) return
-    return ecouterUneDiscussion(id, client, () => setSupprimeeId(id))
+    return ecouterUneDiscussion(id, client, () => setSupprimeeId(id), () => setSansDirect(true))
   }, [actif, client, id])
+
+  useEffect(() => {
+    if (!actif || !sansDirect) return
+    const timer = window.setInterval(() => {
+      void client.invalidateQueries({ queryKey: ['discussion', id] })
+      void client.invalidateQueries({ queryKey: ['messages', id] })
+      void client.invalidateQueries({ queryKey: ['correctifs', id] })
+    }, 15_000)
+    return () => window.clearInterval(timer)
+  }, [actif, client, id, sansDirect])
 
   return supprimeeId === id
 }
