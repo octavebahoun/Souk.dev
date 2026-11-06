@@ -79,7 +79,7 @@ export function messageAction(erreur: unknown, trop: string): string {
   if (lu.statut === 419) return 'La session a expiré. Rechargez la page.'
   if (lu.statut !== null && lu.statut >= 500) return 'Le serveur a rencontré un problème. Réessayez dans quelques instants.'
   if (axios.isAxiosError(erreur) && erreur.request && !erreur.response) {
-    return 'Le serveur local ne répond pas. Démarrez Laravel sur le port 8000, puis réessayez.'
+    return 'La connexion a été coupée. Vérifiez votre réseau, puis réessayez.'
   }
   return lu.message
 }

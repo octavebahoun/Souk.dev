@@ -36,7 +36,7 @@ export function Connexion() {
       : params.get('erreur') === 'compte_suspendu'
         ? 'Votre compte est suspendu : la connexion est refusée. Le motif est dans l’e-mail reçu ; pour contester, répondez-y.'
         : params.has('erreur')
-          ? 'La connexion GitHub n’a pas abouti. Vérifiez l’application OAuth et son URL de rappel, puis réessayez.'
+          ? 'La connexion avec GitHub n’a pas abouti. Réessayez dans un instant.'
           : null
 
   async function envoyer(evenement: FormEvent) {
