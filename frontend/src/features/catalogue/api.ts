@@ -1,5 +1,5 @@
 import type { components } from '../../shared/types/api'
-import { cheminLaravel, clientLocal } from '../../shared/client'
+import { cheminLaravel, clientLocal, urlApi } from '../../shared/client'
 import { formaterFcfa } from '../../ui/format'
 import { preparerCsrf } from '../../app/preparerCsrf'
 
@@ -146,7 +146,7 @@ export async function listerSauvegardes(id: number): Promise<Sauvegarde[]> {
 
 /** Adresse d'export d'une sauvegarde (téléchargement direct, la session suffit). */
 export function lienSauvegarde(id: number, identifiant: string): string {
-  return cheminLaravel(`/deployments/${id}/sauvegardes/${identifiant}`)
+  return urlApi(cheminLaravel(`/deployments/${id}/sauvegardes/${identifiant}`))
 }
 
 export async function arreterCopie(id: number): Promise<void> {

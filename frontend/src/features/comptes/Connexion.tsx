@@ -6,6 +6,7 @@ import { useTitrePage } from '../../app/titre'
 import { demanderLien } from './api'
 import { ComptesDemo } from './ComptesDemo'
 import { lireErreurHttp, messageAction } from '../echange/api'
+import { urlApi } from '../../shared/client'
 import { Alerte, Bouton, Carte, ChoixPastilles, Champ, Saisie, classesBouton, cx } from '../../ui'
 import hero from '../../assets/accueil/hero.webp'
 
@@ -105,7 +106,7 @@ export function Connexion() {
           {dev ? (
             <div className="flex flex-col gap-3">
               {erreurOAuth ? <Alerte ton="danger">{erreurOAuth}</Alerte> : null}
-              <a href="/auth/github?profil=dev" className={classesBouton('primaire', 'lg', true)}>
+              <a href={urlApi('/auth/github?profil=dev')} className={classesBouton('primaire', 'lg', true)}>
                 <GitBranch aria-hidden="true" className="size-4" />
                 Continuer avec GitHub
               </a>

@@ -17,3 +17,10 @@ export function cheminLaravel(chemin: string): string {
   return `/api${chemin}`
 }
 
+/**
+ * Adresse d'une route de l'API ouverte par le navigateur lui-même (lien, téléchargement), pas par
+ * axios. En production l'API est sur son sous-domaine : un chemin relatif tomberait sur le front.
+ */
+export function urlApi(chemin: string): string {
+  return `${(baseApi ?? '').replace(/\/+$/, '')}${chemin}`
+}
