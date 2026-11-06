@@ -113,7 +113,9 @@ export function Commande() {
       if (factureId === null) throw new Error('Facture absente')
       await allerPayer(factureId, cle.current)
     } catch (probleme) {
-      cle.current = nouvelleCle()
+      // Réponse perdue (réseau coupé) : la même clé, pour que le serveur reconnaisse la demande
+      // s'il l'a déjà reçue. Refus du serveur : nouvelle tentative, nouvelle clé.
+      if (statutHttp(probleme) !== null) cle.current = nouvelleCle()
       const parChamp = erreursDeChamps(probleme)
       setErreursChamps(Object.fromEntries(Object.entries(parChamp).map(([champ, texte]) => [champ.replace(/^variables\./, ''), texte])))
       setErreur(messageErreur(probleme, 'Le paiement n’a pas pu s’ouvrir. Réessayez dans un instant.'))
