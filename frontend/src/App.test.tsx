@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import { preparerCsrf } from './app/preparerCsrf'
 import { creerRoutes } from './app/router'
-import { client } from './shared/client'
+import { clientLocal } from './shared/client'
 
 vi.mock('./shared/client', async () => {
   const reel = await vi.importActual<typeof import('./shared/client')>('./shared/client')
@@ -14,24 +14,24 @@ vi.mock('./shared/client', async () => {
     patch: vi.fn(),
     delete: vi.fn(),
   }
-  return { ...reel, client: http, clientLocal: http }
+  return { ...reel, clientLocal: http }
 })
 
 describe('socle', () => {
   beforeEach(() => {
-    vi.mocked(client.get).mockClear()
+    vi.mocked(clientLocal.get).mockClear()
   })
 
   it('affiche l’accueil et demande le cookie CSRF', async () => {
     render(<App />)
 
     expect(await screen.findByRole('heading', { name: /Le marché/ })).toBeInTheDocument()
-    expect(client.get).toHaveBeenCalledWith('/sanctum/csrf-cookie')
+    expect(clientLocal.get).toHaveBeenCalledWith('/sanctum/csrf-cookie')
   })
 
   it('ne fabrique aucune appli quand le Store réel est vide', async () => {
     const vide = { data: [], meta: { current_page: 1, last_page: 1, per_page: 15, total: 0 } }
-    vi.mocked(client.get).mockImplementation(((url: string) => {
+    vi.mocked(clientLocal.get).mockImplementation(((url: string) => {
       if (url === '/api/apps' || url === '/api/discussions') {
         return Promise.resolve({ status: 200, data: vide })
       }
@@ -46,7 +46,7 @@ describe('socle', () => {
   })
 
   it('ne bloque pas l’écran si le cookie CSRF est absent', async () => {
-    vi.mocked(client.get).mockRejectedValueOnce(new Error('absent'))
+    vi.mocked(clientLocal.get).mockRejectedValueOnce(new Error('absent'))
 
     await expect(preparerCsrf()).resolves.toBeUndefined()
   })

@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { createMemoryRouter, RouterProvider } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { creerRoutes } from '../../app/router'
-import { cheminLaravel, client } from '../../shared/client'
+import { cheminLaravel, clientLocal } from '../../shared/client'
 import type { Discussion, Message } from './api'
 
 vi.mock('../../shared/client', async () => {
@@ -13,7 +13,7 @@ vi.mock('../../shared/client', async () => {
     patch: vi.fn(),
     delete: vi.fn(),
   }
-  return { ...reel, client: http, clientLocal: http }
+  return { ...reel, clientLocal: http }
 })
 
 function page<T>(data: T[], total = data.length) {
@@ -76,7 +76,7 @@ function message(id: number): Message {
 }
 
 function reponses(options: { discussion?: Discussion | Error; messages?: Message[]; moi?: { id: number } | null }) {
-  vi.mocked(client.get).mockImplementation((url: string) => {
+  vi.mocked(clientLocal.get).mockImplementation((url: string) => {
     if (url === cheminLaravel('/discussions/12')) {
       if (options.discussion instanceof Error) return Promise.reject(options.discussion)
       return Promise.resolve({ data: options.discussion ?? discussion() })
@@ -100,8 +100,8 @@ function rendu() {
 
 describe('page d’une discussion', () => {
   beforeEach(() => {
-    vi.mocked(client.get).mockReset()
-    vi.mocked(client.patch).mockReset()
+    vi.mocked(clientLocal.get).mockReset()
+    vi.mocked(clientLocal.patch).mockReset()
   })
 
   it('propose de réessayer quand la discussion ne charge pas', async () => {
@@ -111,7 +111,7 @@ describe('page d’une discussion', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Réessayer' }))
 
     await waitFor(() => {
-      const appels = vi.mocked(client.get).mock.calls.filter((appel) => appel[0] === cheminLaravel('/discussions/12'))
+      const appels = vi.mocked(clientLocal.get).mock.calls.filter((appel) => appel[0] === cheminLaravel('/discussions/12'))
       expect(appels.length).toBeGreaterThan(1)
     })
   })
@@ -127,13 +127,13 @@ describe('page d’une discussion', () => {
 
   it('montre le bouton résolue à l’auteur et envoie le PATCH', async () => {
     reponses({ moi: { id: 1 }, messages: [message(3)] })
-    vi.mocked(client.patch).mockResolvedValue({ data: { ...discussion(), resolue: true } })
+    vi.mocked(clientLocal.patch).mockResolvedValue({ data: { ...discussion(), resolue: true } })
     rendu()
 
     fireEvent.click(await screen.findByRole('button', { name: 'Marquer comme résolue' }))
 
     await waitFor(() => {
-      expect(client.patch).toHaveBeenCalledWith(cheminLaravel('/discussions/12'), { resolue: true })
+      expect(clientLocal.patch).toHaveBeenCalledWith(cheminLaravel('/discussions/12'), { resolue: true })
     })
     expect(await screen.findByRole('button', { name: 'Rouvrir' })).toBeInTheDocument()
   })
