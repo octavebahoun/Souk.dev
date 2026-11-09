@@ -59,6 +59,36 @@ class ClientSasPayTest extends TestCase
         });
     }
 
+    /**
+     * Sans pays, la page de SasPay ne propose aucun réseau Mobile Money (seulement la crypto) :
+     * celui du client, sinon celui de la plateforme, est toujours envoyé.
+     */
+    #[DataProvider('pays')]
+    public function test_la_session_preselectionne_toujours_un_pays(?string $paysDuClient, string $attendu): void
+    {
+        config(['facturation.pays_par_defaut' => 'BJ']);
+        Http::fake(['saspay.test/api/v1/checkout-sessions/' => Http::response([
+            'success' => true,
+            'data' => ['id' => 'c9a17e2c-4b1a-4f0e-9c3d-2a1b3c4d5e6f', 'slug' => 'kZ2v9rT4', 'checkout_url' => 'https://pay.saspay.me/c/kZ2v9rT4'],
+        ], 201)]);
+
+        $this->paiement()->creerSession(new DemandeSession(
+            montant: 3500, description: 'Souk.dev', email: 'client@exemple.test', nom: 'Awa',
+            urlRetour: 'http://localhost:5173/paiement/retour?facture=1', metadata: [], pays: $paysDuClient,
+        ));
+
+        Http::assertSent(fn (Request $requete): bool => $requete['country'] === $attendu);
+    }
+
+    /** @return array<string, array{?string, string}> */
+    public static function pays(): array
+    {
+        return [
+            'compte sans pays' => [null, 'BJ'],
+            'compte au Sénégal' => ['SN', 'SN'],
+        ];
+    }
+
     public function test_le_payout_porte_la_cle_d_idempotence(): void
     {
         Http::fake(['saspay.test/api/v1/payouts/initialize/' => Http::response(['message' => 'Payout transaction initialized successfully', 'id' => 'a4b5c6d7-e8f9-4a0b-8c1d-2e3f4a5b6c7d'], 201)]);

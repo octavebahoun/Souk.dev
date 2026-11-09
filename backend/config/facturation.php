@@ -43,6 +43,9 @@ return [
     // Webhooks envoyés par le simulateur : l'adresse de l'API vue depuis le worker.
     'webhook_simulateur' => env('SIMULATEUR_WEBHOOK_URL') ?: rtrim((string) env('APP_URL', 'http://localhost:8000'), '/').'/api/webhooks/saspay',
 
+    // Pays présélectionné sur la page de paiement de SasPay quand le compte du client n'en a pas :
+    // sans pays, SasPay n'y propose aucun réseau Mobile Money (seulement la crypto).
+    'pays_par_defaut' => env('PAIEMENT_PAYS_PAR_DEFAUT', 'BJ'),
     // Page de retour après un paiement (front).
     'retour_paiement' => rtrim((string) env('FRONTEND_URL', 'http://localhost:5173'), '/').'/paiement/retour',
 
