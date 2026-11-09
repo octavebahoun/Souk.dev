@@ -197,10 +197,11 @@ export function Fil() {
           ) : null}
           {lignes.length > 0 ? (
             <ol className="m-0 flex list-none flex-col gap-3 p-0">
-              {lignes.map((discussion) => (
+              {lignes.map((discussion, index) => (
                 <CarteDiscussion
                   key={discussion.id}
                   discussion={discussion}
+                  delai={Math.min(index, 11) * 50}
                   nouvelle={visibles.some((item) => item.id === discussion.id)}
                   onPartager={(item) => void partager(item)}
                 />

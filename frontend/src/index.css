@@ -298,6 +298,70 @@
 }
 
 /*
+ * Entrées douces (transform + opacity uniquement, cf. docs/design.md § 5).
+ * Le décalage entre éléments se règle par --delai ; la durée suit les tokens.
+ */
+@keyframes apparition-montee {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes apparition-fondu {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes apparition-image {
+  from {
+    transform: scale(1.05);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+.apparition {
+  animation: apparition-montee var(--duree-lente) var(--ease-souk) both;
+  animation-delay: var(--delai, 0ms);
+}
+
+.apparition-fondu {
+  animation: apparition-fondu var(--duree) var(--ease-souk) both;
+  animation-delay: var(--delai, 0ms);
+}
+
+.apparition-image {
+  animation: apparition-image 800ms var(--ease-souk) both;
+}
+
+/* Micro-interaction : la flèche avance légèrement au survol du lien. */
+.groupe-hover .icone-fleche {
+  transition: transform var(--duree) var(--ease-souk);
+}
+
+.groupe-hover:hover .icone-fleche {
+  transform: translateX(3px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .apparition,
+  .apparition-fondu,
+  .apparition-image {
+    animation: none;
+  }
+}
+
+/*
  * Impression d'un reçu (« Mes paiements ») : seul le document .imprimable sort, en clair,
  * quel que soit le thème choisi à l'écran.
  */
