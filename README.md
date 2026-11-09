@@ -1,10 +1,12 @@
 # Souk.dev
 
-**Le marché des applis des devs africains.** Un dev publie son appli ; une pharmacie, une
-association ou une boutique en déploie sa propre copie en un clic, paie par Mobile Money en
-FCFA, et la voit tourner sur son adresse. Souk.dev facture l'hébergement chaque mois et reverse
-le prix de l'appli au dev, **sans commission**. Autour, l'Échange : les devs s'entraident sur
-leurs bugs, se proposent des correctifs et les essaient sur des copies de test.
+**Le marché des applis des devs africains.** Un dev publie son appli. Une pharmacie, une
+association ou une boutique en déploie **sa propre copie** en un clic, paie par Mobile Money en
+FCFA, et l'ouvre sur sa propre adresse quelques minutes plus tard. Autour, l'**Échange** : les
+devs s'entraident sur leurs bugs, se proposent des correctifs et les essaient sur des copies de
+test.
+
+**En ligne : [soukdev.shop](https://soukdev.shop)**
 
 ![Accueil de Souk.dev : « Le marché des applis des devs africains »](docs/captures/accueil.webp)
 
@@ -16,32 +18,97 @@ leurs bugs, se proposent des correctifs et les essaient sur des copies de test.
 
 <p align="center"><img src="docs/captures/mobile-sombre.webp" width="300" alt="Le Store sur mobile, en thème sombre"></p>
 
+## Comment ça marche
+
+1. **Le dev publie** son appli depuis un dépôt GitHub public. Souk.dev vérifie le dépôt (secrets
+   avec gitleaks, failles avec Trivy), mesure la mémoire de l'appli et recommande une formule
+   d'hébergement.
+2. **Le client commande sa copie** sur le Store et paie (Mobile Money ou carte, via SasPay).
+3. **Souk.dev la fait tourner** : une copie neuve et isolée par client, sur son sous-domaine,
+   avec ses sauvegardes, ses mises à jour (et le retour arrière si besoin) et l'export de ses
+   données.
+4. **Chaque mois**, le client paie l'hébergement et le prix de l'appli. Le prix de l'appli va
+   **entièrement au dev** : Souk.dev ne prend aucune commission et gagne seulement sur
+   l'hébergement.
+
+| Formule | Mémoire | Processeur | Hébergement, par mois |
+|---|---|---|---|
+| Petite | 512 Mo | 0,5 cœur | 3 500 F |
+| Moyenne | 1 Go | 1 cœur | 7 000 F |
+| Grande | 2 Go | 2 cœurs | 13 500 F |
+
+Le dev fixe le prix de son appli : gratuite, mensuelle ou payée une seule fois. Le calcul des
+formules est dans [DECISIONS.md](DECISIONS.md#business-model).
+
+## Quelles applis peut-on publier ?
+
+**Pas seulement des sites statiques.** Souk.dev fait déjà tourner toute appli web complète, du
+moment qu'elle apporte sa propre base dans Docker. Exemples du jeu de démo :
+
+- Laravel + Vue + MySQL (gestion de pharmacie) ;
+- Django + PostgreSQL (rendez-vous de clinique) ;
+- Go + PostgreSQL + Redis (stock de boutique) ;
+- une appli sans serveur à elle, grâce au [backend intégré](docs/backend-integre.md) de
+  Souk.dev, qui lui fournit la base et la connexion par SMS (Carnet de commandes).
+
+**Les conditions :**
+
+- un dépôt GitHub **public**, avec à sa racine un `docker-compose.yml` et un `soukdev.json` ;
+- **un seul** service ouvert sur le web, sur un seul port, et **6 services** au plus ;
+- **2 Go** de mémoire au plus (formule Grande) ;
+- **aucun accès au serveur** : ni le Docker de la machine, ni ses dossiers, ni ports publiés,
+  ni mode privilégié ;
+- **aucun secret dans le dépôt** : les mots de passe sont générés par la plateforme, les
+  réglages du client lui sont demandés à la commande.
+
+**Ne passent pas pour l'instant :** les applis liées au compte cloud de leur auteur (Supabase,
+Firebase), celles qui lancent des conteneurs, celles qui dépassent 2 Go, et tout ce qui n'est
+pas du web (appli mobile, jeu en UDP). Les deux premiers cas sont prévus après le hackathon :
+[un Supabase par copie (#30)](https://github.com/octavebahoun/Souk.dev/issues/30) et
+[un Docker isolé par copie (#31)](https://github.com/octavebahoun/Souk.dev/issues/31).
+
+### Un `soukdev.json` en exemple
+
+```json
+{
+  "version": 1,
+  "service_web": { "nom": "web", "port": 80 },
+  "backend": "propre",
+  "variables": [
+    { "nom": "BOUTIQUE_NOM", "source": "client", "libelle": "Nom de votre boutique", "requis": true },
+    { "nom": "DB_PASSWORD", "source": "plateforme" },
+    { "nom": "APP_ENV", "source": "fixe", "valeur": "production" }
+  ]
+}
+```
+
+- `service_web` : le seul conteneur joignable depuis le web, et son port.
+- `backend` : `propre` (la base est un service de votre `docker-compose.yml`) ou `integre`
+  (Souk.dev la fournit, avec vos migrations SQL dans le dossier `migrations`).
+- `variables` : `client` (demandée au client à la commande), `plateforme` (un secret généré
+  pour chaque copie) ou `fixe` (la même valeur partout). Elles arrivent dans le `.env` de la
+  copie, que votre `docker-compose.yml` lit avec `${DB_PASSWORD}`.
+
+Le schéma complet : [`backend/soukdev.schema.json`](backend/soukdev.schema.json).
+
 ## Ce que fait Souk.dev
 
-**Pour les devs**
-- Publier une appli depuis un dépôt GitHub public : vérification du `docker-compose.yml` et
-  du `soukdev.json`, recherche de secrets (gitleaks) et de failles (Trivy) avant la mise en
-  ligne, mémoire mesurée et formule d'hébergement recommandée.
-- Être payé sur son Mobile Money, sans commission ; suivre vues, copies et revenus.
-- L'Échange : canaux, bugs structurés, messages, correctifs (proposer, accepter, lancer la
-  version corrigée), copie de test et démo dans un cadre isolé, Souk AI, temps réel.
-- Réputation (XP, niveaux, badges, Souk Score), missions, événements.
+**Pour les devs** : publier, être payé sur son Mobile Money sans commission, suivre vues,
+copies et revenus. L'Échange : canaux, bugs structurés, correctifs (proposer, accepter, lancer
+la version corrigée), copie de test gratuite de deux heures, démo dans un cadre isolé, Souk AI,
+temps réel. Réputation (XP, niveaux, badges, Souk Score), missions, événements.
 
-**Pour les clients**
-- Trouver l'appli qui fait tourner son activité, la commander, payer (Mobile Money ou carte,
-  SasPay), et l'ouvrir sur son sous-domaine quelques minutes plus tard.
-- Factures mensuelles, rappel avant échéance, suspension puis réactivation selon le paiement,
-  mises à jour avec retour arrière, sauvegardes et export de ses données.
-- Noter les applis, demander une version sur mesure, recruter un dev.
+**Pour les clients** : trouver l'appli qu'il faut, la commander, payer, l'ouvrir. Factures
+mensuelles, rappel avant échéance, suspension puis réactivation selon le paiement. Noter les
+applis, demander une version sur mesure, recruter un dev.
 
-**Pour l'équipe**
-- Vue financière tirée d'un grand livre inaltérable, reversements, avoirs.
-- Modération (signalements, suspensions, politique d'abus automatique), plusieurs serveurs,
-  sauvegardes, alertes.
+**Pour l'équipe** : vue financière tirée d'un grand livre inaltérable, reversements, avoirs.
+Modération (signalements, suspensions, politique d'abus automatique), plusieurs serveurs,
+sauvegardes, alertes.
 
-## Installer en moins de 10 minutes
+## Installer en local en moins de 10 minutes
 
-Il faut Docker (avec Compose v2) et Git ; les ports 80, 5173, 8000 et 8080 libres. Rien
+Il faut Docker (avec Compose v2) et Git, et les ports 80, 5173, 8000 et 8080 libres. Rien
 d'autre : PHP, Node et PostgreSQL tournent dans les conteneurs.
 
 ```sh
@@ -64,11 +131,17 @@ Puis ouvrez **http://localhost:5173**. Sur la page de connexion, en développeme
 | Pharmacie du Port (client) | commander PharmaStock, payer sur le simulateur, ouvrir sa copie |
 | Équipe Souk.dev (admin) | finances, serveurs, modération |
 
-Le paiement passe par le **simulateur SasPay** (aucun argent réel) ; les copies s'ouvrent sur
+Le paiement passe par le **simulateur SasPay** (aucun argent réel), et les copies s'ouvrent sur
 `http://{copie}.localhost`. Les clés réelles (SasPay, DeepSeek, Resend, GitHub) se mettent dans
 `backend/.env`, jamais commité ; sans elles, chaque service utilise son adaptateur simulé.
 
-Mettre en production (HTTPS, domaine des copies à part, sauvegardes) : [docs/exploitation.md](docs/exploitation.md).
+## Mettre en production
+
+`./scripts/prod.sh up -d --build`, avec `backend/.env.prod` rempli : HTTPS, un domaine à part
+pour les copies (jamais un sous-domaine de la plateforme), sauvegardes de nuit et test de
+restauration. Sur un serveur qui héberge déjà d'autres sites derrière un proxy (Caddy…),
+Souk.dev se place derrière lui (`MOTEUR_TLS_TRAEFIK=false`). Tout est dans
+[docs/exploitation.md](docs/exploitation.md).
 
 ## Vérifier
 
@@ -88,7 +161,7 @@ npm run e2e:captures                                 # captures 3 tailles × 2 t
 |---|---|
 | [Architecture](docs/architecture.md) | services, chemin d'une requête, moteur, argent, temps réel |
 | [Paiement et grand livre](docs/paiement.md) | facturation, webhook, rapprochement, reversements, avoirs |
-| [Exploitation](docs/exploitation.md) | production, sauvegarde et restauration, journaux, alertes, secrets, serveurs |
+| [Exploitation](docs/exploitation.md) | production, proxy existant, sauvegarde et restauration, journaux, alertes, secrets |
 | [Modération](docs/moderation.md) | signalements, sanctions, politique d'abus |
 | [Plusieurs serveurs](docs/machines.md) · [multi-VPS](docs/multi-vps.md) | machines, sondes, placement |
 | [Mises à jour](docs/mises-a-jour.md) · [Backend intégré](docs/backend-integre.md) · [Souk AI](docs/souk-ai.md) | |
@@ -104,4 +177,5 @@ Laravel 13 (PHP 8.4), PostgreSQL 16, Laravel Reverb, React 19, Vite, TypeScript,
 Traefik, Docker. Dépendances sous licences permissives uniquement (MIT, Apache 2.0, BSD, ISC,
 PostgreSQL) : voir [LICENSES.md](LICENSES.md).
 
-Né pour le concours CADEV 2026 : le brief d'origine est dans [docs/brief-concours.md](docs/brief-concours.md).
+Né pour le concours CADEV 2026 : le brief d'origine est dans
+[docs/brief-concours.md](docs/brief-concours.md).
