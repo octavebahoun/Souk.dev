@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\CertificatCopieController;
 use App\Http\Controllers\CoordonneesReversementController;
 use App\Http\Controllers\DemoController;
 use App\Http\Controllers\GithubController;
@@ -25,6 +26,9 @@ Route::post('/auth/lien-magique/{token}', [LienMagiqueController::class, 'utilis
     ->where('token', '[A-Za-z0-9]+')->middleware('throttle:60,1');
 Route::post('/logout', [LogoutController::class, 'destroy']);
 Route::post('/auth/demo', [DemoController::class, 'connecter'])->middleware('throttle:60,1');
+
+// Certificats à la demande du proxy placé devant Traefik (Caddy) : seulement pour une vraie copie.
+Route::get('/tls/copie', CertificatCopieController::class)->middleware('throttle:120,1');
 
 // Lien de paiement signé envoyé par e-mail (payer sans se connecter).
 Route::get('/paiement/facture/{id}', [LienPaiementController::class, 'ouvrir'])

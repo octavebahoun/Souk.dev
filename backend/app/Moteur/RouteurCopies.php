@@ -18,6 +18,7 @@ class RouteurCopies
         private string $dossier,
         private string $urlCopie,
         private string $pageSuspendue = 'http://127.0.0.1:8000',
+        private bool $tls = true,
     ) {}
 
     public static function depuisConfig(): self
@@ -26,7 +27,33 @@ class RouteurCopies
             (string) config('moteur.proxy_routes') ?: storage_path('app/private/proxy'),
             (string) config('moteur.url_copie'),
             (string) config('moteur.page_suspendue'),
+            (bool) config('moteur.tls_traefik'),
         );
+    }
+
+    /**
+     * Le domaine est-il celui d'une copie servie (en ligne ou suspendue) ? Quand un proxy placé
+     * devant Traefik prend les certificats à la demande (Caddy), il pose la question avant chaque
+     * nouveau nom : jamais de certificat pour un sous-domaine inventé (quota Let's Encrypt).
+     */
+    public function sert(string $domaine): bool
+    {
+        $modele = parse_url($this->urlCopie, PHP_URL_HOST);
+
+        if (! is_string($modele) || ! str_contains($modele, '{copie}')) {
+            return false;
+        }
+
+        $motif = '/^'.str_replace('\\{copie\\}', '([a-z0-9][a-z0-9-]{0,62})', preg_quote(strtolower($modele), '/')).'$/';
+
+        if (preg_match($motif, strtolower($domaine), $prises) !== 1) {
+            return false;
+        }
+
+        // Le fichier doit être la route de ce nom (pas plateforme.yml, rangé dans le même dossier).
+        $chemin = $this->chemin($prises[1]);
+
+        return is_file($chemin) && str_contains((string) file_get_contents($chemin), 'Host(`'.strtolower($domaine).'`)');
     }
 
     public function url(string $copie): string
@@ -106,8 +133,9 @@ class RouteurCopies
 
     /**
      * En production, les copies sont servies en HTTPS (MOTEUR_URL_COPIE en https://) : le routeur
-     * écoute le point d'entrée sécurisé et demande son certificat à Let's Encrypt. En développement
-     * (http://{copie}.localhost), rien : Traefik sert le HTTP seul.
+     * écoute le point d'entrée sécurisé et demande son certificat à Let's Encrypt. Derrière un proxy
+     * qui termine déjà le TLS (MOTEUR_TLS_TRAEFIK=false), il écoute le même point d'entrée, en
+     * HTTP. En développement (http://{copie}.localhost), rien : Traefik sert le HTTP seul.
      *
      * @return list<string>
      */
@@ -117,9 +145,17 @@ class RouteurCopies
             return [];
         }
 
-        return [
+        $lignes = [
             '      entryPoints:',
             '        - websecure',
+        ];
+
+        if (! $this->tls) {
+            return $lignes;
+        }
+
+        return [
+            ...$lignes,
             '      tls:',
             '        certResolver: letsencrypt',
         ];

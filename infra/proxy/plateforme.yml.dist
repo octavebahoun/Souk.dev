@@ -1,6 +1,7 @@
 # Routes de la plateforme en production : front, API et Reverb derrière Traefik.
 # Modèle : le service « init » le copie dans le dossier des routes au démarrage, avec le
-# domaine rempli (__DOMAINE__ remplacé par DOMAINE). Les copies ont leurs propres fichiers
+# domaine et les ports remplis (__DOMAINE__, __PORT_API__…), et sans les blocs « tls » quand un
+# proxy placé devant Traefik termine déjà le TLS (MOTEUR_TLS_TRAEFIK=false). Les copies ont leurs propres fichiers
 # dans le même dossier, écrits par App\Moteur\RouteurCopies.
 http:
   routers:
@@ -50,12 +51,12 @@ http:
     front:
       loadBalancer:
         servers:
-          - url: "http://127.0.0.1:8081"
+          - url: "http://127.0.0.1:__PORT_FRONT__"
     api:
       loadBalancer:
         servers:
-          - url: "http://127.0.0.1:8000"
+          - url: "http://127.0.0.1:__PORT_API__"
     reverb:
       loadBalancer:
         servers:
-          - url: "http://127.0.0.1:8080"
+          - url: "http://127.0.0.1:__PORT_REVERB__"

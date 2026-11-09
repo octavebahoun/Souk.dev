@@ -65,6 +65,58 @@ class RouteurCopiesTest extends TestCase
         $this->assertStringNotContainsString('certResolver', $contenu);
     }
 
+    public function test_derriere_un_proxy_qui_termine_le_tls_la_route_ne_demande_pas_de_certificat(): void
+    {
+        $routeur = new RouteurCopies($this->dossier, 'https://{copie}.soukdev.com', tls: false);
+        $routeur->publier('d42', '172.18.0.3', 8080);
+
+        $contenu = (string) file_get_contents($routeur->publierPageSuspendue('d42'));
+
+        $this->assertStringContainsString("entryPoints:\n        - websecure\n", $contenu);
+        $this->assertStringNotContainsString('tls:', $contenu);
+        $this->assertStringNotContainsString('certResolver', $contenu);
+    }
+
+    public function test_sert_le_sous_domaine_d_une_copie_qui_a_sa_route(): void
+    {
+        $routeur = $this->routeur('https://{copie}.souk-apps.duckdns.org');
+        $routeur->publier('d42', '172.18.0.3', 8080);
+
+        $this->assertTrue($routeur->sert('d42.souk-apps.duckdns.org'));
+        $this->assertTrue($routeur->sert('D42.Souk-Apps.DuckDNS.org'));
+    }
+
+    /**
+     * Le proxy TLS prendrait un certificat pour chacun de ces noms : Let's Encrypt limite à 50
+     * certificats par semaine, un nom inventé ne doit jamais en coûter un.
+     */
+    #[DataProvider('domainesNonServis')]
+    public function test_ne_sert_pas_un_domaine_sans_copie(string $domaine): void
+    {
+        $routeur = $this->routeur('https://{copie}.souk-apps.duckdns.org');
+        $routeur->publier('d42', '172.18.0.3', 8080);
+        // Les routes de la plateforme (écrites par le service « init ») partagent le dossier.
+        file_put_contents($this->dossier.'/plateforme.yml', "http:\n  routers:\n    front:\n      rule: \"Host(`soukdev.shop`)\"\n");
+
+        $this->assertFalse($routeur->sert($domaine));
+    }
+
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function domainesNonServis(): array
+    {
+        return [
+            'copie sans route' => ['d43.souk-apps.duckdns.org'],
+            'domaine racine des copies' => ['souk-apps.duckdns.org'],
+            'sous-domaine d’une copie' => ['x.d42.souk-apps.duckdns.org'],
+            'autre domaine' => ['d42.evil.example'],
+            'suffixe trompeur' => ['d42.souk-apps.duckdns.org.evil.example'],
+            'fichier hors du dossier' => ['..%2Fd42.souk-apps.duckdns.org'],
+            'route de la plateforme' => ['plateforme.souk-apps.duckdns.org'],
+        ];
+    }
+
     public function test_une_copie_suspendue_affiche_la_page_de_la_plateforme(): void
     {
         $routeur = new RouteurCopies($this->dossier, 'https://{copie}.soukdev.com', 'http://api:8000');

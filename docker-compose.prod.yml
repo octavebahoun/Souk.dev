@@ -57,7 +57,7 @@ x-php: &php
     LOG_LEVEL: info
     MOTEUR_PROXY_ROUTES: /app/storage/app/private/proxy
     MOTEUR_URL_COPIE: https://{copie}.${DOMAINE_COPIES:?DOMAINE_COPIES manquant dans backend/.env.prod}
-    MOTEUR_PAGE_SUSPENDUE: http://127.0.0.1:8000
+    MOTEUR_PAGE_SUSPENDUE: http://127.0.0.1:${PORT_API:-8000}
     MOTEUR_DELAI_PROXY: "3"
     DEMO_CONNEXION: "false"
     PAIEMENT_PASSERELLE: saspay
@@ -120,8 +120,9 @@ services:
     <<: *php
     command: ["frankenphp", "php-server", "--listen", ":8000", "--root", "public/"]
     networks: [interne, web]
+    # Ports sur la boucle locale, pour Traefik. À changer (PORT_API…) s'ils sont déjà pris sur le serveur.
     ports:
-      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:${PORT_API:-8000}:8000"
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/up"]
       interval: 10s
@@ -213,7 +214,7 @@ services:
     <<: *php
     command: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=8080"]
     ports:
-      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:${PORT_REVERB:-8080}:8080"
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/up"]
       interval: 10s
@@ -232,7 +233,8 @@ services:
 
   # Reverse proxy HTTPS : la plateforme (front, API, Reverb) et les copies, certificats Let's Encrypt.
   # Réseau de l'hôte pour joindre l'adresse déjà sondée du service web, sans partager de réseau
-  # avec les copies (voir infra/proxy/).
+  # avec les copies (voir infra/proxy/). Derrière un proxy qui garde déjà les ports 80 et 443 :
+  # docker-compose.derriere-proxy.yml remplace cette commande (voir docs/exploitation.md).
   traefik:
     image: traefik:v3.3.4
     network_mode: host
@@ -302,7 +304,7 @@ services:
     restart: unless-stopped
     networks: [web]
     ports:
-      - "127.0.0.1:8081:80"
+      - "127.0.0.1:${PORT_FRONT:-8081}:80"
     healthcheck:
       test: ["CMD", "wget", "-qO", "/dev/null", "http://127.0.0.1/"]
       interval: 10s

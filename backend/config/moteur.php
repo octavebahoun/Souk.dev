@@ -32,6 +32,10 @@ return [
     // Reverse proxy : Traefik lit ici un fichier de routes par copie en ligne (voir infra/proxy/).
     'proxy_routes' => env('MOTEUR_PROXY_ROUTES', storage_path('app/private/proxy')),
 
+    // false quand un proxy placé devant Traefik termine déjà le TLS (Caddy d'un serveur partagé) :
+    // les routes des copies restent en HTTP, sans demande de certificat (voir docs/exploitation.md).
+    'tls_traefik' => (bool) env('MOTEUR_TLS_TRAEFIK', true),
+
     // Sonde du service web : conteneur jetable branché sur le réseau de la copie.
     'image_sonde' => env('MOTEUR_IMAGE_SONDE', 'curlimages/curl:8.11.1'),
 

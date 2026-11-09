@@ -1,0 +1,27 @@
+# Souk.dev derrière un proxy qui garde déjà les ports 80 et 443 et termine le TLS (le Caddy d'un
+# serveur partagé avec d'autres sites). ./scripts/prod.sh ajoute ce fichier quand backend/.env.prod
+# contient MOTEUR_TLS_TRAEFIK=false. Voir docs/exploitation.md, « Derrière un proxy existant ».
+#
+#   Internet ──443──▶ Caddy (TLS, certificats) ──HTTP──▶ Traefik (172.17.0.1:8880) ──▶ front, API,
+#                                                                                       Reverb, copies
+#
+# Traefik écoute sur la passerelle Docker (docker0), joignable par le conteneur du proxy
+# (host.docker.internal) mais pas depuis Internet. Il ne prend plus aucun certificat.
+
+services:
+  traefik:
+    command:
+      - --entrypoints.websecure.address=${TRAEFIK_ADRESSE:-172.17.0.1:8880}
+      # Le proxy dit à Traefik que la requête est arrivée en HTTPS (X-Forwarded-Proto) : seuls
+      # les conteneurs (172.16.0.0/12) sont crus, jamais un visiteur qui l'écrirait lui-même.
+      - --entrypoints.websecure.forwardedHeaders.trustedIPs=${TRAEFIK_PROXY_CONFIANCE:-172.16.0.0/12}
+      # Contrôle de santé (traefik healthcheck --ping), seulement sur la boucle locale.
+      - --entrypoints.ping.address=127.0.0.1:8082
+      - --ping.entrypoint=ping
+      - --providers.file.directory=/routes
+      - --providers.file.watch=true
+      - --api.dashboard=false
+      - --log.level=INFO
+      - --log.format=json
+      - --accesslog=true
+      - --accesslog.format=json
