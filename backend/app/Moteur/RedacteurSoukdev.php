@@ -61,11 +61,14 @@ class RedacteurSoukdev
 
     /**
      * Le soukdev.json, et les fichiers Docker écrits quand le dépôt n'a pas de docker-compose.yml
-     * (piles sûres seulement, voir EcrivainDocker).
+     * (piles sûres seulement, voir EcrivainDocker). Avec le soukdev.json déjà présent dans le
+     * dépôt ($existant, validé), il est gardé : ses variables passent au conteneur, et il n'est
+     * à remplacer que si les fichiers écrits servent un autre service ou un autre port.
      *
-     * @return array{manifeste: array<string, mixed>, fichiers: array<string, string>, deductions: list<string>, a_verifier: list<string>}
+     * @param  array<string, mixed>|null  $existant
+     * @return array{manifeste: array<string, mixed>, fichiers: array<string, string>, deductions: list<string>, a_verifier: list<string>, soukdev: 'nouveau'|'garde'|'a_remplacer'}
      */
-    public function rediger(string $repertoire): array
+    public function rediger(string $repertoire, ?array $existant = null): array
     {
         $deductions = [];
         $aVerifier = [];
@@ -81,14 +84,27 @@ class RedacteurSoukdev
         // Les variables d'abord : les fichiers Docker écrits les passent à la construction ou au conteneur.
         $deductionsVariables = [];
         $aVerifierVariables = [];
-        $variables = $this->variables($repertoire, $compose, $services, $deductionsVariables, $aVerifierVariables);
+        if ($existant !== null) {
+            $variables = is_array($existant['variables'] ?? null) ? $existant['variables'] : [];
+            $deductionsVariables[] = $variables === []
+                ? 'Votre soukdev.json est repris : il ne déclare aucune variable.'
+                : 'Votre soukdev.json est repris : ses variables ('.implode(', ', array_column($variables, 'nom')).') passent à l\'appli.';
+        } else {
+            $variables = $this->variables($repertoire, $compose, $services, $deductionsVariables, $aVerifierVariables);
+        }
         $noms = array_column($variables, 'nom');
 
         if ($compose !== null) {
             [$nom, $port] = $this->serviceWeb($repertoire, $services, $deductions, $aVerifier);
         } elseif ($this->lire($repertoire, 'Dockerfile') !== null) {
-            [$nom, $port] = $this->serviceWeb($repertoire, null, $deductions, $aVerifier);
-            $fichiers = $this->verifierEcrits(['docker-compose.yml' => EcrivainDocker::compose($port, $noms)]);
+            // Le service et le port que le dev a déclarés valent mieux qu'une supposition.
+            [$nom, $port] = $existant !== null
+                ? [(string) $existant['service_web']['nom'], (int) $existant['service_web']['port']]
+                : $this->serviceWeb($repertoire, null, $deductions, $aVerifier);
+            if ($existant !== null) {
+                $deductions[] = "Service « {$nom} », port {$port}, repris de votre soukdev.json.";
+            }
+            $fichiers = $this->verifierEcrits(['docker-compose.yml' => EcrivainDocker::compose($port, $noms, service: $nom)]);
             $deductions[] = 'docker-compose.yml écrit par Souk.dev : il construit votre Dockerfile, expose le port et passe les variables au conteneur.';
         } else {
             $ecrit = $this->ecrivain->ecrire($repertoire, $noms);
@@ -111,14 +127,31 @@ class RedacteurSoukdev
         array_push($deductions, ...$deductionsVariables);
         array_push($aVerifier, ...$aVerifierVariables);
 
-        $manifeste = [
-            'version' => 1,
-            'service_web' => ['nom' => $nom, 'port' => $port],
-            'backend' => 'propre',
-            'variables' => $variables,
-        ];
+        if ($existant === null) {
+            $manifeste = [
+                'version' => 1,
+                'service_web' => ['nom' => $nom, 'port' => $port],
+                'backend' => 'propre',
+                'variables' => $variables,
+            ];
 
-        return ['manifeste' => $manifeste, 'fichiers' => $fichiers, 'deductions' => $deductions, 'a_verifier' => $aVerifier];
+            return ['manifeste' => $manifeste, 'fichiers' => $fichiers, 'deductions' => $deductions, 'a_verifier' => $aVerifier, 'soukdev' => 'nouveau'];
+        }
+
+        $declare = $existant['service_web'];
+        if ($fichiers === [] || ($declare['nom'] === $nom && (int) $declare['port'] === $port)) {
+            return ['manifeste' => $existant, 'fichiers' => $fichiers, 'deductions' => $deductions, 'a_verifier' => $aVerifier, 'soukdev' => 'garde'];
+        }
+
+        array_unshift($aVerifier, "Votre soukdev.json annonce le service « {$declare['nom']} » sur le port {$declare['port']}, mais les fichiers écrits servent « {$nom} » sur le port {$port} : remplacez votre soukdev.json par celui proposé ici.");
+
+        return [
+            'manifeste' => [...$existant, 'service_web' => ['nom' => $nom, 'port' => $port]],
+            'fichiers' => $fichiers,
+            'deductions' => $deductions,
+            'a_verifier' => $aVerifier,
+            'soukdev' => 'a_remplacer',
+        ];
     }
 
     /**

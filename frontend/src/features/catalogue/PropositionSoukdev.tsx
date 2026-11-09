@@ -9,9 +9,12 @@ import type { RedactionSoukdev } from './api'
  * le bouton qui ouvre GitHub sur le nouveau fichier déjà rempli.
  */
 export function PropositionSoukdev({ redaction }: { redaction: RedactionSoukdev }) {
+  // Un soukdev.json déjà dans le dépôt et juste n'est pas reproposé ; à remplacer, GitHub ouvre l'existant.
   const fichiers = [
-    ...redaction.fichiers,
-    { chemin: 'soukdev.json', contenu: redaction.soukdev_json, lien_github: redaction.lien_github },
+    ...redaction.fichiers.map((fichier) => ({ ...fichier, remplacer: false })),
+    ...(redaction.soukdev_etat === 'garde'
+      ? []
+      : [{ chemin: 'soukdev.json', contenu: redaction.soukdev_json, lien_github: redaction.lien_github, remplacer: redaction.soukdev_etat === 'a_remplacer' }]),
   ]
   const plusieurs = fichiers.length > 1
 
@@ -21,7 +24,7 @@ export function PropositionSoukdev({ redaction }: { redaction: RedactionSoukdev 
         <FileCode2 aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-sur-primaire-doux" />
         <div className="flex flex-col gap-1">
           <h3 id="titre-proposition" className="m-0 text-titre-3 text-titre">
-            {plusieurs ? `Vos ${fichiers.length} fichiers, écrits par Souk.dev` : 'Votre soukdev.json, écrit par Souk.dev'}
+            {plusieurs ? `Vos ${fichiers.length} fichiers, écrits par Souk.dev` : `Votre ${fichiers[0]?.chemin ?? 'fichier'}, écrit par Souk.dev`}
           </h3>
           <p className="m-0 text-petit text-texte-doux">
             {plusieurs
@@ -52,6 +55,8 @@ export function PropositionSoukdev({ redaction }: { redaction: RedactionSoukdev 
         </Alerte>
       ) : null}
 
+      {redaction.soukdev_etat === 'garde' ? <p className="m-0 text-petit text-texte">Votre soukdev.json est gardé tel quel : il ne manquait que les fichiers Docker.</p> : null}
+
       {fichiers.map((fichier) => (
         <FichierPropose key={fichier.chemin} {...fichier} />
       ))}
@@ -65,11 +70,16 @@ export function PropositionSoukdev({ redaction }: { redaction: RedactionSoukdev 
   )
 }
 
-function FichierPropose({ chemin, contenu, lien_github }: { chemin: string; contenu: string; lien_github: string | null }) {
+function FichierPropose({ chemin, contenu, lien_github, remplacer }: { chemin: string; contenu: string; lien_github: string | null; remplacer: boolean }) {
   const [copie, setCopie] = useState(false)
 
   return (
     <div className="flex flex-col gap-1.5">
+      {remplacer ? (
+        <p className="m-0 text-petit text-texte">
+          Ce fichier existe déjà dans votre dépôt : copiez ce contenu, ouvrez-le sur GitHub, remplacez tout son texte, puis validez.
+        </p>
+      ) : null}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="m-0 font-mono text-petit font-medium text-titre">{chemin}</p>
         <div className="flex items-center gap-1">
@@ -88,10 +98,10 @@ function FichierPropose({ chemin, contenu, lien_github }: { chemin: string; cont
               href={lien_github}
               target="_blank"
               rel="noopener noreferrer"
-              aria-label={`Ajouter ${chemin} sur GitHub (nouvel onglet)`}
+              aria-label={`${remplacer ? 'Remplacer' : 'Ajouter'} ${chemin} sur GitHub (nouvel onglet)`}
               className={classesBouton('primaire', 'sm')}
             >
-              Ajouter sur GitHub
+              {remplacer ? 'Remplacer sur GitHub' : 'Ajouter sur GitHub'}
               <ExternalLink aria-hidden="true" className="size-3.5" />
             </a>
           ) : null}
@@ -108,9 +118,9 @@ function FichierPropose({ chemin, contenu, lien_github }: { chemin: string; cont
 export function DemandeSoukdev({ desactive, chargement, onDemander }: { desactive: boolean; chargement: boolean; onDemander: () => void }) {
   return (
     <p className="m-0 flex flex-wrap items-center gap-x-2 gap-y-1 text-petit text-texte-doux">
-      Pas encore de soukdev.json ?
-      <Bouton variante="fantome" taille="sm" chargement={chargement} disabled={desactive} onClick={onDemander}>
-        Souk.dev l’écrit pour vous
+      Il manque soukdev.json ou docker-compose.yml ?
+      <Bouton variante="secondaire" taille="sm" chargement={chargement} disabled={desactive} onClick={onDemander}>
+        Souk.dev les écrit pour vous
       </Bouton>
     </p>
   )

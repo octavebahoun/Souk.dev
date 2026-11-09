@@ -1956,10 +1956,15 @@ export interface components {
             backend: "propre" | "integre";
             variables_client: components["schemas"]["VariableClient"][];
         };
-        /** @description Un soukdev.json proposé par la plateforme. Dépôt illisible, ou qui a déjà un soukdev.json : réponse 422 sur depot_url. */
+        /** @description Les fichiers qui manquent au dépôt, proposés par la plateforme. Dépôt illisible, ou qui a déjà son soukdev.json et son docker-compose.yml : réponse 422 sur depot_url. */
         RedactionSoukdev: {
             /** @description Le fichier tel qu'il sera écrit à la racine du dépôt */
             soukdev_json: string;
+            /**
+             * @description nouveau : le dépôt n'a pas de soukdev.json, celui-ci est à ajouter. garde : le dépôt a déjà un soukdev.json valide, il ne change pas (seuls les fichiers Docker manquaient). a_remplacer : celui du dépôt est invalide, ou annonce un autre service ou un autre port que les fichiers écrits.
+             * @enum {string}
+             */
+            soukdev_etat: "nouveau" | "garde" | "a_remplacer";
             /** @description Les fichiers Docker écrits par la plateforme quand le dépôt n'a pas de docker-compose.yml (site statique, Vite, Create React App, Next.js, serveur Node) : Dockerfile, nginx.conf, .dockerignore, docker-compose.yml. Vide sinon. */
             fichiers: components["schemas"]["FichierPropose"][];
             /** @description Ce que la plateforme a lu ou supposé, une phrase par choix */
@@ -1968,7 +1973,7 @@ export interface components {
             a_verifier: string[];
             /**
              * Format: uri
-             * @description La page « nouveau fichier » de GitHub, déjà remplie ; null si la branche du dépôt est illisible
+             * @description soukdev_etat nouveau : la page « nouveau fichier » de GitHub, déjà remplie. a_remplacer : l'éditeur GitHub du soukdev.json existant (le dev y colle le contenu). garde, ou branche illisible : null.
              */
             lien_github: string | null;
         };

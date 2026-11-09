@@ -3153,10 +3153,14 @@ components:
 
     RedactionSoukdev:
       type: object
-      description: "Un soukdev.json proposé par la plateforme. Dépôt illisible, ou qui a déjà un soukdev.json : réponse 422 sur depot_url."
-      required: [soukdev_json, fichiers, deductions, a_verifier, lien_github]
+      description: "Les fichiers qui manquent au dépôt, proposés par la plateforme. Dépôt illisible, ou qui a déjà son soukdev.json et son docker-compose.yml : réponse 422 sur depot_url."
+      required: [soukdev_json, soukdev_etat, fichiers, deductions, a_verifier, lien_github]
       properties:
         soukdev_json: { type: string, description: Le fichier tel qu'il sera écrit à la racine du dépôt }
+        soukdev_etat:
+          type: string
+          enum: [nouveau, garde, a_remplacer]
+          description: "nouveau : le dépôt n'a pas de soukdev.json, celui-ci est à ajouter. garde : le dépôt a déjà un soukdev.json valide, il ne change pas (seuls les fichiers Docker manquaient). a_remplacer : celui du dépôt est invalide, ou annonce un autre service ou un autre port que les fichiers écrits." 
         fichiers:
           type: array
           description: "Les fichiers Docker écrits par la plateforme quand le dépôt n'a pas de docker-compose.yml (site statique, Vite, Create React App, Next.js, serveur Node) : Dockerfile, nginx.conf, .dockerignore, docker-compose.yml. Vide sinon."
@@ -3172,7 +3176,7 @@ components:
         lien_github:
           type: [string, 'null']
           format: uri
-          description: La page « nouveau fichier » de GitHub, déjà remplie ; null si la branche du dépôt est illisible
+          description: "soukdev_etat nouveau : la page « nouveau fichier » de GitHub, déjà remplie. a_remplacer : l'éditeur GitHub du soukdev.json existant (le dev y colle le contenu). garde, ou branche illisible : null."
 
     FichierPropose:
       type: object
