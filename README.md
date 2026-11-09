@@ -133,6 +133,12 @@ pas du web (appli mobile, jeu en UDP). Les deux premiers cas sont prévus après
 
 Le schéma complet : [`backend/soukdev.schema.json`](backend/soukdev.schema.json).
 
+**Pas encore de `soukdev.json` ?** À la publication, « Souk.dev l'écrit pour vous » lit le dépôt et
+l'écrit. S'il manque aussi le `docker-compose.yml`, il écrit les fichiers Docker pour un site
+statique, un site Vite ou Create React App, Next.js ou un serveur Node. Un bouton par fichier ouvre
+GitHub sur le fichier déjà rempli : il suffit de valider. Pour les autres piles, et le test des
+fichiers avant de les proposer : [#33](https://github.com/octavebahoun/Souk.dev/issues/33).
+
 ## Pour l'équipe de Souk.dev
 
 Vue financière tirée d'un grand livre inaltérable, reversements aux devs, avoirs. Modération

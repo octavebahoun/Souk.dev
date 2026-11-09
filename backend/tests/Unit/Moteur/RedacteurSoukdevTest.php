@@ -2,6 +2,7 @@
 
 namespace Tests\Unit\Moteur;
 
+use App\Moteur\EcrivainDocker;
 use App\Moteur\RedacteurSoukdev;
 use App\Moteur\ValidateurSoukdev;
 use App\Moteur\VerificateurCompose;
@@ -34,7 +35,7 @@ class RedacteurSoukdevTest extends TestCase
             file_put_contents($this->depot.'/'.$chemin, $contenu);
         }
 
-        $redaction = (new RedacteurSoukdev(new VerificateurCompose))->rediger($this->depot);
+        $redaction = (new RedacteurSoukdev(new VerificateurCompose, new EcrivainDocker))->rediger($this->depot);
         // Toute proposition doit passer le contrôle d'un soukdev.json écrit à la main.
         (new ValidateurSoukdev)->valider($redaction['manifeste']);
 
@@ -84,7 +85,35 @@ class RedacteurSoukdevTest extends TestCase
         $this->assertSame(['nom' => 'web', 'port' => 3000], $redaction['manifeste']['service_web']);
         $this->assertContains('Next.js détecté : port 3000 supposé. Service nommé « web ».', $redaction['deductions']);
         $this->assertStringStartsWith('docker-compose.yml est absent', $redaction['a_verifier'][0]);
+        $this->assertSame([], $redaction['fichiers']);
         $this->assertContains('Le port 3000 est une supposition : mettez celui sur lequel votre service web écoute.', $redaction['a_verifier']);
+    }
+
+    public function test_sans_compose_ecrit_les_fichiers_docker_d_une_pile_sure(): void
+    {
+        $redaction = $this->rediger([
+            'package.json' => json_encode(['dependencies' => ['vite' => '8.0.0'], 'scripts' => ['build' => 'vite build']]),
+            'pnpm-lock.yaml' => '',
+            '.env.example' => "VITE_TITRE=Ma boutique\n",
+        ]);
+
+        $this->assertSame(['Dockerfile', 'nginx.conf', '.dockerignore', 'docker-compose.yml'], array_keys($redaction['fichiers']));
+        $this->assertSame(['nom' => 'web', 'port' => 80], $redaction['manifeste']['service_web']);
+        $this->assertSame('Site Vite (pnpm, Node 22, dossier « dist ») : Souk.dev a écrit Dockerfile, nginx.conf, .dockerignore, docker-compose.yml, avec un service « web » sur le port 80.', $redaction['deductions'][0]);
+        $this->assertStringContainsString('VITE_TITRE: ${VITE_TITRE}', $redaction['fichiers']['docker-compose.yml']);
+        $this->assertStringStartsWith('Ces fichiers ne sont pas encore testés', $redaction['a_verifier'][0]);
+    }
+
+    public function test_avec_un_dockerfile_sans_compose_ecrit_seulement_le_compose(): void
+    {
+        $redaction = $this->rediger([
+            'Dockerfile' => "FROM python:3.13-slim\nEXPOSE 8000\n",
+            '.env.example' => "SECRET_KEY=\n",
+        ]);
+
+        $this->assertSame(['docker-compose.yml'], array_keys($redaction['fichiers']));
+        $this->assertSame("services:\n  web:\n    build: .\n    restart: unless-stopped\n    expose:\n      - \"8000\"\n    environment:\n      SECRET_KEY: \${SECRET_KEY}\n", $redaction['fichiers']['docker-compose.yml']);
+        $this->assertSame(['nom' => 'web', 'port' => 8000], $redaction['manifeste']['service_web']);
     }
 
     public function test_classe_chaque_variable_lue_dans_le_compose_et_le_env_exemple(): void

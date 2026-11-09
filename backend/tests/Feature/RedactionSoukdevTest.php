@@ -33,6 +33,7 @@ class RedactionSoukdevTest extends TestCase
             'variables' => [['nom' => 'BOUTIQUE_NOM', 'source' => 'client', 'libelle' => 'Boutique nom', 'requis' => true]],
         ], json_decode($texte, true));
         $this->assertSame([], $reponse->json('a_verifier'));
+        $this->assertSame([], $reponse->json('fichiers'));
 
         $lien = $reponse->json('lien_github');
         $this->assertStringStartsWith('https://github.com/acme/boutique/new/main?filename=soukdev.json&value=', $lien);
@@ -41,14 +42,22 @@ class RedactionSoukdevTest extends TestCase
         $this->assertSame(0, Appli::query()->count());
     }
 
-    public function test_le_lien_vise_la_branche_de_l_url(): void
+    public function test_un_site_statique_recoit_ses_fichiers_docker_chacun_avec_son_lien_sur_la_branche_de_l_url(): void
     {
         $this->simulerDepot(['index.html' => '<h1>Bonjour</h1>']);
 
-        $this->actingAs(User::factory()->github()->create())
+        $reponse = $this->actingAs(User::factory()->github()->create())
             ->postJson('/api/apps/soukdev-json', ['depot_url' => 'https://github.com/acme/boutique/tree/feature/souk'])
             ->assertOk()
             ->assertJsonPath('lien_github', fn (string $lien) => str_starts_with($lien, 'https://github.com/acme/boutique/new/feature/souk?'));
+
+        $fichiers = $reponse->json('fichiers');
+        $this->assertSame(['Dockerfile', '.dockerignore', 'docker-compose.yml'], array_column($fichiers, 'chemin'));
+        foreach ($fichiers as $fichier) {
+            parse_str((string) parse_url($fichier['lien_github'], PHP_URL_QUERY), $parametres);
+            $this->assertStringStartsWith('https://github.com/acme/boutique/new/feature/souk?', $fichier['lien_github']);
+            $this->assertSame(['filename' => $fichier['chemin'], 'value' => $fichier['contenu']], $parametres);
+        }
     }
 
     public function test_un_depot_qui_a_deja_un_soukdev_json_est_renvoye_a_la_verification(): void

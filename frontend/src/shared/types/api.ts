@@ -1960,6 +1960,8 @@ export interface components {
         RedactionSoukdev: {
             /** @description Le fichier tel qu'il sera écrit à la racine du dépôt */
             soukdev_json: string;
+            /** @description Les fichiers Docker écrits par la plateforme quand le dépôt n'a pas de docker-compose.yml (site statique, Vite, Create React App, Next.js, serveur Node) : Dockerfile, nginx.conf, .dockerignore, docker-compose.yml. Vide sinon. */
+            fichiers: components["schemas"]["FichierPropose"][];
             /** @description Ce que la plateforme a lu ou supposé, une phrase par choix */
             deductions: string[];
             /** @description Ce que le dev doit vérifier ou corriger avant de publier (port supposé, règle du docker-compose.yml refusée…) */
@@ -1967,6 +1969,16 @@ export interface components {
             /**
              * Format: uri
              * @description La page « nouveau fichier » de GitHub, déjà remplie ; null si la branche du dépôt est illisible
+             */
+            lien_github: string | null;
+        };
+        FichierPropose: {
+            /** @description Chemin à la racine du dépôt (ex. Dockerfile) */
+            chemin: string;
+            contenu: string;
+            /**
+             * Format: uri
+             * @description La page « nouveau fichier » de GitHub, déjà remplie ; null si la branche est illisible
              */
             lien_github: string | null;
         };

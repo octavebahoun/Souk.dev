@@ -32,7 +32,7 @@ class PublicationDepot
     /**
      * Un soukdev.json proposé pour un dépôt qui n'en a pas encore, et la branche où l'ajouter.
      *
-     * @return array{manifeste: array<string, mixed>, deductions: list<string>, a_verifier: list<string>, branche: string|null}
+     * @return array{manifeste: array<string, mixed>, fichiers: array<string, string>, deductions: list<string>, a_verifier: list<string>, branche: string|null}
      */
     public function rediger(string $url): array
     {

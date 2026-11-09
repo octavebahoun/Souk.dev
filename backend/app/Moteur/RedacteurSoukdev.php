@@ -54,29 +54,62 @@ class RedacteurSoukdev
 
     public const MAX_VARIABLES = 50;
 
-    public function __construct(private VerificateurCompose $verificateur) {}
+    public function __construct(
+        private VerificateurCompose $verificateur,
+        private EcrivainDocker $ecrivain,
+    ) {}
 
     /**
-     * @return array{manifeste: array<string, mixed>, deductions: list<string>, a_verifier: list<string>}
+     * Le soukdev.json, et les fichiers Docker écrits quand le dépôt n'a pas de docker-compose.yml
+     * (piles sûres seulement, voir EcrivainDocker).
+     *
+     * @return array{manifeste: array<string, mixed>, fichiers: array<string, string>, deductions: list<string>, a_verifier: list<string>}
      */
     public function rediger(string $repertoire): array
     {
         $deductions = [];
         $aVerifier = [];
+        $fichiers = [];
         $compose = $this->lire($repertoire, 'docker-compose.yml');
         $services = null;
 
-        if ($compose === null) {
-            $aVerifier[] = 'docker-compose.yml est absent : Souk.dev en a besoin pour lancer l\'appli. Ajoutez-le à la racine, avec le service web proposé ici.';
-        } else {
+        if ($compose !== null) {
             $services = $this->services($compose, $aVerifier);
             $this->verifierCompose($compose, $aVerifier);
         }
 
-        [$nom, $port] = $this->serviceWeb($repertoire, $services, $deductions, $aVerifier);
+        // Les variables d'abord : les fichiers Docker écrits les passent à la construction ou au conteneur.
+        $deductionsVariables = [];
+        $aVerifierVariables = [];
+        $variables = $this->variables($repertoire, $compose, $services, $deductionsVariables, $aVerifierVariables);
+        $noms = array_column($variables, 'nom');
+
+        if ($compose !== null) {
+            [$nom, $port] = $this->serviceWeb($repertoire, $services, $deductions, $aVerifier);
+        } elseif ($this->lire($repertoire, 'Dockerfile') !== null) {
+            [$nom, $port] = $this->serviceWeb($repertoire, null, $deductions, $aVerifier);
+            $fichiers = $this->verifierEcrits(['docker-compose.yml' => EcrivainDocker::compose($port, $noms)]);
+            $deductions[] = 'docker-compose.yml écrit par Souk.dev : il construit votre Dockerfile, expose le port et passe les variables au conteneur.';
+        } else {
+            $ecrit = $this->ecrivain->ecrire($repertoire, $noms);
+            $fichiers = $ecrit !== null ? $this->verifierEcrits($ecrit['fichiers']) : [];
+
+            if ($ecrit !== null && $fichiers !== []) {
+                [$nom, $port] = ['web', $ecrit['port']];
+                $deductions[] = "{$ecrit['pile']} : Souk.dev a écrit ".implode(', ', array_keys($fichiers)).", avec un service « web » sur le port {$port}.";
+                array_push($deductions, ...$ecrit['notes']);
+                $aVerifier[] = 'Ces fichiers ne sont pas encore testés : Souk.dev lance l\'appli juste après la publication pour mesurer sa mémoire. Si elle ne démarre pas, corrigez-les dans votre dépôt.';
+            } else {
+                $aVerifier[] = 'docker-compose.yml est absent : Souk.dev en a besoin pour lancer l\'appli. Ajoutez-le à la racine, avec le service web proposé ici.';
+                [$nom, $port] = $this->serviceWeb($repertoire, null, $deductions, $aVerifier);
+                $aVerifier[] = 'Souk.dev ne sait pas encore écrire les fichiers Docker de cette pile : seulement un site statique, Vite, Create React App, Next.js ou un serveur Node.';
+            }
+        }
+
         $this->signalerCloudDeLAuteur($repertoire, $aVerifier);
         $this->signalerBases($services, $deductions);
-        $variables = $this->variables($repertoire, $compose, $services, $deductions, $aVerifier);
+        array_push($deductions, ...$deductionsVariables);
+        array_push($aVerifier, ...$aVerifierVariables);
 
         $manifeste = [
             'version' => 1,
@@ -85,7 +118,27 @@ class RedacteurSoukdev
             'variables' => $variables,
         ];
 
-        return ['manifeste' => $manifeste, 'deductions' => $deductions, 'a_verifier' => $aVerifier];
+        return ['manifeste' => $manifeste, 'fichiers' => $fichiers, 'deductions' => $deductions, 'a_verifier' => $aVerifier];
+    }
+
+    /**
+     * Filet : un docker-compose.yml écrit par Souk.dev passe les règles de la publication, sinon
+     * il n'est pas proposé (c'est alors un défaut de l'écrivain, signalé aux journaux).
+     *
+     * @param  array<string, string>  $fichiers
+     * @return array<string, string>
+     */
+    private function verifierEcrits(array $fichiers): array
+    {
+        try {
+            $this->verificateur->verifier($fichiers['docker-compose.yml'] ?? '');
+        } catch (LancementEchoue $exception) {
+            report($exception);
+
+            return [];
+        }
+
+        return $fichiers;
     }
 
     /** Le soukdev.json tel qu'il sera écrit dans le dépôt. */

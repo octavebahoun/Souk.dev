@@ -3154,9 +3154,13 @@ components:
     RedactionSoukdev:
       type: object
       description: "Un soukdev.json proposé par la plateforme. Dépôt illisible, ou qui a déjà un soukdev.json : réponse 422 sur depot_url."
-      required: [soukdev_json, deductions, a_verifier, lien_github]
+      required: [soukdev_json, fichiers, deductions, a_verifier, lien_github]
       properties:
         soukdev_json: { type: string, description: Le fichier tel qu'il sera écrit à la racine du dépôt }
+        fichiers:
+          type: array
+          description: "Les fichiers Docker écrits par la plateforme quand le dépôt n'a pas de docker-compose.yml (site statique, Vite, Create React App, Next.js, serveur Node) : Dockerfile, nginx.conf, .dockerignore, docker-compose.yml. Vide sinon."
+          items: { $ref: '#/components/schemas/FichierPropose' }
         deductions:
           type: array
           description: Ce que la plateforme a lu ou supposé, une phrase par choix
@@ -3169,6 +3173,17 @@ components:
           type: [string, 'null']
           format: uri
           description: La page « nouveau fichier » de GitHub, déjà remplie ; null si la branche du dépôt est illisible
+
+    FichierPropose:
+      type: object
+      required: [chemin, contenu, lien_github]
+      properties:
+        chemin: { type: string, description: 'Chemin à la racine du dépôt (ex. Dockerfile)' }
+        contenu: { type: string }
+        lien_github:
+          type: [string, 'null']
+          format: uri
+          description: La page « nouveau fichier » de GitHub, déjà remplie ; null si la branche est illisible
 
     CapturesEnvoi:
       type: array

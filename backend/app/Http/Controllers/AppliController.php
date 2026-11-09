@@ -177,8 +177,9 @@ class AppliController extends Controller
     }
 
     /**
-     * Un dépôt sans soukdev.json : Souk.dev en écrit un, à relire, et donne le lien qui ouvre GitHub
-     * sur le nouveau fichier déjà rempli. Rien n'est publié ni écrit dans le dépôt.
+     * Un dépôt sans soukdev.json : Souk.dev en écrit un, à relire, avec les fichiers Docker qui
+     * manquent (piles sûres), et pour chacun le lien qui ouvre GitHub sur le nouveau fichier déjà
+     * rempli. Rien n'est publié ni écrit dans le dépôt.
      */
     public function redactionSoukdev(Request $request, PublicationDepot $depot): JsonResponse
     {
@@ -198,8 +199,18 @@ class AppliController extends Controller
         $github = DepotGithub::depuisUrl($donnees['depot_url']);
         $branche = $github->branche ?? $redaction['branche'];
 
+        $fichiers = [];
+        foreach ($redaction['fichiers'] as $chemin => $contenu) {
+            $fichiers[] = [
+                'chemin' => $chemin,
+                'contenu' => $contenu,
+                'lien_github' => $branche !== null ? $github->lienNouveauFichier($branche, $chemin, $contenu) : null,
+            ];
+        }
+
         return response()->json([
             'soukdev_json' => $texte,
+            'fichiers' => $fichiers,
             'deductions' => $redaction['deductions'],
             'a_verifier' => $redaction['a_verifier'],
             'lien_github' => $branche !== null ? $github->lienNouveauFichier($branche, 'soukdev.json', $texte) : null,

@@ -13,6 +13,9 @@ vi.mock('../../shared/client', async () => {
 
 const redaction: RedactionSoukdev = {
   soukdev_json: '{\n    "version": 1,\n    "service_web": { "nom": "web", "port": 80 }\n}\n',
+  fichiers: [
+    { chemin: 'Dockerfile', contenu: 'FROM nginx:1.27-alpine\nCOPY . /usr/share/nginx/html\n', lien_github: 'https://github.com/awa/boutique/new/main?filename=Dockerfile&value=FROM' },
+  ],
   deductions: ['Service web : « web », port 80, lus dans docker-compose.yml.'],
   a_verifier: ['APP_URL vaut « http://localhost » : en ligne, la copie n’est pas sur localhost.'],
   lien_github: 'https://github.com/awa/boutique/new/main?filename=soukdev.json&value=%7B%7D',
@@ -36,14 +39,16 @@ describe('soukdev.json écrit par Souk.dev', () => {
     fireEvent.change(await screen.findByLabelText('Adresse du dépôt'), { target: { value: 'https://github.com/awa/boutique' } })
     fireEvent.click(screen.getByRole('button', { name: 'Souk.dev l’écrit pour vous' }))
 
-    expect(await screen.findByRole('heading', { name: 'Votre soukdev.json, écrit par Souk.dev' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Vos 2 fichiers, écrits par Souk.dev' })).toBeInTheDocument()
     expect(clientLocal.post).toHaveBeenCalledWith(cheminLaravel('/apps/soukdev-json'), { depot_url: 'https://github.com/awa/boutique' })
     expect(screen.getByText(/"service_web"/)).toBeInTheDocument()
     expect(screen.getByText(redaction.a_verifier[0])).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /Ajouter à mon dépôt sur GitHub/ })).toHaveAttribute('href', redaction.lien_github)
+    expect(screen.getByText(/COPY \. \/usr\/share\/nginx\/html/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Ajouter Dockerfile sur GitHub (nouvel onglet)' })).toHaveAttribute('href', redaction.fichiers[0].lien_github)
+    expect(screen.getByRole('link', { name: 'Ajouter soukdev.json sur GitHub (nouvel onglet)' })).toHaveAttribute('href', redaction.lien_github)
 
     // Un autre dépôt : la proposition de l'ancien disparaît.
     fireEvent.change(screen.getByLabelText('Adresse du dépôt'), { target: { value: 'https://github.com/awa/autre' } })
-    expect(screen.queryByRole('heading', { name: 'Votre soukdev.json, écrit par Souk.dev' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Vos 2 fichiers, écrits par Souk.dev' })).not.toBeInTheDocument()
   })
 })
