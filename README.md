@@ -1,10 +1,12 @@
 # Souk.dev
 
-**Le marché des applis des devs africains.** Un dev publie son appli. Une pharmacie, une
-association ou une boutique en déploie **sa propre copie** en un clic, paie par Mobile Money en
-FCFA, et l'ouvre sur sa propre adresse quelques minutes plus tard. Autour, l'**Échange** : les
-devs s'entraident sur leurs bugs, se proposent des correctifs et les essaient sur des copies de
-test.
+**La plateforme d'échange des devs africains, et leur marché.** Dans l'**Échange**, les devs
+s'entraident : ils postent leurs bugs, se proposent des correctifs, les voient tourner avant de
+les accepter, et gagnent leur réputation. Dans le **Store**, ils publient leurs applis : une
+pharmacie, une association ou une boutique en déploie **sa propre copie** en un clic, paie par
+Mobile Money en FCFA, et l'ouvre sur sa propre adresse quelques minutes plus tard.
+
+**Les devs d'abord** : les clients sont un débouché pour eux, pas le cœur du produit.
 
 **En ligne : [soukdev.shop](https://soukdev.shop)**
 
@@ -18,7 +20,43 @@ test.
 
 <p align="center"><img src="docs/captures/mobile-sombre.webp" width="300" alt="Le Store sur mobile, en thème sombre"></p>
 
-## Comment ça marche
+## L'Échange : l'entraide entre devs
+
+Tout y est **gratuit**, et rien n'oblige à déployer quoi que ce soit.
+
+1. **Poster son problème** dans un canal (`#laravel`, `#mobile-money`, ou par pays comme
+   `#laravel-benin`) ou sur la page de son appli, avec une étiquette : `bug`, `question`,
+   `tuto`, `projet` ou `entraide`. Un bug est **structuré** : erreur obtenue, comportement
+   attendu, techno, extrait de code, difficulté. On y joint son dépôt GitHub, son appli du
+   Store ou une démo déjà en ligne, affichée dans un cadre isolé.
+2. **Les autres devs répondent**, en direct, et **proposent un correctif** : l'adresse de leur
+   branche ou de leur fork, avec une démo s'ils le veulent.
+3. **Voir le correctif tourner avant de l'accepter** : une **copie de test gratuite** de deux
+   heures, ou la version corrigée lancée par celui qui l'a proposée.
+4. **L'auteur accepte** le correctif (il le fusionne lui-même sur GitHub, Souk.dev n'a jamais
+   accès en écriture à son code). La discussion est résolue, et celui qui a aidé gagne de la
+   réputation.
+
+**Souk AI** : sur un bug, l'auteur peut demander une analyse IA, affichée **à côté** des
+réponses de la communauté, jamais à leur place. Rien ne part chez le fournisseur sans son
+accord ([docs/souk-ai.md](docs/souk-ai.md)).
+
+**La réputation ne récompense que ce que quelqu'un d'autre a validé** : un correctif accepté
+(+50 XP), une appli publiée (+100), une mission terminée (+100, plus 10 × la note du client),
+un événement organisé (+50). Il n'y a pas de votes. Viennent ensuite les niveaux (Débutant,
+Contributeur, Confirmé, Expert), les badges (Premier correctif, Chasseur de bugs, Fiable…) et le
+**Souk Score** sur 1000, qui mesure la qualité et l'activité récente : un nouveau qui aide bien
+peut dépasser un ancien devenu inactif.
+
+**Autour** : des **événements** en ligne ou en présentiel (inscription, avis après coup), et un
+**espace entreprises** pour trouver un dev disponible par compétence, spécialité ou pays, trié
+par Souk Score. On peut le recruter, ou demander à l'auteur d'une appli une version sur mesure :
+c'est une **mission** privée, sans enchères, notée par le client à la fin.
+
+Corriger un bug dans l'Échange n'est pas rémunéré : c'est de l'entraide, payée en réputation. Un
+dev gagne de l'argent avec le prix de ses applis et ses missions.
+
+## Le Store : publier, déployer, être payé
 
 1. **Le dev publie** son appli depuis un dépôt GitHub public. Souk.dev vérifie le dépôt (secrets
    avec gitleaks, failles avec Trivy), mesure la mémoire de l'appli et recommande une formule
@@ -29,7 +67,11 @@ test.
    données.
 4. **Chaque mois**, le client paie l'hébergement et le prix de l'appli. Le prix de l'appli va
    **entièrement au dev** : Souk.dev ne prend aucune commission et gagne seulement sur
-   l'hébergement.
+   l'hébergement. Le client reçoit un rappel avant l'échéance ; sans paiement, sa copie est
+   suspendue, ses données gardées, et elle repart dès qu'il paie.
+
+Le client peut aussi noter l'appli, et le dev suit ses vues, ses copies et ses revenus, reversés
+sur son Mobile Money.
 
 | Formule | Mémoire | Processeur | Hébergement, par mois |
 |---|---|---|---|
@@ -91,20 +133,11 @@ pas du web (appli mobile, jeu en UDP). Les deux premiers cas sont prévus après
 
 Le schéma complet : [`backend/soukdev.schema.json`](backend/soukdev.schema.json).
 
-## Ce que fait Souk.dev
+## Pour l'équipe de Souk.dev
 
-**Pour les devs** : publier, être payé sur son Mobile Money sans commission, suivre vues,
-copies et revenus. L'Échange : canaux, bugs structurés, correctifs (proposer, accepter, lancer
-la version corrigée), copie de test gratuite de deux heures, démo dans un cadre isolé, Souk AI,
-temps réel. Réputation (XP, niveaux, badges, Souk Score), missions, événements.
-
-**Pour les clients** : trouver l'appli qu'il faut, la commander, payer, l'ouvrir. Factures
-mensuelles, rappel avant échéance, suspension puis réactivation selon le paiement. Noter les
-applis, demander une version sur mesure, recruter un dev.
-
-**Pour l'équipe** : vue financière tirée d'un grand livre inaltérable, reversements, avoirs.
-Modération (signalements, suspensions, politique d'abus automatique), plusieurs serveurs,
-sauvegardes, alertes.
+Vue financière tirée d'un grand livre inaltérable, reversements aux devs, avoirs. Modération
+(signalements, suspensions, politique d'abus automatique), plusieurs serveurs, sauvegardes,
+alertes.
 
 ## Installer en local en moins de 10 minutes
 
