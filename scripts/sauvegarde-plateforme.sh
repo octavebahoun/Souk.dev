@@ -3,6 +3,7 @@
 # (stockage des copies et de leurs sauvegardes, routes Traefik, certificats).
 # Usage : ./scripts/sauvegarde-plateforme.sh [dossier]  (défaut : ./sauvegardes)
 # À lancer chaque nuit depuis le VPS (cron de l'opérateur, voir docs/exploitation.md).
+# Après une sauvegarde réussie, celles de plus de GARDER_JOURS jours (30 par défaut) sont effacées.
 set -eu
 
 cd "$(dirname "$0")/.."
@@ -10,6 +11,10 @@ cd "$(dirname "$0")/.."
 dossier=${1:-./sauvegardes}
 date=$(date +%Y%m%d-%H%M%S)
 mkdir -p "$dossier"
+# Chemin absolu : il est monté tel quel dans les conteneurs qui archivent les volumes
+# ("$(pwd)/$dossier" donnait un chemin faux pour un dossier déjà absolu, comme /var/sauvegardes).
+dossier=$(cd "$dossier" && pwd)
+garder=${GARDER_JOURS:-30}
 
 compose="./scripts/prod.sh"
 # Projet Compose : « soukdev » (name: de docker-compose.prod.yml), ou COMPOSE_PROJECT_NAME pour un
@@ -30,7 +35,7 @@ for volume in stockage routes letsencrypt; do
     # Lu en root (fichiers de tous les propriétaires), rendu à qui lance la sauvegarde.
     docker run --rm \
         -v "${projet}_${volume}:/donnees:ro" \
-        -v "$(pwd)/$dossier:/sortie" \
+        -v "$dossier:/sortie" \
         alpine:3.21 sh -c 'tar czf "$1" -C /donnees . && chown "$2" "$1"' _ "/sortie/${volume}-$date.tar.gz" "$(id -u):$(id -g)"
 done
 
@@ -38,4 +43,10 @@ echo "== Sommes de contrôle =="
 (cd "$dossier" && sha256sum "soukdev-$date.sql.gz" "stockage-$date.tar.gz" "routes-$date.tar.gz" "letsencrypt-$date.tar.gz" > "sommes-$date.txt")
 
 ls -lh "$dossier"/*"$date"*
+
+echo "== Nettoyage (plus de $garder jours) =="
+find "$dossier" -maxdepth 1 -type f -mtime +"$garder" \
+    \( -name 'soukdev-*.sql.gz' -o -name 'stockage-*.tar.gz' -o -name 'routes-*.tar.gz' \
+    -o -name 'letsencrypt-*.tar.gz' -o -name 'sommes-*.txt' \) -print -delete
+
 echo "Sauvegarde terminée dans $dossier."
