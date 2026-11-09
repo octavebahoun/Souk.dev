@@ -54,6 +54,7 @@ Route::middleware(['auth:sanctum', 'compte.actif'])->group(function (): void {
     Route::patch('/me', [CompteController::class, 'update']);
 
     Route::post('/apps/verification', [AppliController::class, 'verification'])->middleware('throttle:depots');
+    Route::post('/apps/soukdev-json', [AppliController::class, 'redactionSoukdev'])->middleware('throttle:depots');
     Route::post('/apps', [AppliController::class, 'store'])->middleware('throttle:depots');
     Route::patch('/apps/{appli}', [AppliController::class, 'update']);
     Route::delete('/apps/{appli}', [AppliController::class, 'destroy']);

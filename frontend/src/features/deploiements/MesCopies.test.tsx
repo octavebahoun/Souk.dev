@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react'
 import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { creerRoutes } from '../../app/router'
-import { cheminLaravel, client } from '../../shared/client'
+import { cheminLaravel, clientLocal } from '../../shared/client'
 import type { Sauvegarde } from '../catalogue/api'
 import type { Deploiement } from '../paiements/api'
 import { DELAI_ECHEC_SAUVEGARDE_MS } from './MesCopies'
@@ -15,7 +15,7 @@ vi.mock('../../shared/client', async () => {
     patch: vi.fn(),
     delete: vi.fn(),
   }
-  return { ...reel, client: http, clientLocal: http }
+  return { ...reel, clientLocal: http }
 })
 
 function sauvegarde(identifiant: string, type: Sauvegarde['type'] = 'quotidienne'): Sauvegarde {
@@ -45,7 +45,7 @@ function copie(): Deploiement {
 }
 
 function reponses(gardees: Sauvegarde[]) {
-  vi.mocked(client.get).mockImplementation((url: string) => {
+  vi.mocked(clientLocal.get).mockImplementation((url: string) => {
     if (url === cheminLaravel('/deployments')) {
       const liste = [copie()]
       return Promise.resolve({
@@ -61,7 +61,7 @@ function reponses(gardees: Sauvegarde[]) {
     }
     return Promise.reject(new Error(`url inattendue ${url}`))
   })
-  vi.mocked(client.post).mockImplementation((url: string) => {
+  vi.mocked(clientLocal.post).mockImplementation((url: string) => {
     if (url === cheminLaravel('/deployments/1/sauvegardes')) return Promise.resolve({ data: null })
     return Promise.reject(new Error(`url inattendue ${url}`))
   })
@@ -77,8 +77,8 @@ async function rendu() {
 
 describe('sauvegardes de « Mes copies »', () => {
   beforeEach(() => {
-    vi.mocked(client.get).mockReset()
-    vi.mocked(client.post).mockReset()
+    vi.mocked(clientLocal.get).mockReset()
+    vi.mocked(clientLocal.post).mockReset()
   })
 
   afterEach(() => {

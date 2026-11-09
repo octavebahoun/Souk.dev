@@ -443,6 +443,32 @@ paths:
         '419': { $ref: '#/components/responses/CsrfInvalide' }
         '503': { $ref: '#/components/responses/Indisponible' }
 
+  /apps/soukdev-json:
+    post:
+      tags: [Applis]
+      operationId: draftSoukdevJson
+      summary: Écrire un soukdev.json pour un dépôt qui n'en a pas (service web, port, variables lus dans le dépôt), à relire puis ajouter au dépôt sur GitHub ; ne publie rien et n'écrit rien dans le dépôt
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [depot_url]
+              properties:
+                depot_url: { type: string, format: uri }
+      responses:
+        '200':
+          description: La proposition, ce qui a été déduit, ce qui reste à vérifier, et le lien GitHub
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RedactionSoukdev' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { description: 'GitHub non lié au compte', content: { application/json: { schema: { $ref: '#/components/schemas/Erreur' } } } }
+        '422': { $ref: '#/components/responses/Invalide' }
+        '429': { $ref: '#/components/responses/TropDeRequetes' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+
   /apps/{id}:
     parameters:
       - $ref: '#/components/parameters/Id'
@@ -3124,6 +3150,40 @@ components:
         variables_client:
           type: array
           items: { $ref: '#/components/schemas/VariableClient' }
+
+    RedactionSoukdev:
+      type: object
+      description: "Un soukdev.json proposé par la plateforme. Dépôt illisible, ou qui a déjà un soukdev.json : réponse 422 sur depot_url."
+      required: [soukdev_json, fichiers, deductions, a_verifier, lien_github]
+      properties:
+        soukdev_json: { type: string, description: Le fichier tel qu'il sera écrit à la racine du dépôt }
+        fichiers:
+          type: array
+          description: "Les fichiers Docker écrits par la plateforme quand le dépôt n'a pas de docker-compose.yml (site statique, Vite, Create React App, Next.js, serveur Node) : Dockerfile, nginx.conf, .dockerignore, docker-compose.yml. Vide sinon."
+          items: { $ref: '#/components/schemas/FichierPropose' }
+        deductions:
+          type: array
+          description: Ce que la plateforme a lu ou supposé, une phrase par choix
+          items: { type: string }
+        a_verifier:
+          type: array
+          description: Ce que le dev doit vérifier ou corriger avant de publier (port supposé, règle du docker-compose.yml refusée…)
+          items: { type: string }
+        lien_github:
+          type: [string, 'null']
+          format: uri
+          description: La page « nouveau fichier » de GitHub, déjà remplie ; null si la branche du dépôt est illisible
+
+    FichierPropose:
+      type: object
+      required: [chemin, contenu, lien_github]
+      properties:
+        chemin: { type: string, description: 'Chemin à la racine du dépôt (ex. Dockerfile)' }
+        contenu: { type: string }
+        lien_github:
+          type: [string, 'null']
+          format: uri
+          description: La page « nouveau fichier » de GitHub, déjà remplie ; null si la branche est illisible
 
     CapturesEnvoi:
       type: array

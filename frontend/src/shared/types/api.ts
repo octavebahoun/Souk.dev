@@ -264,6 +264,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/apps/soukdev-json": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Écrire un soukdev.json pour un dépôt qui n'en a pas (service web, port, variables lus dans le dépôt), à relire puis ajouter au dépôt sur GitHub ; ne publie rien et n'écrit rien dans le dépôt */
+        post: operations["draftSoukdevJson"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/apps/{id}": {
         parameters: {
             query?: never;
@@ -1939,6 +1956,32 @@ export interface components {
             backend: "propre" | "integre";
             variables_client: components["schemas"]["VariableClient"][];
         };
+        /** @description Un soukdev.json proposé par la plateforme. Dépôt illisible, ou qui a déjà un soukdev.json : réponse 422 sur depot_url. */
+        RedactionSoukdev: {
+            /** @description Le fichier tel qu'il sera écrit à la racine du dépôt */
+            soukdev_json: string;
+            /** @description Les fichiers Docker écrits par la plateforme quand le dépôt n'a pas de docker-compose.yml (site statique, Vite, Create React App, Next.js, serveur Node) : Dockerfile, nginx.conf, .dockerignore, docker-compose.yml. Vide sinon. */
+            fichiers: components["schemas"]["FichierPropose"][];
+            /** @description Ce que la plateforme a lu ou supposé, une phrase par choix */
+            deductions: string[];
+            /** @description Ce que le dev doit vérifier ou corriger avant de publier (port supposé, règle du docker-compose.yml refusée…) */
+            a_verifier: string[];
+            /**
+             * Format: uri
+             * @description La page « nouveau fichier » de GitHub, déjà remplie ; null si la branche du dépôt est illisible
+             */
+            lien_github: string | null;
+        };
+        FichierPropose: {
+            /** @description Chemin à la racine du dépôt (ex. Dockerfile) */
+            chemin: string;
+            contenu: string;
+            /**
+             * Format: uri
+             * @description La page « nouveau fichier » de GitHub, déjà remplie ; null si la branche est illisible
+             */
+            lien_github: string | null;
+        };
         /** @description 1 à 5 images PNG, JPEG ou WebP, 5 Mo maximum chacune ; la première sert de couverture */
         CapturesEnvoi: string[];
         Capture: {
@@ -3367,6 +3410,46 @@ export interface operations {
             422: components["responses"]["Invalide"];
             429: components["responses"]["TropDeRequetes"];
             503: components["responses"]["Indisponible"];
+        };
+    };
+    draftSoukdevJson: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uri */
+                    depot_url: string;
+                };
+            };
+        };
+        responses: {
+            /** @description La proposition, ce qui a été déduit, ce qui reste à vérifier, et le lien GitHub */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RedactionSoukdev"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            /** @description GitHub non lié au compte */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            419: components["responses"]["CsrfInvalide"];
+            422: components["responses"]["Invalide"];
+            429: components["responses"]["TropDeRequetes"];
         };
     };
     getApp: {

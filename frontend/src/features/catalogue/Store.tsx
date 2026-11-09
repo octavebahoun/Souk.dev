@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
-import { useInfiniteQuery } from '@tanstack/react-query'
+import { keepPreviousData, useInfiniteQuery } from '@tanstack/react-query'
 import { Search, SlidersHorizontal } from 'lucide-react'
 import { useTitrePage } from '../../app/titre'
 import { categories, listerApplis, type Appli } from './api'
@@ -20,6 +20,7 @@ import {
   Saisie,
   ChoixPastilles,
   SqueletteCartes,
+  cx,
 } from '../../ui'
 
 type PageStore = {
@@ -50,6 +51,17 @@ export function Store() {
   const avancesActifs = FILTRES_AVANCES.filter((cle) => params.get(cle)).length
   const [ouverts, setOuverts] = useState(avancesActifs > 0)
   const filtre = Boolean(filtres.q || filtres.categorie || avancesActifs > 0)
+  // La saisie s'affiche tout de suite ; l'adresse (donc la requête) suit 300 ms après la dernière
+  // lettre : une requête par mot, pas par lettre, sur un réseau mobile lent.
+  const [saisie, setSaisie] = useState(filtres.q)
+  const [qConnu, setQConnu] = useState(filtres.q)
+  const attente = useRef<number | undefined>(undefined)
+  if (filtres.q !== qConnu) {
+    // Recherche lancée depuis l'en-tête, retour arrière : la saisie reprend l'adresse.
+    setQConnu(filtres.q)
+    setSaisie(filtres.q)
+  }
+  useEffect(() => () => window.clearTimeout(attente.current), [])
 
   const applis = useInfiniteQuery<PageStore>({
     queryKey: ['applis', filtres],
@@ -70,13 +82,32 @@ export function Store() {
     initialPageParam: 1,
     getNextPageParam: (derniere) =>
       derniere.meta.current_page < derniere.meta.last_page ? derniere.meta.current_page + 1 : undefined,
+    // Pendant une nouvelle recherche, les résultats précédents restent (atténués) au lieu d'un squelette.
+    placeholderData: keepPreviousData,
   })
 
   function changer(cle: string, valeur: string) {
-    const suivant = new URLSearchParams(params)
-    if (valeur) suivant.set(cle, valeur)
-    else suivant.delete(cle)
-    setParams(suivant, { replace: cle === 'q' })
+    setParams(
+      (courants) => {
+        const suivant = new URLSearchParams(courants)
+        if (valeur) suivant.set(cle, valeur)
+        else suivant.delete(cle)
+        return suivant
+      },
+      { replace: cle === 'q' },
+    )
+  }
+
+  function chercher(valeur: string) {
+    setSaisie(valeur)
+    window.clearTimeout(attente.current)
+    attente.current = window.setTimeout(() => changer('q', valeur), 300)
+  }
+
+  function reinitialiser() {
+    window.clearTimeout(attente.current)
+    setSaisie('')
+    setParams({})
   }
 
   const liste = applis.data?.pages.flatMap((lot) => lot.data) ?? []
@@ -98,9 +129,9 @@ export function Store() {
                 <Saisie
                   {...liaison}
                   type="search"
-                  value={filtres.q}
+                  value={saisie}
                   placeholder="Stock, paiement, réservation…"
-                  onChange={(evenement) => changer('q', evenement.target.value)}
+                  onChange={(evenement) => chercher(evenement.target.value)}
                   className="pl-9"
                 />
               </div>
@@ -185,7 +216,7 @@ export function Store() {
             {applis.isSuccess ? `${total} appli${total > 1 ? 's' : ''}${filtre ? ' pour ces critères' : ''}` : ''}
           </p>
           {filtre ? (
-            <Bouton variante="fantome" taille="sm" onClick={() => setParams({})}>
+            <Bouton variante="fantome" taille="sm" onClick={reinitialiser}>
               Réinitialiser
             </Bouton>
           ) : null}
@@ -202,7 +233,7 @@ export function Store() {
             illustration="vide-recherche"
             titre="Aucune appli ne correspond à ces filtres"
             description="Essayez un autre mot ou élargissez les filtres."
-            action={<Bouton onClick={() => setParams({})}>Réinitialiser les filtres</Bouton>}
+            action={<Bouton onClick={reinitialiser}>Réinitialiser les filtres</Bouton>}
           />
         ) : (
           <EtatVide
@@ -215,7 +246,10 @@ export function Store() {
       ) : null}
 
       {liste.length > 0 ? (
-        <ul className="m-0 grid list-none gap-5 p-0 tablette:grid-cols-2 bureau:grid-cols-4">
+        <ul
+          aria-busy={applis.isPlaceholderData}
+          className={cx('m-0 grid list-none gap-5 p-0 transition-opacity duration-150 tablette:grid-cols-2 bureau:grid-cols-4', applis.isPlaceholderData && 'opacity-60')}
+        >
           {liste.map((appli) => (
             <li key={appli.id} className="flex">
               <CarteAppli appli={appli} />

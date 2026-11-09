@@ -1,0 +1,33 @@
+# Souk.dev derrière le Caddy d'un serveur partagé (MOTEUR_TLS_TRAEFIK=false dans backend/.env.prod).
+# Modèle : remplacer __DOMAINE__ et __DOMAINE_COPIES__, ajouter au Caddyfile existant, puis recharger
+# Caddy. Voir docs/exploitation.md, « Derrière un proxy existant ».
+#
+# Caddy prend les certificats et passe tout à Traefik (HTTP, sur la passerelle Docker), qui garde
+# son routage : front, API, Reverb, une route par copie. Aucun en-tête ajouté ici : ceux de la
+# plateforme viennent de Traefik et de nginx, ceux des copies restent ceux de leurs auteurs.
+
+# --- En tête du Caddyfile (bloc d'options globales, un seul par fichier) ---------------------
+# Un certificat de copie n'est pris que si l'API confirme que le nom est celui d'une copie servie :
+# un sous-domaine inventé ne consomme jamais le quota de Let's Encrypt.
+{
+	on_demand_tls {
+		ask https://api.__DOMAINE__/tls/copie
+	}
+}
+
+# --- Plus bas, avec les autres sites -----------------------------------------------------------
+__DOMAINE__, api.__DOMAINE__, reverb.__DOMAINE__ {
+	reverse_proxy host.docker.internal:8880
+}
+
+www.__DOMAINE__ {
+	redir https://__DOMAINE__{uri} permanent
+}
+
+# Copies : un certificat par copie, pris à la première visite.
+*.__DOMAINE_COPIES__ {
+	tls {
+		on_demand
+	}
+	reverse_proxy host.docker.internal:8880
+}

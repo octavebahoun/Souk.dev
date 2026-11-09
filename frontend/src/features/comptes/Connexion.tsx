@@ -6,6 +6,7 @@ import { useTitrePage } from '../../app/titre'
 import { demanderLien } from './api'
 import { ComptesDemo } from './ComptesDemo'
 import { lireErreurHttp, messageAction } from '../echange/api'
+import { urlApi } from '../../shared/client'
 import { Alerte, Bouton, Carte, ChoixPastilles, Champ, Saisie, classesBouton, cx } from '../../ui'
 import hero from '../../assets/accueil/hero.webp'
 
@@ -35,7 +36,7 @@ export function Connexion() {
       : params.get('erreur') === 'compte_suspendu'
         ? 'Votre compte est suspendu : la connexion est refusée. Le motif est dans l’e-mail reçu ; pour contester, répondez-y.'
         : params.has('erreur')
-          ? 'La connexion GitHub n’a pas abouti. Vérifiez l’application OAuth et son URL de rappel, puis réessayez.'
+          ? 'La connexion avec GitHub n’a pas abouti. Réessayez dans un instant.'
           : null
 
   async function envoyer(evenement: FormEvent) {
@@ -105,7 +106,7 @@ export function Connexion() {
           {dev ? (
             <div className="flex flex-col gap-3">
               {erreurOAuth ? <Alerte ton="danger">{erreurOAuth}</Alerte> : null}
-              <a href="/auth/github?profil=dev" className={classesBouton('primaire', 'lg', true)}>
+              <a href={urlApi('/auth/github?profil=dev')} className={classesBouton('primaire', 'lg', true)}>
                 <GitBranch aria-hidden="true" className="size-4" />
                 Continuer avec GitHub
               </a>

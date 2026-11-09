@@ -18,6 +18,7 @@ class PublicationDepot
         private CloneurGithub $cloneur,
         private ValidateurSoukdev $validateur,
         private LanceurCompose $lanceur,
+        private RedacteurSoukdev $redacteur,
     ) {}
 
     /**
@@ -26,6 +27,41 @@ class PublicationDepot
     public function lire(string $url): array
     {
         return $this->verifier($url)['manifeste'];
+    }
+
+    /**
+     * Un soukdev.json proposé pour un dépôt qui n'en a pas encore, et la branche où l'ajouter.
+     *
+     * @return array{manifeste: array<string, mixed>, fichiers: array<string, string>, deductions: list<string>, a_verifier: list<string>, branche: string|null}
+     */
+    public function rediger(string $url): array
+    {
+        $copie = 'r'.bin2hex(random_bytes(4));
+        $repertoire = null;
+
+        try {
+            $repertoire = $this->cloneur->cloner($url, $copie);
+
+            if (file_exists($repertoire.DIRECTORY_SEPARATOR.'soukdev.json')) {
+                throw new DepotInvalide('Ce dépôt a déjà un soukdev.json : lancez plutôt « Vérifier le dépôt ».');
+            }
+
+            $redaction = $this->redacteur->rediger($repertoire);
+            // Filet : la proposition passe le même contrôle qu'un soukdev.json écrit à la main.
+            $this->validateur->valider($redaction['manifeste']);
+
+            return [...$redaction, 'branche' => $this->cloneur->branche($repertoire)];
+        } catch (DepotInvalide|ManifestInvalide $exception) {
+            throw $exception;
+        } catch (Throwable $exception) {
+            report($exception);
+
+            throw new DepotInvalide('Impossible de lire le dépôt GitHub public.');
+        } finally {
+            if (is_string($repertoire)) {
+                File::deleteDirectory($repertoire);
+            }
+        }
     }
 
     /**

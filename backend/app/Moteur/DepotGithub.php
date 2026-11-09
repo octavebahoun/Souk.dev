@@ -71,6 +71,18 @@ final readonly class DepotGithub
         );
     }
 
+    /**
+     * La page « nouveau fichier » de GitHub, déjà remplie : le dev n'a qu'à valider le commit. Aucun
+     * droit d'écriture n'est demandé à son compte (Souk.dev ne demande jamais la permission repo).
+     */
+    public function lienNouveauFichier(string $branche, string $fichier, string $contenu): string
+    {
+        $segments = implode('/', array_map('rawurlencode', explode('/', $branche)));
+
+        return "https://github.com/{$this->owner}/{$this->repo}/new/{$segments}?"
+            .http_build_query(['filename' => $fichier, 'value' => $contenu], '', '&', PHP_QUERY_RFC3986);
+    }
+
     private static function identifiantValide(string $valeur): bool
     {
         return preg_match('/^[A-Za-z0-9._-]+$/', $valeur) === 1

@@ -20,6 +20,8 @@ esac
 for fichier in "soukdev-$date.sql.gz" "stockage-$date.tar.gz" "routes-$date.tar.gz" "letsencrypt-$date.tar.gz" "sommes-$date.txt"; do
     [ -f "$dossier/$fichier" ] || { echo "Manquant : $dossier/$fichier" >&2; exit 1; }
 done
+# Chemin absolu : monté tel quel dans les conteneurs (relatif ou absolu, comme /var/sauvegardes).
+dossier=$(cd "$dossier" && pwd)
 
 echo "== Sommes de contrôle =="
 (cd "$dossier" && sha256sum -c "sommes-$date.txt")
@@ -43,7 +45,7 @@ echo "== Restauration des volumes =="
 for volume in stockage routes letsencrypt; do
     docker run --rm \
         -v "$prefixe-$volume:/donnees" \
-        -v "$(pwd)/$dossier:/entree:ro" \
+        -v "$dossier:/entree:ro" \
         alpine:3.21 tar xzf "/entree/${volume}-$date.tar.gz" -C /donnees
 done
 

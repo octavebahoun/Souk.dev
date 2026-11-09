@@ -1,5 +1,5 @@
 import type { components } from '../../shared/types/api'
-import { cheminLaravel, clientLocal } from '../../shared/client'
+import { cheminLaravel, clientLocal, urlApi } from '../../shared/client'
 import { formaterFcfa } from '../../ui/format'
 import { preparerCsrf } from '../../app/preparerCsrf'
 
@@ -16,6 +16,7 @@ export type Categorie = components['schemas']['Categorie']
 export type Techno = components['schemas']['Techno']
 export type Specialite = components['schemas']['Specialite']
 export type VerificationDepot = components['schemas']['VerificationDepot']
+export type RedactionSoukdev = components['schemas']['RedactionSoukdev']
 export type Discussion = components['schemas']['Discussion']
 export type Message = components['schemas']['Message']
 export type AvisAppli = components['schemas']['AvisAppli']
@@ -146,7 +147,7 @@ export async function listerSauvegardes(id: number): Promise<Sauvegarde[]> {
 
 /** Adresse d'export d'une sauvegarde (téléchargement direct, la session suffit). */
 export function lienSauvegarde(id: number, identifiant: string): string {
-  return cheminLaravel(`/deployments/${id}/sauvegardes/${identifiant}`)
+  return urlApi(cheminLaravel(`/deployments/${id}/sauvegardes/${identifiant}`))
 }
 
 export async function arreterCopie(id: number): Promise<void> {
@@ -156,6 +157,14 @@ export async function arreterCopie(id: number): Promise<void> {
 
 export function listerDevs(params: Record<string, string | boolean | undefined>) {
   return page<DevResume>(clientLocal.get(cheminLaravel('/devs'), { params }))
+}
+
+/** Un soukdev.json écrit par la plateforme pour un dépôt qui n'en a pas : à relire, puis ajouter sur GitHub. */
+export async function redigerSoukdev(depotUrl: string): Promise<RedactionSoukdev> {
+  await preparerCsrf()
+  const { data } = await clientLocal.post<RedactionSoukdev>(cheminLaravel('/apps/soukdev-json'), { depot_url: depotUrl })
+  if (!data || typeof data.soukdev_json !== 'string') throw new Error('Réponse vide')
+  return data
 }
 
 export async function verifierDepot(depotUrl: string): Promise<VerificationDepot> {

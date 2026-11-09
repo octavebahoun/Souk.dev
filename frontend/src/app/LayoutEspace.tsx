@@ -1,8 +1,9 @@
 import { useEffect, useRef } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router'
 import { t } from '../i18n'
-import { Alerte, cx } from '../ui'
+import { AccesRefuse, Alerte, LienBouton, cx } from '../ui'
 import { useCompte } from './compte'
+import { useTitrePage } from './titre'
 import { liensEspace, liensVisibles } from './navigation'
 
 /**
@@ -10,7 +11,9 @@ import { liensEspace, liensVisibles } from './navigation'
  * bureau, rangée d'onglets défilante en haut sur tablette et mobile.
  */
 export function LayoutEspace() {
-  const { data: compte } = useCompte()
+  const { data: compte, isSuccess } = useCompte()
+  // Un visiteur l'apprend avant de remplir un formulaire (publier une appli…), pas à l'envoi.
+  const visiteur = isSuccess && compte === null
   const liens = liensVisibles(liensEspace, compte ?? null)
   const navigation = useRef<HTMLUListElement>(null)
   const { pathname } = useLocation()
@@ -51,8 +54,18 @@ export function LayoutEspace() {
             Motif : {compte.suspension_motif ?? 'non précisé'}. Vos données sont gardées. Pour contester, répondez à l’e-mail reçu.
           </Alerte>
         ) : null}
-        <Outlet />
+        {visiteur ? <EspaceVisiteur /> : <Outlet />}
       </div>
     </div>
+  )
+}
+
+function EspaceVisiteur() {
+  useTitrePage('Connexion requise')
+  return (
+    <AccesRefuse
+      description="Cet espace est celui de votre compte : connectez-vous pour y accéder. GitHub pour les devs, un lien par e-mail pour les entreprises et les particuliers."
+      action={<LienBouton to="/connexion">Se connecter</LienBouton>}
+    />
   )
 }

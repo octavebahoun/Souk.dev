@@ -24,9 +24,19 @@ if [ "$(readlink public/storage 2>/dev/null || true)" != "../storage/app/public"
     ln -s ../storage/app/public public/storage
 fi
 
-# Routes Traefik de la plateforme (front, API, Reverb), avec le domaine rempli.
-sed "s|__DOMAINE__|${DOMAINE}|g" /modele-plateforme.yml > storage/app/private/proxy/plateforme.yml.tmp
-mv storage/app/private/proxy/plateforme.yml.tmp storage/app/private/proxy/plateforme.yml
+# Routes Traefik de la plateforme (front, API, Reverb), avec le domaine et les ports remplis.
+# Derrière un proxy qui termine déjà le TLS (MOTEUR_TLS_TRAEFIK=false) : pas de bloc « tls »
+# (deux lignes : « tls: » puis son certResolver), Traefik sert le HTTP que le proxy lui passe.
+routes=storage/app/private/proxy/plateforme.yml
+sed -e "s|__DOMAINE__|${DOMAINE}|g" \
+    -e "s|__PORT_API__|${PORT_API:-8000}|g" \
+    -e "s|__PORT_REVERB__|${PORT_REVERB:-8080}|g" \
+    -e "s|__PORT_FRONT__|${PORT_FRONT:-8081}|g" \
+    /modele-plateforme.yml > "$routes.tmp"
+if [ "${MOTEUR_TLS_TRAEFIK:-true}" = "false" ]; then
+    sed -i '/^      tls:$/{N;d;}' "$routes.tmp"
+fi
+mv "$routes.tmp" "$routes"
 
 php artisan migrate --force --no-interaction
 

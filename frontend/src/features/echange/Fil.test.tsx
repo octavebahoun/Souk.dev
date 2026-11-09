@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { createMemoryRouter, RouterProvider } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { creerRoutes } from '../../app/router'
-import { cheminLaravel, client } from '../../shared/client'
+import { cheminLaravel, clientLocal } from '../../shared/client'
 import type { Canal, Discussion, Etiquette } from './api'
 
 vi.mock('../../shared/client', async () => {
@@ -13,7 +13,7 @@ vi.mock('../../shared/client', async () => {
     patch: vi.fn(),
     delete: vi.fn(),
   }
-  return { ...reel, client: http, clientLocal: http }
+  return { ...reel, clientLocal: http }
 })
 
 const canaux: Canal[] = [
@@ -52,7 +52,7 @@ function discussion(id: number, titre: string): Discussion {
 }
 
 function reponses(discussions: Discussion[]) {
-  vi.mocked(client.get).mockImplementation((url: string) => {
+  vi.mocked(clientLocal.get).mockImplementation((url: string) => {
     if (url === cheminLaravel('/canaux')) return Promise.resolve({ data: canaux })
     if (url === cheminLaravel('/etiquettes')) return Promise.resolve({ data: etiquettes })
     if (url === cheminLaravel('/discussions')) {
@@ -77,7 +77,7 @@ async function rendu(url = '/echange') {
 
 describe('fil des discussions', () => {
   beforeEach(() => {
-    vi.mocked(client.get).mockReset()
+    vi.mocked(clientLocal.get).mockReset()
   })
 
   it('écrit le filtre étiquette dans l’URL', async () => {
@@ -89,7 +89,7 @@ describe('fil des discussions', () => {
     await waitFor(() => {
       expect(router.state.location.search).toContain('etiquette=bug')
     })
-    expect(client.get).toHaveBeenCalledWith(
+    expect(clientLocal.get).toHaveBeenCalledWith(
       cheminLaravel('/discussions'),
       expect.objectContaining({ params: expect.objectContaining({ etiquette: 'bug' }) }),
     )
@@ -104,7 +104,7 @@ describe('fil des discussions', () => {
   })
 
   it('propose de réessayer quand le chargement échoue', async () => {
-    vi.mocked(client.get).mockImplementation((url: string) => {
+    vi.mocked(clientLocal.get).mockImplementation((url: string) => {
       if (url === cheminLaravel('/discussions')) return Promise.reject(new Error('réseau'))
       if (url === cheminLaravel('/canaux')) return Promise.resolve({ data: canaux })
       if (url === cheminLaravel('/etiquettes')) return Promise.resolve({ data: etiquettes })
@@ -115,7 +115,7 @@ describe('fil des discussions', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Réessayer' }))
 
     await waitFor(() => {
-      const appels = vi.mocked(client.get).mock.calls.filter((appel) => appel[0] === cheminLaravel('/discussions'))
+      const appels = vi.mocked(clientLocal.get).mock.calls.filter((appel) => appel[0] === cheminLaravel('/discussions'))
       expect(appels.length).toBeGreaterThan(1)
     })
   })
