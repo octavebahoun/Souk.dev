@@ -1,8 +1,9 @@
 #!/bin/sh
 # Préparation au démarrage en production (service « init » de docker-compose.prod.yml) :
-# dossiers de stockage, lien des fichiers publics, routes Traefik de la plateforme
+# dossiers de stockage, routes Traefik de la plateforme
 # (depuis plateforme.yml.dist, avec le domaine), migrations et profils.
-# Les dépendances sont déjà dans l'image (cible prod) : pas de composer install ici.
+# Les dépendances sont déjà dans l'image (cible prod) : pas de composer install ici. Le lien
+# public/storage aussi : posé ici, il ne serait que dans le conteneur « init », jamais dans l'API.
 set -eu
 cd /app
 
@@ -18,11 +19,6 @@ esac
 mkdir -p storage/app/public storage/app/private/copies storage/app/private/proxy \
     storage/app/private/sauvegardes storage/framework/cache/data storage/framework/sessions \
     storage/framework/views storage/framework/sante storage/logs bootstrap/cache
-
-if [ "$(readlink public/storage 2>/dev/null || true)" != "../storage/app/public" ]; then
-    rm -f public/storage
-    ln -s ../storage/app/public public/storage
-fi
 
 # Routes Traefik de la plateforme (front, API, Reverb), avec le domaine et les ports remplis.
 # Derrière un proxy qui termine déjà le TLS (MOTEUR_TLS_TRAEFIK=false) : pas de bloc « tls »
