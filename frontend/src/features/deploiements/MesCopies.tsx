@@ -299,6 +299,11 @@ function CarteCopie({
               {copie.etat === 'suspendu' ? `Payer et réactiver · ${formaterFcfa(facture.montant_total)}` : `Payer ${formaterFcfa(facture.montant_total)}`}
             </Bouton>
           ) : null}
+          {copie.etat === 'attente_paiement' ? (
+            <Bouton variante="retrait" onClick={onArreter}>
+              Annuler la commande
+            </Bouton>
+          ) : null}
           {copie.etat === 'en_ligne' && copie.url ? (
             <a
               href={copie.url}
@@ -481,22 +486,27 @@ function phraseCopie(copie: Deploiement): string {
   }
 }
 
+/**
+ * Arrêter une copie, ou annuler une commande pas encore payée : la même demande à l'API (la
+ * facture en attente est annulée, rien n'est lancé), des mots différents pour le client.
+ */
 function ConfirmerArret({ copie, onFermer }: { copie: Deploiement; onFermer: () => void }) {
   const cache = useQueryClient()
   const toast = useToast()
   const [envoi, setEnvoi] = useState(false)
   const [erreur, setErreur] = useState<string | null>(null)
+  const commande = copie.etat === 'attente_paiement'
 
   async function arreter() {
     setEnvoi(true)
     setErreur(null)
     try {
       await arreterCopie(copie.id)
-      toast.info(`Arrêt de ${copie.app_nom} en cours.`)
+      toast.info(commande ? `Commande de ${copie.app_nom} annulée.` : `Arrêt de ${copie.app_nom} en cours.`)
       await cache.invalidateQueries({ queryKey: ['copies'] })
       onFermer()
     } catch (probleme) {
-      setErreur(messageErreur(probleme, 'L’arrêt n’a pas pu être demandé. Réessayez dans un instant.'))
+      setErreur(messageErreur(probleme, commande ? 'La commande n’a pas pu être annulée. Réessayez dans un instant.' : 'L’arrêt n’a pas pu être demandé. Réessayez dans un instant.'))
       setEnvoi(false)
     }
   }
@@ -506,15 +516,19 @@ function ConfirmerArret({ copie, onFermer }: { copie: Deploiement; onFermer: () 
       ouverte
       onFermer={onFermer}
       taille="petite"
-      titre={`Arrêter la copie de ${copie.app_nom} ?`}
-      description="Elle sera arrêtée et ses données supprimées : cette action est définitive. L’abonnement s’arrête avec elle, plus aucune facture ne sera émise."
+      titre={commande ? `Annuler la commande de ${copie.app_nom} ?` : `Arrêter la copie de ${copie.app_nom} ?`}
+      description={
+        commande
+          ? `La facture${copie.facture_a_payer ? ` ${copie.facture_a_payer.numero}` : ''} est annulée et la copie ne sera jamais lancée. Si vous venez de payer, attendez la confirmation du paiement avant d’annuler.`
+          : 'Elle sera arrêtée et ses données supprimées : cette action est définitive. L’abonnement s’arrête avec elle, plus aucune facture ne sera émise.'
+      }
       pied={
         <>
           <Bouton variante="contour" onClick={onFermer}>
-            Garder la copie
+            {commande ? 'Garder la commande' : 'Garder la copie'}
           </Bouton>
           <Bouton variante="danger" chargement={envoi} onClick={() => void arreter()}>
-            Arrêter la copie
+            {commande ? 'Annuler la commande' : 'Arrêter la copie'}
           </Bouton>
         </>
       }

@@ -39,7 +39,10 @@ COPY --chown=www-data:www-data composer.json composer.lock ./
 RUN composer install --no-dev --prefer-dist --no-interaction --no-progress --no-scripts --no-autoloader
 
 COPY --chown=www-data:www-data . .
+# Les fichiers publics (captures des applis) sont servis par /storage : le lien vit dans l'image,
+# donc dans chaque conteneur. Posé par le service « init », il restait dans son seul conteneur.
 RUN composer dump-autoload --optimize --classmap-authoritative --no-dev \
     && php artisan package:discover --ansi \
     && rm -rf tests .claude .agents .env \
-    && chown -R www-data:www-data storage bootstrap/cache
+    && chown -R www-data:www-data storage bootstrap/cache \
+    && ln -sfn ../storage/app/public public/storage

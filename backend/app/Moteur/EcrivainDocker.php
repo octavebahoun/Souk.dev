@@ -72,9 +72,9 @@ class EcrivainDocker
      * @param  list<string>  $variables
      * @param  list<string>  $argumentsBuild  variables passées à la construction plutôt qu'au conteneur
      */
-    public static function compose(int $port, array $variables, array $argumentsBuild = []): string
+    public static function compose(int $port, array $variables, array $argumentsBuild = [], string $service = 'web'): string
     {
-        $lignes = ['services:', '  web:'];
+        $lignes = ['services:', "  {$service}:"];
 
         if ($argumentsBuild === []) {
             $lignes[] = '    build: .';

@@ -30,9 +30,11 @@ class PublicationDepot
     }
 
     /**
-     * Un soukdev.json proposé pour un dépôt qui n'en a pas encore, et la branche où l'ajouter.
+     * Les fichiers qui manquent à un dépôt pour être publié (soukdev.json, fichiers Docker), et la
+     * branche où les ajouter. Un soukdev.json déjà présent et valide est gardé ; invalide, un
+     * nouveau est proposé à sa place.
      *
-     * @return array{manifeste: array<string, mixed>, fichiers: array<string, string>, deductions: list<string>, a_verifier: list<string>, branche: string|null}
+     * @return array{manifeste: array<string, mixed>, fichiers: array<string, string>, deductions: list<string>, a_verifier: list<string>, soukdev: 'nouveau'|'garde'|'a_remplacer', branche: string|null}
      */
     public function rediger(string $url): array
     {
@@ -42,11 +44,28 @@ class PublicationDepot
         try {
             $repertoire = $this->cloneur->cloner($url, $copie);
 
-            if (file_exists($repertoire.DIRECTORY_SEPARATOR.'soukdev.json')) {
-                throw new DepotInvalide('Ce dépôt a déjà un soukdev.json : lancez plutôt « Vérifier le dépôt ».');
+            $chemin = $repertoire.DIRECTORY_SEPARATOR.'soukdev.json';
+            $existant = null;
+            $invalide = null;
+
+            if (file_exists($chemin)) {
+                if (file_exists($repertoire.DIRECTORY_SEPARATOR.'docker-compose.yml')) {
+                    throw new DepotInvalide('Ce dépôt a déjà son soukdev.json et son docker-compose.yml : il ne manque rien, lancez « Vérifier le dépôt ».');
+                }
+
+                try {
+                    $existant = $this->validateur->validerFichier($chemin);
+                } catch (ManifestInvalide $exception) {
+                    $invalide = $exception->getMessage();
+                }
             }
 
-            $redaction = $this->redacteur->rediger($repertoire);
+            $redaction = $this->redacteur->rediger($repertoire, $existant);
+
+            if ($invalide !== null) {
+                array_unshift($redaction['a_verifier'], "Votre soukdev.json est invalide ({$invalide}) : remplacez-le par celui proposé ici.");
+                $redaction['soukdev'] = 'a_remplacer';
+            }
             // Filet : la proposition passe le même contrôle qu'un soukdev.json écrit à la main.
             $this->validateur->valider($redaction['manifeste']);
 

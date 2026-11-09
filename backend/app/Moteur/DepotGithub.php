@@ -83,6 +83,14 @@ final readonly class DepotGithub
             .http_build_query(['filename' => $fichier, 'value' => $contenu], '', '&', PHP_QUERY_RFC3986);
     }
 
+    /** L'éditeur GitHub d'un fichier existant (il ne se pré-remplit pas : le dev y colle le contenu). */
+    public function lienModifierFichier(string $branche, string $fichier): string
+    {
+        $segments = implode('/', array_map('rawurlencode', explode('/', $branche)));
+
+        return "https://github.com/{$this->owner}/{$this->repo}/edit/{$segments}/".rawurlencode($fichier);
+    }
+
     private static function identifiantValide(string $valeur): bool
     {
         return preg_match('/^[A-Za-z0-9._-]+$/', $valeur) === 1

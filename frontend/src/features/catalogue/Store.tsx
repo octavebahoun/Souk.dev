@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { keepPreviousData, useInfiniteQuery } from '@tanstack/react-query'
 import { Search, SlidersHorizontal } from 'lucide-react'
@@ -27,6 +27,8 @@ type PageStore = {
   data: Appli[]
   meta: { current_page: number; last_page: number; per_page: number; total: number }
 }
+
+const delai = (ms: number) => ({ '--delai': `${ms}ms` }) as CSSProperties
 
 /** Filtres repliés par défaut (loi de Hick) : la recherche, le tri et les catégories suffisent souvent. */
 const FILTRES_AVANCES = ['pays', 'prix_max', 'type_prix', 'gratuit', 'securite'] as const
@@ -167,7 +169,7 @@ export function Store() {
         />
 
         {ouverts ? (
-          <div id="filtres-avances" className="grid gap-4 rounded-moyen border border-bordure bg-surface p-4 tablette:grid-cols-3 tablette:p-5">
+          <div id="filtres-avances" className="apparition-fondu grid gap-4 rounded-moyen border border-bordure bg-surface p-4 tablette:grid-cols-3 tablette:p-5">
             <Champ libelle="Pays de l’auteur">
               {(liaison) => (
                 <Liste {...liaison} value={filtres.pays} onChange={(evenement) => changer('pays', evenement.target.value)}>
@@ -250,8 +252,8 @@ export function Store() {
           aria-busy={applis.isPlaceholderData}
           className={cx('m-0 grid list-none gap-5 p-0 transition-opacity duration-150 tablette:grid-cols-2 bureau:grid-cols-4', applis.isPlaceholderData && 'opacity-60')}
         >
-          {liste.map((appli) => (
-            <li key={appli.id} className="flex">
+          {liste.map((appli, index) => (
+            <li key={appli.id} style={delai(Math.min(index, 11) * 50)} className="apparition flex">
               <CarteAppli appli={appli} />
             </li>
           ))}

@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Globe, Power, Server, ShieldCheck } from 'lucide-react'
 import { useCompte } from '../../app/compte'
 import { useTitrePage } from '../../app/titre'
-import { lireAppli, listerCopies } from '../catalogue/api'
+import { arreterCopie, lireAppli, listerCopies } from '../catalogue/api'
 import {
   AccesRefuse,
   Alerte,
@@ -49,6 +49,7 @@ export function Commande() {
   const [erreursChamps, setErreursChamps] = useState<Record<string, string>>({})
   const [erreur, setErreur] = useState<string | null>(null)
   const [envoi, setEnvoi] = useState(false)
+  const [annulation, setAnnulation] = useState(false)
   // Une intention de paiement = une clé : un double clic ou un retour arrière ne recommence rien.
   const cle = useRef(nouvelleCle())
   const factureCommandee = useRef<number | null>(null)
@@ -98,6 +99,22 @@ export function Commande() {
   const incomplet = variables.some((variable) => variable.requis && !(valeurs[variable.nom] ?? '').trim())
   const auteur = fiche.auteur.nom || fiche.auteur.username || 'son auteur'
 
+  /** Annule la commande en attente (sa facture avec elle) : le client peut en passer une nouvelle. */
+  async function annuler(copieId: number) {
+    setAnnulation(true)
+    setErreur(null)
+    try {
+      await arreterCopie(copieId)
+      factureCommandee.current = null
+      cle.current = nouvelleCle()
+      await cache.invalidateQueries({ queryKey: ['copies'] })
+    } catch (probleme) {
+      setErreur(messageErreur(probleme, 'La commande n’a pas pu être annulée. Réessayez dans un instant.'))
+    } finally {
+      setAnnulation(false)
+    }
+  }
+
   async function payer() {
     setEnvoi(true)
     setErreur(null)
@@ -133,8 +150,17 @@ export function Commande() {
       />
 
       {enAttente ? (
-        <Alerte ton="info" titre="Une commande attend déjà votre paiement" className="mt-6">
-          Payez-la ci-dessous : aucune seconde copie ne sera créée. Sans paiement, elle s’annule d’elle-même au bout de 7 jours.
+        <Alerte
+          ton="info"
+          titre="Une commande attend déjà votre paiement"
+          className="mt-6"
+          action={
+            <Bouton variante="retrait" taille="sm" chargement={annulation} onClick={() => void annuler(enAttente.id)}>
+              Annuler cette commande
+            </Bouton>
+          }
+        >
+          Payez-la ci-dessous : aucune seconde copie ne sera créée. Sans paiement, elle s’annule d’elle-même au bout de 7 jours. Si vous venez de payer, attendez la confirmation avant d’annuler.
         </Alerte>
       ) : null}
 

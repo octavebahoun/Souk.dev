@@ -42,6 +42,8 @@ export function Publier() {
   const [champs, setChamps] = useState<Record<string, string>>({})
   const [envoi, setEnvoi] = useState(false)
 
+  // « soukdev.json est absent… », « docker-compose.yml est absent… » : Souk.dev peut l'écrire.
+  const fichierManquant = erreurDepot !== null && /(soukdev\.json|docker-compose\.yml) est absent/.test(erreurDepot)
   const prixNombre = prix === '' ? null : Number(prix.replace(/\s/g, ''))
   const etapes = {
     depot: verif !== null,
@@ -156,6 +158,18 @@ export function Publier() {
             {verif ? (
               <Alerte ton="succes" titre="Dépôt vérifié">
                 {verif}
+              </Alerte>
+            ) : fichierManquant ? (
+              <Alerte
+                ton="info"
+                titre="Il manque un fichier à votre dépôt"
+                action={
+                  <Bouton taille="sm" chargement={redactionEnCours} onClick={() => void rediger()}>
+                    Écrire les fichiers manquants
+                  </Bouton>
+                }
+              >
+                Souk.dev peut l’écrire à partir de votre code : vous n’aurez plus qu’à l’ajouter sur GitHub.
               </Alerte>
             ) : (
               <DemandeSoukdev desactive={depot.trim() === '' || verification} chargement={redactionEnCours} onDemander={() => void rediger()} />

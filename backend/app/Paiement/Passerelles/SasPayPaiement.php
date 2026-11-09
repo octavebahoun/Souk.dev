@@ -28,8 +28,11 @@ final class SasPayPaiement implements PasserellePaiement
             'fee_charge_mode' => 'ADD_ON',
         ];
 
-        if ($demande->pays !== null) {
-            $corps['country'] = $demande->pays;
+        // Le pays présélectionne les réseaux Mobile Money de la page de SasPay : sans lui, la page
+        // n'en propose aucun. Celui du client, sinon celui de la plateforme.
+        $pays = $demande->pays ?: (string) config('facturation.pays_par_defaut');
+        if ($pays !== '') {
+            $corps['country'] = strtoupper($pays);
         }
 
         $session = $this->client->post('/checkout-sessions/', $corps);

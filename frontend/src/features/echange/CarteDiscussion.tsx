@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import { Link } from 'react-router'
 import { ExternalLink, MessageSquare, Share2 } from 'lucide-react'
 import { Avatar, Badge, cx } from '../../ui'
@@ -8,6 +9,8 @@ import { ilYA, nomAuteur } from './texte'
 type CarteDiscussionProps = {
   discussion: Discussion
   nouvelle?: boolean
+  /** Délai d’entrée dans la liste (ms), pour l'effet en cascade. */
+  delai?: number
   onPartager: (discussion: Discussion) => void
 }
 
@@ -24,7 +27,7 @@ const action =
   'relative z-[1] inline-flex h-11 items-center gap-1.5 rounded-moyen px-2.5 text-petit font-medium text-texte-doux transition-colors duration-150 hover:bg-surface-douce hover:text-titre tablette:h-8'
 
 /** Une discussion du fil : le titre couvre la carte ; auteur, messages, démo et partage restent cliquables. */
-export function CarteDiscussion({ discussion, nouvelle = false, onPartager }: CarteDiscussionProps) {
+export function CarteDiscussion({ discussion, nouvelle = false, delai, onPartager }: CarteDiscussionProps) {
   const auteur = discussion.auteur
   const messages = discussion.nb_messages
   const difficulte = discussion.bug?.difficulte
@@ -33,7 +36,9 @@ export function CarteDiscussion({ discussion, nouvelle = false, onPartager }: Ca
   return (
     <li
       data-nouvelle={nouvelle ? 'true' : 'false'}
+      style={delai !== undefined ? ({ '--delai': `${delai}ms` } as CSSProperties) : undefined}
       className={cx(
+        delai !== undefined && 'apparition',
         'group relative flex flex-col gap-3 rounded-moyen border bg-surface p-4 shadow-1 transition-[box-shadow,border-color] duration-200 ease-souk hover:border-bordure-champ hover:shadow-2 has-[h2_a:focus-visible]:outline-3 has-[h2_a:focus-visible]:outline-offset-2 has-[h2_a:focus-visible]:outline-lien tablette:p-5',
         nouvelle ? 'border-primaire' : 'border-bordure',
       )}

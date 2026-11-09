@@ -60,14 +60,58 @@ class RedactionSoukdevTest extends TestCase
         }
     }
 
-    public function test_un_depot_qui_a_deja_un_soukdev_json_est_renvoye_a_la_verification(): void
+    public function test_un_depot_qui_a_deja_ses_deux_fichiers_est_renvoye_a_la_verification(): void
     {
-        $this->simulerDepot(['soukdev.json' => '{}']);
+        $this->simulerDepot(['soukdev.json' => '{}', 'docker-compose.yml' => "services:\n  web:\n    image: nginx\n"]);
 
         $this->actingAs(User::factory()->github()->create())
             ->postJson('/api/apps/soukdev-json', ['depot_url' => 'https://github.com/acme/boutique'])
             ->assertStatus(422)
-            ->assertJsonPath('errors.depot_url.0', 'Ce dépôt a déjà un soukdev.json : lancez plutôt « Vérifier le dépôt ».');
+            ->assertJsonPath('errors.depot_url.0', 'Ce dépôt a déjà son soukdev.json et son docker-compose.yml : il ne manque rien, lancez « Vérifier le dépôt ».');
+    }
+
+    public function test_un_soukdev_json_juste_est_garde_et_seuls_les_fichiers_docker_sont_proposes(): void
+    {
+        $existant = ['version' => 1, 'service_web' => ['nom' => 'web', 'port' => 80], 'backend' => 'propre', 'variables' => [
+            ['nom' => 'TITRE', 'source' => 'client', 'libelle' => 'Titre du site', 'requis' => true],
+        ]];
+        $this->simulerDepot(['soukdev.json' => json_encode($existant), 'index.html' => '<h1>Bonjour</h1>']);
+
+        $reponse = $this->actingAs(User::factory()->github()->create())
+            ->postJson('/api/apps/soukdev-json', ['depot_url' => 'https://github.com/acme/boutique'])
+            ->assertOk()
+            ->assertJsonPath('soukdev_etat', 'garde')
+            ->assertJsonPath('lien_github', null);
+
+        $this->assertSame($existant, json_decode($reponse->json('soukdev_json'), true));
+        $this->assertSame(['Dockerfile', '.dockerignore', 'docker-compose.yml'], array_column($reponse->json('fichiers'), 'chemin'));
+        $this->assertContains('Votre soukdev.json est repris : ses variables (TITRE) passent à l\'appli.', $reponse->json('deductions'));
+    }
+
+    public function test_un_soukdev_json_qui_annonce_un_autre_port_est_a_remplacer_dans_l_editeur_github(): void
+    {
+        $existant = ['version' => 1, 'service_web' => ['nom' => 'app', 'port' => 3000], 'backend' => 'propre', 'variables' => []];
+        $this->simulerDepot(['soukdev.json' => json_encode($existant), 'index.html' => '<h1>Bonjour</h1>']);
+
+        $reponse = $this->actingAs(User::factory()->github()->create())
+            ->postJson('/api/apps/soukdev-json', ['depot_url' => 'https://github.com/acme/boutique'])
+            ->assertOk()
+            ->assertJsonPath('soukdev_etat', 'a_remplacer')
+            ->assertJsonPath('lien_github', 'https://github.com/acme/boutique/edit/main/soukdev.json');
+
+        $this->assertSame(['nom' => 'web', 'port' => 80], json_decode($reponse->json('soukdev_json'), true)['service_web']);
+        $this->assertSame('Votre soukdev.json annonce le service « app » sur le port 3000, mais les fichiers écrits servent « web » sur le port 80 : remplacez votre soukdev.json par celui proposé ici.', $reponse->json('a_verifier.0'));
+    }
+
+    public function test_un_soukdev_json_invalide_est_a_remplacer(): void
+    {
+        $this->simulerDepot(['soukdev.json' => '{"version": 2}', 'index.html' => '<h1>Bonjour</h1>']);
+
+        $this->actingAs(User::factory()->github()->create())
+            ->postJson('/api/apps/soukdev-json', ['depot_url' => 'https://github.com/acme/boutique'])
+            ->assertOk()
+            ->assertJsonPath('soukdev_etat', 'a_remplacer')
+            ->assertJsonPath('a_verifier.0', fn (string $message) => str_starts_with($message, 'Votre soukdev.json est invalide ('));
     }
 
     public function test_un_depot_qui_ne_se_clone_pas_est_refuse_en_422(): void

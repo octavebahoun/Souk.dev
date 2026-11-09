@@ -208,12 +208,19 @@ class AppliController extends Controller
             ];
         }
 
+        $lien = match (true) {
+            $branche === null, $redaction['soukdev'] === 'garde' => null,
+            $redaction['soukdev'] === 'a_remplacer' => $github->lienModifierFichier($branche, 'soukdev.json'),
+            default => $github->lienNouveauFichier($branche, 'soukdev.json', $texte),
+        };
+
         return response()->json([
             'soukdev_json' => $texte,
+            'soukdev_etat' => $redaction['soukdev'],
             'fichiers' => $fichiers,
             'deductions' => $redaction['deductions'],
             'a_verifier' => $redaction['a_verifier'],
-            'lien_github' => $branche !== null ? $github->lienNouveauFichier($branche, 'soukdev.json', $texte) : null,
+            'lien_github' => $lien,
         ]);
     }
 

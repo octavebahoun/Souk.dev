@@ -44,7 +44,7 @@ type EnTetePageProps = {
 
 export function EnTetePage({ titre, description, surTitre, actions, filAriane, className }: EnTetePageProps) {
   return (
-    <header className={cx('flex flex-col gap-3', className)}>
+    <header className={cx('apparition-fondu flex flex-col gap-3', className)}>
       {filAriane ? <FilAriane miettes={filAriane} /> : null}
       <div className="flex flex-col gap-4 tablette:flex-row tablette:items-end tablette:justify-between">
         <div className="flex min-w-0 flex-col gap-1.5">

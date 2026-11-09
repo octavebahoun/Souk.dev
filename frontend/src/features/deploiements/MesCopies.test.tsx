@@ -117,3 +117,37 @@ describe('sauvegardes de « Mes copies »', () => {
     expect(screen.queryByText(/Sauvegarde demandée/)).not.toBeInTheDocument()
   })
 })
+
+describe('commande pas encore payée dans « Mes copies »', () => {
+  it('s’annule après confirmation, avec la facture en attente', async () => {
+    const commande: Deploiement = {
+      ...copie(),
+      etat: 'attente_paiement',
+      url: null,
+      derniere_sauvegarde: null,
+      facture_a_payer: { id: 9, numero: 'SD-2026-000009', montant_total: 3500, echeance_le: '2026-11-16' } as Deploiement['facture_a_payer'],
+    }
+    vi.mocked(clientLocal.get).mockReset().mockImplementation((url: string) => {
+      if (url === cheminLaravel('/deployments')) {
+        return Promise.resolve({
+          data: { data: [commande], links: { first: null, last: null, prev: null, next: null }, meta: { current_page: 1, last_page: 1, per_page: 20, total: 1 } },
+        })
+      }
+      if (url === cheminLaravel('/me')) return Promise.resolve({ data: { id: 1, username: 'pharmacie', profil: 'client' } })
+      return Promise.resolve({ data: null })
+    })
+    vi.mocked(clientLocal.delete).mockReset().mockResolvedValue({ data: null })
+
+    const router = createMemoryRouter(creerRoutes(), { initialEntries: ['/copies'] })
+    render(<RouterProvider router={router} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Annuler la commande' }))
+
+    expect(await screen.findByRole('dialog', { name: 'Annuler la commande de Pharmacie ?' })).toBeInTheDocument()
+    expect(screen.getByText(/La facture SD-2026-000009 est annulée/)).toBeInTheDocument()
+    await act(async () => {
+      fireEvent.click(screen.getAllByRole('button', { name: 'Annuler la commande' }).at(-1)!)
+    })
+
+    expect(clientLocal.delete).toHaveBeenCalledWith(cheminLaravel('/deployments/1'))
+  })
+})
