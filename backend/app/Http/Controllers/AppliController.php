@@ -4,11 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Comptes\ProfilCalcule;
 use App\Models\Appli;
+use App\Moteur\DepotGithub;
 use App\Moteur\Exceptions\DepotInvalide;
 use App\Moteur\Exceptions\LancementEchoue;
 use App\Moteur\Exceptions\ManifestInvalide;
 use App\Moteur\LimitesTaille;
 use App\Moteur\PublicationDepot;
+use App\Moteur\RedacteurSoukdev;
 use App\Securite\VerificationSecrets;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -171,6 +173,36 @@ class AppliController extends Controller
             ],
             'backend' => $manifeste['backend'],
             'variables_client' => $this->variablesClient($manifeste),
+        ]);
+    }
+
+    /**
+     * Un dépôt sans soukdev.json : Souk.dev en écrit un, à relire, et donne le lien qui ouvre GitHub
+     * sur le nouveau fichier déjà rempli. Rien n'est publié ni écrit dans le dépôt.
+     */
+    public function redactionSoukdev(Request $request, PublicationDepot $depot): JsonResponse
+    {
+        Gate::authorize('lierUnDepot');
+
+        $donnees = $request->validate([
+            'depot_url' => ['required', 'string', 'url:http,https', 'max:500'],
+        ]);
+
+        try {
+            $redaction = $depot->rediger($donnees['depot_url']);
+        } catch (DepotInvalide|ManifestInvalide|LancementEchoue $exception) {
+            throw ValidationException::withMessages(['depot_url' => $exception->getMessage()]);
+        }
+
+        $texte = RedacteurSoukdev::texte($redaction['manifeste']);
+        $github = DepotGithub::depuisUrl($donnees['depot_url']);
+        $branche = $github->branche ?? $redaction['branche'];
+
+        return response()->json([
+            'soukdev_json' => $texte,
+            'deductions' => $redaction['deductions'],
+            'a_verifier' => $redaction['a_verifier'],
+            'lien_github' => $branche !== null ? $github->lienNouveauFichier($branche, 'soukdev.json', $texte) : null,
         ]);
     }
 

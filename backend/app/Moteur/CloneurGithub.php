@@ -87,6 +87,15 @@ class CloneurGithub
         return $commit;
     }
 
+    /** Branche du clone : celle de l'URL, sinon la branche par défaut du dépôt (null si illisible). */
+    public function branche(string $repertoire): ?string
+    {
+        $resultat = Commande::isolee(self::ENV_GIT)->path($repertoire)->timeout(30)->run(['git', 'symbolic-ref', '--short', 'HEAD']);
+        $branche = trim($resultat->output());
+
+        return $resultat->successful() && self::refValide($branche) ? $branche : null;
+    }
+
     public static function refValide(string $ref): bool
     {
         return preg_match('#^[A-Za-z0-9._/-]{1,200}$#', $ref) === 1

@@ -5,7 +5,8 @@ import type { components } from '../../shared/types/api'
 import { useTitrePage } from '../../app/titre'
 import { lireErreurHttp, messageAction } from '../echange/api'
 import { formules } from '../paiements/formules'
-import { categories, fcfa, publierAppli, verifierDepot, type Categorie } from './api'
+import { categories, fcfa, publierAppli, redigerSoukdev, verifierDepot, type Categorie, type RedactionSoukdev } from './api'
+import { DemandeSoukdev, PropositionSoukdev } from './PropositionSoukdev'
 import { Alerte, Bouton, Carte, Champ, ChoixCartes, EnTetePage, Liste, PuceFiltre, Saisie, SaisieMontant, ZoneTexte, cx } from '../../ui'
 
 type Techno = components['schemas']['Techno']
@@ -33,6 +34,9 @@ export function Publier() {
   const [verif, setVerif] = useState<string | null>(null)
   const [erreurDepot, setErreurDepot] = useState<string | null>(null)
   const [verification, setVerification] = useState(false)
+  // Proposition de soukdev.json pour un dépôt qui n'en a pas encore.
+  const [redaction, setRedaction] = useState<RedactionSoukdev | null>(null)
+  const [redactionEnCours, setRedactionEnCours] = useState(false)
   const [erreur, setErreur] = useState<string | null>(null)
   // Erreurs par champ : vérifiées ici avant l'envoi, ou renvoyées par le serveur (422).
   const [champs, setChamps] = useState<Record<string, string>>({})
@@ -58,6 +62,19 @@ export function Publier() {
       setErreurDepot(messageAction(erreurHttp, 'Le dépôt n’a pas passé la vérification.'))
     } finally {
       setVerification(false)
+    }
+  }
+
+  async function rediger() {
+    setErreurDepot(null)
+    setRedaction(null)
+    setRedactionEnCours(true)
+    try {
+      setRedaction(await redigerSoukdev(depot.trim()))
+    } catch (erreurHttp) {
+      setErreurDepot(messageAction(erreurHttp, 'Le soukdev.json n’a pas pu être écrit.'))
+    } finally {
+      setRedactionEnCours(false)
     }
   }
 
@@ -124,6 +141,7 @@ export function Publier() {
                     onChange={(evenement) => {
                       setDepot(evenement.target.value)
                       setVerif(null)
+                      setRedaction(null)
                     }}
                     required
                     className="font-mono text-petit"
@@ -139,7 +157,10 @@ export function Publier() {
               <Alerte ton="succes" titre="Dépôt vérifié">
                 {verif}
               </Alerte>
-            ) : null}
+            ) : (
+              <DemandeSoukdev desactive={depot.trim() === '' || verification} chargement={redactionEnCours} onDemander={() => void rediger()} />
+            )}
+            {redaction && !verif ? <PropositionSoukdev redaction={redaction} /> : null}
             <p className="m-0 flex gap-2 text-petit text-texte-doux">
               <ShieldCheck aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
               La vérification contrôle l’accès, le docker-compose et les secrets. L’analyse des dépendances démarre après la publication ; le badge apparaît alors sur la fiche.
