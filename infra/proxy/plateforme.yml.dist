@@ -10,14 +10,22 @@ http:
       entryPoints: [websecure]
       service: front
       # La CSP du front, qui autorise ses scripts par empreinte, vient de nginx (frontend/nginx.conf).
-      middlewares: [securite]
+      middlewares: [securite, compression]
       tls:
         certResolver: letsencrypt
     api:
       rule: "Host(`api.__DOMAINE__`)"
       entryPoints: [websecure]
       service: api
-      middlewares: [securite, csp-api]
+      middlewares: [securite, csp-api, compression]
+      tls:
+        certResolver: letsencrypt
+    # Captures des applis : gardées un jour par le navigateur (une capture remplacée garde son nom).
+    captures:
+      rule: "Host(`api.__DOMAINE__`) && PathPrefix(`/storage/captures/`)"
+      entryPoints: [websecure]
+      service: api
+      middlewares: [securite, cache-captures]
       tls:
         certResolver: letsencrypt
     reverb:
@@ -29,16 +37,26 @@ http:
         certResolver: letsencrypt
 
   middlewares:
+    # Réponses texte compressées (JSON de l'API, pages du front) ; les images et le temps réel
+    # ne sont pas concernés.
+    compression:
+      compress:
+        excludedContentTypes: [text/event-stream]
     # HTTPS imposé un an (sous-domaines compris : api, reverb), pas de devinette de type, jamais
     # affiché dans le cadre d'un autre site (détournement de clic sur « Recevoir mon solde »…).
     securite:
       headers:
         stsSeconds: 31536000
         stsIncludeSubdomains: true
+        stsPreload: true
         contentTypeNosniff: true
         frameDeny: true
         referrerPolicy: strict-origin-when-cross-origin
         permissionsPolicy: "camera=(), microphone=(), geolocation=(), payment=()"
+    cache-captures:
+      headers:
+        customResponseHeaders:
+          Cache-Control: "public, max-age=86400"
     # L'API ne sert que du JSON et quelques pages sans script (lien magique, confirmation d'un
     # numéro). Leurs formulaires renvoient ensuite vers le front : form-action doit l'autoriser,
     # les navigateurs l'appliquent aussi à la redirection qui suit l'envoi.

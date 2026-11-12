@@ -295,6 +295,8 @@ services:
         VITE_API_BASE: https://api.${DOMAINE:?DOMAINE manquant dans backend/.env.prod}
         VITE_REVERB_HOST: reverb.${DOMAINE:?DOMAINE manquant dans backend/.env.prod}
         VITE_REVERB_PORT: "443"
+        VITE_SITE_URL: https://${DOMAINE}
+        VITE_CONTACT_EMAIL: ${CONTACT_EMAIL:-}
         VITE_REVERB_SCHEME: https
         # Vide hors construction du front (les premières commandes la précèdent) : le Dockerfile
         # du front refuse de construire sans elle.

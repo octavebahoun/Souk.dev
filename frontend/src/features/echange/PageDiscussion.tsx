@@ -68,7 +68,7 @@ export function PageDiscussion() {
     setParams(suivant)
   }
 
-  useTitrePage(discussion.data?.titre ?? 'Discussion')
+  useTitrePage(discussion.data?.titre ?? 'Discussion', { description: discussion.data?.texte })
 
   if (!valide || (discussion.isError && estIntrouvable(discussion.error))) {
     return (

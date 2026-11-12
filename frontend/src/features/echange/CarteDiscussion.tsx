@@ -11,6 +11,8 @@ type CarteDiscussionProps = {
   nouvelle?: boolean
   /** Délai d’entrée dans la liste (ms), pour l'effet en cascade. */
   delai?: number
+  /** Pourquoi cette discussion remonte dans le fil « Pour moi » (canal suivi, techno, pays). */
+  raison?: string
   onPartager: (discussion: Discussion) => void
 }
 
@@ -27,7 +29,7 @@ const action =
   'relative z-[1] inline-flex h-11 items-center gap-1.5 rounded-moyen px-2.5 text-petit font-medium text-texte-doux transition-colors duration-150 hover:bg-surface-douce hover:text-titre tablette:h-8'
 
 /** Une discussion du fil : le titre couvre la carte ; auteur, messages, démo et partage restent cliquables. */
-export function CarteDiscussion({ discussion, nouvelle = false, delai, onPartager }: CarteDiscussionProps) {
+export function CarteDiscussion({ discussion, nouvelle = false, delai, raison, onPartager }: CarteDiscussionProps) {
   const auteur = discussion.auteur
   const messages = discussion.nb_messages
   const difficulte = discussion.bug?.difficulte
@@ -68,6 +70,7 @@ export function CarteDiscussion({ discussion, nouvelle = false, delai, onPartage
         <span aria-hidden="true">·</span>
         <time dateTime={discussion.cree_le}>{ilYA(discussion.cree_le)}</time>
         <span className="ml-auto flex flex-wrap gap-1.5">
+          {raison ? <Badge ton="marque">{raison}</Badge> : null}
           {nouvelle ? <Badge ton="marque">Nouveau</Badge> : null}
           {discussion.analyse_ia ? <Badge ton="ia">Analyse IA</Badge> : null}
           {discussion.resolue ? <Badge ton="succes">Résolue</Badge> : null}

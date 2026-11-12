@@ -88,12 +88,25 @@ class DeploiementCorrectifTest extends TestCase
         $this->assertSame('https://github.com/wasfade/momo/tree/correctif', Deploiement::query()->sole()->depotACloner());
     }
 
-    public function test_un_autre_compte_recoit_403_et_rien_ne_part(): void
+    public function test_l_auteur_de_la_discussion_essaie_le_correctif_avant_d_accepter(): void
     {
         $correctif = $this->correctif(User::factory()->create(['github_lie' => true]));
         $auteurDiscussion = User::query()->findOrFail($correctif->discussion->user_id);
 
         $this->actingAs($auteurDiscussion)
+            ->postJson("/api/correctifs/{$correctif->id}/deploiement")
+            ->assertStatus(202)
+            ->assertJsonPath('type', 'correctif')
+            ->assertJsonPath('branche', 'correctif');
+
+        $this->assertSame($correctif->depot_url, Deploiement::query()->sole()->depotACloner());
+    }
+
+    public function test_un_compte_etranger_a_la_discussion_recoit_403_et_rien_ne_part(): void
+    {
+        $correctif = $this->correctif(User::factory()->create(['github_lie' => true]));
+
+        $this->actingAs(User::factory()->create(['github_lie' => true]))
             ->postJson("/api/correctifs/{$correctif->id}/deploiement")
             ->assertForbidden();
 

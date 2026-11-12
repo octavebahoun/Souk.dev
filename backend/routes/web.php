@@ -8,6 +8,7 @@ use App\Http\Controllers\LienMagiqueController;
 use App\Http\Controllers\LienPaiementController;
 use App\Http\Controllers\LogoutController;
 use App\Http\Controllers\SimulateurSasPayController;
+use App\Http\Controllers\SitemapController;
 use App\Sms\SmsSimule;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -25,7 +26,13 @@ Route::get('/auth/lien-magique/{token}', [LienMagiqueController::class, 'affiche
 Route::post('/auth/lien-magique/{token}', [LienMagiqueController::class, 'utiliser'])
     ->where('token', '[A-Za-z0-9]+')->middleware('throttle:60,1');
 Route::post('/logout', [LogoutController::class, 'destroy']);
-Route::post('/auth/demo', [DemoController::class, 'connecter'])->middleware('throttle:60,1');
+// Plan du site (annoncé par le robots.txt du front) : fiches, profils et discussions publics.
+Route::get('/sitemap.xml', SitemapController::class)->middleware('throttle:60,1');
+
+// Connexion de démo : la route n'existe pas en production (le contrôleur garde aussi sa double vérification).
+if (! app()->isProduction()) {
+    Route::post('/auth/demo', [DemoController::class, 'connecter'])->middleware('throttle:60,1');
+}
 
 // Certificats à la demande du proxy placé devant Traefik (Caddy) : seulement pour une vraie copie.
 Route::get('/tls/copie', CertificatCopieController::class)->middleware('throttle:120,1');

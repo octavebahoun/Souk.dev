@@ -31,6 +31,12 @@ final class Reversements
     ) {}
 
     /** Pourquoi un reversement est impossible maintenant, ou null s'il est possible. */
+    /** Faux tant que les reversements réels ne sont pas ouverts en production (REVERSEMENTS_REELS). */
+    public function ouverts(): bool
+    {
+        return $this->passerelle->nom() !== 'inactif';
+    }
+
     public function blocage(User $dev, string $declenchement = 'demande'): ?string
     {
         $coordonnees = CoordonneesReversement::query()->where('user_id', $dev->id)->first();
@@ -41,7 +47,7 @@ final class Reversements
         $montant = fn (int $valeur): string => number_format($valeur, 0, ',', "\u{202F}")."\u{00A0}F";
 
         return match (true) {
-            $this->passerelle->nom() === 'inactif' => 'Les reversements sur Mobile Money ouvrent bientôt : votre solde vous attend.',
+            $this->passerelle->nom() === 'inactif' => 'Les reversements sur Mobile Money ne sont pas encore ouverts : votre solde est gardé et vous sera versé dès l’ouverture.',
             $coordonnees === null => 'Ajoutez votre numéro Mobile Money pour recevoir vos revenus.',
             ! $coordonnees->estConfirme() => 'Confirmez votre numéro Mobile Money avec le lien reçu par e-mail.',
             $this->enCours($dev) !== null => 'Un reversement est déjà en cours.',

@@ -1,7 +1,9 @@
-import { useState, type FormEvent } from 'react'
-import { Link, useSearchParams } from 'react-router'
+import { useEffect, useState, type FormEvent } from 'react'
+import { Link, Navigate, useSearchParams } from 'react-router'
 import { isAxiosError } from 'axios'
 import { ArrowRight, CircleCheck, GitBranch, Mail } from 'lucide-react'
+import { useCompte } from '../../app/compte'
+import { cheminSur, retenirRetour } from '../../app/retour'
 import { useTitrePage } from '../../app/titre'
 import { demanderLien } from './api'
 import { ComptesDemo } from './ComptesDemo'
@@ -24,7 +26,10 @@ const profils: { valeur: ProfilChoix; libelle: string }[] = [
 export function Connexion() {
   useTitrePage('Se connecter')
   const [params] = useSearchParams()
-  const [profil, setProfil] = useState<ProfilChoix>('dev')
+  const compte = useCompte()
+  const retour = cheminSur(params.get('retour'))
+  // Un acheteur arrive ici depuis une commande : l'onglet « Entreprise ou particulier » l'attend.
+  const [profil, setProfil] = useState<ProfilChoix>(params.get('profil') === 'client' ? 'client' : 'dev')
   const [email, setEmail] = useState('')
   const [envoye, setEnvoye] = useState(false)
   const [erreur, setErreur] = useState<string | null>(null)
@@ -35,9 +40,16 @@ export function Connexion() {
       ? 'La connexion avec GitHub n’est pas encore disponible. Réessayez plus tard, ou écrivez à l’équipe de Souk.dev.'
       : params.get('erreur') === 'compte_suspendu'
         ? 'Votre compte est suspendu : la connexion est refusée. Le motif est dans l’e-mail reçu ; pour contester, répondez-y.'
-        : params.has('erreur')
+        : params.get('erreur') === 'github_deja_lie'
+          ? 'Ce compte GitHub est déjà lié à un autre compte Souk.dev. Connectez-vous avec GitHub directement, ou utilisez un autre compte GitHub.'
+          : params.has('erreur')
           ? 'La connexion avec GitHub n’a pas abouti. Réessayez dans un instant.'
           : null
+
+  // La connexion quitte le site (GitHub, e-mail) : la page d'où vient la personne est retenue.
+  useEffect(() => {
+    retenirRetour(retour)
+  }, [retour])
 
   async function envoyer(evenement: FormEvent) {
     evenement.preventDefault()
@@ -62,6 +74,11 @@ export function Connexion() {
     } finally {
       setEnvoi(false)
     }
+  }
+
+  // Déjà connecté : pas de formulaire, on repart d'où l'on venait.
+  if (compte.data) {
+    return <Navigate to={retour ?? '/tableau'} replace />
   }
 
   return (
@@ -122,7 +139,7 @@ export function Connexion() {
                 </Bouton>
               }
             >
-              Ouvrez-le depuis cet appareil. Il ne sert qu’une seule fois.
+              Ouvrez-le depuis cet appareil, dans ce navigateur. Il ne sert qu’une seule fois et expire dans 15 minutes. Rien reçu ? Regardez dans les courriers indésirables.
             </Alerte>
           ) : (
             <form onSubmit={(evenement) => void envoyer(evenement)} className="flex flex-col gap-4" noValidate>

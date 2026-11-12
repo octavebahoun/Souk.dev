@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { ShieldAlert, ShieldCheck, ShieldEllipsis, ShieldX } from 'lucide-react'
+import { ChevronDown, ShieldAlert, ShieldCheck, ShieldEllipsis, ShieldX } from 'lucide-react'
 import type { components } from '../../shared/types/api'
 import { cheminLaravel, clientLocal } from '../../shared/client'
 import { preparerCsrf } from '../../app/preparerCsrf'
@@ -59,13 +59,14 @@ export function RapportSecurite({ appId, securite, estAuteur }: { appId: number;
   }
 
   const presentation = {
-    verifie: { titre: 'Security Checked', Icone: ShieldCheck, classe: 'bg-fond-succes text-succes' },
+    verifie: { titre: 'Sécurité vérifiée', Icone: ShieldCheck, classe: 'bg-fond-succes text-succes' },
     problemes: { titre: 'Problèmes détectés', Icone: ShieldAlert, classe: 'bg-fond-alerte text-alerte' },
     en_cours: { titre: 'Analyse en cours', Icone: ShieldEllipsis, classe: 'bg-fond-info text-info' },
     echec: { titre: 'Analyse impossible', Icone: ShieldX, classe: 'bg-fond-danger text-danger' },
   }[securite.statut]
   const { titre, Icone } = presentation
   const nombre = securite.problemes.length
+  const graves = securite.problemes.filter((probleme) => probleme.gravite === 'critique' || probleme.gravite === 'haute').length
 
   return (
     <Carte as="section" aria-labelledby="titre-securite" className="flex flex-col gap-4">
@@ -100,12 +101,31 @@ export function RapportSecurite({ appId, securite, estAuteur }: { appId: number;
       {securite.statut === 'problemes' ? (
         <>
           <p className="m-0 text-corps text-texte">
-            {nombre} dépendance{nombre > 1 ? 's ont' : ' a'} une faille connue.
+            {nombre} dépendance{nombre > 1 ? 's ont' : ' a'} une faille connue{graves > 0 ? `, dont ${graves} grave${graves > 1 ? 's' : ''}` : ''}.
             {estAuteur
               ? ` Mettez-${nombre > 1 ? 'les' : 'la'} à jour vers la version corrigée, puis relancez l’analyse.`
-              : ` L’auteur est invité à ${nombre > 1 ? 'les' : 'la'} mettre à jour.`}
+              : ` En clair : l’appli utilise des briques logicielles qui ont besoin d’une mise à jour. L’auteur est invité à ${nombre > 1 ? 'les' : 'la'} corriger ; votre copie reste isolée de celles des autres clients.`}
           </p>
-          <Tableau legende="Dépendances avec une faille connue" colonnes={colonnes} lignes={securite.problemes} cleLigne={(probleme) => `${probleme.identifiant}-${probleme.paquet}`} />
+          <ul aria-label="Failles par gravité" className="m-0 flex list-none flex-wrap gap-2 p-0">
+            {(Object.keys(gravites) as Probleme['gravite'][]).map((gravite) => {
+              const total = securite.problemes.filter((probleme) => probleme.gravite === gravite).length
+              return total > 0 ? (
+                <li key={gravite}>
+                  <PastilleEtat ton={gravites[gravite].ton} libelle={`${total} ${gravites[gravite].libelle.toLowerCase()}`} />
+                </li>
+              ) : null
+            })}
+          </ul>
+          {/* Replié par défaut : la liste peut compter des dizaines de lignes et noyait la fiche sur mobile. */}
+          <details className="group rounded-moyen border border-bordure">
+            <summary className="flex min-h-11 cursor-pointer items-center justify-between gap-3 px-4 text-corps font-medium text-titre">
+              Voir le détail des {nombre} dépendance{nombre > 1 ? 's' : ''}
+              <ChevronDown aria-hidden="true" className="size-4 shrink-0 transition-transform duration-150 group-open:rotate-180" />
+            </summary>
+            <div className="border-t border-bordure p-3">
+              <Tableau legende="Dépendances avec une faille connue" colonnes={colonnes} lignes={securite.problemes} cleLigne={(probleme) => `${probleme.identifiant}-${probleme.paquet}`} />
+            </div>
+          </details>
         </>
       ) : null}
 

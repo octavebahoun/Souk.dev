@@ -35,12 +35,14 @@ export function logoReseau(code: string | null | undefined): string | null {
   return code ? (logos[code] ?? null) : null
 }
 
-/** Les moyens de paiement montrés sous le bouton « Payer » (une marque une seule fois). */
+/**
+ * Les moyens de paiement montrés sous le bouton « Payer » : seulement ceux que SasPay propose
+ * vraiment aujourd'hui sur la page de paiement (Mobile Money du Bénin). Une marque s'ajoute ici
+ * le jour où elle est activée sur le compte marchand, pas avant.
+ */
 export const moyensAffiches = [
   { nom: 'MTN MoMo', logo: mtn },
   { nom: 'Moov Money', logo: moov },
-  { nom: 'Orange Money', logo: orange },
-  { nom: 'Wave', logo: wave },
   { nom: 'Celtiis Cash', logo: celtiis },
 ]
 

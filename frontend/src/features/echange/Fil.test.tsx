@@ -17,8 +17,8 @@ vi.mock('../../shared/client', async () => {
 })
 
 const canaux: Canal[] = [
-  { slug: 'laravel', nom: 'Laravel', description: null, pays: null },
-  { slug: 'laravel-benin', nom: 'Laravel Bénin', description: null, pays: 'BJ' },
+  { slug: 'laravel', nom: 'Laravel', description: null, pays: null, suivi: false, abonnes: 0 },
+  { slug: 'laravel-benin', nom: 'Laravel Bénin', description: null, pays: 'BJ', suivi: false, abonnes: 0 },
 ]
 
 const etiquettes: Etiquette[] = ['bug', 'question', 'tuto', 'projet', 'entraide']

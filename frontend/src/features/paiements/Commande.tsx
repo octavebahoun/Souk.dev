@@ -1,8 +1,9 @@
 import { useRef, useState, type ReactNode } from 'react'
-import { useParams } from 'react-router'
+import { Link, useParams } from 'react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Globe, Power, Server, ShieldCheck } from 'lucide-react'
 import { useCompte } from '../../app/compte'
+import { lienConnexion } from '../../app/retour'
 import { useTitrePage } from '../../app/titre'
 import { arreterCopie, lireAppli, listerCopies } from '../catalogue/api'
 import {
@@ -24,13 +25,13 @@ import {
   formaterFcfa,
 } from '../../ui'
 import { allerPayer, commanderCopie, erreursDeChamps, messageErreur, nouvelleCle, statutHttp } from './api'
-import { formules } from './formules'
+import { formules, fraisPaiementEstimes } from './formules'
 import { MoyensDePaiement } from './MoyensDePaiement'
 
 const avantages = [
   { icone: Server, texte: 'Votre propre copie, isolée de celles des autres clients.' },
   { icone: Globe, texte: 'Une adresse web à vous, dès que la copie est en ligne.' },
-  { icone: ShieldCheck, texte: 'Vos données gardées tant que l’abonnement est réglé.' },
+  { icone: ShieldCheck, texte: 'Vos données sauvegardées chaque jour et exportables depuis « Mes copies ».' },
   { icone: Power, texte: 'Arrêt à tout moment depuis « Mes copies », sans engagement.' },
 ]
 
@@ -60,11 +61,16 @@ export function Commande() {
   }
 
   if (!compte.data) {
+    const apercu = appli.data
     return (
       <Conteneur>
         <AccesRefuse
-          description="Connectez-vous pour commander votre copie : elle sera à votre nom, et vous retrouverez vos factures dans « Mes paiements »."
-          action={<LienBouton to="/connexion">Se connecter</LienBouton>}
+          description={
+            apercu
+              ? `Connectez-vous pour commander votre copie de ${apercu.nom} (${formaterFcfa(formules[apercu.taille].prix + apercu.prix)} à payer aujourd’hui, frais Mobile Money en plus). Un e-mail suffit, sans mot de passe : vous reviendrez ici juste après.`
+              : 'Connectez-vous pour commander votre copie : elle sera à votre nom, et vous retrouverez vos factures dans « Mes paiements ».'
+          }
+          action={<LienBouton to={lienConnexion(`/store/${id}/deployer`, 'client')}>Se connecter pour commander</LienBouton>}
         />
       </Conteneur>
     )
@@ -95,6 +101,7 @@ export function Commande() {
   const premiereFacture = formule.prix + prixAppli
   const mensuel = formule.prix + (fiche.type_prix === 'mensuel' ? prixAppli : 0)
   const total = enAttente?.facture_a_payer?.montant_total ?? premiereFacture
+  const frais = fraisPaiementEstimes(total)
   const variables = enAttente ? [] : fiche.variables_client
   const incomplet = variables.some((variable) => variable.requis && !(valeurs[variable.nom] ?? '').trim())
   const auteur = fiche.auteur.nom || fiche.auteur.username || 'son auteur'
@@ -206,8 +213,8 @@ export function Commande() {
               className="mt-4"
               libelle="Étapes de la commande"
               etapes={[
-                { id: 'paiement', etat: 'a_venir', libelle: 'Vous payez chez SasPay', description: 'Mobile Money ou carte ; les frais du moyen de paiement s’ajoutent au montant.' },
-                { id: 'construction', etat: 'a_venir', libelle: 'Nous construisons votre copie', description: 'Quelques minutes, à partir du code publié par l’auteur.' },
+                { id: 'paiement', etat: 'en_cours', libelle: 'Vous payez chez SasPay', description: 'En Mobile Money. Les frais du moyen de paiement (environ 3,5 %) s’ajoutent au montant. Pour abandonner, fermez simplement la page de SasPay : rien n’est débité.' },
+                { id: 'construction', etat: 'a_venir', libelle: 'Nous construisons votre copie', description: 'Quelques minutes, à partir du code publié par l’auteur. Si la mise en ligne échoue, vous êtes prévenu, l’équipe intervient et aucune facture suivante n’est émise tant que la copie ne tourne pas.' },
                 { id: 'en_ligne', etat: 'a_venir', libelle: 'Votre copie est en ligne', description: 'Son adresse apparaît dans « Mes copies ». La facture suivante arrive un mois plus tard, avec un rappel 3 jours avant.' },
               ]}
             />
@@ -249,13 +256,24 @@ export function Commande() {
               </div>
             </dl>
 
-            <div className="flex flex-col gap-1 border-t border-bordure pt-4">
-              <div className="flex items-baseline justify-between gap-4">
+            <div className="flex flex-col gap-2 border-t border-bordure pt-4">
+              <div className="flex items-baseline justify-between gap-4 text-corps">
+                <span className="text-texte">Sous-total</span>
+                <Montant valeur={total} className="text-titre" />
+              </div>
+              <div className="flex items-baseline justify-between gap-4 text-corps">
+                <span className="text-texte">
+                  Frais Mobile Money
+                  <span className="block text-petit text-texte-doux">estimés, environ 3,5 % ; SasPay affiche le montant exact</span>
+                </span>
+                <span className="chiffres shrink-0 text-titre">≈ {formaterFcfa(frais)}</span>
+              </div>
+              <div className="flex items-baseline justify-between gap-4 border-t border-bordure pt-3">
                 <span className="font-medium text-titre">À payer aujourd’hui</span>
-                <Montant valeur={total} className="text-titre-2 text-titre" />
+                <span className="chiffres text-titre-2 text-titre">≈ {formaterFcfa(total + frais)}</span>
               </div>
               <p className="m-0 text-petit text-texte-doux">
-                {mensuel === total ? 'Puis le même montant chaque mois.' : `Puis ${formaterFcfa(mensuel)} par mois.`} Frais Mobile Money ou carte en plus, affichés avant de valider.
+                {mensuel === total ? 'Puis le même montant chaque mois, frais compris.' : `Puis ${formaterFcfa(mensuel)} par mois, plus les frais.`} Vous recevez un rappel 3 jours avant chaque échéance.
               </p>
             </div>
 
@@ -266,11 +284,17 @@ export function Commande() {
             ) : null}
 
             <Bouton taille="lg" pleineLargeur chargement={envoi} disabled={incomplet} onClick={() => void payer()}>
-              Payer {formaterFcfa(total)}
+              Continuer vers le paiement
             </Bouton>
+            <p className="-mt-2 m-0 text-petit text-texte-doux">
+              En payant, vous acceptez les <Link to="/legal/cgv">conditions de vente</Link> et les <Link to="/legal/cgu">conditions d’utilisation</Link>.
+            </p>
             {incomplet ? <p className="-mt-3 m-0 text-petit text-texte-doux">Renseignez d’abord les informations demandées.</p> : null}
 
             <MoyensDePaiement />
+            <p className="m-0 border-t border-bordure pt-4 text-petit text-texte-doux">
+              <strong className="font-medium text-titre">Vos données.</strong> Sans paiement à l’échéance : 7 jours de délai, puis la copie est suspendue (données gardées), et supprimée 30 jours plus tard. Arrêter une copie vous-même supprime ses données : exportez une sauvegarde avant.
+            </p>
             <p className="m-0 border-t border-bordure pt-4 text-petit text-texte-doux">
               Le prix de l’appli va entièrement à son auteur : Souk.dev ne prend aucun pourcentage et ne gagne que sur l’hébergement.
             </p>

@@ -39,7 +39,7 @@ const filtres: { valeur: Filtre; libelle: string }[] = [
  * (donner son avis) ; créer un événement est réservé aux comptes connectés.
  */
 export function Evenements() {
-  useTitrePage('Événements')
+  useTitrePage('Événements', { description: 'Meetups, ateliers et lives organisés par les devs de la communauté Souk.dev.' })
   const query = useQuery({ queryKey: ['evenements'], queryFn: () => listerEvenements() })
   const moi = useQuery({ queryKey: ['moi'], queryFn: lireMoi })
   const client = useQueryClient()

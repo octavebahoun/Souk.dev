@@ -256,3 +256,15 @@ export async function modifierAppli(id: number, corps: AppModification): Promise
   await preparerCsrf()
   await clientLocal.patch(cheminLaravel(`/apps/${id}`), corps)
 }
+
+/** Retirer une appli du Store (auteur, ou l'équipe) : les copies déjà en ligne continuent de tourner. */
+export async function retirerAppli(id: number): Promise<void> {
+  await preparerCsrf()
+  await clientLocal.delete(cheminLaravel(`/apps/${id}`))
+}
+
+/** Relancer l'analyse de sécurité des dépendances (auteur). */
+export async function relancerAnalyse(id: number): Promise<void> {
+  await preparerCsrf()
+  await clientLocal.post(cheminLaravel(`/apps/${id}/securite`))
+}

@@ -9,6 +9,7 @@ use App\Http\Controllers\AvisAppliController;
 use App\Http\Controllers\CanalController;
 use App\Http\Controllers\CompteController;
 use App\Http\Controllers\ConnexionUtilisateurFinalController;
+use App\Http\Controllers\ConversationController;
 use App\Http\Controllers\CoordonneesReversementController;
 use App\Http\Controllers\CopieTestController;
 use App\Http\Controllers\CorrectifController;
@@ -47,6 +48,9 @@ Route::get('/apps/{appli}/versions', [VersionController::class, 'index']);
 Route::post('/copies/{cle}/auth/code', [ConnexionUtilisateurFinalController::class, 'code']);
 Route::post('/copies/{cle}/auth/session', [ConnexionUtilisateurFinalController::class, 'session']);
 Route::get('/categories', [AppliController::class, 'categories']);
+// Session éventuelle : le compte connecté, ou null pour un visiteur (200 dans les deux cas : une
+// page publique ne produit pas d'erreur 401 dans la console du navigateur).
+Route::get('/session', [CompteController::class, 'session']);
 
 Route::middleware(['auth:sanctum', 'compte.actif'])->group(function (): void {
     Route::get('/me', [CompteController::class, 'show']);
@@ -108,6 +112,18 @@ Route::middleware(['auth:sanctum', 'compte.actif'])->group(function (): void {
     Route::put('/me/coordonnees-reversement', [CoordonneesReversementController::class, 'update'])
         ->middleware('throttle:coordonnees');
 
+    // Échange privé entre deux devs : invitation à accepter, puis messages.
+    Route::get('/me/conversations', [ConversationController::class, 'index']);
+    Route::post('/devs/{username}/invitation', [ConversationController::class, 'inviter'])
+        ->where('username', '[A-Za-z0-9][A-Za-z0-9-]{0,38}')
+        ->middleware('throttle:invitations');
+    Route::post('/conversations/{conversation}/reponse', [ConversationController::class, 'repondre']);
+    Route::get('/conversations/{conversation}/messages', [ConversationController::class, 'messages']);
+    Route::post('/conversations/{conversation}/messages', [ConversationController::class, 'ecrire'])
+        ->middleware('throttle:messages-prives');
+    // Canaux suivis : ils passent en premier dans le fil « Pour moi ».
+    Route::put('/canaux/{canal:slug}/abonnement', [CanalController::class, 'suivre']);
+    Route::delete('/canaux/{canal:slug}/abonnement', [CanalController::class, 'nePlusSuivre']);
     // Signaler un contenu ou un comportement à l'équipe.
     Route::post('/signalements', [SignalementController::class, 'store'])->middleware('throttle:signalements');
 

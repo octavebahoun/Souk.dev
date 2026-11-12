@@ -85,7 +85,7 @@ function reponses(options: { discussion?: Discussion | Error; messages?: Message
       return Promise.resolve({ data: page(options.messages ?? []) })
     }
     if (url === cheminLaravel('/discussions/12/correctifs')) return Promise.resolve({ data: page([]) })
-    if (url === cheminLaravel('/me')) {
+    if (url === cheminLaravel('/session')) {
       if (!options.moi) return Promise.reject(new Error('non connecté'))
       return Promise.resolve({ data: options.moi })
     }

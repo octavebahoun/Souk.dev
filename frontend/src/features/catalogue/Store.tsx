@@ -38,7 +38,7 @@ const FILTRES_AVANCES = ['pays', 'prix_max', 'type_prix', 'gratuit', 'securite']
  * filtres avancés repliés ; chaque carte mène à la fiche (une seule cible par carte).
  */
 export function Store() {
-  useTitrePage('Store')
+  useTitrePage('Store', { description: 'Des applis web prêtes à l’emploi, créées par des devs africains : essayez la démo, déployez votre copie en un clic, payez en Mobile Money.' })
   const [params, setParams] = useSearchParams()
   const filtres = {
     q: params.get('q') ?? '',
@@ -207,7 +207,7 @@ export function Store() {
               <CaseACocher
                 checked={filtres.securite}
                 onChange={() => changer('securite', filtres.securite ? '' : '1')}
-                libelle="Badge Security Checked seulement"
+                libelle="Sécurité vérifiée seulement"
               />
             </div>
           </div>

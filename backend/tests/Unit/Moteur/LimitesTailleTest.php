@@ -8,7 +8,7 @@ use PHPUnit\Framework\TestCase;
 
 class LimitesTailleTest extends TestCase
 {
-    public function test_ecrit_le_plafond_de_chaque_service(): void
+    public function test_partage_la_formule_entre_les_services(): void
     {
         $repertoire = $this->repertoire();
 
@@ -19,14 +19,14 @@ class LimitesTailleTest extends TestCase
 services:
   front:
     restart: unless-stopped
-    mem_limit: 512m
-    memswap_limit: 512m
-    cpus: "0.5"
+    mem_limit: 256m
+    memswap_limit: 256m
+    cpus: "0.25"
     deploy:
       resources:
         limits:
-          cpus: "0.5"
-          memory: 512m
+          cpus: "0.25"
+          memory: 256m
           pids: 256
     pids_limit: 256
     cap_drop:
@@ -50,14 +50,14 @@ services:
       soukdev-copie: {}
   db:
     restart: unless-stopped
-    mem_limit: 512m
-    memswap_limit: 512m
-    cpus: "0.5"
+    mem_limit: 256m
+    memswap_limit: 256m
+    cpus: "0.25"
     deploy:
       resources:
         limits:
-          cpus: "0.5"
-          memory: 512m
+          cpus: "0.25"
+          memory: 256m
           pids: 256
     pids_limit: 256
     cap_drop:
@@ -87,6 +87,23 @@ YAML, file_get_contents($repertoire.DIRECTORY_SEPARATOR.'docker-compose.soukdev.
         } finally {
             $this->nettoyer($repertoire);
         }
+    }
+
+    public function test_six_services_ne_depassent_pas_la_formule(): void
+    {
+        $part = LimitesTaille::partParService('grande', 6);
+
+        $this->assertSame('341m', $part['memoire']);
+        $this->assertLessThanOrEqual(2.0, 6 * (float) $part['coeurs']);
+        $this->assertSame(['memoire' => '512m', 'coeurs' => '0.5'], LimitesTaille::partParService('petite', 1));
+    }
+
+    public function test_refuse_trop_de_services_pour_la_formule(): void
+    {
+        $this->expectException(LancementEchoue::class);
+        $this->expectExceptionMessage('ne suffit pas pour 6 services');
+
+        LimitesTaille::partParService('petite', 6);
     }
 
     public function test_le_plafond_de_processus_suit_la_formule(): void

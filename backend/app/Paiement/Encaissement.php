@@ -207,8 +207,8 @@ final class Encaissement
     /**
      * SUCCESS chez le prestataire. En francs CFA, le montant doit être celui de la facture (sinon
      * rien n'est appliqué et l'équipe vérifie) ; si SasPay a retenu des frais malgré ADD_ON, ils
-     * passent en charge. Une carte peut être débitée dans une autre devise (conversion par
-     * SasPay) : la transaction de notre session est créditée et l'équipe vérifie le montant reçu.
+     * passent en charge. Dans une autre devise, le montant ne peut pas être comparé à la
+     * facture : rien n'est crédité ni déployé tant que l'équipe n'a pas vérifié l'équivalent reçu.
      */
     private function appliquerVerificationReussie(Paiement $paiement, VerificationPaiement $verification): Paiement
     {
@@ -216,7 +216,22 @@ final class Encaissement
         $devise = strtoupper(trim($verification->devise ?? '')) ?: 'XOF';
         $fraisRetenus = 0;
 
-        if ($devise === 'XOF' && $verification->montantDemande !== $paiement->montant) {
+        if ($devise !== 'XOF') {
+            $dejaSignale = $paiement->erreur !== null;
+            $paiement->forceFill(['statut' => 'en_attente', 'erreur' => 'Devise à vérifier par l’équipe.'])->save();
+            Log::critical('paiement: devise inattendue', ['paiement' => $paiement->id, 'devise' => $devise]);
+
+            if (! $dejaSignale) {
+                AlerteAdmin::envoyer("Paiement n° {$paiement->id} en {$devise}", [
+                    "SasPay a confirmé une transaction en {$devise} pour une facture de {$paiement->montant} F : le montant ne peut pas être comparé.",
+                    'Rien n’a été appliqué. Vérifiez l’équivalent reçu, référence '.($verification->reference ?? $paiement->transaction_id).', dans le tableau de bord SasPay.',
+                ]);
+            }
+
+            return $paiement;
+        }
+
+        if ($verification->montantDemande !== $paiement->montant) {
             $dejaSignale = $paiement->erreur !== null;
             $paiement->forceFill(['statut' => 'en_attente', 'erreur' => 'Montant à vérifier par l’équipe.'])->save();
             Log::critical('paiement: montant incohérent', ['paiement' => $paiement->id, 'attendu' => $paiement->montant, 'recu' => $verification->montantDemande]);
@@ -231,19 +246,12 @@ final class Encaissement
             return $paiement;
         }
 
-        if ($devise === 'XOF' && $verification->montantNet !== null && $verification->montantNet < $paiement->montant) {
+        if ($verification->montantNet !== null && $verification->montantNet < $paiement->montant) {
             $fraisRetenus = $paiement->montant - $verification->montantNet;
         }
 
         $paiement->save();
         $this->appliquerSucces($paiement, $fraisRetenus);
-
-        if ($devise !== 'XOF') {
-            AlerteAdmin::envoyer("Paiement n° {$paiement->id} en {$devise}", [
-                "La facture ({$paiement->montant} F) a été payée en {$devise} (carte, conversion par SasPay) : elle est créditée.",
-                'Vérifiez le montant reçu sur le compte SasPay, référence '.($verification->reference ?? $paiement->transaction_id).'.',
-            ]);
-        }
 
         if ($fraisRetenus > 0) {
             AlerteAdmin::envoyer("Paiement n° {$paiement->id} : frais retenus par SasPay", [

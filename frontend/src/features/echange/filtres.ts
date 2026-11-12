@@ -5,6 +5,8 @@ export type FiltresFil = {
   etiquette?: Etiquette
   statut?: 'ouvertes' | 'resolues'
   difficulte?: Difficulte
+  /** « tout » : le membre a quitté son fil personnalisé pour tout voir par date. */
+  fil?: 'tout' | 'pour_moi'
   page: number
 }
 
@@ -30,6 +32,7 @@ export function lireFiltres(params: URLSearchParams): FiltresFil {
     etiquette: estEtiquette(etiquette) ? etiquette : undefined,
     statut: statut === 'ouvertes' || statut === 'resolues' ? statut : undefined,
     difficulte: estDifficulte(difficulte) ? difficulte : undefined,
+    fil: params.get('fil') === 'tout' ? 'tout' : undefined,
     page: Number.isInteger(page) && page > 1 ? page : 1,
   }
 }
@@ -40,6 +43,7 @@ export function ecrireFiltres(filtres: FiltresFil): Record<string, string> {
   if (filtres.etiquette) query.etiquette = filtres.etiquette
   if (filtres.statut) query.statut = filtres.statut
   if (filtres.difficulte) query.difficulte = filtres.difficulte
+  if (filtres.fil === 'tout') query.fil = 'tout'
   if (filtres.page > 1) query.page = String(filtres.page)
   return query
 }

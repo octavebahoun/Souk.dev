@@ -19,6 +19,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Http\Response;
 use Illuminate\Validation\Rule;
 
 final class CompteController extends Controller
@@ -26,6 +27,17 @@ final class CompteController extends Controller
     public function show(Request $request): CompteResource
     {
         return new CompteResource($request->user());
+    }
+
+    /** Le compte connecté, ou null pour un visiteur : jamais de 401 sur une page publique. */
+    public function session(Request $request): CompteResource|Response
+    {
+        $compte = $request->user('sanctum');
+
+        // JsonResponse écrirait « {} » pour null : le corps est le littéral JSON null.
+        return $compte === null
+            ? response('null', 200, ['Content-Type' => 'application/json'])
+            : new CompteResource($compte);
     }
 
     /**

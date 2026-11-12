@@ -63,7 +63,7 @@ test.describe.serial('confiance', () => {
       .toBe('verifie')
 
     await page.goto(`/store/${id}`)
-    await expect(page.getByRole('heading', { name: 'Sécurité : Security Checked' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Sécurité : Sécurité vérifiée' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Relancer l’analyse' })).toBeVisible()
     expect(resumer(await auditAxe(page))).toBe('')
 

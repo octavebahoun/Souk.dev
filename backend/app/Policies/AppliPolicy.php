@@ -19,9 +19,10 @@ final class AppliPolicy
         return $appli->user_id === $compte->id;
     }
 
+    /** L'auteur retire son appli du Store ; l'équipe peut retirer une appli cassée ou abusive. */
     public function delete(User $compte, Appli $appli): bool
     {
-        return $appli->user_id === $compte->id;
+        return $appli->user_id === $compte->id || $compte->est_admin === true;
     }
 
     public function noter(User $compte, Appli $appli): Response

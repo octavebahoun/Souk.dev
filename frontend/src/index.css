@@ -259,6 +259,14 @@
 }
 
 /* Texte réservé aux lecteurs d'écran. */
+/* Rangée qui défile au doigt (onglets de l'espace) : la barre de défilement ne s'affiche pas. */
+@utility sans-barre {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 @utility pour-lecteur {
   position: absolute;
   width: 1px;

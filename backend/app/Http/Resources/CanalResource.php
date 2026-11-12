@@ -23,6 +23,9 @@ final class CanalResource extends JsonResource
             'nom' => $canal->nom,
             'description' => $canal->description,
             'pays' => $canal->pays,
+            // Renseignés par la liste des canaux ; ailleurs (canal d'une discussion), valeurs neutres.
+            'suivi' => (bool) ($canal->getAttribute('suivi') ?? false),
+            'abonnes' => (int) ($canal->getAttribute('abonnes_count') ?? 0),
         ];
     }
 }

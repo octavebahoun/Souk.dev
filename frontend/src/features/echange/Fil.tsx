@@ -1,9 +1,9 @@
 import { useCallback, useState, type ReactNode } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useNavigate, useSearchParams } from 'react-router'
-import { Plus } from 'lucide-react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Link, useNavigate, useSearchParams } from 'react-router'
+import { Plus, Star } from 'lucide-react'
 import { useTitrePage } from '../../app/titre'
-import { listerCanaux, listerDiscussions, listerEtiquettes, messageAction, type Canal, type Discussion } from './api'
+import { listerCanaux, listerDiscussions, listerEtiquettes, messageAction, suivreCanal, type Canal, type Discussion } from './api'
 import { CarteDiscussion } from './CarteDiscussion'
 import { nomPays } from './texte'
 import { FormulaireDiscussion } from './FormulaireDiscussion'
@@ -11,7 +11,7 @@ import { FormulaireCanal } from './FormulaireCanal'
 import { correspond, ecrireFiltres, filtresActifs, lireFiltres, type FiltresFil } from './filtres'
 import { libelleDifficulte } from './presentation'
 import { useBandeau } from './tempsReel'
-import { useSelonCompte } from '../../app/compte'
+import { useCompte, useSelonCompte } from '../../app/compte'
 import { ModaleConnexion } from '../../app/ModaleConnexion'
 import { AvisDonneesPartielles, Bouton, Champ, ChoixPastilles, EnTetePage, EtatErreur, EtatVide, Liste, Modale, Pagination, PuceFiltre, SqueletteListe, cx, useToast } from '../../ui'
 
@@ -25,11 +25,15 @@ function phraseCompte(total: number, filtres: boolean): string {
  * statut et difficulté, nouvelles discussions annoncées en direct sans bouger la lecture.
  */
 export function Fil() {
-  useTitrePage('Échange')
+  useTitrePage('Échange', { description: 'L’espace d’entraide des devs africains : postez un bug avec votre dépôt, un autre dev propose un correctif que vous essayez avant d’accepter.' })
   const [params, setParams] = useSearchParams()
   const navigate = useNavigate()
   const toast = useToast()
-  const filtres = lireFiltres(params)
+  const compte = useCompte()
+  const lus = lireFiltres(params)
+  // Un membre arrive sur son fil : ce qui le concerne d'abord. Il peut tout voir par date d'un clic.
+  const pourMoi = Boolean(compte.data) && lus.fil !== 'tout'
+  const filtres: FiltresFil = { ...lus, fil: pourMoi ? 'pour_moi' : lus.fil }
   const actifs = filtresActifs(filtres)
   const queryClient = useQueryClient()
   const selonCompte = useSelonCompte()
@@ -46,6 +50,30 @@ export function Fil() {
     queryKey: ['discussions', filtres],
     queryFn: () => listerDiscussions(filtres),
   })
+
+  const suivre = useMutation({
+    mutationFn: ({ slug, actif }: { slug: string; actif: boolean }) => suivreCanal(slug, actif),
+    onSuccess: async (canal) => {
+      queryClient.setQueryData<Canal[]>(['canaux'], (liste) => liste?.map((item) => (item.slug === canal.slug ? canal : item)))
+      toast.succes(canal.suivi ? `Vous suivez #${canal.slug} : ses discussions passent en premier dans votre fil.` : `Vous ne suivez plus #${canal.slug}.`)
+      await queryClient.invalidateQueries({ queryKey: ['discussions'] })
+    },
+    onError: (erreur) => toast.erreur(messageAction(erreur, 'Le canal n’a pas pu être suivi.')),
+  })
+
+  function basculerSuivi(canal: Canal) {
+    void selonCompte(() => suivre.mutate({ slug: canal.slug, actif: !canal.suivi }), () => setConnexion('suivre un canal'))
+  }
+
+  /** Pourquoi une discussion remonte dans le fil « Pour moi » : la raison la plus forte seulement. */
+  function raisonPour(discussion: Discussion): string | undefined {
+    if (!pourMoi || !compte.data) return undefined
+    const canal = (canaux.data ?? []).find((item) => item.slug === discussion.canal)
+    if (canal?.suivi) return 'Canal suivi'
+    if (discussion.bug?.techno && (compte.data.competences ?? []).includes(discussion.bug.techno)) return 'Votre techno'
+    if (canal?.pays && canal.pays === compte.data.pays) return 'Votre pays'
+    return undefined
+  }
 
   // Publier une discussion demande un compte : un visiteur l'apprend avant de remplir le formulaire.
   function nouvelle() {
@@ -65,7 +93,7 @@ export function Fil() {
   }
 
   function changer(partiel: Partial<FiltresFil>) {
-    setParams(ecrireFiltres({ ...filtres, ...partiel, page: 1 }))
+    setParams(ecrireFiltres({ ...lus, ...partiel, page: 1 }))
   }
 
   function montrerNouvelles() {
@@ -74,7 +102,7 @@ export function Fil() {
       const ids = new Set(liste.map((discussion) => discussion.id))
       return [...recues.filter((discussion) => !ids.has(discussion.id)), ...liste]
     })
-    setParams(ecrireFiltres({ ...filtres, page: 1 }))
+    setParams(ecrireFiltres({ ...lus, page: 1 }))
   }
 
   async function partager(discussion: Discussion) {
@@ -114,12 +142,38 @@ export function Fil() {
       />
 
       <div className="flex flex-col gap-6 tablette:flex-row tablette:items-start">
-        <Canaux generaux={generaux} parPays={parPays} canalActif={filtres.canal} onChoisir={(canal) => changer({ canal })} onCreer={ouvrirCanal} />
+        <Canaux generaux={generaux} parPays={parPays} canalActif={filtres.canal} onChoisir={(canal) => changer({ canal })} onCreer={ouvrirCanal} onSuivre={basculerSuivi} />
 
         <section aria-labelledby="titre-fil" className="flex min-w-0 flex-1 flex-col gap-4">
           <h2 id="titre-fil" className="pour-lecteur">
             Discussions
           </h2>
+          {compte.data ? (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-moyen border border-bordure bg-surface-accent p-3 tablette:px-4">
+              <ChoixPastilles
+                libelle="Fil affiché"
+                valeur={pourMoi ? 'pour_moi' : 'tout'}
+                onChange={(fil) => changer({ fil: fil === 'tout' ? 'tout' : undefined })}
+                options={[
+                  { valeur: 'pour_moi', libelle: 'Pour moi' },
+                  { valeur: 'tout', libelle: 'Tout l’Échange' },
+                ]}
+              />
+              <p className="m-0 w-full min-w-0 text-petit text-texte tablette:w-auto tablette:flex-1 tablette:text-right">
+                {pourMoi ? (
+                  <>
+                    D’abord vos canaux suivis, les bugs dans vos technos{(compte.data.competences ?? []).length > 0 ? ` (${(compte.data.competences ?? []).slice(0, 3).join(', ')})` : ''} et votre pays.{' '}
+                    <Link to="/profil" className="font-medium underline underline-offset-2">
+                      Régler mes technos
+                    </Link>
+                  </>
+                ) : (
+                  'Toutes les discussions, des plus récentes aux plus anciennes.'
+                )}
+              </p>
+            </div>
+          ) : null}
+
           <div className="flex flex-col gap-3 rounded-moyen border border-bordure bg-surface p-3 tablette:p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div role="group" aria-label="Étiquettes" className="flex flex-wrap gap-2">
@@ -203,13 +257,14 @@ export function Fil() {
                   discussion={discussion}
                   delai={Math.min(index, 11) * 50}
                   nouvelle={visibles.some((item) => item.id === discussion.id)}
+                  raison={raisonPour(discussion)}
                   onPartager={(item) => void partager(item)}
                 />
               ))}
             </ol>
           ) : null}
           {liste ? (
-            <Pagination libelle="Pages des discussions" page={liste.meta.current_page} dernierePage={liste.meta.last_page} onChange={(page) => setParams(ecrireFiltres({ ...filtres, page }))} />
+            <Pagination libelle="Pages des discussions" page={liste.meta.current_page} dernierePage={liste.meta.last_page} onChange={(page) => setParams(ecrireFiltres({ ...lus, page }))} />
           ) : null}
         </section>
       </div>
@@ -225,7 +280,7 @@ export function Fil() {
   )
 }
 
-type CanalListe = { slug: string; nom: string; pays: string | null }
+type CanalListe = Canal
 
 function Canaux({
   generaux,
@@ -233,13 +288,17 @@ function Canaux({
   canalActif,
   onChoisir,
   onCreer,
+  onSuivre,
 }: {
   generaux: CanalListe[]
   parPays: CanalListe[]
   canalActif?: string
   onChoisir: (canal?: string) => void
   onCreer: () => void
+  onSuivre: (canal: CanalListe) => void
 }) {
+  const choisi = [...generaux, ...parPays].find((canal) => canal.slug === canalActif)
+
   return (
     <div className="w-full min-w-0 tablette:sticky tablette:top-24 tablette:w-56 tablette:shrink-0">
       <div role="group" aria-label="Canaux" className="hidden flex-col gap-0.5 rounded-moyen border border-bordure bg-surface p-2 tablette:flex">
@@ -248,18 +307,22 @@ function Canaux({
         </BoutonCanal>
         <p className="m-0 mt-3 mb-1 px-2.5 text-etiquette text-texte-doux uppercase">Généraux</p>
         {generaux.map((canal) => (
-          <BoutonCanal key={canal.slug} actif={canalActif === canal.slug} onClick={() => onChoisir(canal.slug)}>
-            #{canal.slug}
-          </BoutonCanal>
+          <LigneCanal key={canal.slug} canal={canal} onSuivre={onSuivre}>
+            <BoutonCanal actif={canalActif === canal.slug} onClick={() => onChoisir(canal.slug)}>
+              #{canal.slug}
+            </BoutonCanal>
+          </LigneCanal>
         ))}
         <p className="m-0 mt-3 mb-1 px-2.5 text-etiquette text-texte-doux uppercase">Par pays</p>
         {parPays.map((canal) => (
-          <BoutonCanal key={canal.slug} actif={canalActif === canal.slug} onClick={() => onChoisir(canal.slug)}>
-            <span className="flex min-w-0 flex-col leading-tight">
-              <span className="break-all">#{canal.slug}</span>
-              {canal.pays ? <span className="text-petit font-normal text-texte-doux">{nomPays(canal.pays)}</span> : null}
-            </span>
-          </BoutonCanal>
+          <LigneCanal key={canal.slug} canal={canal} onSuivre={onSuivre}>
+            <BoutonCanal actif={canalActif === canal.slug} onClick={() => onChoisir(canal.slug)}>
+              <span className="flex min-w-0 flex-col leading-tight">
+                <span className="break-all">#{canal.slug}</span>
+                {canal.pays ? <span className="text-petit font-normal text-texte-doux">{nomPays(canal.pays)}</span> : null}
+              </span>
+            </BoutonCanal>
+          </LigneCanal>
         ))}
         <Bouton variante="fantome" taille="sm" icone={<Plus aria-hidden="true" className="size-4" />} onClick={onCreer} className="mt-3 justify-start">
           Créer un canal
@@ -287,10 +350,39 @@ function Canaux({
             </Liste>
           )}
         </Champ>
-        <Bouton variante="fantome" taille="sm" icone={<Plus aria-hidden="true" className="size-4" />} onClick={onCreer} className="mt-2">
-          Créer un canal
-        </Bouton>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {choisi ? (
+            <Bouton variante={choisi.suivi ? 'secondaire' : 'contour'} taille="sm" icone={<Star aria-hidden="true" className={cx('size-4', choisi.suivi && 'fill-current')} />} onClick={() => onSuivre(choisi)}>
+              {choisi.suivi ? 'Canal suivi' : 'Suivre ce canal'}
+            </Bouton>
+          ) : null}
+          <Bouton variante="fantome" taille="sm" icone={<Plus aria-hidden="true" className="size-4" />} onClick={onCreer}>
+            Créer un canal
+          </Bouton>
+        </div>
       </div>
+    </div>
+  )
+}
+
+/** Un canal et son étoile : suivi, ses discussions passent en premier dans le fil « Pour moi ». */
+function LigneCanal({ canal, onSuivre, children }: { canal: CanalListe; onSuivre: (canal: CanalListe) => void; children: ReactNode }) {
+  return (
+    <div className="flex items-center gap-0.5">
+      <div className="flex min-w-0 flex-1 flex-col">{children}</div>
+      <button
+        type="button"
+        aria-pressed={canal.suivi}
+        aria-label={canal.suivi ? `Ne plus suivre #${canal.slug}` : `Suivre #${canal.slug}`}
+        title={canal.suivi ? 'Canal suivi' : 'Suivre ce canal'}
+        onClick={() => onSuivre(canal)}
+        className={cx(
+          'grid size-9 shrink-0 place-items-center rounded-petit transition-colors duration-150 hover:bg-surface-douce',
+          canal.suivi ? 'text-alerte' : 'text-texte-doux hover:text-titre',
+        )}
+      >
+        <Star aria-hidden="true" className={cx('size-4', canal.suivi && 'fill-current')} />
+      </button>
     </div>
   )
 }

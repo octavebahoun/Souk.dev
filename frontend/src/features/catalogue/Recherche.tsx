@@ -93,7 +93,7 @@ function scoreCorrespondance(dev: DevResume, besoin: string): number {
  * les filtres affinent, chaque carte mène au profil ou à une proposition de mission.
  */
 export function Recherche() {
-  useTitrePage('Trouver un dev')
+  useTitrePage('Trouver un dev', { description: 'Trouvez un développeur africain par pays, spécialité et Souk Score : applis publiées, bugs résolus, missions notées.' })
   const [params, setParams] = useSearchParams()
   const [besoin, setBesoin] = useState('')
   const selonCompte = useSelonCompte()

@@ -3,7 +3,7 @@
 # Caddy. Voir docs/exploitation.md, « Derrière un proxy existant ».
 #
 # Caddy prend les certificats et passe tout à Traefik (HTTP, sur la passerelle Docker), qui garde
-# son routage : front, API, Reverb, une route par copie. Aucun en-tête ajouté ici : ceux de la
+# son routage : front, API, Reverb, une route par copie. Seule la compression est ajoutée ici : ceux de la
 # plateforme viennent de Traefik et de nginx, ceux des copies restent ceux de leurs auteurs.
 
 # --- En tête du Caddyfile (bloc d'options globales, un seul par fichier) ---------------------
@@ -17,8 +17,14 @@
 
 # --- Plus bas, avec les autres sites -----------------------------------------------------------
 __DOMAINE__, api.__DOMAINE__, reverb.__DOMAINE__ {
+	# HTML, JS, CSS et JSON compressés : quatre à cinq fois moins lourds sur un réseau mobile.
+	encode zstd gzip
 	reverse_proxy host.docker.internal:8880
 }
+
+# Une adresse tapée en http:// est renvoyée vers https:// (Caddy le fait seul pour les sites
+# ci-dessus). Si un autre proxy tient le port 80 devant Caddy, c'est lui qui doit rediriger :
+# sans cela, http://__DOMAINE__ répond une erreur au lieu d'ouvrir le site.
 
 www.__DOMAINE__ {
 	redir https://__DOMAINE__{uri} permanent

@@ -133,6 +133,45 @@ class ModificationAppliTest extends TestCase
         $this->assertSame(1, Appli::query()->count());
     }
 
+    public function test_l_equipe_retire_une_appli_abusive(): void
+    {
+        Storage::fake('public');
+        $appli = $this->appli(User::factory()->create());
+        $admin = User::factory()->create();
+        $admin->forceFill(['est_admin' => true])->save();
+
+        $this->actingAs($admin)
+            ->deleteJson('/api/apps/'.$appli->id)
+            ->assertNoContent();
+
+        $this->assertSame(0, Appli::query()->count());
+    }
+
+    public function test_la_liste_se_limite_aux_applis_d_un_auteur(): void
+    {
+        $auteur = User::factory()->create(['username' => 'awa-dev']);
+        $sienne = $this->appli($auteur);
+        $this->appli(User::factory()->create(['username' => 'autre-dev']));
+
+        $this->getJson('/api/apps?auteur=awa-dev')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $sienne->id);
+    }
+
+    public function test_une_appli_a_failles_passe_apres_les_autres_dans_la_vitrine(): void
+    {
+        $saine = $this->appli(User::factory()->create());
+        $saine->forceFill(['securite_statut' => 'verifie', 'created_at' => now()->subDay()])->save();
+        $fragile = $this->appli(User::factory()->create());
+        $fragile->forceFill(['securite_statut' => 'problemes'])->save();
+
+        $this->getJson('/api/apps')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $saine->id)
+            ->assertJsonPath('data.1.id', $fragile->id);
+    }
+
     public function test_l_auteur_remplace_toutes_les_captures(): void
     {
         Storage::fake('public');

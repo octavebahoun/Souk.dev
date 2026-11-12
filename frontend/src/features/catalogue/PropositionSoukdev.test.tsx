@@ -25,7 +25,7 @@ const redaction: RedactionSoukdev = {
 describe('soukdev.json écrit par Souk.dev', () => {
   beforeEach(() => {
     vi.mocked(clientLocal.get).mockReset().mockImplementation((url: string) => {
-      if (url === cheminLaravel('/me')) return Promise.resolve({ data: { id: 1, username: 'awa', profil: 'dev' } })
+      if (url === cheminLaravel('/session')) return Promise.resolve({ data: { id: 1, username: 'awa', profil: 'dev' } })
       return Promise.resolve({ data: null })
     })
     vi.mocked(clientLocal.post).mockReset().mockImplementation((url: string) => {

@@ -1,0 +1,5 @@
+# Vous avez trouvé une faille sur Souk.dev ? Merci de nous écrire avant toute publication.
+Contact: mailto:souk@send.excellenceteam.site
+Preferred-Languages: fr, en
+Policy: https://soukdev.shop/legal/mentions
+Expires: 2027-11-12T00:00:00Z

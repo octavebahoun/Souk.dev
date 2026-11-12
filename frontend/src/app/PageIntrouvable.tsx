@@ -2,7 +2,7 @@ import { EtatVide, LienBouton } from '../ui'
 import { useTitrePage } from './titre'
 
 export function PageIntrouvable() {
-  useTitrePage('Page introuvable')
+  useTitrePage('Page introuvable', { sansIndex: true })
   return (
     <div className="mx-auto w-full max-w-site px-4 py-8">
       <EtatVide

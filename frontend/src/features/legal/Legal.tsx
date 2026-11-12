@@ -1,12 +1,15 @@
 import type { ReactNode } from 'react'
+import { EMAIL_CONTACT } from '../../app/contact'
 import { useTitrePage } from '../../app/titre'
 import { Alerte, EnTetePage, FilAriane } from '../../ui'
 
 /**
- * Pages légales de Souk.dev : des brouillons rédigés par l'équipe, à faire valider par un
- * juriste avant le lancement. Le bandeau le dit sur chaque page, et le restera tant que
- * la validation n'est pas faite.
+ * Pages légales de Souk.dev, rédigées par l'équipe. Elles décrivent le fonctionnement réel du
+ * service ; le bandeau dit, sur chaque page, qu'un juriste doit encore les relire, et le dira
+ * tant que la relecture n'est pas faite.
  */
+
+const VERSION_TEXTES = '12 novembre 2026'
 
 function PageLegale({ titre, description, children }: { titre: string; description: string; children: ReactNode }) {
   useTitrePage(titre)
@@ -14,8 +17,9 @@ function PageLegale({ titre, description, children }: { titre: string; descripti
     <div className="mx-auto flex w-full max-w-prose flex-col gap-6 px-4 py-8 tablette:px-6">
       <FilAriane miettes={[{ libelle: 'Accueil', vers: '/' }, { libelle: titre }]} />
       <EnTetePage titre={titre} description={description} />
-      <Alerte ton="alerte" titre="Brouillon à faire valider par un juriste">
-        Ce texte est un brouillon rédigé par l’équipe de Souk.dev. Il n’a pas de valeur contractuelle tant qu’un juriste ne l’a pas relu et validé.
+      <Alerte ton="info" titre={`Version du ${VERSION_TEXTES}`}>
+        Ce texte décrit le fonctionnement actuel de Souk.dev. Il est rédigé par l’équipe et sera relu par un juriste avant l’ouverture commerciale ; une question ?{' '}
+        <a href={`mailto:${EMAIL_CONTACT}`}>{EMAIL_CONTACT}</a>.
       </Alerte>
       <div className="flex flex-col gap-5 text-corps leading-relaxed">{children}</div>
     </div>
@@ -94,7 +98,7 @@ export function Cgv() {
       <Titre>2. Facturation</Titre>
       <Paragraphe>
         Une facture par copie et par période, à date anniversaire du premier paiement. Rappel par e-mail 3 jours avant l’échéance, avec un lien de
-        paiement. Le paiement se fait en Mobile Money ou par carte, via le prestataire SasPay.
+        paiement. Le paiement se fait en Mobile Money, via le prestataire SasPay (les moyens proposés dépendent de votre pays ; la page de paiement affiche le nom marchand « Gentube », compte de paiement de l’équipe).
       </Paragraphe>
       <Titre>3. Impayé : grâce, suspension, arrêt</Titre>
       <Paragraphe>
@@ -177,6 +181,44 @@ export function PolitiqueAbus() {
       <Paragraphe>
         Chaque suspension part avec un e-mail qui donne le motif : il suffit d’y répondre pour contester, l’équipe relit. Les données restent
         gardées pendant l’examen ; en cas d’erreur, la copie ou le compte est rétabli.
+      </Paragraphe>
+    </PageLegale>
+  )
+}
+
+export function Mentions() {
+  return (
+    <PageLegale titre="Mentions légales et contact" description="Qui édite Souk.dev, qui l’héberge, et comment joindre l’équipe.">
+      <Titre>1. Éditeur</Titre>
+      <Paragraphe>
+        Souk.dev est conçu et édité par Excellence Team, une équipe de développeurs basée au Bénin. Le service est présenté à la Coupe d’Afrique
+        des Développeurs (CADEV 2026). L’immatriculation de la structure éditrice (RCCM, IFU) sera publiée ici avant l’ouverture commerciale.
+      </Paragraphe>
+      <Titre>2. Contact</Titre>
+      <Paragraphe>
+        Une question, un problème de paiement, une demande sur vos données : <a href={`mailto:${EMAIL_CONTACT}`}>{EMAIL_CONTACT}</a>. L’équipe répond
+        sous deux jours ouvrés. Pour un contenu ou une appli qui pose problème, le bouton « Signaler » de la page concernée va directement à la
+        modération.
+      </Paragraphe>
+      <Titre>3. Hébergement</Titre>
+      <Paragraphe>
+        La plateforme et les copies des clients tournent sur des serveurs Datacloud (Systalink, Sénégal). Les copies sont servies sur un domaine
+        séparé de celui du site.
+      </Paragraphe>
+      <Titre>4. Paiement</Titre>
+      <Paragraphe>
+        Les paiements sont encaissés par le prestataire SasPay, en Mobile Money. Souk.dev ne voit ni ne garde aucun code Mobile Money. La page de
+        paiement affiche le nom marchand « Gentube » : c’est le compte de paiement d’Excellence Team.
+      </Paragraphe>
+      <Titre>5. Code et licences</Titre>
+      <Paragraphe>
+        Le code de Souk.dev est public. Il n’utilise que des composants sous licence permissive (MIT, Apache 2.0, BSD, PostgreSQL), listés dans le
+        fichier LICENSES.md du dépôt. Les applis du Store restent la propriété de leurs auteurs.
+      </Paragraphe>
+      <Titre>6. Sécurité</Titre>
+      <Paragraphe>
+        Vous avez trouvé une faille ? Écrivez à <a href={`mailto:${EMAIL_CONTACT}`}>{EMAIL_CONTACT}</a> avant toute publication : l’équipe accuse
+        réception et vous tient au courant du correctif.
       </Paragraphe>
     </PageLegale>
   )

@@ -6,9 +6,10 @@ use App\Moteur\Exceptions\LancementEchoue;
 
 /**
  * Plafond de chaque conteneur d'une copie. Compose ne sait pas limiter
- * le projet entier : web, base et les autres services reçoivent la même
- * formule. Le fichier ajouté au lancement remplace un mem_limit ou un
- * cpus écrit dans le dépôt.
+ * le projet entier : la formule est donc partagée à parts égales entre
+ * web, base et les autres services, pour que la copie entière ne dépasse
+ * jamais ce que le client paie. Le fichier ajouté au lancement remplace
+ * un mem_limit ou un cpus écrit dans le dépôt.
  *
  * Le même fichier impose le durcissement (voir Durcissement) : pids_limit,
  * cap_drop ALL, no-new-privileges et le réseau propre à la copie. Compose
@@ -26,6 +27,35 @@ final class LimitesTaille
         'moyenne' => ['memoire' => '1g', 'coeurs' => '1'],
         'grande' => ['memoire' => '2g', 'coeurs' => '2'],
     ];
+
+    /** En dessous, un conteneur ne démarre pas correctement : la copie demande une formule plus grande. */
+    public const MEMOIRE_MINIMALE_MO = 128;
+
+    /**
+     * Part de la formule qui revient à chaque service : la somme ne dépasse pas la formule.
+     *
+     * @return array{memoire: string, coeurs: string}
+     */
+    public static function partParService(string $taille, int $nombreServices): array
+    {
+        if (! self::connue($taille)) {
+            throw new LancementEchoue('La taille doit être petite, moyenne ou grande.');
+        }
+
+        if ($nombreServices <= 1) {
+            return self::FORMULES[$taille];
+        }
+
+        $memoire = intdiv(self::plafondMo($taille), $nombreServices);
+
+        if ($memoire < self::MEMOIRE_MINIMALE_MO) {
+            throw new LancementEchoue("La formule {$taille} ne suffit pas pour {$nombreServices} services : choisissez une formule plus grande ou réduisez le nombre de services.");
+        }
+
+        $coeurs = floor(self::coeurs($taille) / $nombreServices * 100) / 100;
+
+        return ['memoire' => "{$memoire}m", 'coeurs' => (string) max(0.05, $coeurs)];
+    }
 
     /** Cœurs de processeur de la formule (0,5, 1 ou 2). */
     public static function coeurs(string $taille): float
@@ -72,7 +102,7 @@ final class LimitesTaille
             throw new LancementEchoue('docker-compose.yml ne déclare aucun service.');
         }
 
-        $formule = self::FORMULES[$taille];
+        $formule = self::partParService($taille, count($services));
         $pids = Durcissement::pids($taille);
         $capacites = Durcissement::capacites();
         $journaux = VerificateurCompose::JOURNAUX;

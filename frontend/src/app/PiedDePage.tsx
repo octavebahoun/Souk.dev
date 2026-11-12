@@ -26,6 +26,7 @@ const colonnes = [
       { vers: '/legal/cgv', libelle: t.pied.cgv },
       { vers: '/legal/confidentialite', libelle: t.pied.confidentialite },
       { vers: '/legal/abus', libelle: t.pied.abus },
+      { vers: '/legal/mentions', libelle: t.pied.mentions },
     ],
   },
 ]

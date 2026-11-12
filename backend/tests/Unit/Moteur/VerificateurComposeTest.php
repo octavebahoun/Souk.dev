@@ -227,6 +227,28 @@ YAML);
         $this->verificateur->verifier($yaml);
     }
 
+    /** @return array<string, array{string, string}> */
+    public static function resolutionDetournee(): array
+    {
+        return [
+            'extra_hosts' => ["    extra_hosts:\n      - \"host.docker.internal:host-gateway\"", 'extra_hosts'],
+            'dns' => ["    dns:\n      - 10.0.0.1", 'dns'],
+            'dns_search' => ["    dns_search:\n      - interne.exemple", 'dns_search'],
+            'links' => ["    links:\n      - autre", 'links'],
+            'hostname' => ['    hostname: traefik', 'hostname'],
+            'domainname' => ['    domainname: exemple.test', 'domainname'],
+        ];
+    }
+
+    #[DataProvider('resolutionDetournee')]
+    public function test_refuse_de_detourner_la_resolution_de_noms(string $reglage, string $cle): void
+    {
+        $this->expectException(LancementEchoue::class);
+        $this->expectExceptionMessageMatches("/utilise «\\x{a0}{$cle}\\x{a0}», qui n'est pas autorisé/u");
+
+        $this->verificateur->verifier("services:\n  web:\n    image: nginx\n{$reglage}\n");
+    }
+
     public function test_accepte_un_build_et_un_env_file_dans_le_depot(): void
     {
         $this->verificateur->verifier(<<<'YAML'

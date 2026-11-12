@@ -37,6 +37,7 @@ export function paramsDiscussions(filtres: FiltresFil): operations['listDiscussi
     etiquette: filtres.etiquette,
     statut: filtres.statut,
     difficulte: filtres.difficulte,
+    fil: filtres.fil === 'pour_moi' ? 'pour_moi' : undefined,
     page: filtres.page > 1 ? filtres.page : undefined,
   }
 }
@@ -153,9 +154,10 @@ export async function accepterCorrectif(id: number): Promise<Correctif> {
   return data
 }
 
+/** Le compte connecté, ou null pour un visiteur (la route répond 200 dans les deux cas). */
 export async function lireMoi(): Promise<Compte | null> {
   try {
-    const { data } = await clientLocal.get<Compte>(cheminLaravel('/me'))
+    const { data } = await clientLocal.get<Compte | null>(cheminLaravel('/session'))
     if (!data || typeof data.id !== 'number') return null
     return data
   } catch (erreur) {
@@ -210,4 +212,12 @@ export async function supprimerDiscussion(id: number): Promise<void> {
 export async function supprimerMessage(id: number): Promise<void> {
   await preparerCsrf()
   await clientLocal.delete(cheminLaravel(`/messages/${id}`))
+}
+
+/** Suivre ou ne plus suivre un canal : ses discussions passent en premier dans le fil « Pour moi ». */
+export async function suivreCanal(slug: string, suivre: boolean): Promise<Canal> {
+  await preparerCsrf()
+  const chemin = cheminLaravel(`/canaux/${encodeURIComponent(slug)}/abonnement`)
+  const { data } = suivre ? await clientLocal.put<Canal>(chemin) : await clientLocal.delete<Canal>(chemin)
+  return data
 }

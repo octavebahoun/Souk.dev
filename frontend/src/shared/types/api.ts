@@ -143,6 +143,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Le compte connecté, ou null pour un visiteur
+         * @description Toujours 200 ; le front s'en sert pour savoir qui est là sans produire de 401 sur une page publique.
+         */
+        get: operations["getSession"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me": {
         parameters: {
             query?: never;
@@ -875,6 +895,106 @@ export interface paths {
         /** Écrire dans le fil privé de la mission */
         post: operations["createMissionMessage"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/conversations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Mes conversations privées (invitations reçues d'abord, puis les plus récemment actives) */
+        get: operations["listConversations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/devs/{username}/invitation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                username: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Inviter un dev à échanger en privé
+         * @description Personne n'écrit à un dev sans son accord : l'invitation porte un mot d'introduction, et la
+         *     conversation ne s'ouvre que s'il accepte. Une seule conversation par paire de comptes.
+         *     Après un refus, la même paire attend 30 jours. 10 invitations par jour et par compte.
+         */
+        post: operations["inviterDev"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/conversations/{id}/reponse": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Accepter ou décliner une invitation (l'invité seulement) */
+        post: operations["repondreInvitation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/conversations/{id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        /** Messages d'une conversation, du plus ancien au plus récent (la lecture la marque comme lue) */
+        get: operations["listMessagesPrives"];
+        put?: never;
+        /** Écrire dans une conversation acceptée */
+        post: operations["ecrireMessagePrive"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/canaux/{slug}/abonnement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /** Suivre un canal (ses discussions passent en premier dans le fil « Pour moi ») */
+        put: operations["suivreCanal"];
+        post?: never;
+        /** Ne plus suivre un canal */
+        delete: operations["nePlusSuivreCanal"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2044,6 +2164,10 @@ export interface components {
             facture_a_payer: components["schemas"]["FactureResume"] | null;
             /** @description Numéro de la version de l'appli que la copie fait tourner ; null pour une copie de test */
             version: number | null;
+            /** @description Branche demandée par l'URL du dépôt (copie de test ou version corrigée) ; null pour la branche par défaut */
+            branche?: string | null;
+            /** @description Commit réellement cloné par la copie (40 caractères hexadécimaux) ; null tant que le clone n'est pas fait */
+            commit?: string | null;
             /** @description Version publiée plus récente que celle de la copie (copie client seulement), à appliquer quand le client le choisit */
             version_disponible: components["schemas"]["VersionResume"] | null;
             /** @description Dernière mise à jour demandée pour cette copie */
@@ -2251,7 +2375,50 @@ export interface components {
         MessageCreation: {
             texte: string;
         };
+        /** @description Conversation privée entre deux devs, vue par l'un d'eux */
+        Conversation: {
+            id: number;
+            /** @enum {string} */
+            statut: "en_attente" | "acceptee" | "refusee";
+            /**
+             * @description recue : c'est à moi d'accepter ou de décliner
+             * @enum {string}
+             */
+            sens: "recue" | "envoyee";
+            /** @description L'autre dev ; null si son compte a été supprimé */
+            avec: components["schemas"]["Dev"] | null;
+            /** @description Mot d'introduction écrit par celui qui invite */
+            invitation: string;
+            /** @description Bug sur lequel l'aide est demandée, s'il y en a un */
+            discussion: {
+                id: number;
+                titre: string;
+            } | null;
+            dernier_message: {
+                /** @description Extrait de 140 caractères */
+                texte: string;
+                de_moi: boolean;
+                /** Format: date-time */
+                cree_le: string;
+            } | null;
+            /** @description Messages de l'autre arrivés depuis ma dernière lecture */
+            non_lus: number;
+            /** Format: date-time */
+            cree_le: string;
+            /** Format: date-time */
+            maj_le: string;
+        };
+        InvitationCreation: {
+            /** @description Mot d'introduction : qui vous êtes, pourquoi vous écrivez */
+            message: string;
+            /** @description Bug sur lequel vous demandez de l'aide */
+            discussion_id?: number | null;
+        };
         Canal: {
+            /** @description Suivi par le compte connecté (liste des canaux) ; false pour un visiteur */
+            suivi: boolean;
+            /** @description Nombre de comptes qui suivent le canal */
+            abonnes: number;
             /** @description ex. laravel, mobile-money, laravel-benin */
             slug: string;
             nom: string;
@@ -2441,9 +2608,9 @@ export interface components {
             reversement_en_cours: components["schemas"]["Reversement"] | null;
             /**
              * Format: date
-             * @description Reversement mensuel automatique
+             * @description Reversement mensuel automatique ; null tant que les reversements réels ne sont pas ouverts
              */
-            prochain_reversement_le: string;
+            prochain_reversement_le: string | null;
             coordonnees: components["schemas"]["CoordonneesReversement"] | null;
         };
         /** @description Une écriture du grand livre sur le compte du dev, vue par lui : positive quand il gagne, négative quand il est payé */
@@ -2542,7 +2709,7 @@ export interface components {
             rembourse: boolean;
         };
         /** @enum {string} */
-        TypeNotification: "correctif_propose" | "correctif_accepte" | "message_mission" | "echeance" | "suspension" | "mise_a_jour" | "reversement";
+        TypeNotification: "correctif_propose" | "correctif_accepte" | "message_mission" | "message_prive" | "echeance" | "suspension" | "mise_a_jour" | "reversement";
         /** @description Diffusée aussi en direct : événement notification.creee sur le canal privé utilisateur.{id} */
         Notification: {
             /** Format: uuid */
@@ -3140,6 +3307,26 @@ export interface operations {
             403: components["responses"]["Interdit"];
         };
     };
+    getSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Le compte, ou null */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Compte"] | null;
+                };
+            };
+        };
+    };
     getMe: {
         parameters: {
             query?: never;
@@ -3316,7 +3503,9 @@ export interface operations {
                 /** @description Prix maximum en FCFA (les applis gratuites sont incluses) */
                 prix_max?: number;
                 type_prix?: components["schemas"]["TypePrix"];
-                /** @description Par défaut, les plus récentes d'abord */
+                /** @description Seulement les applis de ce dev (nom d'utilisateur GitHub) ; sert à « Mes applis » */
+                auteur?: string;
+                /** @description Par défaut, les plus récentes d'abord ; une appli dont l'analyse de sécurité a trouvé des failles passe après les autres */
                 tri?: "recent" | "prix_croissant" | "prix_decroissant" | "note";
             };
             header?: never;
@@ -3874,7 +4063,6 @@ export interface operations {
                     "application/json": components["schemas"]["Deploiement"];
                 };
             };
-            403: components["responses"]["Interdit"];
             404: components["responses"]["Introuvable"];
         };
     };
@@ -3898,7 +4086,6 @@ export interface operations {
                     "application/json": components["schemas"]["Deploiement"];
                 };
             };
-            403: components["responses"]["Interdit"];
             404: components["responses"]["Introuvable"];
             419: components["responses"]["CsrfInvalide"];
         };
@@ -4098,6 +4285,12 @@ export interface operations {
                 statut?: "ouvertes" | "resolues";
                 /** @description Uniquement les bugs de cette difficulté */
                 difficulte?: components["schemas"]["Difficulte"];
+                /**
+                 * @description pour_moi (compte connecté) : les discussions qui concernent ce dev d'abord (canaux suivis,
+                 *     bugs dans ses technos, canaux de son pays, discussions encore ouvertes), puis les plus
+                 *     récentes. Pour un visiteur, ou avec tout : par date.
+                 */
+                fil?: "tout" | "pour_moi";
             };
             header?: never;
             path?: never;
@@ -4771,6 +4964,213 @@ export interface operations {
             404: components["responses"]["Introuvable"];
             419: components["responses"]["CsrfInvalide"];
             422: components["responses"]["Invalide"];
+        };
+    };
+    listConversations: {
+        parameters: {
+            query?: {
+                /** @description Numéro de page (commence à 1) */
+                page?: components["parameters"]["Page"];
+                /** @description Éléments par page (50 maximum) */
+                per_page?: components["parameters"]["ParPage"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Liste des conversations, vues de mon côté */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pagination"] & {
+                        data: components["schemas"]["Conversation"][];
+                    };
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+        };
+    };
+    inviterDev: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                username: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InvitationCreation"];
+            };
+        };
+        responses: {
+            /** @description Invitation envoyée (diffusée à l'invité sur son canal privé utilisateur.{id}, événement conversation.modifiee) */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Conversation"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            404: components["responses"]["Introuvable"];
+            409: components["responses"]["Conflit"];
+            419: components["responses"]["CsrfInvalide"];
+            422: components["responses"]["Invalide"];
+            429: components["responses"]["TropDeRequetes"];
+        };
+    };
+    repondreInvitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    accepter: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description La conversation, acceptée ou déclinée ; un refus n'est pas notifié */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Conversation"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+            404: components["responses"]["Introuvable"];
+            409: components["responses"]["Conflit"];
+            419: components["responses"]["CsrfInvalide"];
+            422: components["responses"]["Invalide"];
+        };
+    };
+    listMessagesPrives: {
+        parameters: {
+            query?: {
+                /** @description Numéro de page (commence à 1) */
+                page?: components["parameters"]["Page"];
+                /** @description Éléments par page (50 maximum) */
+                per_page?: components["parameters"]["ParPage"];
+            };
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Liste des messages */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pagination"] & {
+                        data: components["schemas"]["Message"][];
+                    };
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            404: components["responses"]["Introuvable"];
+        };
+    };
+    ecrireMessagePrive: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MessageCreation"];
+            };
+        };
+        responses: {
+            /** @description Message envoyé (diffusé à l'autre dev sur utilisateur.{id}, événement message-prive.cree) */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Message"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+            404: components["responses"]["Introuvable"];
+            419: components["responses"]["CsrfInvalide"];
+            422: components["responses"]["Invalide"];
+            429: components["responses"]["TropDeRequetes"];
+        };
+    };
+    suivreCanal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Le canal, suivi */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Canal"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            404: components["responses"]["Introuvable"];
+            419: components["responses"]["CsrfInvalide"];
+        };
+    };
+    nePlusSuivreCanal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Le canal, plus suivi */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Canal"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            404: components["responses"]["Introuvable"];
+            419: components["responses"]["CsrfInvalide"];
         };
     };
     listEvents: {

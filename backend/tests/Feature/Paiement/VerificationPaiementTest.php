@@ -66,7 +66,7 @@ class VerificationPaiementTest extends TestCase
         $this->assertSame('payee', $facture->refresh()->statut);
     }
 
-    public function test_une_carte_debitee_dans_une_autre_devise_est_creditee_et_verifiee_par_l_equipe(): void
+    public function test_un_paiement_dans_une_autre_devise_n_est_ni_credite_ni_deploye(): void
     {
         [$facture, $paiement] = $this->sessionOuverte();
         $this->passerelle->session = new StatutSession('PAID', 'f3b1c2d4-0000-4000-8000-000000000002', 'SUCCESS');
@@ -74,8 +74,23 @@ class VerificationPaiementTest extends TestCase
 
         app(Encaissement::class)->verifier($paiement);
 
-        $this->assertSame('payee', $facture->refresh()->statut);
+        $this->assertSame('en_attente', $paiement->refresh()->statut);
+        $this->assertSame('a_payer', $facture->refresh()->statut);
+        $this->assertSame(0, Ecriture::query()->count());
+        Queue::assertNotPushed(LancerDeploiement::class);
         $this->assertAlerte('en USD');
+    }
+
+    public function test_une_autre_devise_au_meme_montant_nominal_n_est_pas_creditee(): void
+    {
+        [$facture, $paiement] = $this->sessionOuverte();
+        $this->passerelle->session = new StatutSession('PAID', 'f3b1c2d4-0000-4000-8000-000000000012', 'SUCCESS');
+        $this->passerelle->transaction = new VerificationPaiement('SUCCESS', $paiement->montant, 0, $paiement->montant, $paiement->montant, 'TXN-NGN', 'NGN');
+
+        app(Encaissement::class)->verifier($paiement);
+
+        $this->assertSame('a_payer', $facture->refresh()->statut);
+        $this->assertSame(0, Ecriture::query()->count());
     }
 
     public function test_un_montant_inattendu_n_est_jamais_applique(): void

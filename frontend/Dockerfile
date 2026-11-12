@@ -19,8 +19,14 @@ ARG VITE_REVERB_HOST
 ARG VITE_REVERB_PORT=443
 ARG VITE_REVERB_SCHEME=https
 ARG VITE_REVERB_KEY
+# Adresse publique du site (aperçus de partage, adresse canonique) et contact affiché.
+ARG VITE_SITE_URL
+ARG VITE_CONTACT_EMAIL
 
 RUN test -n "$VITE_REVERB_KEY" || { echo "VITE_REVERB_KEY manquant : lire la clé publique de Reverb dans le volume « secrets » (docs/exploitation.md)." >&2; exit 1; }
+# La clé est une suite de lettres et de chiffres : un message d'erreur capturé à sa place (« Secrets
+# déjà présents. ») casserait le temps réel sans rien dire.
+RUN echo "$VITE_REVERB_KEY" | grep -Eq '^[A-Za-z0-9]{16,64}$' || { echo "VITE_REVERB_KEY n'a pas la forme d'une clé Reverb : relire la clé publique dans le volume « secrets »." >&2; exit 1; }
 RUN npm run build && node scripts/csp-nginx.mjs dist/index.html /app/csp.conf
 
 FROM nginx:1.28-alpine

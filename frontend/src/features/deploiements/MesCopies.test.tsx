@@ -133,7 +133,7 @@ describe('commande pas encore payée dans « Mes copies »', () => {
           data: { data: [commande], links: { first: null, last: null, prev: null, next: null }, meta: { current_page: 1, last_page: 1, per_page: 20, total: 1 } },
         })
       }
-      if (url === cheminLaravel('/me')) return Promise.resolve({ data: { id: 1, username: 'pharmacie', profil: 'client' } })
+      if (url === cheminLaravel('/session')) return Promise.resolve({ data: { id: 1, username: 'pharmacie', profil: 'client' } })
       return Promise.resolve({ data: null })
     })
     vi.mocked(clientLocal.delete).mockReset().mockResolvedValue({ data: null })

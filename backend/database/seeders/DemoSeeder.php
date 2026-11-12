@@ -8,6 +8,7 @@ use App\Models\Appli;
 use App\Models\AvisAppli;
 use App\Models\Avoir;
 use App\Models\Canal;
+use App\Models\Conversation;
 use App\Models\CoordonneesReversement;
 use App\Models\Correctif;
 use App\Models\Deploiement;
@@ -85,6 +86,7 @@ class DemoSeeder extends Seeder
             $this->creerMissions();
             $this->creerFacturation();
             $this->creerNotifications();
+            $this->creerEchangesPrives();
         });
 
         if (app()->environment('local')) {
@@ -117,7 +119,7 @@ class DemoSeeder extends Seeder
             ->delete();
 
         Canal::query()
-            ->whereIn('slug', ['laravel', 'mobile-money', 'react', 'devops', 'laravel-benin', 'dakar-tech', 'entraide-generale'])
+            ->whereIn('slug', ['laravel-benin', 'dakar-tech'])
             ->whereDoesntHave('discussions')
             ->delete();
         // Canaux créés par un parcours de bout en bout interrompu avant de les supprimer.
@@ -200,6 +202,8 @@ class DemoSeeder extends Seeder
             'entraide-generale' => ['Entraide générale', 'Pour tout le reste : projets, carrière, conseils.', null],
         ];
 
+        Canal::ouvrirParDefaut();
+
         foreach ($canaux as $slug => [$nom, $description, $pays]) {
             $this->canaux[$slug] = Canal::query()->firstOrCreate(['slug' => $slug], [
                 'nom' => $nom,
@@ -207,6 +211,50 @@ class DemoSeeder extends Seeder
                 'pays' => $pays,
             ]);
         }
+    }
+
+    /**
+     * Échanges privés et canaux suivis : une conversation ouverte (Awa et Kofi), une invitation
+     * que Awa doit traiter (Chinedu) et une invitation qu'elle a envoyée (Fatou).
+     */
+    private function creerEchangesPrives(): void
+    {
+        foreach (['awa' => ['laravel', 'mobile-money', 'benin'], 'kofi' => ['mobile-money', 'devops'], 'chinedu' => ['react']] as $cle => $slugs) {
+            $canaux = Canal::query()->whereIn('slug', $slugs)->pluck('id');
+            $this->comptes[$cle]->belongsToMany(Canal::class, 'canaux_suivis')->syncWithPivotValues($canaux, ['created_at' => now()]);
+        }
+
+        $ouverte = Conversation::query()->create([
+            'demandeur_id' => $this->comptes['awa']->id,
+            'destinataire_id' => $this->comptes['kofi']->id,
+            'invitation' => 'Bonjour Kofi, merci pour ton correctif sur le callback MoMo. J’ai une autre question sur l’idempotence des webhooks : on peut en parler ici ?',
+        ]);
+        $ouverte->forceFill(['statut' => Conversation::ACCEPTEE, 'repondu_le' => now()->subHours(3)])->save();
+
+        $messages = [
+            ['kofi', 'Avec plaisir. Tu stockes déjà la référence MTN de chaque transaction ?', 170],
+            ['awa', 'Oui, dans `financialTransactionId`. Mais MTN me rejoue parfois le même callback deux fois.', 160],
+            ['kofi', 'Alors pose un index unique dessus et réponds 200 quand la ligne existe déjà : MTN arrête de rejouer.', 150],
+        ];
+
+        foreach ($messages as [$auteur, $texte, $minutes]) {
+            $message = $ouverte->messages()->create(['auteur_id' => $this->comptes[$auteur]->id, 'texte' => $texte]);
+            $message->forceFill(['created_at' => now()->subMinutes($minutes), 'updated_at' => now()->subMinutes($minutes)])->save();
+        }
+
+        $ouverte->forceFill(['dernier_message_le' => now()->subMinutes(150), 'lu_demandeur_le' => now()->subMinutes(165)])->save();
+
+        Conversation::query()->create([
+            'demandeur_id' => $this->comptes['chinedu']->id,
+            'destinataire_id' => $this->comptes['awa']->id,
+            'invitation' => 'Bonjour Awa, je monte une appli de caisse à Lagos et PharmaStock m’intéresse. Vous seriez ouverte à un échange sur votre gestion des lots ?',
+        ]);
+
+        Conversation::query()->create([
+            'demandeur_id' => $this->comptes['awa']->id,
+            'destinataire_id' => $this->comptes['fatou']->id,
+            'invitation' => 'Bonjour Fatou, j’ai vu votre atelier sur les tests Laravel à Dakar. Je cherche un avis sur ma suite de tests de paiement.',
+        ]);
     }
 
     private function creerApplis(): void

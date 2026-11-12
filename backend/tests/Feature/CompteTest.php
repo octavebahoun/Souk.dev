@@ -50,6 +50,15 @@ final class CompteTest extends TestCase
             ->assertJsonMissingPath('password');
     }
 
+    public function test_la_session_repond_200_au_visiteur_et_donne_le_compte_au_membre(): void
+    {
+        $this->assertSame('null', trim((string) $this->getJson('/api/session')->assertOk()->getContent()));
+
+        $compte = User::factory()->create();
+
+        $this->actingAs($compte)->getJson('/api/session')->assertOk()->assertJsonPath('id', $compte->id);
+    }
+
     public function test_un_visiteur_recoit_401(): void
     {
         $this->getJson('/api/me')

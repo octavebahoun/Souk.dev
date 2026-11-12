@@ -18,6 +18,7 @@ use App\Http\Resources\DiscussionResource;
 use App\Models\Canal;
 use App\Models\Discussion;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -37,7 +38,11 @@ final class DiscussionController extends Controller
             'etiquette' => ['sometimes', 'string', Rule::enum(Etiquette::class)],
             'statut' => ['sometimes', 'in:ouvertes,resolues'],
             'difficulte' => ['sometimes', 'string', Rule::enum(Difficulte::class)],
+            'fil' => ['sometimes', 'in:tout,pour_moi'],
         ]);
+
+        // Fil « Pour moi » : seulement pour un compte connecté ; un visiteur voit tout, par date.
+        $compte = $request->input('fil') === 'pour_moi' ? $request->user('sanctum') : null;
 
         $discussions = Discussion::query()
             ->with(['auteur', 'canal', 'derniereAnalyse', 'dernierePrete'])
@@ -50,11 +55,42 @@ final class DiscussionController extends Controller
             ->when($request->input('statut') === 'ouvertes', fn ($query) => $query->where('resolue', false))
             ->when($request->input('statut') === 'resolues', fn ($query) => $query->where('resolue', true))
             ->when($request->filled('difficulte'), fn ($query) => $query->where('bug->difficulte', $request->string('difficulte')->toString()))
+            ->when($compte !== null, fn ($query) => $this->trierPour($query, $compte))
             ->latest()
+            ->orderByDesc('id')
             ->paginate($parPage)
             ->withQueryString();
 
         return DiscussionResource::collection($discussions);
+    }
+
+    /**
+     * À mille devs, personne ne lit tout. Le fil « Pour moi » fait remonter ce qui concerne ce dev :
+     * ses canaux suivis (3 points), les bugs dans ses technos (2), les canaux de son pays (1) et
+     * les discussions encore ouvertes (1). À points égaux, les plus récentes d'abord.
+     *
+     * @param  Builder<Discussion>  $requete
+     */
+    private function trierPour(Builder $requete, User $compte): void
+    {
+        $technos = array_values(array_filter((array) ($compte->competences ?? []), 'is_string'));
+        $techno = $requete->getQuery()->getGrammar()->wrap('discussions.bug->techno');
+        $parties = ['(case when discussions.canal_id in (select canal_id from canaux_suivis where user_id = ?) then 3 else 0 end)'];
+        $valeurs = [$compte->id];
+
+        if ($technos !== []) {
+            $parties[] = "(case when {$techno} in (".implode(', ', array_fill(0, count($technos), '?')).') then 2 else 0 end)';
+            array_push($valeurs, ...$technos);
+        }
+
+        if (is_string($compte->pays) && $compte->pays !== '') {
+            $parties[] = '(case when discussions.canal_id in (select id from canaux where pays = ?) then 1 else 0 end)';
+            $valeurs[] = $compte->pays;
+        }
+
+        $parties[] = '(case when discussions.resolue then 0 else 1 end)';
+
+        $requete->orderByRaw(implode(' + ', $parties).' desc', $valeurs);
     }
 
     public function store(CreerDiscussionRequest $request, DiscussionEnregistreur $enregistreur, Diffuseur $diffuseur): JsonResponse

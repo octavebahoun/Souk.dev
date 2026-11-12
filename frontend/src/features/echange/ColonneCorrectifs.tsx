@@ -18,6 +18,7 @@ import {
 } from './api'
 import { ilYA, nomAuteur } from './texte'
 import { AnalyseSoukAi } from './AnalyseSoukAi'
+import { DemanderAide } from '../messages/DemanderAide'
 
 function urlHttp(valeur: string): boolean {
   try {
@@ -147,6 +148,7 @@ export function ColonneCorrectifs({ discussion, auteur, page, onPage }: ColonneC
           peutAccepter={auteur && !dejaAccepte && !correctif.accepte}
           peutFusionner={auteur && correctif.accepte}
           moiId={moi.data?.id ?? null}
+          auteurDiscussion={auteur}
           onAccepter={() => setAAccepter(correctif)}
         />
       ))}
@@ -157,8 +159,10 @@ export function ColonneCorrectifs({ discussion, auteur, page, onPage }: ColonneC
         <Bouton variante="secondaire" pleineLargeur icone={<GitPullRequestArrow aria-hidden="true" className="size-4" />} onClick={() => void selonCompte(() => setProposer(true), () => setConnexion(true))}>
           Proposer un correctif
         </Bouton>
-        <p className="m-0 text-petit text-texte-doux">Un correctif, c’est l’URL de votre branche. Un seul correctif peut être accepté par discussion.</p>
+        <p className="m-0 text-petit text-texte-doux">Un correctif, c’est l’URL de votre branche (…/tree/ma-branche). L’auteur peut la lancer pour l’essayer avant d’accepter ; un seul correctif est accepté par discussion.</p>
       </div>
+
+      {auteur && !discussion.resolue ? <DemanderAide discussion={{ id: discussion.id, titre: discussion.titre }} techno={discussion.bug?.techno} moiId={moi.data?.id ?? null} /> : null}
 
       {bug ? <AnalyseSoukAi discussionId={discussion.id} analyse={analyse} auteur={auteur} /> : null}
       {erreur && !proposer && !aAccepter ? <Alerte ton="danger">{erreur}</Alerte> : null}
@@ -237,12 +241,14 @@ function CorrectifCarte({
   peutAccepter,
   peutFusionner,
   moiId,
+  auteurDiscussion,
   onAccepter,
 }: {
   correctif: Correctif
   peutAccepter: boolean
   peutFusionner: boolean
   moiId: number | null
+  auteurDiscussion: boolean
   onAccepter: () => void
 }) {
   const cache = useQueryClient()
@@ -296,26 +302,35 @@ function CorrectifCarte({
             Accepter
           </Bouton>
         ) : null}
-        {mien && !deploiement ? (
+        {(mien || auteurDiscussion) && (!deploiement || ['echec', 'arrete'].includes(deploiement.etat)) ? (
           <Bouton taille="sm" variante="secondaire" chargement={lancer.isPending} onClick={() => lancer.mutate()}>
-            Lancer ma version corrigée
+            {mien ? 'Lancer ma version corrigée' : 'Essayer ce correctif'}
           </Bouton>
         ) : null}
       </div>
       {erreurLancement ? <Alerte ton="danger">{erreurLancement}</Alerte> : null}
       {deploiement ? (
-        <p className="m-0 text-petit text-texte">
-          Version corrigée : {etatCopie[deploiement.etat]}
-          {deploiement.etat === 'echec' && deploiement.erreur ? ` — ${deploiement.erreur}` : null}
-          {deploiement.url ? (
-            <>
-              {' '}
-              <a href={deploiement.url} className="underline underline-offset-2">
-                {deploiement.url}
-              </a>
-            </>
+        <div className="flex flex-col gap-1 rounded-moyen bg-surface-douce p-2.5 text-petit text-texte">
+          <p className="m-0">
+            Version corrigée : <strong className="font-semibold text-titre">{etatCopie[deploiement.etat]}</strong>
+            {deploiement.etat === 'echec' && deploiement.erreur ? ` — ${deploiement.erreur}` : null}
+            {deploiement.url ? (
+              <>
+                {' '}
+                <a href={deploiement.url} target="_blank" rel="noreferrer" className="break-all underline underline-offset-2">
+                  {deploiement.url}
+                  <span className="pour-lecteur"> (nouvel onglet)</span>
+                </a>
+              </>
+            ) : null}
+          </p>
+          {deploiement.commit || deploiement.branche ? (
+            <p className="m-0 font-mono text-texte-doux">
+              {deploiement.branche ? `branche ${deploiement.branche}` : 'branche par défaut'}
+              {deploiement.commit ? ` · commit ${deploiement.commit.slice(0, 7)}` : null}
+            </p>
           ) : null}
-        </p>
+        </div>
       ) : null}
       {peutFusionner ? (
         <div className="flex flex-col gap-2 border-t border-bordure pt-3">

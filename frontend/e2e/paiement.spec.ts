@@ -48,7 +48,7 @@ test.describe.serial('paiement', () => {
     // Une commande attend déjà le paiement (jeu de démo) : on la paie au lieu d'en créer une autre.
     await expect(page.getByText('Une commande attend déjà votre paiement')).toBeVisible()
     expect(resumer(await auditAxe(page))).toBe('')
-    await page.getByRole('button', { name: 'Payer 22 000 F' }).click()
+    await page.getByRole('button', { name: 'Continuer vers le paiement' }).click()
 
     await payerSurLeSimulateur(page, 'Payer (succès simulé)')
     await expect(page).toHaveURL(/\/paiement\/retour\?facture=\d+/)
@@ -99,7 +99,7 @@ test.describe.serial('paiement', () => {
     await page.goto('/store')
     await page.getByText('Cotis’Asso', { exact: true }).first().click()
     await page.getByRole('link', { name: 'Déployer ma copie' }).click()
-    await page.getByRole('button', { name: 'Payer 3 500 F' }).click()
+    await page.getByRole('button', { name: 'Continuer vers le paiement' }).click()
 
     await payerSurLeSimulateur(page, 'Refuser (échec simulé)')
     await expect(page.getByRole('alert')).toContainText('Paiement refusé')

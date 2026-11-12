@@ -1,4 +1,4 @@
-import { createBrowserRouter } from 'react-router'
+import { createBrowserRouter, Navigate } from 'react-router'
 import type { RouteObject } from 'react-router'
 import { Fournisseurs } from './Fournisseurs'
 import { Layout } from './Layout'
@@ -33,7 +33,15 @@ export function creerRoutes(): RouteObject[] {
           { path: '/legal/cgu', lazy: async () => ({ Component: (await import('../features/legal/Legal')).Cgu }) },
           { path: '/legal/cgv', lazy: async () => ({ Component: (await import('../features/legal/Legal')).Cgv }) },
           { path: '/legal/confidentialite', lazy: async () => ({ Component: (await import('../features/legal/Legal')).Confidentialite }) },
+          { path: '/legal/mentions', lazy: async () => ({ Component: (await import('../features/legal/Legal')).Mentions }) },
+          { path: '/contact', element: <Navigate to="/legal/mentions" replace /> },
           { path: '/legal/abus', lazy: async () => ({ Component: (await import('../features/legal/Legal')).PolitiqueAbus }) },
+          // Anciennes adresses et adresses devinées : elles mènent à la bonne page plutôt qu'à une 404.
+          { path: '/factures', element: <Navigate to="/paiements" replace /> },
+          { path: '/trouver-un-dev', element: <Navigate to="/devs" replace /> },
+          { path: '/mes-applis', element: <Navigate to="/apps" replace /> },
+          { path: '/login', element: <Navigate to="/connexion" replace /> },
+          { path: '/legal', element: <Navigate to="/legal/mentions" replace /> },
           { path: '*', element: <PageIntrouvable /> },
         ],
       },
@@ -46,7 +54,9 @@ export function creerRoutes(): RouteObject[] {
             children: [
               { path: '/tableau', lazy: async () => ({ Component: (await import('../features/comptes/Tableau')).Tableau }) },
               { path: '/profil', lazy: async () => ({ Component: (await import('../features/comptes/ModifierProfil')).ModifierProfil }) },
+              { path: '/messages', lazy: async () => ({ Component: (await import('../features/messages/Messages')).Messages }) },
               { path: '/missions', lazy: async () => ({ Component: (await import('../features/catalogue/Missions')).Missions }) },
+              { path: '/apps', lazy: async () => ({ Component: (await import('../features/catalogue/MesApplis')).MesApplis }) },
               { path: '/publier', lazy: async () => ({ Component: (await import('../features/catalogue/Publier')).Publier }) },
               { path: '/copies', lazy: async () => ({ Component: (await import('../features/deploiements/MesCopies')).MesCopies }) },
               { path: '/paiements', lazy: async () => ({ Component: (await import('../features/paiements/MesPaiements')).MesPaiements }) },

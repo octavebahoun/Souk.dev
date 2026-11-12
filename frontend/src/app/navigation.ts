@@ -1,4 +1,4 @@
-import { Bell, Briefcase, CalendarDays, CreditCard, Flag, Gauge, HardDrive, LayoutGrid, MessagesSquare, Package, Server, Shield, UserRound, Users, Wallet, type LucideIcon } from 'lucide-react'
+import { Bell, Briefcase, Mail, CalendarDays, CreditCard, Flag, Gauge, HardDrive, LayoutGrid, MessagesSquare, Package, Server, Shield, UserRound, Users, Wallet, type LucideIcon } from 'lucide-react'
 import type { components } from '../shared/types/api'
 import { t } from '../i18n'
 
@@ -15,6 +15,8 @@ export type LienNavigation = {
 
 const connecte = (compte: Compte | null) => compte !== null
 const admin = (compte: Compte | null) => compte?.est_admin === true
+/** Publier et encaisser concernent les devs ; un client ne voit pas ces entrées vides. */
+const dev = (compte: Compte | null) => compte !== null && compte.profil !== 'client'
 
 /** Destinations publiques, dans l'en-tête (bureau) et le menu (mobile). */
 export const liensPrincipaux: LienNavigation[] = [
@@ -28,10 +30,11 @@ export const liensPrincipaux: LienNavigation[] = [
 export const liensEspace: LienNavigation[] = [
   { vers: '/tableau', libelle: t.navigation.tableau, icone: Gauge, visible: connecte },
   { vers: '/profil', libelle: t.navigation.monProfil, icone: UserRound, visible: connecte },
-  { vers: '/publier', libelle: t.navigation.mesApplis, icone: Package, visible: connecte },
+  { vers: '/apps', libelle: t.navigation.mesApplis, icone: Package, visible: dev },
   { vers: '/copies', libelle: t.navigation.mesCopies, icone: Server, visible: connecte },
   { vers: '/paiements', libelle: t.navigation.paiements, icone: CreditCard, visible: connecte },
-  { vers: '/revenus', libelle: t.navigation.revenus, icone: Wallet, visible: connecte },
+  { vers: '/revenus', libelle: t.navigation.revenus, icone: Wallet, visible: dev },
+  { vers: '/messages', libelle: t.navigation.messages, icone: Mail, visible: connecte },
   { vers: '/missions', libelle: t.navigation.missions, icone: Briefcase, visible: connecte },
   { vers: '/notifications', libelle: t.navigation.notifications, icone: Bell, visible: connecte },
   { vers: '/admin/finances', libelle: t.navigation.finances, icone: Shield, visible: admin },

@@ -11,7 +11,7 @@ vi.mock('../shared/client', async () => {
     souk_score: { total: 1 }, reputation: { niveau: 'debutant', xp: 0 } }
   const http = {
     get: vi.fn((url: string) => {
-      if (url === '/api/me') return connecte ? Promise.resolve({ status: 200, data: moi }) : Promise.reject(Object.assign(new Error('401'), { isAxiosError: true, response: { status: 401 } }))
+      if (url === '/api/session') return connecte ? Promise.resolve({ status: 200, data: moi }) : Promise.reject(Object.assign(new Error('401'), { isAxiosError: true, response: { status: 401 } }))
       return Promise.resolve({ status: 200, data: vide })
     }),
     post: vi.fn(async (url: string) => { if (url === '/logout') connecte = false; return { status: 204, data: null } }),

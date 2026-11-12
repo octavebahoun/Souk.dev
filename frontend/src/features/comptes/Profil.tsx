@@ -1,13 +1,14 @@
 import { useState, type FormEvent } from 'react'
 import { useParams } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
-import { Award, BadgeCheck, ExternalLink, MapPin, Send, Star } from 'lucide-react'
+import { Award, BadgeCheck, ExternalLink, MapPin, MessagesSquare, Send, Star } from 'lucide-react'
 import { useSelonCompte } from '../../app/compte'
 import { useTitrePage } from '../../app/titre'
 import { lireMoi, messageAction } from '../echange/api'
 import { nomPays } from '../echange/texte'
 import { CarteAppli } from '../catalogue/CarteAppli'
 import { ModaleConnexion } from '../../app/ModaleConnexion'
+import { InviterDev } from '../messages/InviterDev'
 import { lireProfil, proposerMission, type ProfilDev } from './api'
 import {
   Alerte,
@@ -78,9 +79,10 @@ export function Profil() {
   const moi = useQuery({ queryKey: ['moi'], queryFn: lireMoi })
   const selonCompte = useSelonCompte()
   const [mission, setMission] = useState(false)
+  const [invitation, setInvitation] = useState(false)
   const [ouvertures, setOuvertures] = useState(0)
   const [connexion, setConnexion] = useState(false)
-  useTitrePage(profil.data?.nom || profil.data?.username || 'Profil')
+  useTitrePage(profil.data?.nom || profil.data?.username || 'Profil', { description: profil.data?.bio, image: profil.data?.avatar_url })
 
   if (profil.isPending) {
     return (
@@ -162,6 +164,23 @@ export function Profil() {
                   Proposer une mission
                 </Bouton>
               )}
+              {!moiMeme ? (
+                <Bouton
+                  variante="secondaire"
+                  icone={<MessagesSquare aria-hidden="true" className="size-4" />}
+                  onClick={() =>
+                    void selonCompte(
+                      () => {
+                        setOuvertures((nombre) => nombre + 1)
+                        setInvitation(true)
+                      },
+                      () => setConnexion(true),
+                    )
+                  }
+                >
+                  Inviter à échanger
+                </Bouton>
+              ) : null}
               {dev.github_url ? (
                 <a href={dev.github_url} target="_blank" rel="noreferrer" className={classesBouton('contour', 'md')}>
                   Voir son GitHub
@@ -281,7 +300,8 @@ export function Profil() {
       </section>
 
       {!moiMeme ? <DemandeMission key={ouvertures} username={username} nom={nom} ouverte={mission} onFermer={() => setMission(false)} /> : null}
-      <ModaleConnexion ouverte={connexion} onFermer={() => setConnexion(false)} action="proposer une mission" />
+      {!moiMeme ? <InviterDev key={`invitation-${ouvertures}`} username={username} nom={nom} ouverte={invitation} onFermer={() => setInvitation(false)} /> : null}
+      <ModaleConnexion ouverte={connexion} onFermer={() => setConnexion(false)} action="écrire à ce dev" />
     </div>
   )
 }

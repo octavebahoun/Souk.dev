@@ -1,15 +1,30 @@
-import { Outlet } from 'react-router'
+import { useEffect } from 'react'
+import { Outlet, useLocation, useNavigate } from 'react-router'
 import { t } from '../i18n'
 import { BandeauHorsLigne, cx } from '../ui'
 import { BarreOnglets } from './BarreOnglets'
 import { EnTeteSite } from './EnTeteSite'
 import { PiedDePage } from './PiedDePage'
+import { useCompte } from './compte'
+import { prendreRetour } from './retour'
 
 /**
  * Coquille des pages : lien d'évitement, bandeau hors ligne, en-tête, contenu, pied de page,
  * et barre d'onglets en bas sur mobile.
  */
 export function Layout({ avecPied = true }: { avecPied?: boolean }) {
+  const { data: compte } = useCompte()
+  const { pathname } = useLocation()
+  const naviguer = useNavigate()
+
+  // La connexion ramène sur le Store ou l'Échange : si la personne venait d'ailleurs (une
+  // commande en cours, un correctif à proposer), elle y retourne.
+  useEffect(() => {
+    if (!compte || (pathname !== '/store' && pathname !== '/echange')) return
+    const retour = prendreRetour()
+    if (retour && retour !== pathname) void naviguer(retour, { replace: true })
+  }, [compte, pathname, naviguer])
+
   return (
     <div className="flex min-h-svh flex-col">
       <a

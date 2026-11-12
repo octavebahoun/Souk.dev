@@ -22,7 +22,11 @@ final class CanalController extends Controller
             'pays.regex' => 'Le pays doit être un code ISO à deux lettres.',
         ]);
 
+        $compte = $request->user('sanctum');
+
         $canaux = Canal::query()
+            ->withCount('abonnes')
+            ->when($compte !== null, fn ($query) => $query->withExists(['abonnes as suivi' => fn ($abonnes) => $abonnes->whereKey($compte->id)]))
             ->when($request->filled('pays'), fn ($query) => $query->where('pays', $request->string('pays')->toString()))
             ->orderBy('nom')
             ->get();
@@ -40,6 +44,29 @@ final class CanalController extends Controller
         );
 
         return (new CanalResource($canal))->response()->setStatusCode(201);
+    }
+
+    /** Suivre un canal : ses discussions passent en premier dans le fil « Pour moi ». */
+    public function suivre(Request $request, Canal $canal): CanalResource
+    {
+        $canal->abonnes()->syncWithoutDetaching([$request->user()->id => ['created_at' => now()]]);
+
+        return $this->avecSuivi($request, $canal);
+    }
+
+    public function nePlusSuivre(Request $request, Canal $canal): CanalResource
+    {
+        $canal->abonnes()->detach($request->user()->id);
+
+        return $this->avecSuivi($request, $canal);
+    }
+
+    private function avecSuivi(Request $request, Canal $canal): CanalResource
+    {
+        $canal->loadCount('abonnes');
+        $canal->setAttribute('suivi', $canal->abonnes()->whereKey($request->user()->id)->exists());
+
+        return new CanalResource($canal);
     }
 
     /** Renommer ou décrire un canal (admin). Le slug ne change pas : les liens restent valables. */

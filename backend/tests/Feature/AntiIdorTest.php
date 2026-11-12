@@ -34,14 +34,14 @@ class AntiIdorTest extends TestCase
      * @param  array<string, mixed>  $corps
      */
     #[DataProvider('routesDuDeploiement')]
-    public function test_le_deploiement_d_un_autre_compte_est_refuse(string $methode, string $uri, array $corps): void
+    public function test_le_deploiement_d_un_autre_compte_n_existe_pas_pour_lui(string $methode, string $uri, array $corps): void
     {
         Queue::fake();
         $deploiement = Deploiement::factory()->create(['etat' => 'en_ligne']);
 
         $this->actingAs(User::factory()->create())
             ->json($methode, str_replace('{id}', (string) $deploiement->id, $uri), $corps)
-            ->assertForbidden();
+            ->assertNotFound();
 
         $this->assertSame('en_ligne', $deploiement->refresh()->etat);
         Queue::assertNothingPushed();

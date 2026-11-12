@@ -15,7 +15,8 @@ final class VerificateurCompose
 
     /**
      * Clés d'un service acceptées (plus les extensions x-*). Tout le reste est refusé :
-     * devices, pid, ipc, userns_mode, sysctls, volumes_from, container_name, secrets,
+     * extra_hosts, dns, dns_search, links, hostname, domainname (résolution de noms détournée,
+     * passerelle de l'hôte), devices, pid, ipc, userns_mode, sysctls, volumes_from, container_name, secrets,
      * configs, runtime… cap_add, security_opt et pids_limit sont acceptés seulement
      * dans les limites du Durcissement.
      */
@@ -23,16 +24,16 @@ final class VerificateurCompose
         'image', 'build', 'command', 'entrypoint', 'environment', 'env_file',
         'depends_on', 'volumes', 'tmpfs', 'expose', 'ports', 'networks', 'network_mode',
         'privileged', 'restart', 'healthcheck', 'working_dir', 'user', 'labels',
-        'hostname', 'domainname', 'init', 'tty', 'stdin_open', 'stop_signal',
+        'init', 'tty', 'stdin_open', 'stop_signal',
         'stop_grace_period', 'read_only', 'deploy', 'mem_limit', 'mem_reservation',
-        'memswap_limit', 'cpus', 'cpu_shares', 'cap_drop', 'links', 'platform',
-        'pull_policy', 'profiles', 'extra_hosts', 'dns', 'dns_search', 'annotations',
+        'memswap_limit', 'cpus', 'cpu_shares', 'cap_drop', 'platform',
+        'pull_policy', 'profiles', 'annotations',
         'attach', 'shm_size', 'cap_add', 'security_opt', 'pids_limit',
     ];
 
     /**
-     * Au plus six services par copie : les limites de la formule s'appliquent à chaque conteneur,
-     * un dépôt ne doit pas les multiplier pour prendre la machine.
+     * Au plus six services par copie. La formule est partagée entre eux (voir LimitesTaille) :
+     * un dépôt ne peut pas la multiplier pour prendre la machine.
      */
     public const MAX_SERVICES = 6;
 

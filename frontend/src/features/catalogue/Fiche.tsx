@@ -65,7 +65,7 @@ export function Fiche() {
   // Chaque ouverture repart d'un formulaire vierge (une erreur passée ne revient pas).
   const [ouvertures, setOuvertures] = useState(0)
   const [connexion, setConnexion] = useState(false)
-  useTitrePage(appli.data?.nom ?? 'Fiche')
+  useTitrePage(appli.data?.nom ?? 'Fiche', { description: appli.data?.description, image: appli.data?.captures[0]?.url })
 
   const conteneur = 'mx-auto flex w-full max-w-site flex-col gap-6 px-4 py-8 tablette:px-6 bureau:px-8'
 
@@ -100,7 +100,8 @@ export function Fiche() {
   const fiche = appli.data
   const formule = formules[fiche.taille]
   const prix = fiche.prix === 0 ? 'Gratuit' : fcfa(fiche.prix)
-  const mensuel = fiche.prix > 0 && fiche.type_prix === 'mensuel'
+  // Ce que le client paie chaque mois : l'hébergement, plus l'appli si son prix est mensuel.
+  const totalMensuel = formule.prix + (fiche.type_prix === 'mensuel' ? fiche.prix : 0)
   const captures = fiche.captures
   const index = captures.length === 0 ? 0 : Math.min(ecran, captures.length - 1)
   const auteur = fiche.auteur.nom || fiche.auteur.username || 'un dev'
@@ -148,10 +149,16 @@ export function Fiche() {
           <Carte marge="large" className="flex flex-col gap-5">
             <div className="flex flex-col gap-1">
               <p className="m-0 flex items-baseline gap-1.5">
-                <span className="chiffres text-titre-1 text-titre">{prix}</span>
-                {mensuel ? <span className="text-texte-doux">/ mois</span> : null}
+                <span className="chiffres text-titre-1 text-titre">{fcfa(totalMensuel)}</span>
+                <span className="text-texte-doux">/ mois</span>
               </p>
-              <p className="m-0 text-petit text-texte-doux">{fiche.type_prix === 'unique' && fiche.prix > 0 ? 'Payé une fois à l’auteur, plus l’hébergement chaque mois.' : 'Plus l’hébergement de votre copie, chaque mois.'}</p>
+              <p className="m-0 text-petit text-texte-doux">
+                {fiche.prix === 0
+                  ? 'L’appli est gratuite : vous payez seulement l’hébergement de votre copie.'
+                  : fiche.type_prix === 'unique'
+                    ? `Plus ${fcfa(fiche.prix)} une seule fois pour l’appli, au premier paiement.`
+                    : 'Appli et hébergement de votre copie compris.'}
+              </p>
             </div>
             <dl className="m-0 flex flex-col gap-2 border-y border-bordure py-4 text-petit">
               <div className="flex justify-between gap-3">
@@ -163,7 +170,7 @@ export function Fiche() {
                 <dd className="chiffres m-0 font-medium text-titre">{fcfa(formule.prix)} / mois</dd>
               </div>
               <div className="flex justify-between gap-3">
-                <dt className="text-texte">Commission Souk.dev</dt>
+                <dt className="text-texte">Commission sur le prix de l’appli</dt>
                 <dd className="chiffres m-0 font-medium text-succes">0 F</dd>
               </div>
               <div className="flex justify-between gap-3 border-t border-bordure pt-2 text-corps font-semibold text-titre">
@@ -200,7 +207,7 @@ export function Fiche() {
             </div>
             <p className="m-0 flex gap-2 text-petit text-texte-doux">
               <Lock aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-              Votre copie tourne à part, avec ses propres données. Paiement par Mobile Money, en FCFA.
+              Votre copie tourne à part, avec ses propres données. Paiement par Mobile Money, en FCFA ; les frais du moyen de paiement (environ 3,5 %) s’ajoutent.
             </p>
             {fiche.variables_client.length > 0 ? (
               <Alerte titre="Au déploiement, vous remplirez :">
@@ -261,7 +268,7 @@ export function Fiche() {
             <p className="m-0 whitespace-pre-wrap text-corps text-texte">{fiche.readme || fiche.description}</p>
             <div className="flex flex-col gap-2">
               <h3 className="m-0 text-corps font-semibold text-titre">Lancer en local</h3>
-              <pre className="m-0 overflow-x-auto rounded-moyen border border-bordure bg-surface-douce p-3 font-mono text-petit text-titre">{`git clone ${fiche.depot_url}\ncd ${depotCourt}`}</pre>
+              <pre tabIndex={0} aria-label="Commandes pour lancer l’appli en local" className="m-0 overflow-x-auto rounded-moyen border border-bordure bg-surface-douce p-3 font-mono text-petit text-titre">{`git clone ${fiche.depot_url}\ncd ${depotCourt}`}</pre>
             </div>
           </Carte>
 
@@ -315,6 +322,17 @@ export function Fiche() {
             </LienBouton>
           </Carte>
         </div>
+      </div>
+      {/* Mobile : l'action reste sous le pouce, au-dessus de la barre d'onglets, sans masquer le contenu. */}
+      <div className="h-16 tablette:hidden" aria-hidden="true" />
+      <div className="fixed inset-x-0 bottom-[calc(var(--spacing-barre-onglets)+env(safe-area-inset-bottom))] z-20 flex items-center gap-3 border-t border-bordure bg-surface/95 px-4 py-2.5 shadow-3 backdrop-blur tablette:hidden">
+        <p className="m-0 flex min-w-0 flex-col leading-tight">
+          <span className="chiffres font-semibold text-titre">{fcfa(totalMensuel)} / mois</span>
+          <span className="truncate text-petit text-texte-doux">{fiche.prix === 0 ? 'appli gratuite, hébergement compris' : 'appli et hébergement'}</span>
+        </p>
+        <LienBouton to={`/store/${fiche.id}/deployer`} className="ml-auto shrink-0">
+          Déployer ma copie
+        </LienBouton>
       </div>
       <DemandeSurMesure key={ouvertures} id={fiche.id} ouverte={mission} onFermer={() => setMission(false)} />
       <ModaleConnexion ouverte={connexion} onFermer={() => setConnexion(false)} action="demander une version sur mesure" />

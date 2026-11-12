@@ -212,7 +212,9 @@ export function MesRevenus() {
             </p>
             <p className="m-0 flex items-center gap-1.5 text-petit text-sur-couleur/80">
               <CalendarClock aria-hidden="true" className="size-4 shrink-0" />
-              Reversement automatique le {formaterDate(donnees.prochain_reversement_le)}
+              {donnees.prochain_reversement_le
+                ? `Reversement automatique le ${formaterDate(donnees.prochain_reversement_le)}, ou à la demande dès ${formaterFcfa(donnees.seuil_demande)}`
+                : 'Reversements Mobile Money pas encore ouverts : votre solde est gardé'}
             </p>
           </div>
           <div className="flex flex-col gap-2 tablette:items-end">

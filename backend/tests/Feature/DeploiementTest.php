@@ -112,9 +112,10 @@ class DeploiementTest extends TestCase
             ->assertOk()
             ->assertJsonPath('etat', 'en_file');
 
+        // 404 et non 403 : la réponse ne dit pas qu'une copie existe sous cet identifiant.
         $this->actingAs($autre)
             ->getJson('/api/deployments/'.$deploiement->id)
-            ->assertForbidden();
+            ->assertNotFound();
     }
 
     public function test_le_canal_reverb_est_reserve_a_celui_qui_a_lance(): void

@@ -124,7 +124,7 @@ class NotificationsTest extends TestCase
             ['type' => 'echeance', 'application' => true, 'email' => true],
             ['type' => 'echeance', 'application' => false, 'email' => false],
         ]])->assertUnprocessable();
-        $this->actingAs($compte)->getJson('/api/me/preferences-notifications')->assertOk()->assertJsonCount(7, 'types');
+        $this->actingAs($compte)->getJson('/api/me/preferences-notifications')->assertOk()->assertJsonCount(8, 'types');
         $this->assertNull($compte->fresh()->preferences_notifications);
     }
 

@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\Deploiement;
 use App\Models\User;
 use Illuminate\Auth\Access\Response;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -17,10 +16,11 @@ class MessagesErreursTest extends TestCase
 
     public function test_un_refus_par_defaut_est_traduit(): void
     {
-        $deploiement = Deploiement::factory()->create();
+        Gate::define('refus-simple', fn () => false);
+        Route::middleware('api')->get('/api/essai-refus', fn () => Gate::authorize('refus-simple'));
 
         $this->actingAs(User::factory()->create())
-            ->getJson('/api/deployments/'.$deploiement->id)
+            ->getJson('/api/essai-refus')
             ->assertForbidden()
             ->assertExactJson(['message' => 'Action non autorisée.']);
     }

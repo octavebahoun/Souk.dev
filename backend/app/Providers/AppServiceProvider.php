@@ -9,6 +9,7 @@ use App\Ia\DeepSeek;
 use App\Ia\FournisseurIa;
 use App\Ia\IaSimulee;
 use App\Models\Appli;
+use App\Models\Conversation;
 use App\Models\Correctif;
 use App\Models\Deploiement;
 use App\Models\Discussion;
@@ -26,6 +27,7 @@ use App\Paiement\Passerelles\SasPayPaiement;
 use App\Paiement\Passerelles\SasPayReversement;
 use App\Paiement\Passerelles\SimulateurSasPay;
 use App\Policies\AppliPolicy;
+use App\Policies\ConversationPolicy;
 use App\Policies\CorrectifPolicy;
 use App\Policies\DeploiementPolicy;
 use App\Policies\DiscussionPolicy;
@@ -153,6 +155,10 @@ class AppServiceProvider extends ServiceProvider
         // Un canal s'affiche chez tout le monde : 3 créations par jour et par compte.
         RateLimiter::for('canaux', fn (Request $request) => Limit::perDay(3)->by((string) $request->user()?->getAuthIdentifier()));
 
+        // Invitations : 10 par jour, pour qu'un compte ne sollicite pas toute la communauté.
+        RateLimiter::for('invitations', fn (Request $request) => Limit::perDay(10)->by((string) $request->user()?->getAuthIdentifier()));
+        RateLimiter::for('messages-prives', fn (Request $request) => Limit::perMinute(30)->by((string) $request->user()?->getAuthIdentifier()));
+
         RateLimiter::for('discussions', function (Request $request) {
             return Limit::perHour(10)->by($request->user()?->id ?: $request->ip());
         });
@@ -214,6 +220,7 @@ class AppServiceProvider extends ServiceProvider
             : GateResponse::deny('GitHub n\'est pas lié à ce compte.'));
 
         Gate::policy(Appli::class, AppliPolicy::class);
+        Gate::policy(Conversation::class, ConversationPolicy::class);
         Gate::policy(Correctif::class, CorrectifPolicy::class);
         Gate::policy(Deploiement::class, DeploiementPolicy::class);
         Gate::policy(Mission::class, MissionPolicy::class);

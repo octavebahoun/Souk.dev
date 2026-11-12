@@ -69,6 +69,7 @@ export const fr = {
     serveurs: 'Serveurs',
     moderation: 'Modération',
     missions: 'Missions',
+    messages: 'Messages',
     parametres: 'Paramètres',
     monProfil: 'Mon profil',
     administration: 'Administration',
@@ -96,6 +97,7 @@ export const fr = {
     cgv: 'Conditions de vente',
     confidentialite: 'Confidentialité',
     abus: "Politique d’abus",
+    mentions: 'Mentions légales et contact',
     droits: '© {annee} Souk.dev. Fait en Afrique de l’Ouest.',
   },
 }

@@ -1,9 +1,11 @@
 import type { ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Award, Eye, Plus, Server, Wallet } from 'lucide-react'
+import { Award, CreditCard, Eye, Plus, Server, Wallet } from 'lucide-react'
 import { useTitrePage } from '../../app/titre'
 import { lireMoi, messageAction } from '../echange/api'
 import { lireTableau, type Compte } from './api'
+import { listerCopies } from '../catalogue/api'
+import { listerFactures } from '../paiements/api'
 import {
   AccesRefuse,
   Avatar,
@@ -34,8 +36,14 @@ type LigneAppli = NonNullable<Awaited<ReturnType<typeof lireTableau>>>['applis']
 export function Tableau() {
   useTitrePage('Tableau de bord')
   const moi = useQuery({ queryKey: ['moi'], queryFn: lireMoi })
-  const tableau = useQuery({ queryKey: ['tableau'], queryFn: lireTableau, enabled: Boolean(moi.data) })
+  // Un client (entreprise, particulier) n'a pas d'applis à suivre : il voit ses copies et ses factures.
+  const client = moi.data?.profil === 'client'
+  const tableau = useQuery({ queryKey: ['tableau'], queryFn: lireTableau, enabled: Boolean(moi.data) && !client })
   const compte = moi.data
+
+  if (compte && client) {
+    return <TableauClient nom={compte.nom || compte.email || 'Mon compte'} />
+  }
 
   const entete = (
     <EnTetePage
@@ -97,7 +105,7 @@ export function Tableau() {
           <div className="min-w-0">
             <p className="m-0 text-titre-3 text-titre">{nom}</p>
             <p className="m-0 flex flex-wrap items-center gap-2 text-petit text-texte-doux">
-              <span>
+              <span title="Calculé à partir de vos applis publiées, des bugs que vous avez résolus pour d’autres devs, de vos missions notées et de votre activité récente.">
                 Souk Score <strong className="chiffres font-semibold text-titre">{compte.souk_score.total}</strong> / 1000
               </span>
               <Badge ton="alerte" icone={<Award aria-hidden="true" className="size-3.5" />}>
@@ -157,7 +165,7 @@ export function Tableau() {
                 },
                 { cle: 'vues', entete: 'Vues', alignement: 'droite', rendu: (appli) => <span className="chiffres">{appli.vues.toLocaleString('fr-FR')}</span> },
                 { cle: 'copies', entete: 'Copies actives', alignement: 'droite', rendu: (appli) => <span className="chiffres">{appli.copies_actives}</span> },
-                { cle: 'deploiements', entete: 'Déploiements', alignement: 'droite', rendu: (appli) => <span className="chiffres">{appli.deploiements_total}</span> },
+                { cle: 'deploiements', entete: 'Commandes depuis le début', alignement: 'droite', rendu: (appli) => <span className="chiffres">{appli.deploiements_total}</span> },
                 {
                   cle: 'revenus',
                   entete: 'Encaissé ce mois-ci',
@@ -173,6 +181,73 @@ export function Tableau() {
             />
           </Carte>
         )
+      ) : null}
+    </div>
+  )
+}
+
+/** Tableau de bord d'un client : ses copies en ligne, ce qu'il doit payer, et où aller ensuite. */
+function TableauClient({ nom }: { nom: string }) {
+  const copies = useQuery({ queryKey: ['copies'], queryFn: listerCopies })
+  const aPayer = useQuery({ queryKey: ['factures', 'a_payer', 1], queryFn: () => listerFactures({ statut: 'a_payer' }) })
+  const enLigne = copies.data?.data.filter((copie) => copie.etat === 'en_ligne').length ?? 0
+  const total = copies.data?.data.filter((copie) => !['arrete', 'echec'].includes(copie.etat)).length ?? 0
+  const du = aPayer.data?.data.reduce((somme, facture) => somme + facture.montant_total, 0) ?? 0
+  const factures = aPayer.data?.data.length ?? 0
+
+  return (
+    <div className="flex flex-col gap-6">
+      <EnTetePage
+        titre={`Bonjour ${nom}`}
+        description="Vos applis en ligne, vos factures et vos demandes sur mesure, au même endroit."
+        actions={<LienBouton to="/store">Parcourir le Store</LienBouton>}
+      />
+
+      {copies.isError || aPayer.isError ? (
+        <EtatErreur
+          description="Vos copies ou vos factures n’ont pas pu être chargées."
+          onReessayer={() => {
+            void copies.refetch()
+            void aPayer.refetch()
+          }}
+        />
+      ) : null}
+
+      {copies.isPending || aPayer.isPending ? (
+        <div role="status" aria-label="Chargement du tableau de bord" className="grid gap-3 tablette:grid-cols-3">
+          {[0, 1, 2].map((indice) => (
+            <Squelette key={indice} className="h-28 rounded-moyen" />
+          ))}
+        </div>
+      ) : null}
+
+      {copies.data && aPayer.data ? (
+        <>
+          <section aria-label="Résumé" className="grid gap-3 tablette:grid-cols-3">
+            <Tuile icone={<Server aria-hidden="true" className="size-4" />} titre="Copies en ligne" valeur={String(enLigne)} detail={total > enLigne ? `${total - enLigne} autre${total - enLigne > 1 ? 's' : ''} en préparation ou suspendue${total - enLigne > 1 ? 's' : ''}` : 'vos applis qui tournent pour vous'} />
+            <Tuile icone={<CreditCard aria-hidden="true" className="size-4" />} titre="À payer" valeur={formaterFcfa(du)} detail={factures === 0 ? 'vous êtes à jour' : `${factures} facture${factures > 1 ? 's' : ''} en attente`} mise={factures > 0} />
+            <Tuile icone={<Wallet aria-hidden="true" className="size-4" />} titre="Moyen de paiement" valeur="Mobile Money" detail="un rappel 3 jours avant chaque échéance" />
+          </section>
+
+          {total === 0 ? (
+            <EtatVide
+              illustration="vide-copies"
+              titre="Vous n’avez pas encore d’appli en ligne"
+              description="Choisissez une appli dans le Store, essayez sa démo, puis commandez votre copie : elle tourne pour vous, sur sa propre adresse."
+              action={<LienBouton to="/store">Trouver mon appli</LienBouton>}
+            />
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {factures > 0 ? <LienBouton to="/paiements">Payer mes factures</LienBouton> : null}
+              <LienBouton to="/copies" variante={factures > 0 ? 'contour' : 'primaire'}>
+                Voir mes copies
+              </LienBouton>
+              <LienBouton to="/missions" variante="contour">
+                Demandes sur mesure
+              </LienBouton>
+            </div>
+          )}
+        </>
       ) : null}
     </div>
   )

@@ -26,5 +26,8 @@ fi
 
 php artisan migrate --force --no-interaction
 
+# Sans canal, personne ne peut publier sur l'Échange : ceux de départ sont ouverts s'ils manquent.
+php artisan echange:canaux --no-interaction
+
 # Copie rangée des profils (tri de la recherche de devs par Souk Score), à jour dès le démarrage.
 php artisan profils:recalculer --no-interaction

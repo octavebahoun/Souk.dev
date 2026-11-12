@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\Deploiement;
 use App\Moteur\BackendIntegre;
+use App\Moteur\CloneurGithub;
 use App\Moteur\CopieLocale;
 use App\Moteur\Exceptions\DepotInvalide;
 use App\Moteur\Exceptions\LancementEchoue;
@@ -13,9 +14,11 @@ use App\Moteur\MoteurDeploiement;
 use App\Moteur\NettoyeurCopie;
 use App\Moteur\PlacementMachines;
 use App\Paiement\Facturation;
+use App\Securite\IsolementCopies;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Str;
+use RuntimeException;
 use Throwable;
 
 class LancerDeploiement implements ShouldQueue
@@ -41,6 +44,20 @@ class LancerDeploiement implements ShouldQueue
         try {
             if (! $deploiement->changerEtat('construction')) {
                 return;
+            }
+
+            // L'API refuse déjà de démarrer si les copies seraient servies sous le domaine de la
+            // session ; le worker tourne en console et refait ici le même contrôle, avant tout lancement.
+            if (app()->isProduction()) {
+                $probleme = IsolementCopies::probleme(
+                    (string) config('moteur.url_copie'),
+                    config('session.domain'),
+                    [(string) config('app.url'), (string) config('app.frontend_url')],
+                );
+
+                if ($probleme !== null) {
+                    throw new RuntimeException($probleme);
+                }
             }
 
             if ($this->estArrete($deploiement)) {
@@ -70,6 +87,7 @@ class LancerDeploiement implements ShouldQueue
             $deploiement->copie = $copie->id;
             $deploiement->repertoire = $copie->repertoire;
             $deploiement->backend_secret = $backend->secretDe($copie->repertoire);
+            $deploiement->commit_servi = $this->commitClone($copie->repertoire);
             $deploiement->save();
 
             if ($this->estArrete($deploiement)) {
@@ -114,6 +132,20 @@ class LancerDeploiement implements ShouldQueue
 
             // Conteneurs, volumes et dossier cloné (avec son .env) ne restent pas après un échec.
             app(NettoyeurCopie::class)->liberer($copie?->id ?? $deploiement->copie, $copie?->repertoire ?? $deploiement->repertoire, $deploiement->id, $copie?->machine);
+        }
+    }
+
+    /** Commit du clone, pour montrer quel code tourne (null si le dossier n'est pas un clone git). */
+    private function commitClone(string $repertoire): ?string
+    {
+        if (! is_dir($repertoire.DIRECTORY_SEPARATOR.'.git')) {
+            return null;
+        }
+
+        try {
+            return app(CloneurGithub::class)->commit($repertoire);
+        } catch (Throwable) {
+            return null;
         }
     }
 

@@ -45,6 +45,11 @@ final class TypesNotification
             'description' => 'Argent envoyé sur votre Mobile Money, ou refusé par le réseau.',
             'email_obligatoire' => false,
         ],
+        'message_prive' => [
+            'libelle' => 'Invitations et messages privés',
+            'description' => 'Un dev vous invite à échanger, accepte votre invitation ou vous écrit (un e-mail par conversation toutes les 30 minutes au plus).',
+            'email_obligatoire' => false,
+        ],
     ];
 
     public const CANAUX = ['application', 'email'];

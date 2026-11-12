@@ -210,7 +210,20 @@ export function Publier() {
           <Etape numero={3} titre="Prix et hébergement" fait={etapes.prix} description="Le prix vous revient en entier ; le client paie en plus l’hébergement de sa copie.">
             <div className="grid gap-4 tablette:grid-cols-[14rem_minmax(0,1fr)] tablette:items-start">
               <Champ libelle="Prix de l’appli" erreur={champs.prix} aide="0 si elle est gratuite.">
-                {(liaison) => <SaisieMontant {...liaison} value={prix} onChange={(evenement) => setPrix(evenement.target.value.replace(/[^\d ]/g, ''))} required placeholder="15 000" />}
+                {(liaison) => (
+                  <SaisieMontant
+                    {...liaison}
+                    value={prix}
+                    onChange={(evenement) => {
+                      const saisi = evenement.target.value
+                      // Un signe moins ou une lettre ne disparaît pas en silence : le champ dit ce qu'il attend.
+                      setChamps((courants) => ({ ...courants, prix: /[^\d\s]/.test(saisi) ? 'Seulement des chiffres : un nombre entier de francs, sans signe ni virgule.' : '' }))
+                      setPrix(saisi.replace(/[^\d ]/g, ''))
+                    }}
+                    required
+                    placeholder="ex. 15 000"
+                  />
+                )}
               </Champ>
               <ChoixCartes
                 nom="type-prix"
@@ -334,6 +347,12 @@ export function Publier() {
               <Ligne terme="Catégorie" valeur={categories.find((item) => item.valeur === categorie)?.libelle ?? 'À choisir'} />
               <Ligne terme="Prix" valeur={prixNombre === null ? 'À renseigner' : `${prixNombre === 0 ? 'Gratuit' : fcfa(prixNombre)}${prixNombre > 0 && typePrix === 'mensuel' ? ' / mois' : prixNombre > 0 && typePrix === 'unique' ? ' une fois' : ''}`} />
               <Ligne terme="Hébergement" valeur={taille ? `${formules[taille].nom}, ${fcfa(formules[taille].prix)} / mois` : 'À choisir'} />
+              {prixNombre !== null && !Number.isNaN(prixNombre) && taille ? (
+                <>
+                  <Ligne terme="Le client paie" valeur={`${fcfa(formules[taille].prix + (typePrix === 'unique' ? 0 : prixNombre))} / mois${typePrix === 'unique' && prixNombre > 0 ? ` + ${fcfa(prixNombre)} une fois` : ''}`} />
+                  <Ligne terme="Vous recevez" valeur={prixNombre === 0 ? 'Rien : appli gratuite' : `${fcfa(prixNombre)}${typePrix === 'unique' ? ' par client, une fois' : ' par client et par mois'}, sans commission`} />
+                </>
+              ) : null}
               <Ligne terme="Captures" valeur={`${captures.length} sur 5`} />
             </dl>
           </Carte>

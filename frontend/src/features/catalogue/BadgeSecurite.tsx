@@ -5,7 +5,7 @@ import type { Appli } from './api'
 /** Badge de l'analyse de sécurité d'une appli (carte du Store, fiche). */
 export function BadgeSecurite({ statut }: { statut: Appli['securite']['statut'] }) {
   if (statut === 'verifie') {
-    return <Badge ton="succes" icone={<ShieldCheck aria-hidden="true" className="size-3.5" />}>Security Checked</Badge>
+    return <Badge ton="succes" icone={<ShieldCheck aria-hidden="true" className="size-3.5" />}>Sécurité vérifiée</Badge>
   }
   if (statut === 'problemes') {
     return <Badge ton="alerte" icone={<ShieldAlert aria-hidden="true" className="size-3.5" />}>Problèmes détectés</Badge>

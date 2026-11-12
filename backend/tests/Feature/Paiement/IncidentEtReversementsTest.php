@@ -69,7 +69,8 @@ class IncidentEtReversementsTest extends TestCase
 
         $this->assertInstanceOf(ReversementsInactifs::class, app(PasserelleReversement::class));
         $dev = $this->devCredite(20000);
-        $this->assertSame('Les reversements sur Mobile Money ouvrent bientôt : votre solde vous attend.', app(Reversements::class)->blocage($dev));
+        $this->assertSame('Les reversements sur Mobile Money ne sont pas encore ouverts : votre solde est gardé et vous sera versé dès l’ouverture.', app(Reversements::class)->blocage($dev));
+        $this->assertFalse(app(Reversements::class)->ouverts());
     }
 
     public function test_une_reprise_refusee_garde_le_solde_reserve_et_previent_l_equipe(): void

@@ -27,6 +27,7 @@ tags:
   - name: Déploiements
   - name: Discussions
   - name: Correctifs
+  - name: Conversations
   - name: Missions
   - name: Événements
   - name: Paiements
@@ -207,6 +208,22 @@ paths:
                   auth: { type: string }
         '403': { $ref: '#/components/responses/Interdit' }
 
+  /session:
+    get:
+      tags: [Comptes]
+      operationId: getSession
+      summary: Le compte connecté, ou null pour un visiteur
+      description: Toujours 200 ; le front s'en sert pour savoir qui est là sans produire de 401 sur une page publique.
+      security: []
+      responses:
+        '200':
+          description: Le compte, ou null
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/Compte'
+                  - type: 'null'
   /me:
     get:
       tags: [Comptes]
@@ -374,9 +391,13 @@ paths:
         - name: type_prix
           in: query
           schema: { $ref: '#/components/schemas/TypePrix' }
+        - name: auteur
+          in: query
+          description: Seulement les applis de ce dev (nom d'utilisateur GitHub) ; sert à « Mes applis »
+          schema: { type: string, maxLength: 39 }
         - name: tri
           in: query
-          description: Par défaut, les plus récentes d'abord
+          description: Par défaut, les plus récentes d'abord ; une appli dont l'analyse de sécurité a trouvé des failles passe après les autres
           schema: { type: string, enum: [recent, prix_croissant, prix_decroissant, note], default: recent, description: "note : les mieux notées par leurs clients d'abord" }
       responses:
         '200':
@@ -775,7 +796,6 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Deploiement' }
-        '403': { $ref: '#/components/responses/Interdit' }
         '404': { $ref: '#/components/responses/Introuvable' }
     delete:
       tags: [Déploiements]
@@ -792,7 +812,6 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Deploiement' }
-        '403': { $ref: '#/components/responses/Interdit' }
         '404': { $ref: '#/components/responses/Introuvable' }
         '419': { $ref: '#/components/responses/CsrfInvalide' }
 
@@ -963,6 +982,13 @@ paths:
           in: query
           description: Uniquement les bugs de cette difficulté
           schema: { $ref: '#/components/schemas/Difficulte' }
+        - name: fil
+          in: query
+          description: |
+            pour_moi (compte connecté) : les discussions qui concernent ce dev d'abord (canaux suivis,
+            bugs dans ses technos, canaux de son pays, discussions encore ouvertes), puis les plus
+            récentes. Pour un visiteur, ou avec tout : par date.
+          schema: { type: string, enum: [tout, pour_moi], default: tout }
       responses:
         '200':
           description: Liste des discussions
@@ -1455,6 +1481,173 @@ paths:
         '403': { $ref: '#/components/responses/Interdit' }
         '404': { $ref: '#/components/responses/Introuvable' }
         '422': { $ref: '#/components/responses/Invalide' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+
+  # ───────────── Échange privé entre devs ─────────────
+  /me/conversations:
+    get:
+      tags: [Conversations]
+      operationId: listConversations
+      summary: Mes conversations privées (invitations reçues d'abord, puis les plus récemment actives)
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/ParPage'
+      responses:
+        '200':
+          description: Liste des conversations, vues de mon côté
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Pagination'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Conversation' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+
+  /devs/{username}/invitation:
+    parameters:
+      - name: username
+        in: path
+        required: true
+        schema: { type: string }
+    post:
+      tags: [Conversations]
+      operationId: inviterDev
+      summary: Inviter un dev à échanger en privé
+      description: |
+        Personne n'écrit à un dev sans son accord : l'invitation porte un mot d'introduction, et la
+        conversation ne s'ouvre que s'il accepte. Une seule conversation par paire de comptes.
+        Après un refus, la même paire attend 30 jours. 10 invitations par jour et par compte.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InvitationCreation' }
+      responses:
+        '201':
+          description: Invitation envoyée (diffusée à l'invité sur son canal privé utilisateur.{id}, événement conversation.modifiee)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Conversation' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '409': { $ref: '#/components/responses/Conflit' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+        '422': { $ref: '#/components/responses/Invalide' }
+        '429': { $ref: '#/components/responses/TropDeRequetes' }
+
+  /conversations/{id}/reponse:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [Conversations]
+      operationId: repondreInvitation
+      summary: Accepter ou décliner une invitation (l'invité seulement)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [accepter]
+              properties:
+                accepter: { type: boolean }
+      responses:
+        '200':
+          description: La conversation, acceptée ou déclinée ; un refus n'est pas notifié
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Conversation' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '409': { $ref: '#/components/responses/Conflit' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+        '422': { $ref: '#/components/responses/Invalide' }
+
+  /conversations/{id}/messages:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Conversations]
+      operationId: listMessagesPrives
+      summary: Messages d'une conversation, du plus ancien au plus récent (la lecture la marque comme lue)
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/ParPage'
+      responses:
+        '200':
+          description: Liste des messages
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Pagination'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Message' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+    post:
+      tags: [Conversations]
+      operationId: ecrireMessagePrive
+      summary: Écrire dans une conversation acceptée
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MessageCreation' }
+      responses:
+        '201':
+          description: Message envoyé (diffusé à l'autre dev sur utilisateur.{id}, événement message-prive.cree)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Message' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+        '422': { $ref: '#/components/responses/Invalide' }
+        '429': { $ref: '#/components/responses/TropDeRequetes' }
+
+  /canaux/{slug}/abonnement:
+    parameters:
+      - name: slug
+        in: path
+        required: true
+        schema: { type: string }
+    put:
+      tags: [Discussions]
+      operationId: suivreCanal
+      summary: Suivre un canal (ses discussions passent en premier dans le fil « Pour moi »)
+      responses:
+        '200':
+          description: Le canal, suivi
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Canal' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+        '419': { $ref: '#/components/responses/CsrfInvalide' }
+    delete:
+      tags: [Discussions]
+      operationId: nePlusSuivreCanal
+      summary: Ne plus suivre un canal
+      responses:
+        '200':
+          description: Le canal, plus suivi
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Canal' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '404': { $ref: '#/components/responses/Introuvable' }
         '419': { $ref: '#/components/responses/CsrfInvalide' }
 
   # ───────────── Événements ─────────────
@@ -3269,6 +3462,12 @@ components:
         version:
           type: [integer, 'null']
           description: Numéro de la version de l'appli que la copie fait tourner ; null pour une copie de test
+        branche:
+          type: [string, 'null']
+          description: Branche demandée par l'URL du dépôt (copie de test ou version corrigée) ; null pour la branche par défaut
+        commit:
+          type: [string, 'null']
+          description: Commit réellement cloné par la copie (40 caractères hexadécimaux) ; null tant que le clone n'est pas fait
         version_disponible:
           description: Version publiée plus récente que celle de la copie (copie client seulement), à appliquer quand le client le choisit
           oneOf:
@@ -3517,10 +3716,55 @@ components:
       properties:
         texte: { type: string }
 
+    Conversation:
+      type: object
+      description: Conversation privée entre deux devs, vue par l'un d'eux
+      required: [id, statut, sens, avec, invitation, discussion, dernier_message, non_lus, cree_le, maj_le]
+      properties:
+        id: { type: integer }
+        statut: { type: string, enum: [en_attente, acceptee, refusee] }
+        sens: { type: string, enum: [recue, envoyee], description: 'recue : c''est à moi d''accepter ou de décliner' }
+        avec:
+          description: L'autre dev ; null si son compte a été supprimé
+          oneOf:
+            - $ref: '#/components/schemas/Dev'
+            - type: 'null'
+        invitation: { type: string, description: Mot d'introduction écrit par celui qui invite }
+        discussion:
+          description: Bug sur lequel l'aide est demandée, s'il y en a un
+          oneOf:
+            - type: object
+              required: [id, titre]
+              properties:
+                id: { type: integer }
+                titre: { type: string }
+            - type: 'null'
+        dernier_message:
+          oneOf:
+            - type: object
+              required: [texte, de_moi, cree_le]
+              properties:
+                texte: { type: string, description: Extrait de 140 caractères }
+                de_moi: { type: boolean }
+                cree_le: { type: string, format: date-time }
+            - type: 'null'
+        non_lus: { type: integer, description: Messages de l'autre arrivés depuis ma dernière lecture }
+        cree_le: { type: string, format: date-time }
+        maj_le: { type: string, format: date-time }
+
+    InvitationCreation:
+      type: object
+      required: [message]
+      properties:
+        message: { type: string, minLength: 10, maxLength: 500, description: 'Mot d''introduction : qui vous êtes, pourquoi vous écrivez' }
+        discussion_id: { type: [integer, 'null'], description: Bug sur lequel vous demandez de l'aide }
+
     Canal:
       type: object
-      required: [slug, nom, description, pays]
+      required: [slug, nom, description, pays, suivi, abonnes]
       properties:
+        suivi: { type: boolean, description: 'Suivi par le compte connecté (liste des canaux) ; false pour un visiteur' }
+        abonnes: { type: integer, description: Nombre de comptes qui suivent le canal }
         slug: { type: string, description: 'ex. laravel, mobile-money, laravel-benin' }
         nom: { type: string }
         description: { type: [string, 'null'] }
@@ -3710,7 +3954,7 @@ components:
           oneOf:
             - $ref: '#/components/schemas/Reversement'
             - type: 'null'
-        prochain_reversement_le: { type: string, format: date, description: Reversement mensuel automatique }
+        prochain_reversement_le: { type: [string, 'null'], format: date, description: "Reversement mensuel automatique ; null tant que les reversements réels ne sont pas ouverts" }
         coordonnees:
           oneOf:
             - $ref: '#/components/schemas/CoordonneesReversement'
@@ -3822,7 +4066,7 @@ components:
 
     TypeNotification:
       type: string
-      enum: [correctif_propose, correctif_accepte, message_mission, echeance, suspension, mise_a_jour, reversement]
+      enum: [correctif_propose, correctif_accepte, message_mission, message_prive, echeance, suspension, mise_a_jour, reversement]
 
     Notification:
       type: object

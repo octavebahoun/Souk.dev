@@ -64,7 +64,11 @@ export function FormulaireDiscussion({
 }: FormulaireDiscussionProps) {
   const [titre, setTitre] = useState('')
   const [texte, setTexte] = useState('')
-  const [canal, setCanal] = useState(canalInitial ?? '')
+  // Un canal est toujours présélectionné : personne ne reste bloqué devant un bouton grisé.
+  const canalParDefaut =
+    canalInitial ?? canaux.find((item) => item.slug === 'entraide-generale')?.slug ?? canaux.find((item) => item.pays === null)?.slug ?? canaux[0]?.slug ?? ''
+  const [canalChoisi, setCanal] = useState<string | null>(null)
+  const canal = canalChoisi ?? canalParDefaut
   const [choisies, setChoisies] = useState<Etiquette[]>([])
   const [erreurBug, setErreurBug] = useState('')
   const [attendu, setAttendu] = useState('')
@@ -151,6 +155,12 @@ export function FormulaireDiscussion({
         </Alerte>
       ) : null}
 
+      {canaux.length === 0 ? (
+        <Alerte ton="alerte">
+          Aucun canal n’est encore ouvert. Fermez cette fenêtre, utilisez « Créer un canal », puis revenez publier.
+        </Alerte>
+      ) : null}
+
       <Champ libelle="Titre" erreur={erreurDe('titre', locaux.titre)}>
         {(liaison) => (
           <Saisie {...liaison} value={titre} onChange={(evenement) => setTitre(evenement.target.value)} placeholder="Ex. : Le webhook Wave ne déclenche rien en production" data-autofocus />
@@ -165,21 +175,25 @@ export function FormulaireDiscussion({
         {(liaison) => (
           <Liste {...liaison} value={canal} onChange={(evenement) => setCanal(evenement.target.value)}>
             <option value="">Choisir un canal</option>
-            <optgroup label="Généraux">
-              {generaux.map((item) => (
-                <option key={item.slug} value={item.slug}>
-                  {item.nom}
-                </option>
-              ))}
-            </optgroup>
-            <optgroup label="Par pays">
-              {parPays.map((item) => (
-                <option key={item.slug} value={item.slug}>
-                  {item.nom}
-                  {item.pays ? ` (${nomPays(item.pays)})` : ''}
-                </option>
-              ))}
-            </optgroup>
+            {generaux.length > 0 ? (
+              <optgroup label="Généraux">
+                {generaux.map((item) => (
+                  <option key={item.slug} value={item.slug}>
+                    {item.nom}
+                  </option>
+                ))}
+              </optgroup>
+            ) : null}
+            {parPays.length > 0 ? (
+              <optgroup label="Par pays">
+                {parPays.map((item) => (
+                  <option key={item.slug} value={item.slug}>
+                    {item.nom}
+                    {item.pays ? ` (${nomPays(item.pays)})` : ''}
+                  </option>
+                ))}
+              </optgroup>
+            ) : null}
           </Liste>
         )}
       </Champ>
@@ -237,7 +251,12 @@ export function FormulaireDiscussion({
       ) : null}
 
       <div className="grid gap-4 tablette:grid-cols-2">
-        <Champ libelle="Dépôt GitHub" facultatif erreur={serveur?.champs.depot_url}>
+        <Champ
+          libelle="Dépôt GitHub"
+          facultatif
+          erreur={serveur?.champs.depot_url}
+          aide={estBug ? 'Avec le dépôt, les autres devs lancent une copie de test et essaient leur correctif.' : undefined}
+        >
           {(liaison) => <Saisie {...liaison} value={depot} onChange={(evenement) => setDepot(evenement.target.value)} className="font-mono text-petit" placeholder="https://github.com/vous/projet" />}
         </Champ>
         <Champ libelle="Lien de démo" facultatif erreur={serveur?.champs.demo_url}>

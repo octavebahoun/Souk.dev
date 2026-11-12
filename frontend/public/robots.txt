@@ -1,0 +1,15 @@
+# Souk.dev : tout le site public se parcourt ; l'espace connecté et l'administration, non.
+User-agent: *
+Allow: /
+Disallow: /tableau
+Disallow: /profil
+Disallow: /apps
+Disallow: /copies
+Disallow: /paiements
+Disallow: /paiement/
+Disallow: /revenus
+Disallow: /missions
+Disallow: /messages
+Disallow: /notifications
+Disallow: /admin/
+Disallow: /connexion

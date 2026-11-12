@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router'
-import { ChevronDown, Gauge, LogOut, Package, Search, Server, UserRound } from 'lucide-react'
+import { Briefcase, ChevronDown, Mail, CreditCard, Gauge, LogOut, Package, Search, Server, UserRound, Wallet } from 'lucide-react'
 import { t } from '../i18n'
 import { Avatar, BoutonTheme, cx, LienBouton, Logo, MenuDeroulant, Squelette, type ElementMenu } from '../ui'
 import { nomPays } from '../features/echange/texte'
@@ -75,7 +75,11 @@ function MenuDuCompte() {
     { type: 'lien', libelle: t.navigation.monProfil, vers: '/profil', icone: <UserRound aria-hidden="true" className="size-4 text-texte-doux" /> },
     { type: 'lien', libelle: t.navigation.tableau, vers: '/tableau', icone: <Gauge aria-hidden="true" className="size-4 text-texte-doux" /> },
     { type: 'lien', libelle: t.navigation.mesCopies, vers: '/copies', icone: <Server aria-hidden="true" className="size-4 text-texte-doux" /> },
-    { type: 'lien', libelle: t.navigation.mesApplis, vers: '/publier', icone: <Package aria-hidden="true" className="size-4 text-texte-doux" /> },
+    { type: 'lien', libelle: t.navigation.mesApplis, vers: '/apps', icone: <Package aria-hidden="true" className="size-4 text-texte-doux" /> },
+    { type: 'lien', libelle: t.navigation.paiements, vers: '/paiements', icone: <CreditCard aria-hidden="true" className="size-4 text-texte-doux" /> },
+    { type: 'lien', libelle: t.navigation.revenus, vers: '/revenus', icone: <Wallet aria-hidden="true" className="size-4 text-texte-doux" /> },
+    { type: 'lien', libelle: t.navigation.messages, vers: '/messages', icone: <Mail aria-hidden="true" className="size-4 text-texte-doux" /> },
+    { type: 'lien', libelle: t.navigation.missions, vers: '/missions', icone: <Briefcase aria-hidden="true" className="size-4 text-texte-doux" /> },
     { type: 'separateur' },
     { type: 'action', libelle: t.navigation.seDeconnecter, onClick: () => void deconnecter(), danger: true, icone: <LogOut aria-hidden="true" className="size-4" /> },
   ]

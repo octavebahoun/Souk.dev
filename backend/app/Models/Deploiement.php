@@ -231,6 +231,20 @@ class Deploiement extends Model
         return (string) ($this->appli?->depot_url ?? $this->depot_url);
     }
 
+    /** Branche demandée par l'URL du dépôt (…/tree/branche), null pour la branche par défaut. */
+    public function brancheServie(): ?string
+    {
+        if (! in_array($this->type, ['test', 'correctif'], true)) {
+            return null;
+        }
+
+        try {
+            return DepotGithub::depuisUrl($this->depotACloner())->branche;
+        } catch (DepotInvalide) {
+            return null;
+        }
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -251,6 +265,8 @@ class Deploiement extends Model
             'abonnement' => $this->type === 'client' ? $this->abonnement?->versApi() : null,
             'facture_a_payer' => $this->factureAPayer(),
             'version' => $this->version?->numero,
+            'branche' => $this->brancheServie(),
+            'commit' => $this->commit_servi,
             'version_disponible' => $this->versionDisponible()?->resume(),
             'mise_a_jour' => $this->derniereMiseAJour?->versApi(),
             'derniere_sauvegarde' => $this->type === 'client' && $this->copie !== null ? app(SauvegardeVolumes::class)->derniere((string) $this->copie) : null,

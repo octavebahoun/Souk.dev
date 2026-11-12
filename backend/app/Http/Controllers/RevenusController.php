@@ -39,7 +39,8 @@ final class RevenusController extends Controller
             'peut_demander' => $raison === null,
             'raison_blocage' => $raison,
             'reversement_en_cours' => $enCours === null ? null : $this->reversement($enCours),
-            'prochain_reversement_le' => now()->addMonthNoOverflow()->startOfMonth()->toDateString(),
+            // Aucune date tant que les reversements ne sont pas ouverts : l'écran ne promet rien de faux.
+            'prochain_reversement_le' => $reversements->ouverts() ? now()->addMonthNoOverflow()->startOfMonth()->toDateString() : null,
             'coordonnees' => $coordonnees?->versApi(),
         ]);
     }

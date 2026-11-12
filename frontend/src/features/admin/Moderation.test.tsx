@@ -32,8 +32,8 @@ function compte(id: number, nom: string): CompteAdmin {
 
 function reponses() {
   vi.mocked(clientLocal.get).mockImplementation((url: string) => {
-    if (url === cheminLaravel('/me')) {
-      return Promise.resolve({ data: { id: 1, profil: 'dev' } })
+    if (url === cheminLaravel('/session')) {
+      return Promise.resolve({ data: { id: 1, profil: 'dev', est_admin: true } })
     }
     if (url === cheminLaravel('/admin/signalements')) {
       return Promise.resolve({

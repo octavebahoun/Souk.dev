@@ -18,10 +18,12 @@ final class CorrectifPolicy
     }
 
     /**
-     * Seul l'auteur du correctif déploie sa version corrigée.
+     * L'auteur du correctif montre sa version corrigée ; l'auteur de la discussion peut aussi la
+     * lancer pour l'essayer avant d'accepter. Personne d'autre.
      */
     public function deployer(User $compte, Correctif $correctif): bool
     {
-        return $correctif->user_id === $compte->id;
+        return $correctif->user_id === $compte->id
+            || $correctif->discussion()->where('user_id', $compte->id)->exists();
     }
 }

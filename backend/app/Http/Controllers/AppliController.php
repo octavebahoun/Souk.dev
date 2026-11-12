@@ -39,10 +39,19 @@ class AppliController extends Controller
             'type_prix' => ['sometimes', Rule::in(['mensuel', 'unique'])],
             'tri' => ['sometimes', 'in:recent,prix_croissant,prix_decroissant,note'],
             'per_page' => ['sometimes', 'integer', 'min:1', 'max:50'],
+            'page' => ['sometimes', 'integer', 'min:1'],
+            'auteur' => ['sometimes', 'string', 'max:39', 'regex:/^[A-Za-z0-9][A-Za-z0-9-]*$/'],
+        ], [
+            'page.min' => 'La page commence à 1.',
+            'auteur.regex' => 'Le nom d\'utilisateur de l\'auteur est invalide.',
         ]);
 
         $applis = Appli::query()
             ->with(['auteur', 'versionPubliee'])
+            ->when($request->filled('auteur'), fn ($requete) => $requete->whereHas(
+                'auteur',
+                fn ($auteur) => $auteur->where('username', $request->string('auteur')->toString()),
+            ))
             ->when($request->filled('q'), function ($requete) use ($request): void {
                 $terme = '%'.$request->string('q')->toString().'%';
                 $requete->where(function ($recherche) use ($terme): void {
@@ -96,7 +105,12 @@ class AppliController extends Controller
             )
             ->when(
                 ! in_array($request->input('tri'), ['prix_croissant', 'prix_decroissant', 'note'], true),
-                fn ($requete) => $requete->latest(),
+                // Les plus récentes d'abord, mais une appli dont l'analyse a trouvé des failles
+                // ne passe pas devant les autres dans la vitrine.
+                fn ($requete) => $requete
+                    ->orderByRaw("case when securite_statut = 'problemes' then 1 else 0 end")
+                    ->latest()
+                    ->orderByDesc('id'),
             )
             ->paginate($request->integer('per_page', 20))
             ->through(fn (Appli $appli) => $appli->versApi());
@@ -282,7 +296,7 @@ class AppliController extends Controller
             'description' => ['required', 'string', 'max:1000'],
             'categorie' => ['required', Rule::in(Appli::CATEGORIES)],
             'depot_url' => ['required', 'string', 'url:http,https', 'max:500'],
-            'demo_url' => ['required', 'string', 'url:http,https', 'max:500'],
+            'demo_url' => ['required', 'string', 'url:https', 'max:500'],
             'prix' => ['required', 'integer', 'min:0'],
             'type_prix' => ['required', Rule::in(['mensuel', 'unique'])],
             'taille' => ['required', Rule::in(['petite', 'moyenne', 'grande'])],
@@ -321,7 +335,7 @@ class AppliController extends Controller
             // Le nom part dans des sujets d'e-mail : un retour à la ligne y est une injection d'en-tête.
             'nom' => ['sometimes', 'string', 'max:100', 'not_regex:/[\r\n]/'],
             'description' => ['sometimes', 'string', 'max:1000'],
-            'demo_url' => ['sometimes', 'string', 'url:http,https', 'max:500'],
+            'demo_url' => ['sometimes', 'string', 'url:https', 'max:500'],
             'categorie' => ['sometimes', Rule::in(Appli::CATEGORIES)],
             'prix' => ['sometimes', 'integer', 'min:0'],
             'type_prix' => ['sometimes', Rule::in(['mensuel', 'unique'])],
