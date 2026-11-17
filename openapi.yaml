@@ -715,6 +715,30 @@ paths:
                 type: array
                 items: { $ref: '#/components/schemas/Categorie' }
 
+  /demo/comptes:
+    get:
+      tags: [Comptes]
+      operationId: listComptesDemo
+      summary: Comptes de démonstration que le site propose (jury du concours, développement)
+      description: |
+        Ouverte en développement et en mode jury (DEMO_JURY) ; 404 sinon. Jamais le compte admin de
+        démo hors d'un poste de développement. Chaque compte s'ouvre avec POST /auth/demo (hors /api).
+      security: []
+      responses:
+        '200':
+          description: Les comptes, devs d'abord, et si le paiement est simulé
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, paiement_simule]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/CompteDemo' }
+                  paiement_simule: { type: boolean, description: 'Vrai : aucun argent ne bouge, la page de paiement est un simulateur' }
+        '404': { $ref: '#/components/responses/Introuvable' }
+
   /technos:
     get:
       tags: [Applis]
@@ -3751,6 +3775,18 @@ components:
         non_lus: { type: integer, description: Messages de l'autre arrivés depuis ma dernière lecture }
         cree_le: { type: string, format: date-time }
         maj_le: { type: string, format: date-time }
+
+    CompteDemo:
+      type: object
+      required: [username, nom, profil, est_admin, pays, avatar_url, bio]
+      properties:
+        username: { type: string }
+        nom: { type: string }
+        profil: { type: string, enum: [dev, client] }
+        est_admin: { type: boolean }
+        pays: { type: [string, 'null'] }
+        avatar_url: { type: [string, 'null'] }
+        bio: { type: [string, 'null'], description: Extrait de 140 caractères }
 
     InvitationCreation:
       type: object

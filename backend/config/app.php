@@ -56,8 +56,13 @@ return [
 
     'frontend_url' => env('FRONTEND_URL', 'http://localhost:5173'),
 
-    // Connexion aux comptes du jeu de démo (POST /auth/demo) : développement et tests seulement.
-    'demo_connexion' => (bool) env('DEMO_CONNEXION', false) && env('APP_ENV') !== 'production',
+    // Mode jury (hackathon) : les comptes de démo s'ouvrent depuis le site, le paiement est simulé
+    // (aucun argent ne bouge) et les applis de démo se clonent depuis des dépôts locaux. Le compte
+    // admin de démo, lui, ne s'ouvre jamais hors d'un poste de développement.
+    'demo_jury' => (bool) env('DEMO_JURY', false),
+
+    // Connexion aux comptes du jeu de démo (POST /auth/demo) : développement et tests, ou mode jury.
+    'demo_connexion' => ((bool) env('DEMO_CONNEXION', false) && env('APP_ENV') !== 'production') || (bool) env('DEMO_JURY', false),
 
     /*
     |--------------------------------------------------------------------------

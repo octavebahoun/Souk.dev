@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Carnet de commandes — démonstration</title>
+  <style>
+    :root { --accent: #1265DD; --accent-doux: #EFF6FF; --texte: #364153; --titre: #1F1F1F; --bordure: #E3E9F3; --fond: #F7FAFF; --vert: #067647; --vert-doux: #ECFDF3; --alerte: #B54708; --alerte-doux: #FFFAEB; --danger: #B42318; --danger-doux: #FEF3F2; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--texte); background: var(--fond); }
+    header { background: #fff; border-bottom: 1px solid var(--bordure); }
+    .barre { max-width: 1040px; margin: 0 auto; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .marque { font-weight: 700; color: var(--titre); font-size: 18px; }
+    .marque span { color: var(--accent); }
+    .demo { font-size: 13px; padding: 4px 10px; border-radius: 999px; background: var(--accent-doux); color: var(--accent); font-weight: 600; }
+    main { max-width: 1040px; margin: 0 auto; padding: 28px 20px 48px; }
+    h1 { margin: 0 0 4px; color: var(--titre); font-size: 26px; }
+    .doux { margin: 0 0 24px; }
+    .chiffres { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 24px; }
+    .chiffre { background: #fff; border: 1px solid var(--bordure); border-radius: 10px; padding: 16px; border-top: 3px solid var(--accent); }
+    .chiffre p { margin: 0; font-size: 13px; }
+    .chiffre strong { display: block; margin-top: 6px; font-size: 24px; color: var(--titre); }
+    .tableau { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--bordure); border-radius: 10px; overflow: hidden; }
+    th, td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--bordure); font-size: 14px; }
+    th { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: #5F6B7E; background: var(--fond); }
+    td.nombre { text-align: right; font-variant-numeric: tabular-nums; }
+    .etiquette { font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 999px; white-space: nowrap; }
+    .ok { background: var(--vert-doux); color: var(--vert); }
+    .att { background: var(--alerte-doux); color: var(--alerte); }
+    .bas { background: var(--danger-doux); color: var(--danger); }
+    footer { text-align: center; font-size: 13px; padding: 0 20px 32px; }
+    @media (max-width: 640px) { .masquable { display: none; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="barre">
+      <div class="marque">Carnet<span> de commandes</span></div>
+      <span class="demo">Copie de démonstration</span>
+    </div>
+  </header>
+  <main>
+    <h1>Mes commandes</h1>
+    <p class="doux">Aperçu de démonstration : dans votre copie, chaque client se connecte avec un code reçu par SMS et ne voit que ses propres notes.</p>
+    <section class="chiffres" aria-label="Résumé">
+      <div class="chiffre"><p>Commandes ouvertes</p><strong>6</strong></div>
+      <div class="chiffre"><p>Livrées cette semaine</p><strong>14</strong></div>
+      <div class="chiffre"><p>À encaisser</p><strong>42 000 F</strong></div>
+    </section>
+    <div class="tableau">
+    <table>
+      <caption class="doux" style="text-align:left;caption-side:top;padding-bottom:8px">Dernières commandes</caption>
+      <thead><tr><th scope="col">Client</th><th scope="col" class="masquable">Commande</th><th scope="col">Livraison</th><th scope="col">Montant</th><th scope="col">État</th></tr></thead>
+      <tbody>
+        <tr><td>Mme Agossou</td><td class="masquable">Robe en wax, taille M</td><td>samedi</td><td class="nombre">18 000 F</td><td><span class="etiquette att">En couture</span></td></tr>
+        <tr><td>Boutique Elegance</td><td class="masquable">20 sacs en raphia</td><td>lundi</td><td class="nombre">60 000 F</td><td><span class="etiquette ok">Acompte reçu</span></td></tr>
+        <tr><td>M. Houngbo</td><td class="masquable">Chemise brodée</td><td>aujourd’hui</td><td class="nombre">12 000 F</td><td><span class="etiquette ok">Prête</span></td></tr>
+        <tr><td>Mme Zinsou</td><td class="masquable">Retouche ×3</td><td>jeudi</td><td class="nombre">4 500 F</td><td><span class="etiquette bas">À encaisser</span></td></tr>
+      </tbody>
+    </table>
+    </div>
+  </main>
+  <footer>Hébergé sur Souk.dev · données fictives</footer>
+</body>
+</html>

@@ -9,6 +9,8 @@ use App\Models\Ecriture;
 use App\Models\Facture;
 use App\Models\User;
 use App\Paiement\GrandLivre;
+use App\Paiement\Passerelles\PasserellePaiement;
+use App\Paiement\Passerelles\SimulateurSasPay;
 use Database\Seeders\DemoSeeder;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -104,5 +106,50 @@ class DemoTest extends TestCase
         $this->withoutMiddleware(PreventRequestForgery::class)
             ->postJson('/auth/demo', ['compte' => 'soukdemo-awa'])
             ->assertNotFound();
+    }
+
+    public function test_le_mode_jury_ouvre_les_comptes_de_demo_en_production_sauf_l_admin(): void
+    {
+        config(['app.demo_connexion' => true, 'app.demo_jury' => true, 'facturation.passerelle' => 'simulee']);
+        $this->seed(DemoSeeder::class);
+        $this->app->detectEnvironment(fn () => 'production');
+        $requete = $this->withoutMiddleware(PreventRequestForgery::class);
+
+        $comptes = $requete->getJson('/api/demo/comptes')->assertOk()->assertJsonPath('paiement_simule', true)->json('data');
+        $noms = array_column($comptes, 'username');
+        $this->assertContains('soukdemo-awa', $noms);
+        $this->assertContains('soukdemo-pharmacie', $noms);
+        $this->assertNotContains('soukdemo-admin', $noms);
+        $this->assertSame('dev', $comptes[0]['profil'], 'Les devs d’abord : le thème du concours.');
+
+        $requete->postJson('/auth/demo', ['compte' => 'soukdemo-admin'])->assertNotFound();
+        $requete->postJson('/auth/demo', ['compte' => 'soukdemo-awa'])->assertNoContent();
+        $this->getJson('/api/me')->assertOk()->assertJsonPath('username', 'soukdemo-awa');
+    }
+
+    public function test_sans_mode_jury_la_liste_des_comptes_est_introuvable_en_production(): void
+    {
+        config(['app.demo_connexion' => true, 'app.demo_jury' => false]);
+        $this->seed(DemoSeeder::class);
+        $this->app->detectEnvironment(fn () => 'production');
+
+        $this->getJson('/api/demo/comptes')->assertNotFound();
+    }
+
+    public function test_le_paiement_simule_est_refuse_en_production_hors_mode_jury(): void
+    {
+        config(['facturation.passerelle' => 'simulee', 'app.demo_jury' => false]);
+        $this->app->detectEnvironment(fn () => 'production');
+
+        $this->expectException(\RuntimeException::class);
+        app(PasserellePaiement::class);
+    }
+
+    public function test_le_mode_jury_accepte_le_paiement_simule_en_production(): void
+    {
+        config(['facturation.passerelle' => 'simulee', 'app.demo_jury' => true]);
+        $this->app->detectEnvironment(fn () => 'production');
+
+        $this->assertInstanceOf(SimulateurSasPay::class, app(PasserellePaiement::class));
     }
 }

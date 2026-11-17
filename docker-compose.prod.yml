@@ -60,7 +60,11 @@ x-php: &php
     MOTEUR_PAGE_SUSPENDUE: http://127.0.0.1:${PORT_API:-8000}
     MOTEUR_DELAI_PROXY: "3"
     DEMO_CONNEXION: "false"
-    PAIEMENT_PASSERELLE: saspay
+    # Mode jury (concours) : comptes de démo ouverts depuis le site, paiement simulé, applis de démo
+    # clonées depuis les miroirs locaux (php artisan demo:jury). Voir docs/exploitation.md.
+    DEMO_JURY: ${DEMO_JURY:-false}
+    PAIEMENT_PASSERELLE: ${PAIEMENT_PASSERELLE:-saspay}
+    MOTEUR_MIROIRS: /app/storage/app/private/miroirs
   networks: [interne]
   depends_on: &php-depends
     db:

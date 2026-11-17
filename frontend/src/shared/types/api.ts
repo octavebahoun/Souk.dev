@@ -418,6 +418,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/demo/comptes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Comptes de démonstration que le site propose (jury du concours, développement)
+         * @description Ouverte en développement et en mode jury (DEMO_JURY) ; 404 sinon. Jamais le compte admin de
+         *     démo hors d'un poste de développement. Chaque compte s'ouvre avec POST /auth/demo (hors /api).
+         */
+        get: operations["listComptesDemo"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/technos": {
         parameters: {
             query?: never;
@@ -2408,6 +2429,17 @@ export interface components {
             /** Format: date-time */
             maj_le: string;
         };
+        CompteDemo: {
+            username: string;
+            nom: string;
+            /** @enum {string} */
+            profil: "dev" | "client";
+            est_admin: boolean;
+            pays: string | null;
+            avatar_url: string | null;
+            /** @description Extrait de 140 caractères */
+            bio: string | null;
+        };
         InvitationCreation: {
             /** @description Mot d'introduction : qui vous êtes, pourquoi vous écrivez */
             message: string;
@@ -3960,6 +3992,31 @@ export interface operations {
                     "application/json": components["schemas"]["Categorie"][];
                 };
             };
+        };
+    };
+    listComptesDemo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Les comptes, devs d'abord, et si le paiement est simulé */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CompteDemo"][];
+                        /** @description Vrai : aucun argent ne bouge, la page de paiement est un simulateur */
+                        paiement_simule: boolean;
+                    };
+                };
+            };
+            404: components["responses"]["Introuvable"];
         };
     };
     listTechnos: {

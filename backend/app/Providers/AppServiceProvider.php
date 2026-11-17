@@ -313,7 +313,8 @@ class AppServiceProvider extends ServiceProvider
                 return $app->make(SasPayPaiement::class);
             }
 
-            if ($app->isProduction()) {
+            // Mode jury : paiement simulé assumé, aucun argent ne bouge (PAIEMENT_PASSERELLE=simulee).
+            if ($app->isProduction() && ! config('app.demo_jury')) {
                 throw new RuntimeException('Paiement non configuré : SASPAY_SECRET_KEY est obligatoire en production.');
             }
 

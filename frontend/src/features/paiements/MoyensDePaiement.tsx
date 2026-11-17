@@ -3,16 +3,20 @@ import { cx } from '../../ui'
 import { moyensAffiches } from './reseaux'
 
 /** Sous le bouton « Payer » : qui encaisse, et avec quoi (les logos désignent les moyens acceptés). */
-export function MoyensDePaiement({ className }: { className?: string }) {
+export function MoyensDePaiement({ className, simule = false }: { className?: string; simule?: boolean }) {
   return (
     <div className={cx('flex flex-col gap-2', className)}>
       <p className="m-0 flex items-center gap-1.5 text-petit text-texte-doux">
         <LockKeyhole aria-hidden="true" className="size-3.5 shrink-0" />
         Paiement sécurisé par SasPay, en Mobile Money.
       </p>
-      <p className="m-0 text-petit text-texte-doux">
+      {simule ? (
+        <p className="m-0 text-petit text-texte-doux">En production : MTN MoMo, Moov Money ou Celtiis Cash (Bénin). Ici, le paiement est simulé.</p>
+      ) : (
+        <p className="m-0 text-petit text-texte-doux">
         MTN MoMo, Moov Money ou Celtiis Cash (Bénin). La page de SasPay s’ouvre parfois en anglais : le bouton « FR » en haut la passe en français. Le marchand affiché y est « Gentube » : c’est le compte de paiement d’Excellence Team, l’équipe qui édite Souk.dev.
       </p>
+      )}
       <ul aria-hidden="true" className="m-0 flex list-none flex-wrap items-center gap-1.5 p-0">
         {moyensAffiches.map((moyen) => (
           <li key={moyen.nom}>

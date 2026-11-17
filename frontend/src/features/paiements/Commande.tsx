@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Globe, Power, Server, ShieldCheck } from 'lucide-react'
 import { useCompte } from '../../app/compte'
 import { lienConnexion } from '../../app/retour'
+import { useComptesDemo } from '../comptes/demo'
 import { useTitrePage } from '../../app/titre'
 import { arreterCopie, lireAppli, listerCopies } from '../catalogue/api'
 import {
@@ -44,6 +45,8 @@ export function Commande() {
   const appId = Number(id)
   const cache = useQueryClient()
   const compte = useCompte()
+  const demo = useComptesDemo()
+  const simule = demo.data?.paiementSimule === true
   const appli = useQuery({ queryKey: ['appli', appId], queryFn: () => lireAppli(appId), enabled: Number.isInteger(appId) && appId > 0 })
   const copies = useQuery({ queryKey: ['copies'], queryFn: listerCopies, enabled: Boolean(compte.data) })
   const [valeurs, setValeurs] = useState<Record<string, string>>({})
@@ -277,6 +280,12 @@ export function Commande() {
               </p>
             </div>
 
+            {simule ? (
+              <Alerte ton="info" titre="Paiement simulé">
+                Démonstration : la page suivante imite SasPay et aucun argent n’est débité. Choisissez « Payer (succès simulé) » pour voir votre copie se construire.
+              </Alerte>
+            ) : null}
+
             {erreur ? (
               <Alerte ton="danger" urgente>
                 {erreur}
@@ -291,7 +300,7 @@ export function Commande() {
             </p>
             {incomplet ? <p className="-mt-3 m-0 text-petit text-texte-doux">Renseignez d’abord les informations demandées.</p> : null}
 
-            <MoyensDePaiement />
+            <MoyensDePaiement simule={simule} />
             <p className="m-0 border-t border-bordure pt-4 text-petit text-texte-doux">
               <strong className="font-medium text-titre">Vos données.</strong> Sans paiement à l’échéance : 7 jours de délai, puis la copie est suspendue (données gardées), et supprimée 30 jours plus tard. Arrêter une copie vous-même supprime ses données : exportez une sauvegarde avant.
             </p>

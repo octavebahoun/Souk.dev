@@ -1,8 +1,9 @@
 import type { CSSProperties, ReactNode } from 'react'
 import { Link } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowRight, BadgeCheck, CircleCheck, HandCoins, MessagesSquare, Server, ShieldCheck, Smartphone } from 'lucide-react'
+import { ArrowRight, BadgeCheck, CircleCheck, FlaskConical, HandCoins, MessagesSquare, Server, ShieldCheck, Smartphone } from 'lucide-react'
 import { useTitrePage } from '../../app/titre'
+import { useComptesDemo } from '../comptes/demo'
 import { listerApplis } from '../catalogue/api'
 import { CarteAppli } from '../catalogue/CarteAppli'
 import { listerDiscussions } from '../echange/api'
@@ -43,6 +44,7 @@ export function Accueil() {
   useTitrePage(null)
   const applis = useQuery({ queryKey: ['applis', 'accueil'], queryFn: () => listerApplis({ tri: 'recent' }) })
   const discussions = useQuery({ queryKey: ['discussions', 'accueil'], queryFn: () => listerDiscussions({ page: 1 }) })
+  const demo = useComptesDemo()
   const vitrine = applis.data?.data.slice(0, 4) ?? []
   const fil = discussions.data?.data.slice(0, 4) ?? []
 
@@ -80,11 +82,50 @@ export function Accueil() {
               Je cherche une appli
             </LienBouton>
           </div>
+          {demo.data ? (
+            <Link
+              to="/connexion#comptes-demo"
+              className="flex w-fit items-center gap-2 rounded-moyen border border-vert-marque/40 bg-vert-marque/15 px-3 py-2 text-petit font-medium text-sur-couleur no-underline hover:bg-vert-marque/25"
+            >
+              <FlaskConical aria-hidden="true" className="size-4 shrink-0 text-vert-marque" />
+              Jury, visiteurs : essayez avec un compte de démonstration, sans inscription
+              <ArrowRight aria-hidden="true" className="size-4 shrink-0" />
+            </Link>
+          ) : null}
           <ul style={delai(320)} className="apparition m-0 flex list-none flex-wrap gap-x-6 gap-y-2 p-0 text-petit text-sur-couleur/80">
             <li className="flex items-center gap-2"><CircleCheck aria-hidden="true" className="size-4 text-vert-marque" />0 % de commission</li>
             <li className="flex items-center gap-2"><Smartphone aria-hidden="true" className="size-4 text-vert-marque" />Mobile Money, en FCFA</li>
             <li className="flex items-center gap-2"><ShieldCheck aria-hidden="true" className="size-4 text-vert-marque" />Chaque appli analysée avant publication</li>
           </ul>
+        </div>
+      </section>
+
+      <section aria-labelledby="titre-video" className="border-b border-bordure bg-surface">
+        <div className={cx(conteneur, 'grid items-center gap-8 py-16 bureau:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]')}>
+          <div className="flex max-w-prose flex-col gap-3">
+            <p className="m-0 text-etiquette text-lien uppercase">Souk.dev en 1 min 40</p>
+            <h2 id="titre-video" className="m-0 text-titre-1 text-titre">Un bug, un correctif, une copie qui tourne</h2>
+            <p className="m-0 text-corps-l text-texte">
+              Un dev poste son bug avec son dépôt. Un autre propose un correctif, que l’auteur essaie sur une copie avant de l’accepter. Puis la même appli se vend sur le Store, payée en Mobile Money.
+            </p>
+            <p className="m-0 text-petit text-texte-doux">Sous-titres en français disponibles dans le lecteur.</p>
+          </div>
+          <div className="overflow-hidden rounded-grand border border-bordure bg-nuit shadow-3">
+            <video
+              controls
+              playsInline
+              preload="none"
+              poster="/videos/souk-presentation.webp"
+              width={1280}
+              height={720}
+              className="block aspect-video w-full"
+              aria-describedby="titre-video"
+            >
+              <source src="/videos/souk-presentation.mp4" type="video/mp4" />
+              <track kind="captions" src="/videos/souk-presentation.fr.vtt" srcLang="fr" label="Français" />
+              <a href="/videos/souk-presentation.mp4">Télécharger la vidéo de présentation (MP4, 7 Mo)</a>
+            </video>
+          </div>
         </div>
       </section>
 

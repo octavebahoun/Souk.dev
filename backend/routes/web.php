@@ -29,8 +29,8 @@ Route::post('/logout', [LogoutController::class, 'destroy']);
 // Plan du site (annoncé par le robots.txt du front) : fiches, profils et discussions publics.
 Route::get('/sitemap.xml', SitemapController::class)->middleware('throttle:60,1');
 
-// Connexion de démo : la route n'existe pas en production (le contrôleur garde aussi sa double vérification).
-if (! app()->isProduction()) {
+// Connexion de démo : en production, seulement en mode jury (le contrôleur vérifie aussi).
+if (! app()->isProduction() || (bool) config('app.demo_jury')) {
     Route::post('/auth/demo', [DemoController::class, 'connecter'])->middleware('throttle:60,1');
 }
 

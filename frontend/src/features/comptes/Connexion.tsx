@@ -106,6 +106,8 @@ export function Connexion() {
             <p className="m-0 text-corps text-texte-doux">Ou créer votre compte : c’est la même porte.</p>
           </div>
 
+          <ComptesDemo retour={retour} />
+
           <ChoixPastilles
             libelle="Votre profil"
             valeur={profil}
@@ -163,8 +165,6 @@ export function Connexion() {
               </Bouton>
             </form>
           )}
-
-          {import.meta.env.DEV ? <ComptesDemo /> : null}
 
           <p className="m-0 flex items-center gap-1.5 border-t border-bordure pt-4 text-petit text-texte-doux">
             Pas encore décidé ?

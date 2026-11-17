@@ -24,7 +24,8 @@ final class DevResource extends JsonResource
             'pays' => $compte->pays,
             'username' => $compte->username,
             'avatar_url' => $compte->avatar_url,
-            'github_url' => $compte->username !== null ? 'https://github.com/'.$compte->username : null,
+            // Les comptes de démo n'ont pas de vrai compte GitHub : pas de lien vers une page vide.
+            'github_url' => $compte->username !== null && ! $compte->est_demo ? 'https://github.com/'.$compte->username : null,
             'profil' => $profil instanceof Profil ? $profil->value : $profil,
         ];
     }

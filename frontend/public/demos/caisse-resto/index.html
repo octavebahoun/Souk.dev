@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CaisseResto — démonstration</title>
+  <style>
+    :root { --accent: #C4320A; --accent-doux: #FFF4ED; --texte: #364153; --titre: #1F1F1F; --bordure: #E3E9F3; --fond: #F7FAFF; --vert: #067647; --vert-doux: #ECFDF3; --alerte: #B54708; --alerte-doux: #FFFAEB; --danger: #B42318; --danger-doux: #FEF3F2; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--texte); background: var(--fond); }
+    header { background: #fff; border-bottom: 1px solid var(--bordure); }
+    .barre { max-width: 1040px; margin: 0 auto; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .marque { font-weight: 700; color: var(--titre); font-size: 18px; }
+    .marque span { color: var(--accent); }
+    .demo { font-size: 13px; padding: 4px 10px; border-radius: 999px; background: var(--accent-doux); color: var(--accent); font-weight: 600; }
+    main { max-width: 1040px; margin: 0 auto; padding: 28px 20px 48px; }
+    h1 { margin: 0 0 4px; color: var(--titre); font-size: 26px; }
+    .doux { margin: 0 0 24px; }
+    .chiffres { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 24px; }
+    .chiffre { background: #fff; border: 1px solid var(--bordure); border-radius: 10px; padding: 16px; border-top: 3px solid var(--accent); }
+    .chiffre p { margin: 0; font-size: 13px; }
+    .chiffre strong { display: block; margin-top: 6px; font-size: 24px; color: var(--titre); }
+    .tableau { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--bordure); border-radius: 10px; overflow: hidden; }
+    th, td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--bordure); font-size: 14px; }
+    th { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: #5F6B7E; background: var(--fond); }
+    td.nombre { text-align: right; font-variant-numeric: tabular-nums; }
+    .etiquette { font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 999px; white-space: nowrap; }
+    .ok { background: var(--vert-doux); color: var(--vert); }
+    .att { background: var(--alerte-doux); color: var(--alerte); }
+    .bas { background: var(--danger-doux); color: var(--danger); }
+    footer { text-align: center; font-size: 13px; padding: 0 20px 32px; }
+    @media (max-width: 640px) { .masquable { display: none; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="barre">
+      <div class="marque">Caisse<span>Resto</span></div>
+      <span class="demo">Copie de démonstration</span>
+    </div>
+  </header>
+  <main>
+    <h1>Service du soir</h1>
+    <p class="doux">Tables ouvertes, tickets en cours et encaissements, sur la tablette du comptoir.</p>
+    <section class="chiffres" aria-label="Résumé">
+      <div class="chiffre"><p>Tables ouvertes</p><strong>7 / 12</strong></div>
+      <div class="chiffre"><p>Tickets du jour</p><strong>58</strong></div>
+      <div class="chiffre"><p>Encaissé ce soir</p><strong>214 500 F</strong></div>
+    </section>
+    <div class="tableau">
+    <table>
+      <caption class="doux" style="text-align:left;caption-side:top;padding-bottom:8px">Tickets en cours</caption>
+      <thead><tr><th scope="col">Table</th><th scope="col" class="masquable">Serveur</th><th scope="col">Commande</th><th scope="col">Montant</th><th scope="col">État</th></tr></thead>
+      <tbody>
+        <tr><td>Table 3</td><td class="masquable">Kossi</td><td>Poulet braisé, attiéké, 2 Flag</td><td class="nombre">9 500 F</td><td><span class="etiquette ok">Servi</span></td></tr>
+        <tr><td>Table 5</td><td class="masquable">Afi</td><td>Poisson grillé, alloco</td><td class="nombre">6 000 F</td><td><span class="etiquette att">En cuisine</span></td></tr>
+        <tr><td>Table 8</td><td class="masquable">Kossi</td><td>Riz gras, jus de bissap ×3</td><td class="nombre">7 500 F</td><td><span class="etiquette bas">À encaisser</span></td></tr>
+        <tr><td>Comptoir</td><td class="masquable">Afi</td><td>Brochettes ×4</td><td class="nombre">4 000 F</td><td><span class="etiquette ok">Payé MoMo</span></td></tr>
+      </tbody>
+    </table>
+    </div>
+  </main>
+  <footer>Hébergé sur Souk.dev · données fictives</footer>
+</body>
+</html>

@@ -11,8 +11,8 @@ use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 /**
- * Page de paiement du simulateur (développement et tests) : elle imite le checkout SasPay.
- * Introuvable (404) avec la vraie passerelle et toujours en production.
+ * Page de paiement du simulateur (développement, tests et mode jury) : elle imite le checkout
+ * SasPay, sans argent réel. Introuvable (404) avec la vraie passerelle, et en production hors jury.
  */
 final class SimulateurSasPayController extends Controller
 {
@@ -51,7 +51,7 @@ final class SimulateurSasPayController extends Controller
 
     private function simulation(string $session): SimulationSasPay
     {
-        abort_unless(config('facturation.passerelle') === 'simulee' && ! app()->isProduction(), 404);
+        abort_unless(config('facturation.passerelle') === 'simulee' && (! app()->isProduction() || (bool) config('app.demo_jury')), 404);
         abort_unless(preg_match('/^[0-9a-f-]{36}$/', $session) === 1, 404);
 
         return SimulationSasPay::query()->where('type', 'session')->findOrFail($session);

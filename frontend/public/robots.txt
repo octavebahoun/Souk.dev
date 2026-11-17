@@ -13,3 +13,4 @@ Disallow: /messages
 Disallow: /notifications
 Disallow: /admin/
 Disallow: /connexion
+Disallow: /demos/

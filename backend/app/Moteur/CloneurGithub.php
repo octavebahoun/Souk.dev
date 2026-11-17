@@ -124,7 +124,11 @@ class CloneurGithub
     {
         $racine = config('moteur.miroirs');
 
-        if (! is_string($racine) || $racine === '' || ! app()->environment('local', 'testing')) {
+        // En développement, tout dépôt miroir ; en mode jury, seulement les applis de démo
+        // (compte « soukdemo », dont le code est dans database/seeders/demo/depots).
+        $permis = app()->environment('local', 'testing') || (config('app.demo_jury') && $depot->owner === 'soukdemo');
+
+        if (! is_string($racine) || $racine === '' || ! $permis) {
             return null;
         }
 

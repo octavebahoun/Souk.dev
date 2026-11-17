@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Clinique RDV — démonstration</title>
+  <style>
+    :root { --accent: #0E7090; --accent-doux: #ECFDFF; --texte: #364153; --titre: #1F1F1F; --bordure: #E3E9F3; --fond: #F7FAFF; --vert: #067647; --vert-doux: #ECFDF3; --alerte: #B54708; --alerte-doux: #FFFAEB; --danger: #B42318; --danger-doux: #FEF3F2; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--texte); background: var(--fond); }
+    header { background: #fff; border-bottom: 1px solid var(--bordure); }
+    .barre { max-width: 1040px; margin: 0 auto; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .marque { font-weight: 700; color: var(--titre); font-size: 18px; }
+    .marque span { color: var(--accent); }
+    .demo { font-size: 13px; padding: 4px 10px; border-radius: 999px; background: var(--accent-doux); color: var(--accent); font-weight: 600; }
+    main { max-width: 1040px; margin: 0 auto; padding: 28px 20px 48px; }
+    h1 { margin: 0 0 4px; color: var(--titre); font-size: 26px; }
+    .doux { margin: 0 0 24px; }
+    .chiffres { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 24px; }
+    .chiffre { background: #fff; border: 1px solid var(--bordure); border-radius: 10px; padding: 16px; border-top: 3px solid var(--accent); }
+    .chiffre p { margin: 0; font-size: 13px; }
+    .chiffre strong { display: block; margin-top: 6px; font-size: 24px; color: var(--titre); }
+    .tableau { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--bordure); border-radius: 10px; overflow: hidden; }
+    th, td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--bordure); font-size: 14px; }
+    th { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: #5F6B7E; background: var(--fond); }
+    td.nombre { text-align: right; font-variant-numeric: tabular-nums; }
+    .etiquette { font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 999px; white-space: nowrap; }
+    .ok { background: var(--vert-doux); color: var(--vert); }
+    .att { background: var(--alerte-doux); color: var(--alerte); }
+    .bas { background: var(--danger-doux); color: var(--danger); }
+    footer { text-align: center; font-size: 13px; padding: 0 20px 32px; }
+    @media (max-width: 640px) { .masquable { display: none; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="barre">
+      <div class="marque">Clinique<span> RDV</span></div>
+      <span class="demo">Copie de démonstration</span>
+    </div>
+  </header>
+  <main>
+    <h1>Rendez-vous du jour</h1>
+    <p class="doux">Agenda par médecin, rappels par SMS la veille, fiche patient à l’accueil.</p>
+    <section class="chiffres" aria-label="Résumé">
+      <div class="chiffre"><p>Rendez-vous</p><strong>34</strong></div>
+      <div class="chiffre"><p>Confirmés par SMS</p><strong>29</strong></div>
+      <div class="chiffre"><p>Salle d’attente</p><strong>5</strong></div>
+    </section>
+    <div class="tableau">
+    <table>
+      <caption class="doux" style="text-align:left;caption-side:top;padding-bottom:8px">Consultations de la matinée</caption>
+      <thead><tr><th scope="col">Heure</th><th scope="col" class="masquable">Patient</th><th scope="col">Médecin</th><th scope="col">Motif</th><th scope="col">État</th></tr></thead>
+      <tbody>
+        <tr><td>08:30</td><td class="masquable">Mme Diallo</td><td>Dr Ndiaye</td><td>Suivi de grossesse</td><td><span class="etiquette ok">Arrivée</span></td></tr>
+        <tr><td>09:00</td><td class="masquable">M. Faye</td><td>Dr Sarr</td><td>Consultation générale</td><td><span class="etiquette att">En consultation</span></td></tr>
+        <tr><td>09:30</td><td class="masquable">Awa Ba</td><td>Dr Ndiaye</td><td>Vaccination</td><td><span class="etiquette ok">Confirmé</span></td></tr>
+        <tr><td>10:00</td><td class="masquable">M. Cissé</td><td>Dr Sarr</td><td>Résultats d’analyses</td><td><span class="etiquette bas">Pas de réponse SMS</span></td></tr>
+      </tbody>
+    </table>
+    </div>
+  </main>
+  <footer>Hébergé sur Souk.dev · données fictives</footer>
+</body>
+</html>

@@ -13,6 +13,7 @@ use App\Http\Controllers\ConversationController;
 use App\Http\Controllers\CoordonneesReversementController;
 use App\Http\Controllers\CopieTestController;
 use App\Http\Controllers\CorrectifController;
+use App\Http\Controllers\DemoController;
 use App\Http\Controllers\DeploiementController;
 use App\Http\Controllers\DiscussionController;
 use App\Http\Controllers\EtiquetteController;
@@ -48,6 +49,8 @@ Route::get('/apps/{appli}/versions', [VersionController::class, 'index']);
 Route::post('/copies/{cle}/auth/code', [ConnexionUtilisateurFinalController::class, 'code']);
 Route::post('/copies/{cle}/auth/session', [ConnexionUtilisateurFinalController::class, 'session']);
 Route::get('/categories', [AppliController::class, 'categories']);
+// Comptes de démo que le site propose au jury (404 quand la connexion de démo est fermée).
+Route::get('/demo/comptes', [DemoController::class, 'comptes']);
 // Session éventuelle : le compte connecté, ou null pour un visiteur (200 dans les deux cas : une
 // page publique ne produit pas d'erreur 401 dans la console du navigateur).
 Route::get('/session', [CompteController::class, 'session']);

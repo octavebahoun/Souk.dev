@@ -245,7 +245,7 @@ class Appli extends Model
                 'nom' => $this->auteur->name,
                 'username' => $this->auteur->username,
                 'avatar_url' => $this->auteur->avatar_url,
-                'github_url' => $this->auteur->username !== null ? 'https://github.com/'.$this->auteur->username : null,
+                'github_url' => $this->auteur->username !== null && ! $this->auteur->est_demo ? 'https://github.com/'.$this->auteur->username : null,
                 'profil' => $profilAuteur instanceof Profil ? $profilAuteur->value : ($profilAuteur ?: 'dev'),
                 'pays' => $this->auteur->pays,
             ],

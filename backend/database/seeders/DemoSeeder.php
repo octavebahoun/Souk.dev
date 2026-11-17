@@ -69,9 +69,10 @@ class DemoSeeder extends Seeder
 
     public function run(ProfilCalcule $profils): void
     {
-        // Jamais sur une base réelle : il purge des factures et des écritures du grand livre.
-        if (! app()->environment('local', 'testing')) {
-            $this->command?->error('Le jeu de démo ne se charge qu’en développement (APP_ENV=local).');
+        // Il purge les factures et les écritures du grand livre des seuls comptes de démo : en
+        // développement, ou en production si le mode jury est explicitement ouvert (DEMO_JURY).
+        if (! app()->environment('local', 'testing') && ! config('app.demo_jury')) {
+            $this->command?->error('Le jeu de démo ne se charge qu’en développement (APP_ENV=local) ou en mode jury (DEMO_JURY=true).');
 
             return;
         }
@@ -89,7 +90,7 @@ class DemoSeeder extends Seeder
             $this->creerEchangesPrives();
         });
 
-        if (app()->environment('local')) {
+        if (app()->environment('local') || config('app.demo_jury')) {
             Artisan::call('demo:miroirs');
         }
 
@@ -162,6 +163,7 @@ class DemoSeeder extends Seeder
             'name' => 'Pharmacie du Port',
             'profil' => 'client',
             'pays' => 'BJ',
+            'bio' => 'Pharmacie de quartier près du port de Cotonou : stock, ordonnances et ventes du jour suivis sur PharmaStock.',
             'github_lie' => false,
         ]);
 
@@ -169,6 +171,7 @@ class DemoSeeder extends Seeder
             'name' => 'Association Lumière',
             'profil' => 'client',
             'pays' => 'TG',
+            'bio' => 'Association de quartier à Lomé : 86 membres, cotisations mensuelles et actions solidaires.',
             'github_lie' => false,
         ]);
     }
@@ -203,6 +206,10 @@ class DemoSeeder extends Seeder
         ];
 
         Canal::ouvrirParDefaut();
+
+        foreach (array_keys(Canal::PAR_DEFAUT) as $slug) {
+            $this->canaux[$slug] = Canal::query()->where('slug', $slug)->firstOrFail();
+        }
 
         foreach ($canaux as $slug => [$nom, $description, $pays]) {
             $this->canaux[$slug] = Canal::query()->firstOrCreate(['slug' => $slug], [
@@ -261,14 +268,14 @@ class DemoSeeder extends Seeder
     {
         $applis = [
             'marchi-learnia' => ['mariam', 'Learnia — suivi de formation', 'Suivez une formation vidéo Python et Machine Learning : chaque vidéo se coche une fois terminée, la progression reste affichée. Site statique léger, idéal pour une école ou un club de code.', 'education', 0, 'mensuel', 'petite', 'https://marchinelearnia.vercel.app', 'https://github.com/octavebahoun/marchilearnia', ['autre'], 'verifie', 42],
-            'pharmastock' => ['awa', 'PharmaStock', 'Gestion de stock pour pharmacie : lots, dates de péremption, ordonnances à préparer et ventes du jour en FCFA. Alerte avant chaque rupture.', 'sante', 15000, 'mensuel', 'moyenne', 'https://pharmastock-demo.souk.dev', 'https://github.com/soukdemo/pharmastock', ['laravel', 'vue', 'mysql'], 'verifie', 610],
-            'caisse-resto' => ['kofi', 'Caisse Resto', 'Caisse tactile pour maquis et restaurants : tables, tickets, encaissement en espèces ou Mobile Money, rapport de fin de journée.', 'restauration', 9000, 'mensuel', 'petite', 'https://caisse-resto-demo.souk.dev', 'https://github.com/soukdemo/caisse-resto', ['react', 'node', 'postgresql'], 'problemes', 380],
-            'cotis-asso' => ['fatou', 'Cotis’Asso', 'Cotisations des membres d’une association : qui est à jour, relances par SMS, reçus. Gratuit pour les associations.', 'association', 0, 'mensuel', 'petite', 'https://cotis-asso-demo.souk.dev', 'https://github.com/soukdemo/cotis-asso', ['nextjs', 'postgresql'], 'verifie', 290],
-            'ecole-notes' => ['yao', 'École+ Notes', 'Notes, moyennes et bulletins trimestriels pour collèges et lycées. Les parents reçoivent le bulletin par e-mail.', 'education', 75000, 'unique', 'moyenne', 'https://ecole-notes-demo.souk.dev', 'https://github.com/soukdemo/ecole-notes', ['node', 'react', 'mongodb'], 'verifie', null],
-            'momo-pay-kit' => ['awa', 'MoMo Pay Kit', 'Console d’encaissement pour développeurs : transactions MTN, Moov et Wave, webhooks rejoués, clés API cachées.', 'finance', 0, 'mensuel', 'petite', 'https://momo-pay-kit-demo.souk.dev', 'https://github.com/soukdemo/momo-pay-kit', ['laravel'], 'verifie', 210],
-            'stock-boutique' => ['chinedu', 'Stock Boutique', 'Inventaire pour boutique de quartier : produits, quantités, alertes de stock bas et ventes de la semaine.', 'commerce', 12000, 'mensuel', 'moyenne', 'https://stock-boutique-demo.souk.dev', 'https://github.com/soukdemo/stock-boutique', ['go', 'postgresql', 'redis'], 'verifie', 540],
-            'clinique-rdv' => ['mariam', 'Clinique RDV', 'Prise de rendez-vous pour cliniques : agenda par médecin, rappels par SMS, fiche patient.', 'sante', 20000, 'mensuel', 'grande', 'https://clinique-rdv-demo.souk.dev', 'https://github.com/soukdemo/clinique-rdv', ['django', 'postgresql'], 'problemes', 1320],
-            'carnet' => ['kofi', 'Carnet de commandes', 'Carnet de commandes pour vendeurs et artisans : chaque client se connecte avec un code reçu par SMS et ne voit que ses propres notes. Aucun serveur à gérer, la base est fournie par Souk.dev.', 'commerce', 3000, 'mensuel', 'petite', 'https://carnet-demo.souk.dev', 'https://github.com/soukdemo/carnet', ['postgresql', 'autre'], 'verifie', 160],
+            'pharmastock' => ['awa', 'PharmaStock', 'Gestion de stock pour pharmacie : lots, dates de péremption, ordonnances à préparer et ventes du jour en FCFA. Alerte avant chaque rupture.', 'sante', 15000, 'mensuel', 'moyenne', $this->demo('pharmastock'), 'https://github.com/soukdemo/pharmastock', ['laravel', 'vue', 'mysql'], 'verifie', 610],
+            'caisse-resto' => ['kofi', 'Caisse Resto', 'Caisse tactile pour maquis et restaurants : tables, tickets, encaissement en espèces ou Mobile Money, rapport de fin de journée.', 'restauration', 9000, 'mensuel', 'petite', $this->demo('caisse-resto'), 'https://github.com/soukdemo/caisse-resto', ['react', 'node', 'postgresql'], 'problemes', 380],
+            'cotis-asso' => ['fatou', 'Cotis’Asso', 'Cotisations des membres d’une association : qui est à jour, relances par SMS, reçus. Gratuit pour les associations.', 'association', 0, 'mensuel', 'petite', $this->demo('cotis-asso'), 'https://github.com/soukdemo/cotis-asso', ['nextjs', 'postgresql'], 'verifie', 290],
+            'ecole-notes' => ['yao', 'École+ Notes', 'Notes, moyennes et bulletins trimestriels pour collèges et lycées. Les parents reçoivent le bulletin par e-mail.', 'education', 75000, 'unique', 'moyenne', $this->demo('ecole-notes'), 'https://github.com/soukdemo/ecole-notes', ['node', 'react', 'mongodb'], 'verifie', null],
+            'momo-pay-kit' => ['awa', 'MoMo Pay Kit', 'Console d’encaissement pour développeurs : transactions MTN, Moov et Wave, webhooks rejoués, clés API cachées.', 'finance', 0, 'mensuel', 'petite', $this->demo('momo-pay-kit'), 'https://github.com/soukdemo/momo-pay-kit', ['laravel'], 'verifie', 210],
+            'stock-boutique' => ['chinedu', 'Stock Boutique', 'Inventaire pour boutique de quartier : produits, quantités, alertes de stock bas et ventes de la semaine.', 'commerce', 12000, 'mensuel', 'moyenne', $this->demo('stock-boutique'), 'https://github.com/soukdemo/stock-boutique', ['go', 'postgresql', 'redis'], 'verifie', 540],
+            'clinique-rdv' => ['mariam', 'Clinique RDV', 'Prise de rendez-vous pour cliniques : agenda par médecin, rappels par SMS, fiche patient.', 'sante', 20000, 'mensuel', 'grande', $this->demo('clinique-rdv'), 'https://github.com/soukdemo/clinique-rdv', ['django', 'postgresql'], 'problemes', 1320],
+            'carnet' => ['kofi', 'Carnet de commandes', 'Carnet de commandes pour vendeurs et artisans : chaque client se connecte avec un code reçu par SMS et ne voit que ses propres notes. Aucun serveur à gérer, la base est fournie par Souk.dev.', 'commerce', 3000, 'mensuel', 'petite', $this->demo('carnet'), 'https://github.com/soukdemo/carnet', ['postgresql', 'autre'], 'verifie', 160],
         ];
 
         foreach ($applis as $cle => [$auteur, $nom, $description, $categorie, $prix, $typePrix, $taille, $demo, $depot, $stack, $securite, $memoire]) {
@@ -311,6 +318,12 @@ class DemoSeeder extends Seeder
     /**
      * @return list<array{identifiant: string, paquet: string, version: string, gravite: string, version_corrigee: string|null}>
      */
+    /** Démo d'une appli cobaye : sa page, servie par le front (frontend/public/demos). */
+    private function demo(string $appli): string
+    {
+        return rtrim((string) config('app.frontend_url'), '/').'/demos/'.$appli.'/index.html';
+    }
+
     private function problemes(): array
     {
         return [
@@ -356,6 +369,46 @@ class DemoSeeder extends Seeder
         $this->discussion('chinedu', 'devops', null, 'Tuto : déployer une appli Laravel sur Souk.dev avec soukdev.json', "Voici le `soukdev.json` minimal qui marche pour une appli Laravel avec sa propre base :\n\n```json\n{\n  \"version\": 1,\n  \"service_web\": { \"nom\": \"web\", \"port\": 8000 },\n  \"backend\": \"propre\",\n  \"variables\": [{ \"nom\": \"DB_PASSWORD\", \"source\": \"plateforme\" }]\n}\n```", ['tuto']);
         $this->discussion('fatou', 'entraide-generale', null, 'Projet : une appli de tontine digitale, qui est partant ?', 'Je cherche deux devs (un backend, un mobile) pour une tontine avec Mobile Money et des rappels par SMS.', ['projet']);
         $this->discussion('kofi', null, $this->applis['marchi-learnia'], 'Ajouter l’export PDF des progrès', 'Une école voudrait imprimer la progression de chaque élève. Un export PDF serait possible ?', ['question']);
+
+        // Un bug ouvert avec un correctif à essayer : le parcours complet du thème, pour le jury.
+        $ticket = $this->discussion('kofi', 'bugs-et-correctifs', $this->applis['caisse-resto'], 'Caisse Resto : le total du ticket double après un rafraîchissement', 'Sur la tablette du comptoir, si on rafraîchit la page pendant l’encaissement, le ticket est compté deux fois dans le total de la soirée.', ['bug'], [
+            'erreur_obtenue' => 'Total de la soirée : 18 000 F pour un ticket de 9 000 F.',
+            'comportement_attendu' => 'Un ticket n’est compté qu’une fois, même si la page est rechargée.',
+            'techno' => 'react',
+            'code' => "useEffect(() => {\n  fetch('/api/tickets', { method: 'POST', body: JSON.stringify(ticket) })\n}, [ticket])",
+            'difficulte' => 'moyen',
+        ], 'https://github.com/soukdemo/caisse-resto');
+        $this->messages($ticket, [
+            ['yao', 'Le `useEffect` renvoie le ticket à chaque rendu où `ticket` change de référence. Il faudrait une clé d’idempotence côté serveur.'],
+            ['kofi', 'Oui, je vois deux POST identiques dans l’onglet réseau. Qui veut proposer une branche ?'],
+        ]);
+        $this->correctif($ticket, 'yao', 'https://github.com/soukdemo/caisse-resto/tree/ticket-unique', 'Envoie le ticket une seule fois avec une clé d’idempotence ; le serveur ignore les doublons.');
+
+        // Des bugs encore sans correctif : le jury peut proposer le sien ou demander de l'aide.
+        $this->discussion('fatou', 'react', $this->applis['cotis-asso'], 'Next.js : « Hydration failed » sur la date de cotisation', 'La date de la dernière cotisation s’affiche en anglais côté serveur, en français dans le navigateur, et Next.js lève une erreur d’hydratation.', ['bug'], [
+            'erreur_obtenue' => 'Error: Hydration failed because the server rendered text didn’t match the client.',
+            'comportement_attendu' => 'La date s’affiche « 12 novembre 2026 » partout, sans erreur.',
+            'techno' => 'nextjs',
+            'code' => '<p>{new Date(membre.derniereCotisation).toLocaleDateString()}</p>',
+            'difficulte' => 'facile',
+        ], 'https://github.com/soukdemo/cotis-asso');
+        $rappels = $this->discussion('mariam', 'bugs-et-correctifs', $this->applis['clinique-rdv'], 'Clinique RDV : les rappels SMS partent deux fois', 'Depuis que la file d’attente tourne sur deux workers, certains patients reçoivent le rappel de la veille en double.', ['bug'], [
+            'erreur_obtenue' => 'Deux SMS identiques à 18:00 pour le même rendez-vous.',
+            'comportement_attendu' => 'Un seul rappel par rendez-vous, quel que soit le nombre de workers.',
+            'techno' => 'django',
+            'difficulte' => 'difficile',
+        ], 'https://github.com/soukdemo/clinique-rdv');
+        $this->messages($rappels, [
+            ['chinedu', 'Tes deux workers lisent la même ligne avant que l’un d’eux la marque « envoyé ». Un `select_for_update(skip_locked=True)` réglerait ça.'],
+        ]);
+
+        // Questions et partages par pays.
+        $orange = $this->discussion('mariam', 'senegal', null, 'Orange Money Sénégal : quelle API pour un compte marchand ?', 'Pour une clinique à Thiès : vous passez par l’API Orange directement, ou par un agrégateur ? Les délais d’ouverture de compte m’inquiètent.', ['question']);
+        $this->messages($orange, [
+            ['fatou', 'Agrégateur pour démarrer : ouvert en une semaine. L’API Orange directe a pris deux mois chez nous.'],
+        ]);
+        $this->discussion('yao', 'cote-d-ivoire', null, 'Abidjan : MongoDB Atlas ou base sur le serveur ?', 'Atlas en Europe ajoute 120 ms à chaque requête depuis Abidjan. Quelqu’un héberge sa base au plus près ?', ['question']);
+        $this->discussion('kofi', 'togo', null, 'Tuto : une appli React rapide en 3G, mes 5 règles', "1. Moins de 150 Ko de JavaScript au premier écran.\n2. Images en WebP, dimensions fixées.\n3. Un squelette plutôt qu’un écran blanc.\n4. Rien de bloquant avant le premier rendu.\n5. Tester sur un vrai téléphone, en 3G.", ['tuto']);
     }
 
     /**
@@ -435,6 +488,36 @@ class DemoSeeder extends Seeder
             'type' => 'presentiel',
             'lieu' => 'Jokkolabs, Dakar',
         ]);
+
+        // Un calendrier vivant pour le jury : à venir (inscriptions ouvertes) et passés (avis).
+        $evenements = [
+            ['kofi', 'Live : une appli React rapide en 3G', 'Une heure de démonstration en direct : mesurer, alléger le premier écran, tester sur un vrai téléphone.', 4, 20, 'en_ligne', null, ['awa', 'yao', 'fatou']],
+            ['yao', 'Atelier Wave et Orange Money à Abidjan', 'Intégrer Wave et Orange Money dans une appli scolaire : webhooks, signatures, remboursements.', 7, 10, 'presentiel', 'Orange Digital Center, Abidjan', ['kofi', 'mariam']],
+            ['mariam', 'Données de santé : des tableaux de bord pour les cliniques', 'Construire avec Django et PostgreSQL les indicateurs dont une clinique a besoin chaque matin.', 18, 17, 'presentiel', 'Impact Hub, Dakar', ['fatou', 'chinedu']],
+            ['awa', 'Meetup Laravel Cotonou #5', 'Files d’attente, tests et déploiement sur Souk.dev : trois retours d’expérience de devs béninois.', 21, 18, 'presentiel', 'Sèmè City, Cotonou', ['kofi', 'chinedu', 'yao', 'mariam']],
+            ['chinedu', 'Docker pour débuter : du docker-compose à la mise en ligne', 'Écrire un docker-compose.yml propre, puis publier son appli sur Souk.dev sans serveur à gérer.', -25, 19, 'en_ligne', null, ['awa', 'fatou', 'yao']],
+        ];
+
+        foreach ($evenements as [$auteur, $titre, $description, $jours, $heure, $type, $lieu, $inscrits]) {
+            $evenement = Evenement::query()->create([
+                'user_id' => $this->comptes[$auteur]->id,
+                'titre' => $titre,
+                'description' => $description,
+                'date' => now()->addDays($jours)->setTime($heure, 0),
+                'type' => $type,
+                'lieu' => $lieu,
+                'lien' => $type === 'en_ligne' ? 'https://meet.example.com/souk-'.Str::slug($titre) : null,
+            ]);
+
+            foreach ($inscrits as $cle) {
+                $evenement->inscriptions()->create(['user_id' => $this->comptes[$cle]->id]);
+            }
+
+            if ($jours < 0) {
+                $evenement->avis()->create(['user_id' => $this->comptes['awa']->id, 'note' => 5, 'commentaire' => 'Enfin un docker-compose que je comprends ligne par ligne.']);
+                $evenement->avis()->create(['user_id' => $this->comptes['yao']->id, 'note' => 4, 'commentaire' => 'Clair et pratique ; une suite sur les sauvegardes serait parfaite.']);
+            }
+        }
     }
 
     private function creerMissions(): void
