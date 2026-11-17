@@ -155,6 +155,9 @@ class AppServiceProvider extends ServiceProvider
         // Un canal s'affiche chez tout le monde : 3 créations par jour et par compte.
         RateLimiter::for('canaux', fn (Request $request) => Limit::perDay(3)->by((string) $request->user()?->getAuthIdentifier()));
 
+        // Pages vues : un visiteur réel n'en signale pas plus d'une par seconde en moyenne.
+        RateLimiter::for('visites', fn (Request $request) => Limit::perMinute(60)->by((string) $request->ip()));
+
         // Invitations : 10 par jour, pour qu'un compte ne sollicite pas toute la communauté.
         RateLimiter::for('invitations', fn (Request $request) => Limit::perDay(10)->by((string) $request->user()?->getAuthIdentifier()));
         RateLimiter::for('messages-prives', fn (Request $request) => Limit::perMinute(30)->by((string) $request->user()?->getAuthIdentifier()));

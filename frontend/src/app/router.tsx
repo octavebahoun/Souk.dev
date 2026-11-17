@@ -65,6 +65,7 @@ export function creerRoutes(): RouteObject[] {
               { path: '/revenus', lazy: async () => ({ Component: (await import('../features/revenus/MesRevenus')).MesRevenus }) },
               { path: '/notifications', lazy: async () => ({ Component: (await import('../features/notifications/PageNotifications')).PageNotifications }) },
               { path: '/notifications/reglages', lazy: async () => ({ Component: (await import('../features/notifications/ReglagesNotifications')).ReglagesNotifications }) },
+              { path: '/admin/audience', lazy: async () => ({ Component: (await import('../features/admin/Audience')).Audience }) },
               { path: '/admin/finances', lazy: async () => ({ Component: (await import('../features/admin/Finances')).Finances }) },
               { path: '/admin/serveurs', lazy: async () => ({ Component: (await import('../features/admin/Serveurs')).Serveurs }) },
               { path: '/admin/moderation', lazy: async () => ({ Component: (await import('../features/admin/Moderation')).Moderation }) },

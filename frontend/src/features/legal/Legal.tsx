@@ -129,7 +129,8 @@ export function Confidentialite() {
           'compte : nom, e-mail, identifiant GitHub et avatar quand GitHub est lié, pays et bio déclarés ;',
           'paiement : factures, références de transaction ; jamais les codes Mobile Money ni les numéros de carte, qui restent chez le prestataire ;',
           'reversement : pays, réseau et numéro Mobile Money du développeur, chiffrés ;',
-          'technique : journaux de connexion et d’erreur, sans clé ni mot de passe, numéros tronqués.',
+          'technique : journaux de connexion et d’erreur, sans clé ni mot de passe, numéros tronqués ;',
+          'mesure d’audience, sans cookie : la page vue, le site d’où vous venez, un pays estimé d’après le fuseau horaire et le type d’appareil. Votre adresse IP n’est pas gardée ; un visiteur n’est reconnu que le jour même. Gardée 13 mois.',
         ]}
       />
       <Titre>2. Usage</Titre>

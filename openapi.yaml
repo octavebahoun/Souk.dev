@@ -28,6 +28,7 @@ tags:
   - name: Discussions
   - name: Correctifs
   - name: Conversations
+  - name: Audience
   - name: Missions
   - name: Événements
   - name: Paiements
@@ -714,6 +715,25 @@ paths:
               schema:
                 type: array
                 items: { $ref: '#/components/schemas/Categorie' }
+
+  /visites:
+    post:
+      tags: [Audience]
+      operationId: signalerVisite
+      summary: Signaler une page vue (mesure d'audience sans cookie)
+      description: |
+        Envoyé par le front à chaque page, en text/plain (requête simple, sans prévol CORS) et sans
+        jeton CSRF. Ni adresse IP ni compte ne sont gardés : le visiteur est une empreinte qui change
+        chaque jour. Les robots et les comptes de l'équipe ne sont pas comptés. Toujours 204.
+      security: []
+      requestBody:
+        required: true
+        content:
+          text/plain:
+            schema: { $ref: '#/components/schemas/VisiteSignalee' }
+      responses:
+        '204': { description: Reçu }
+        '429': { $ref: '#/components/responses/TropDeRequetes' }
 
   /demo/comptes:
     get:
@@ -2311,6 +2331,25 @@ paths:
                 items: { $ref: '#/components/schemas/ReseauMobileMoney' }
 
   # ───────────── Administration (finances) ─────────────
+  /admin/visites:
+    get:
+      tags: [Audience]
+      operationId: resumeAudience
+      summary: Audience du site (équipe) sur 7, 30 ou 90 jours
+      parameters:
+        - name: jours
+          in: query
+          schema: { type: integer, enum: [7, 30, 90], default: 30 }
+      responses:
+        '200':
+          description: Visiteurs par jour, pages vues et classements
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ResumeAudience' }
+        '401': { $ref: '#/components/responses/NonConnecte' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '422': { $ref: '#/components/responses/Invalide' }
+
   /admin/finances:
     get:
       tags: [Administration]
@@ -3775,6 +3814,58 @@ components:
         non_lus: { type: integer, description: Messages de l'autre arrivés depuis ma dernière lecture }
         cree_le: { type: string, format: date-time }
         maj_le: { type: string, format: date-time }
+
+    VisiteSignalee:
+      type: object
+      required: [chemin]
+      properties:
+        chemin: { type: string, description: 'Chemin de la page (/store/12) ; paramètres ignorés' }
+        referent: { type: [string, 'null'], description: 'document.referrer à la première page ; seul le nom du site est gardé' }
+        source: { type: [string, 'null'], description: utm_source du lien d'arrivée }
+        fuseau: { type: [string, 'null'], description: 'Fuseau horaire du navigateur (Africa/Porto-Novo), pour estimer le pays' }
+        langue: { type: [string, 'null'], description: 'Langue du navigateur (fr-BJ)' }
+        largeur: { type: [integer, 'null'], description: "Largeur de l'écran, pour le type d'appareil" }
+
+    LigneAudience:
+      type: object
+      required: [nom, visiteurs, pages]
+      properties:
+        nom: { type: string }
+        visiteurs: { type: integer, description: 'Visiteurs distincts par jour, additionnés' }
+        pages: { type: integer }
+
+    ResumeAudience:
+      type: object
+      required: [jours, aujourdhui, periode, par_jour, pages, sources, campagnes, pays, appareils, depuis]
+      properties:
+        jours: { type: integer }
+        depuis: { type: string, format: date }
+        aujourdhui:
+          type: object
+          required: [visiteurs, pages]
+          properties:
+            visiteurs: { type: integer }
+            pages: { type: integer }
+        periode:
+          type: object
+          required: [visiteurs, pages]
+          properties:
+            visiteurs: { type: integer, description: 'Somme des visiteurs de chaque jour (un même visiteur sur trois jours compte trois fois)' }
+            pages: { type: integer }
+        par_jour:
+          type: array
+          items:
+            type: object
+            required: [jour, visiteurs, pages]
+            properties:
+              jour: { type: string, format: date }
+              visiteurs: { type: integer }
+              pages: { type: integer }
+        pages: { type: array, items: { $ref: '#/components/schemas/LigneAudience' } }
+        sources: { type: array, items: { $ref: '#/components/schemas/LigneAudience' }, description: Sites d'où viennent les visiteurs }
+        campagnes: { type: array, items: { $ref: '#/components/schemas/LigneAudience' }, description: utm_source des liens partagés }
+        pays: { type: array, items: { $ref: '#/components/schemas/LigneAudience' }, description: 'Pays estimé (code ISO)' }
+        appareils: { type: array, items: { $ref: '#/components/schemas/LigneAudience' }, description: 'mobile, tablette, ordinateur, inconnu' }
 
     CompteDemo:
       type: object

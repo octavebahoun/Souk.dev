@@ -7,6 +7,7 @@ import { EnTeteSite } from './EnTeteSite'
 import { PiedDePage } from './PiedDePage'
 import { useCompte } from './compte'
 import { prendreRetour } from './retour'
+import { useMesureAudience } from './audience'
 
 /**
  * Coquille des pages : lien d'évitement, bandeau hors ligne, en-tête, contenu, pied de page,
@@ -16,6 +17,7 @@ export function Layout({ avecPied = true }: { avecPied?: boolean }) {
   const { data: compte } = useCompte()
   const { pathname } = useLocation()
   const naviguer = useNavigate()
+  useMesureAudience()
 
   // La connexion ramène sur le Store ou l'Échange : si la personne venait d'ailleurs (une
   // commande en cours, un correctif à proposer), elle y retourne.

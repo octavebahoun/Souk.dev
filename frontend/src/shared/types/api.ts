@@ -418,6 +418,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/visites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Signaler une page vue (mesure d'audience sans cookie)
+         * @description Envoyé par le front à chaque page, en text/plain (requête simple, sans prévol CORS) et sans
+         *     jeton CSRF. Ni adresse IP ni compte ne sont gardés : le visiteur est une empreinte qui change
+         *     chaque jour. Les robots et les comptes de l'équipe ne sont pas comptés. Toujours 204.
+         */
+        post: operations["signalerVisite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/demo/comptes": {
         parameters: {
             query?: never;
@@ -1442,6 +1464,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/visites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Audience du site (équipe) sur 7, 30 ou 90 jours */
+        get: operations["resumeAudience"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/finances": {
         parameters: {
             query?: never;
@@ -2428,6 +2467,55 @@ export interface components {
             cree_le: string;
             /** Format: date-time */
             maj_le: string;
+        };
+        VisiteSignalee: {
+            /** @description Chemin de la page (/store/12) ; paramètres ignorés */
+            chemin: string;
+            /** @description document.referrer à la première page ; seul le nom du site est gardé */
+            referent?: string | null;
+            /** @description utm_source du lien d'arrivée */
+            source?: string | null;
+            /** @description Fuseau horaire du navigateur (Africa/Porto-Novo), pour estimer le pays */
+            fuseau?: string | null;
+            /** @description Langue du navigateur (fr-BJ) */
+            langue?: string | null;
+            /** @description Largeur de l'écran, pour le type d'appareil */
+            largeur?: number | null;
+        };
+        LigneAudience: {
+            nom: string;
+            /** @description Visiteurs distincts par jour, additionnés */
+            visiteurs: number;
+            pages: number;
+        };
+        ResumeAudience: {
+            jours: number;
+            /** Format: date */
+            depuis: string;
+            aujourdhui: {
+                visiteurs: number;
+                pages: number;
+            };
+            periode: {
+                /** @description Somme des visiteurs de chaque jour (un même visiteur sur trois jours compte trois fois) */
+                visiteurs: number;
+                pages: number;
+            };
+            par_jour: {
+                /** Format: date */
+                jour: string;
+                visiteurs: number;
+                pages: number;
+            }[];
+            pages: components["schemas"]["LigneAudience"][];
+            /** @description Sites d'où viennent les visiteurs */
+            sources: components["schemas"]["LigneAudience"][];
+            /** @description utm_source des liens partagés */
+            campagnes: components["schemas"]["LigneAudience"][];
+            /** @description Pays estimé (code ISO) */
+            pays: components["schemas"]["LigneAudience"][];
+            /** @description mobile, tablette, ordinateur, inconnu */
+            appareils: components["schemas"]["LigneAudience"][];
         };
         CompteDemo: {
             username: string;
@@ -3992,6 +4080,29 @@ export interface operations {
                     "application/json": components["schemas"]["Categorie"][];
                 };
             };
+        };
+    };
+    signalerVisite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "text/plain": components["schemas"]["VisiteSignalee"];
+            };
+        };
+        responses: {
+            /** @description Reçu */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            429: components["responses"]["TropDeRequetes"];
         };
     };
     listComptesDemo: {
@@ -6136,6 +6247,31 @@ export interface operations {
                     "application/json": components["schemas"]["ReseauMobileMoney"][];
                 };
             };
+        };
+    };
+    resumeAudience: {
+        parameters: {
+            query?: {
+                jours?: 7 | 30 | 90;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Visiteurs par jour, pages vues et classements */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResumeAudience"];
+                };
+            };
+            401: components["responses"]["NonConnecte"];
+            403: components["responses"]["Interdit"];
+            422: components["responses"]["Invalide"];
         };
     };
     getFinancesAdmin: {

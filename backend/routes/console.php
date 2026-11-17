@@ -18,6 +18,7 @@ use App\Models\AnalyseIa;
 use App\Models\CleIdempotence;
 use App\Models\CodeConnexion;
 use App\Models\Deploiement;
+use App\Models\Visite;
 use App\Moteur\SauvegardeVolumes;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -38,6 +39,8 @@ Schedule::job(new SurveillerProcesseur)->everyFiveMinutes()->withoutOverlapping(
 // Sécurité avant publication : restes d'analyses interrompues chaque heure ; chaque semaine, toutes
 // les applis sont réanalysées (la base des failles grandit) ; chaque nuit, celles jamais analysées.
 Schedule::job(new NettoyerAnalyses)->hourly()->name('analyses-nettoyage');
+// Mesure d'audience : 13 mois gardés, puis effacés (comme le recommandent les autorités de protection des données).
+Schedule::call(fn () => Visite::query()->where('created_at', '<', now()->subMonths(13))->delete())->dailyAt('03:30')->name('audience-purge');
 Schedule::command('securite:analyser --toutes')->weeklyOn(0, '04:00')->name('securite-hebdomadaire');
 Schedule::command('securite:analyser')->dailyAt('04:30')->name('securite-oubliees');
 

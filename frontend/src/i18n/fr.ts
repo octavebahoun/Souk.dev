@@ -70,6 +70,7 @@ export const fr = {
     moderation: 'Modération',
     missions: 'Missions',
     messages: 'Messages',
+    audience: 'Audience',
     parametres: 'Paramètres',
     monProfil: 'Mon profil',
     administration: 'Administration',

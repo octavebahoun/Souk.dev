@@ -30,6 +30,7 @@ use App\Http\Controllers\SauvegardeController;
 use App\Http\Controllers\SignalementController;
 use App\Http\Controllers\TechnoController;
 use App\Http\Controllers\VersionController;
+use App\Http\Controllers\VisiteController;
 use App\Http\Controllers\WebhookSasPayController;
 use Illuminate\Support\Facades\Route;
 
@@ -49,6 +50,8 @@ Route::get('/apps/{appli}/versions', [VersionController::class, 'index']);
 Route::post('/copies/{cle}/auth/code', [ConnexionUtilisateurFinalController::class, 'code']);
 Route::post('/copies/{cle}/auth/session', [ConnexionUtilisateurFinalController::class, 'session']);
 Route::get('/categories', [AppliController::class, 'categories']);
+// Mesure d'audience sans cookie (le front signale chaque page vue ; voir App\Audience\Mesure).
+Route::post('/visites', [VisiteController::class, 'store'])->middleware('throttle:visites');
 // Comptes de démo que le site propose au jury (404 quand la connexion de démo est fermée).
 Route::get('/demo/comptes', [DemoController::class, 'comptes']);
 // Session éventuelle : le compte connecté, ou null pour un visiteur (200 dans les deux cas : une
@@ -133,6 +136,7 @@ Route::middleware(['auth:sanctum', 'compte.actif'])->group(function (): void {
     // Administration : finances (grand livre), avoirs, reversements, rapprochements.
     Route::prefix('admin')->middleware('administrateur')->group(function (): void {
         Route::get('/finances', [AdminFinancesController::class, 'finances']);
+        Route::get('/visites', [VisiteController::class, 'resume']);
         Route::get('/factures', [AdminFinancesController::class, 'factures']);
         Route::post('/factures/{facture}/avoir', [AdminFinancesController::class, 'avoir'])->middleware('idempotence:obligatoire');
         Route::post('/paiements/{paiement}/remboursement', [AdminFinancesController::class, 'rembourserTropPercu'])->middleware('idempotence:obligatoire');

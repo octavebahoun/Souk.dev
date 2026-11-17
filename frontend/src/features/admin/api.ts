@@ -124,3 +124,12 @@ export async function supprimerCanal(slug: string): Promise<void> {
   await preparerCsrf()
   await clientLocal.delete(cheminLaravel(`/admin/canaux/${slug}`))
 }
+
+export type ResumeAudience = Schemas['ResumeAudience']
+export type LigneAudience = Schemas['LigneAudience']
+
+/** Audience du site (équipe) : visiteurs par jour, pages, sources, pays, appareils. */
+export async function lireAudience(jours: 7 | 30 | 90): Promise<ResumeAudience> {
+  const { data } = await clientLocal.get<ResumeAudience>(cheminLaravel('/admin/visites'), { params: { jours } })
+  return data
+}

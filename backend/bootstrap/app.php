@@ -47,6 +47,9 @@ return Application::configure(basePath: dirname(__DIR__))
         HandleCors::skipWhen(fn (Request $request) => $request->is('api/copies/*'));
         $middleware->prepend(CorsCopies::class);
         $middleware->statefulApi();
+        // Mesure d'audience : une page vue envoyée en fin de page (keepalive), sans jeton CSRF ;
+        // elle n'écrit qu'une ligne anonyme et sa limite de débit la protège.
+        $middleware->validateCsrfTokens(except: ['api/visites']);
         // Pas de page de connexion côté API : un visiteur reçoit 401 en JSON, même sans
         // Accept: application/json (sinon Laravel cherche une route « login » et répond 500).
         $middleware->redirectGuestsTo(fn (Request $request) => $request->is('api/*', 'broadcasting/*')

@@ -42,6 +42,8 @@
   --color-primaire-doux-survol: #dce8fd;
   --color-sur-primaire-doux: #0f56be;
   --color-lien: #0c60f7;
+  /* Barres des graphiques (une seule série), validées contre la surface de chaque thème. */
+  --color-serie: #0c60f7;
   --color-vert-marque: #0ccf87;
   --color-succes: #067647;
   --color-succes-solide: #12b76a;
@@ -160,6 +162,8 @@
   --color-primaire-doux-survol: #1d3263;
   --color-sur-primaire-doux: #8db8ff;
   --color-lien: #6ea8ff;
+  /* Barres des graphiques (une seule série), validées contre la surface de chaque thème. */
+  --color-serie: #4b8df8;
   --color-succes: #47cd89;
   --color-fond-succes: #0e2a1e;
   --color-bordure-succes: #1c5a3d;
