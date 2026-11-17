@@ -1,9 +1,10 @@
 import { useCallback, useState, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useSearchParams } from 'react-router'
-import { Plus, Star } from 'lucide-react'
+import { ArrowRight, BookOpen, Bug, CalendarDays, CircleHelp, GitPullRequestArrow, Mail, Plus, Rocket, Star, Users } from 'lucide-react'
 import { useTitrePage } from '../../app/titre'
-import { listerCanaux, listerDiscussions, listerEtiquettes, messageAction, suivreCanal, type Canal, type Discussion } from './api'
+import { listerCanaux, listerDiscussions, messageAction, suivreCanal, type Canal, type Discussion, type Etiquette } from './api'
+import { listerDevs, listerEvenements } from '../catalogue/api'
 import { CarteDiscussion } from './CarteDiscussion'
 import { nomPays } from './texte'
 import { FormulaireDiscussion } from './FormulaireDiscussion'
@@ -13,16 +14,19 @@ import { libelleDifficulte } from './presentation'
 import { useBandeau } from './tempsReel'
 import { useCompte, useSelonCompte } from '../../app/compte'
 import { ModaleConnexion } from '../../app/ModaleConnexion'
-import { AvisDonneesPartielles, Bouton, Champ, ChoixPastilles, EnTetePage, EtatErreur, EtatVide, Liste, Modale, Pagination, PuceFiltre, SqueletteListe, cx, useToast } from '../../ui'
+import { Avatar, AvisDonneesPartielles, Bouton, Carte, Champ, ChoixPastilles, EnTetePage, EtatErreur, EtatVide, Liste, Modale, Onglets, Pagination, PuceFiltre, Squelette, SqueletteListe, cx, formaterDate, useToast } from '../../ui'
 
 function phraseCompte(total: number, filtres: boolean): string {
   const mot = total > 1 ? 'discussions' : 'discussion'
   return `${total} ${mot}${filtres ? ' pour ces filtres' : ''}`
 }
 
+type OngletFil = 'pour_moi' | 'tout' | 'bugs' | 'question' | 'projet' | 'tuto'
+
 /**
- * Échange : le fil des discussions. Canaux à gauche (liste sur mobile), filtres par étiquette,
- * statut et difficulté, nouvelles discussions annoncées en direct sans bouger la lecture.
+ * Échange : le fil des discussions. Tout part d'une boîte « Sur quoi bloquez-vous ? » et de ses
+ * boutons rapides ; des onglets simples (pour moi, bugs à résoudre, questions…), les canaux à
+ * gauche et, à droite, comment ça marche, des devs disponibles et les prochains événements.
  */
 export function Fil() {
   useTitrePage('Échange', { description: 'L’espace d’entraide des devs africains : postez un bug avec votre dépôt, un autre dev propose un correctif que vous essayez avant d’accepter.' })
@@ -38,6 +42,8 @@ export function Fil() {
   const queryClient = useQueryClient()
   const selonCompte = useSelonCompte()
   const [ouverte, setOuverte] = useState(false)
+  const [etiquetteForm, setEtiquetteForm] = useState<Etiquette | undefined>(undefined)
+  const [ouvertures, setOuvertures] = useState(0)
   const [connexion, setConnexion] = useState<string | null>(null)
   const [nouveauCanal, setNouveauCanal] = useState(0)
   const [epinglees, setEpinglees] = useState<Discussion[]>([])
@@ -45,7 +51,6 @@ export function Fil() {
   const fermer = useCallback(() => setOuverte(false), [])
 
   const canaux = useQuery({ queryKey: ['canaux'], queryFn: listerCanaux })
-  const etiquettes = useQuery({ queryKey: ['etiquettes'], queryFn: listerEtiquettes })
   const discussions = useQuery({
     queryKey: ['discussions', filtres],
     queryFn: () => listerDiscussions(filtres),
@@ -76,8 +81,35 @@ export function Fil() {
   }
 
   // Publier une discussion demande un compte : un visiteur l'apprend avant de remplir le formulaire.
-  function nouvelle() {
-    void selonCompte(() => setOuverte(true), () => setConnexion('publier une discussion'))
+  function nouvelle(etiquette?: Etiquette) {
+    void selonCompte(
+      () => {
+        setEtiquetteForm(etiquette)
+        setOuvertures((nombre) => nombre + 1)
+        setOuverte(true)
+      },
+      () => setConnexion('publier une discussion'),
+    )
+  }
+
+  // Les onglets sont des filtres prêts à l'emploi : le dev n'a pas à les composer lui-même.
+  const onglet: OngletFil =
+    filtres.etiquette === 'bug' ? 'bugs' : filtres.etiquette === 'question' || filtres.etiquette === 'projet' || filtres.etiquette === 'tuto' ? filtres.etiquette : pourMoi ? 'pour_moi' : 'tout'
+  const onglets: { valeur: OngletFil; libelle: string }[] = [
+    ...(compte.data ? [{ valeur: 'pour_moi' as const, libelle: 'Pour moi' }] : []),
+    { valeur: 'tout', libelle: compte.data ? 'Tout' : 'Récent' },
+    { valeur: 'bugs', libelle: 'Bugs à résoudre' },
+    { valeur: 'question', libelle: 'Questions' },
+    { valeur: 'projet', libelle: 'Projets' },
+    { valeur: 'tuto', libelle: 'Tutos' },
+  ]
+
+  function choisirOnglet(valeur: OngletFil) {
+    const sans = { etiquette: undefined, statut: undefined, difficulte: undefined }
+    if (valeur === 'pour_moi') changer({ ...sans, fil: undefined })
+    else if (valeur === 'tout') changer({ ...sans, fil: 'tout' })
+    else if (valeur === 'bugs') changer({ ...sans, etiquette: 'bug', statut: 'ouvertes' })
+    else changer({ ...sans, etiquette: valeur })
   }
 
   // Le compteur remonte un formulaire vierge à chaque ouverture (0 : fermé).
@@ -133,9 +165,10 @@ export function Fil() {
     <div className="mx-auto flex w-full max-w-site flex-col gap-6 px-4 py-8 tablette:px-6 bureau:px-8">
       <EnTetePage
         titre="Échange"
-        description="Posez votre problème avec votre dépôt : d’autres devs le voient, le corrigent et vous proposent leur branche."
+        description="L’entraide entre devs africains : postez ce qui vous bloque avec votre dépôt, un autre dev propose sa branche, et vous l’essayez sur une copie avant d’accepter."
         actions={
-          <Bouton icone={<Plus aria-hidden="true" className="size-4" />} onClick={nouvelle}>
+          // Sur téléphone, la boîte « Sur quoi bloquez-vous ? » juste en dessous fait la même chose.
+          <Bouton icone={<Plus aria-hidden="true" className="size-4" />} onClick={() => nouvelle()} className="max-tablette:hidden">
             Nouvelle discussion
           </Bouton>
         }
@@ -148,69 +181,8 @@ export function Fil() {
           <h2 id="titre-fil" className="pour-lecteur">
             Discussions
           </h2>
-          {compte.data ? (
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-moyen border border-bordure bg-surface-accent p-3 tablette:px-4">
-              <ChoixPastilles
-                libelle="Fil affiché"
-                valeur={pourMoi ? 'pour_moi' : 'tout'}
-                onChange={(fil) => changer({ fil: fil === 'tout' ? 'tout' : undefined })}
-                options={[
-                  { valeur: 'pour_moi', libelle: 'Pour moi' },
-                  { valeur: 'tout', libelle: 'Tout l’Échange' },
-                ]}
-              />
-              <p className="m-0 w-full min-w-0 text-petit text-texte tablette:w-auto tablette:flex-1 tablette:text-right">
-                {pourMoi ? (
-                  <>
-                    D’abord vos canaux suivis, les bugs dans vos technos{(compte.data.competences ?? []).length > 0 ? ` (${(compte.data.competences ?? []).slice(0, 3).join(', ')})` : ''} et votre pays.{' '}
-                    <Link to="/profil" className="font-medium underline underline-offset-2">
-                      Régler mes technos
-                    </Link>
-                  </>
-                ) : (
-                  'Toutes les discussions, des plus récentes aux plus anciennes.'
-                )}
-              </p>
-            </div>
-          ) : null}
 
-          <div className="flex flex-col gap-3 rounded-moyen border border-bordure bg-surface p-3 tablette:p-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div role="group" aria-label="Étiquettes" className="flex flex-wrap gap-2">
-                {(etiquettes.data ?? []).map((etiquette) => (
-                  <PuceFiltre key={etiquette} presse={filtres.etiquette === etiquette} onClick={() => changer({ etiquette: filtres.etiquette === etiquette ? undefined : etiquette })}>
-                    {etiquette}
-                  </PuceFiltre>
-                ))}
-              </div>
-              <ChoixPastilles
-                libelle="Statut"
-                valeur={filtres.statut ?? 'toutes'}
-                onChange={(statut) => changer({ statut: statut === 'toutes' ? undefined : statut })}
-                options={[
-                  { valeur: 'toutes', libelle: 'Toutes' },
-                  { valeur: 'ouvertes', libelle: 'Ouvertes' },
-                  { valeur: 'resolues', libelle: 'Résolues' },
-                ]}
-              />
-            </div>
-            {filtres.etiquette === 'bug' || filtres.difficulte ? (
-            <div role="group" aria-labelledby="t-difficulte" className="flex flex-wrap items-center gap-2 border-t border-bordure pt-3">
-              <span id="t-difficulte" className="mr-1 text-petit font-medium text-titre">
-                Difficulté du bug
-              </span>
-              {(['facile', 'moyen', 'difficile'] as const).map((difficulte) => (
-                <PuceFiltre key={difficulte} presse={filtres.difficulte === difficulte} onClick={() => changer({ difficulte: filtres.difficulte === difficulte ? undefined : difficulte })}>
-                  {libelleDifficulte[difficulte]}
-                </PuceFiltre>
-              ))}
-            </div>
-            ) : null}
-          </div>
-
-          {canaux.isError || etiquettes.isError ? (
-            <AvisDonneesPartielles>Les canaux ou les étiquettes n’ont pas pu être chargés : les filtres sont incomplets, les discussions restent lisibles.</AvisDonneesPartielles>
-          ) : null}
+          <Composeur nom={compte.data?.nom ?? null} avatar={compte.data?.avatar_url ?? null} onEcrire={nouvelle} />
 
           {bandeau.nombre > 0 ? (
             <Bouton variante="secondaire" pleineLargeur onClick={montrerNouvelles}>
@@ -218,59 +190,109 @@ export function Fil() {
             </Bouton>
           ) : null}
 
-          <div className="flex min-h-11 flex-wrap items-center justify-between gap-2">
-            <p role="status" className="m-0 text-petit text-texte-doux">
-              {liste ? phraseCompte(Math.max(liste.meta.total, lignes.length), actifs) : null}
-            </p>
-            {actifs ? (
-              <Bouton variante="fantome" taille="sm" onClick={() => setParams({})}>
-                Effacer les filtres
-              </Bouton>
-            ) : null}
-          </div>
+          <Onglets libelle="Fil de l’Échange" valeur={onglet} onChange={choisirOnglet} onglets={onglets}>
+            <div className="flex flex-col gap-4 pt-4">
+              {onglet === 'pour_moi' ? (
+                <p className="m-0 text-petit text-texte">
+                  D’abord vos canaux suivis (étoile à côté d’un canal), les bugs dans vos technos{(compte.data?.competences ?? []).length > 0 ? ` (${(compte.data?.competences ?? []).slice(0, 3).join(', ')})` : ''} et votre pays.{' '}
+                  <Link to="/profil" className="font-medium underline underline-offset-2">
+                    Régler mes technos
+                  </Link>
+                </p>
+              ) : null}
 
-          {discussions.isPending ? <SqueletteListe nombre={4} /> : null}
-          {discussions.isError ? (
-            <EtatErreur description={messageAction(discussions.error, 'Les discussions n’ont pas pu être chargées.')} onReessayer={() => void discussions.refetch()} />
-          ) : null}
-          {discussions.isSuccess && lignes.length === 0 ? (
-            <EtatVide
-              illustration="vide-discussions"
-              titre="Aucune discussion pour ces filtres"
-              description="Changez de canal ou d’étiquette, ou lancez la première discussion."
-              action={
-                actifs ? (
-                  <Bouton variante="contour" onClick={() => setParams({})}>
-                    Effacer les filtres
-                  </Bouton>
-                ) : (
-                  <Bouton onClick={nouvelle}>Nouvelle discussion</Bouton>
-                )
-              }
-            />
-          ) : null}
-          {lignes.length > 0 ? (
-            <ol className="m-0 flex list-none flex-col gap-3 p-0">
-              {lignes.map((discussion, index) => (
-                <CarteDiscussion
-                  key={discussion.id}
-                  discussion={discussion}
-                  delai={Math.min(index, 11) * 50}
-                  nouvelle={visibles.some((item) => item.id === discussion.id)}
-                  raison={raisonPour(discussion)}
-                  onPartager={(item) => void partager(item)}
+              {onglet === 'bugs' ? (
+                <div role="group" aria-labelledby="t-difficulte" className="flex flex-wrap items-center gap-2">
+                  <span id="t-difficulte" className="mr-1 text-petit font-medium text-titre">
+                    Difficulté
+                  </span>
+                  {(['facile', 'moyen', 'difficile'] as const).map((difficulte) => (
+                    <PuceFiltre key={difficulte} presse={filtres.difficulte === difficulte} onClick={() => changer({ difficulte: filtres.difficulte === difficulte ? undefined : difficulte })}>
+                      {libelleDifficulte[difficulte]}
+                    </PuceFiltre>
+                  ))}
+                </div>
+              ) : null}
+
+              {canaux.isError ? <AvisDonneesPartielles>Les canaux n’ont pas pu être chargés : les discussions restent lisibles.</AvisDonneesPartielles> : null}
+
+              <div className="flex min-h-11 flex-wrap items-center justify-between gap-2">
+                <p role="status" className="m-0 text-petit text-texte-doux">
+                  {liste ? phraseCompte(Math.max(liste.meta.total, lignes.length), actifs) : null}
+                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  {onglet !== 'bugs' ? (
+                    <ChoixPastilles
+                      libelle="Statut"
+                      valeur={filtres.statut ?? 'toutes'}
+                      onChange={(statut) => changer({ statut: statut === 'toutes' ? undefined : statut })}
+                      options={[
+                        { valeur: 'toutes', libelle: 'Toutes' },
+                        { valeur: 'ouvertes', libelle: 'Ouvertes' },
+                        { valeur: 'resolues', libelle: 'Résolues' },
+                      ]}
+                    />
+                  ) : null}
+                  {filtres.canal ? (
+                    <Bouton variante="fantome" taille="sm" onClick={() => changer({ canal: undefined })}>
+                      Tous les canaux
+                    </Bouton>
+                  ) : null}
+                </div>
+              </div>
+
+              {discussions.isPending ? <SqueletteListe nombre={4} /> : null}
+              {discussions.isError ? (
+                <EtatErreur description={messageAction(discussions.error, 'Les discussions n’ont pas pu être chargées.')} onReessayer={() => void discussions.refetch()} />
+              ) : null}
+              {discussions.isSuccess && lignes.length === 0 ? (
+                <EtatVide
+                  illustration="vide-discussions"
+                  titre={onglet === 'bugs' ? 'Aucun bug en attente ici' : 'Rien ici pour l’instant'}
+                  description={onglet === 'bugs' ? 'Tous les bugs de ce fil ont un correctif accepté. Bloqué sur le vôtre ? Postez-le.' : 'Changez d’onglet ou de canal, ou lancez la première discussion.'}
+                  action={
+                    actifs ? (
+                      <Bouton variante="contour" onClick={() => setParams({})}>
+                        Effacer les filtres
+                      </Bouton>
+                    ) : (
+                      <Bouton onClick={() => nouvelle(onglet === 'bugs' ? 'bug' : undefined)}>Nouvelle discussion</Bouton>
+                    )
+                  }
                 />
-              ))}
-            </ol>
-          ) : null}
-          {liste ? (
-            <Pagination libelle="Pages des discussions" page={liste.meta.current_page} dernierePage={liste.meta.last_page} onChange={(page) => setParams(ecrireFiltres({ ...lus, page }))} />
-          ) : null}
+              ) : null}
+              {lignes.length > 0 ? (
+                <ol className="m-0 flex list-none flex-col gap-3 p-0">
+                  {lignes.map((discussion, index) => (
+                    <CarteDiscussion
+                      key={discussion.id}
+                      discussion={discussion}
+                      delai={Math.min(index, 11) * 50}
+                      nouvelle={visibles.some((item) => item.id === discussion.id)}
+                      raison={raisonPour(discussion)}
+                      onPartager={(item) => void partager(item)}
+                    />
+                  ))}
+                </ol>
+              ) : null}
+              {liste ? (
+                <Pagination libelle="Pages des discussions" page={liste.meta.current_page} dernierePage={liste.meta.last_page} onChange={(page) => setParams(ecrireFiltres({ ...lus, page }))} />
+              ) : null}
+            </div>
+          </Onglets>
         </section>
+
+        <ColonneAide connecte={Boolean(compte.data)} moiId={compte.data?.id ?? null} />
       </div>
 
-      <Modale ouverte={ouverte} onFermer={fermer} titre="Nouvelle discussion" description="Un bug, une question, un tuto : avec votre dépôt, d’autres devs peuvent proposer un correctif." taille="grande">
-        <FormulaireDiscussion canaux={canaux.data ?? []} canalInitial={filtres.canal} onAnnuler={fermer} onPubliee={publiee} />
+      <Modale
+        ouverte={ouverte}
+        onFermer={fermer}
+        titre={etiquetteForm === 'bug' ? 'Je suis bloqué : décrivez le bug' : 'Nouvelle discussion'}
+        description="Avec votre dépôt GitHub, d’autres devs peuvent proposer un correctif, que vous essayez sur une copie avant d’accepter."
+        taille="grande"
+      >
+        <FormulaireDiscussion key={ouvertures} canaux={canaux.data ?? []} canalInitial={filtres.canal} etiquetteInitiale={etiquetteForm} onAnnuler={fermer} onPubliee={publiee} />
       </Modale>
       <Modale ouverte={nouveauCanal > 0} onFermer={() => setNouveauCanal((nombre) => -Math.abs(nombre))} titre="Créer un canal" description="Un canal regroupe les discussions d’un sujet ou d’un pays.">
         <FormulaireCanal key={Math.abs(nouveauCanal)} onAnnuler={() => setNouveauCanal((nombre) => -Math.abs(nombre))} onCree={canalCree} />
@@ -400,5 +422,144 @@ function BoutonCanal({ actif, onClick, children }: { actif: boolean; onClick: ()
     >
       {children}
     </button>
+  )
+}
+
+const raccourcis: { etiquette: Etiquette; libelle: string; icone: typeof Bug; ton: string }[] = [
+  { etiquette: 'bug', libelle: 'Je suis bloqué', icone: Bug, ton: 'text-danger' },
+  { etiquette: 'question', libelle: 'Une question', icone: CircleHelp, ton: 'text-info' },
+  { etiquette: 'projet', libelle: 'Un projet', icone: Rocket, ton: 'text-ia' },
+  { etiquette: 'tuto', libelle: 'Un tuto', icone: BookOpen, ton: 'text-succes' },
+]
+
+/** La porte d'entrée du fil : une invitation à écrire, et un bouton par intention. */
+function Composeur({ nom, avatar, onEcrire }: { nom: string | null; avatar: string | null; onEcrire: (etiquette?: Etiquette) => void }) {
+  return (
+    <Carte className="flex flex-col gap-3">
+      <div className="flex items-center gap-3">
+        <Avatar nom={nom ?? 'Vous'} url={avatar} taille="md" />
+        <button
+          type="button"
+          onClick={() => onEcrire()}
+          className="flex min-h-12 flex-1 items-center rounded-pastille border border-bordure-champ bg-surface-douce px-4 text-left text-corps text-texte-doux transition-colors duration-150 hover:border-primaire hover:text-titre"
+        >
+          Sur quoi bloquez-vous ? Un bug, une question, un projet…
+        </button>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {raccourcis.map(({ etiquette, libelle, icone: Icone, ton }) => (
+          <button
+            key={etiquette}
+            type="button"
+            onClick={() => onEcrire(etiquette)}
+            className="inline-flex min-h-11 items-center gap-2 rounded-pastille border border-bordure px-3.5 text-petit font-medium text-titre transition-colors duration-150 hover:border-bordure-champ hover:bg-surface-douce tablette:min-h-10"
+          >
+            <Icone aria-hidden="true" className={cx('size-4', ton)} />
+            {libelle}
+          </button>
+        ))}
+      </div>
+    </Carte>
+  )
+}
+
+const etapesEchange = [
+  { titre: 'Postez ce qui bloque', texte: 'L’erreur, ce que vous attendiez, et le lien de votre dépôt GitHub.' },
+  { titre: 'Un dev propose sa branche', texte: 'Il corrige dans son fork et vous envoie l’adresse de la branche.' },
+  { titre: 'Essayez, puis acceptez', texte: 'Lancez la version corrigée sur une copie de test, avant d’accepter.' },
+]
+
+/** Colonne de droite (grands écrans) : le mode d'emploi, des devs prêts à aider, ce qui se prépare. */
+function ColonneAide({ connecte, moiId }: { connecte: boolean; moiId: number | null }) {
+  const devs = useQuery({ queryKey: ['devs', 'disponibles'], queryFn: () => listerDevs({ disponible: 'true' }), staleTime: 60_000 })
+  const evenements = useQuery({ queryKey: ['evenements', 1], queryFn: () => listerEvenements(1), staleTime: 60_000 })
+  const [maintenant] = useState(() => Date.now())
+  const prochains = (evenements.data?.data ?? [])
+    .filter((evenement) => new Date(evenement.date).getTime() >= maintenant)
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    .slice(0, 3)
+
+  return (
+    <aside aria-label="Aide et communauté" className="hidden w-76 shrink-0 flex-col gap-4 min-[90rem]:sticky min-[90rem]:top-24 min-[90rem]:flex">
+      <Carte className="flex flex-col gap-3">
+        <h2 className="m-0 flex items-center gap-2 text-corps font-semibold text-titre">
+          <GitPullRequestArrow aria-hidden="true" className="size-4 text-sur-primaire-doux" />
+          Comment ça marche
+        </h2>
+        <ol className="m-0 flex list-none flex-col gap-3 p-0">
+          {etapesEchange.map((etape, index) => (
+            <li key={etape.titre} className="flex gap-3">
+              <span aria-hidden="true" className="chiffres grid size-6 shrink-0 place-items-center rounded-pastille bg-surface-accent text-petit font-semibold text-sur-primaire-doux">
+                {index + 1}
+              </span>
+              <span className="flex flex-col">
+                <span className="text-petit font-medium text-titre">{etape.titre}</span>
+                <span className="text-petit text-texte-doux">{etape.texte}</span>
+              </span>
+            </li>
+          ))}
+        </ol>
+      </Carte>
+
+      <Carte className="flex flex-col gap-3">
+        <h2 className="m-0 flex items-center gap-2 text-corps font-semibold text-titre">
+          <Users aria-hidden="true" className="size-4 text-sur-primaire-doux" />
+          Devs disponibles
+        </h2>
+        {devs.isPending ? <Squelette className="h-24 rounded-moyen" /> : null}
+        <ul className="m-0 flex list-none flex-col gap-2.5 p-0">
+          {(devs.data?.data ?? []).filter((dev) => dev.id !== moiId).slice(0, 4).map((dev) => (
+            <li key={dev.id}>
+              <Link to={`/devs/${dev.username}`} className="flex items-center gap-2.5 rounded-moyen no-underline hover:bg-surface-douce">
+                <Avatar nom={dev.nom || dev.username || 'Dev'} url={dev.avatar_url} taille="sm" />
+                <span className="flex min-w-0 flex-col leading-tight">
+                  <span className="truncate text-petit font-medium text-titre">{dev.nom || dev.username}</span>
+                  <span className="truncate text-petit text-texte-doux">
+                    {[dev.pays ? nomPays(dev.pays) : null, ...(dev.competences ?? []).slice(0, 2)].filter(Boolean).join(' · ')}
+                  </span>
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+        <p className="m-0 text-petit text-texte-doux">
+          {connecte ? (
+            <>
+              Depuis son profil, invitez un dev à échanger en privé.{' '}
+              <Link to="/messages" className="inline-flex items-center gap-1 font-medium">
+                <Mail aria-hidden="true" className="size-3.5" />
+                Mes messages
+              </Link>
+            </>
+          ) : (
+            'Connecté, vous pouvez inviter un dev à échanger en privé.'
+          )}
+        </p>
+        <Link to="/devs" className="inline-flex items-center gap-1 text-petit font-medium">
+          Trouver un dev <ArrowRight aria-hidden="true" className="size-3.5" />
+        </Link>
+      </Carte>
+
+      {prochains.length > 0 ? (
+        <Carte className="flex flex-col gap-3">
+          <h2 className="m-0 flex items-center gap-2 text-corps font-semibold text-titre">
+            <CalendarDays aria-hidden="true" className="size-4 text-sur-primaire-doux" />
+            Prochains événements
+          </h2>
+          <ul className="m-0 flex list-none flex-col gap-2.5 p-0">
+            {prochains.map((evenement) => (
+              <li key={evenement.id} className="flex flex-col">
+                <Link to="/evenements" className="text-petit font-medium text-titre no-underline hover:underline">
+                  {evenement.titre}
+                </Link>
+                <span className="text-petit text-texte-doux">
+                  {formaterDate(evenement.date)} · {evenement.type === 'en_ligne' ? 'En ligne' : evenement.lieu}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Carte>
+      ) : null}
+    </aside>
   )
 }

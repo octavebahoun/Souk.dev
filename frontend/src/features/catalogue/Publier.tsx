@@ -1,5 +1,5 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
-import { useNavigate } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import { Check, ImagePlus, ShieldCheck } from 'lucide-react'
 import type { components } from '../../shared/types/api'
 import { useTitrePage } from '../../app/titre'
@@ -133,7 +133,18 @@ export function Publier() {
 
       <div className="grid gap-6 bureau:grid-cols-[minmax(0,1fr)_18rem] bureau:items-start">
         <form onSubmit={(evenement) => void envoyer(evenement)} className="flex min-w-0 flex-col gap-5" noValidate>
-          <Etape numero={1} titre="Le dépôt GitHub" fait={etapes.depot} description="Un dépôt public, avec un docker-compose.yml et un soukdev.json à la racine.">
+          <Etape
+            numero={1}
+            titre="Le dépôt GitHub"
+            fait={etapes.depot}
+            description={
+              <>
+                Collez l’adresse de votre dépôt GitHub public. S’il lui manque les fichiers dont Souk.dev a besoin, on vous les prépare.
+                Votre appli a besoin d’une base de données ? Souk.dev peut la fournir :{' '}
+                <Link to="/backend-integre">voir le backend intégré</Link>.
+              </>
+            }
+          >
             <div className="flex flex-col gap-3 tablette:flex-row tablette:items-end">
               <Champ libelle="Adresse du dépôt" erreur={erreurDepot ?? champs.depot_url} className="flex-1">
                 {(liaison) => (
@@ -362,7 +373,7 @@ export function Publier() {
   )
 }
 
-function Etape({ numero, titre, description, fait, children }: { numero: number; titre: string; description?: string; fait: boolean; children: ReactNode }) {
+function Etape({ numero, titre, description, fait, children }: { numero: number; titre: string; description?: ReactNode; fait: boolean; children: ReactNode }) {
   return (
     <Carte as="section" aria-labelledby={`etape-${numero}`} className="flex flex-col gap-4">
       <div className="flex items-start gap-3">

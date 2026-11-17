@@ -68,7 +68,8 @@
   --color-bordure-ia: #ddd3ff;
   --color-voile: rgb(13 7 51 / 0.48);
 
-  /* Typographie (taille, interligne, graisse, approche). */
+  /* Typographie (taille, interligne, graisse, approche). Corps à 16 px, petit texte à 14 px :
+     lisible sur un téléphone d'entrée de gamme. */
   --text-affiche: 3.5rem;
   --text-affiche--line-height: 3.75rem;
   --text-affiche--letter-spacing: -0.03em;
@@ -77,28 +78,28 @@
   --text-titre-1--line-height: 2.5rem;
   --text-titre-1--letter-spacing: -0.02em;
   --text-titre-1--font-weight: 600;
-  --text-titre-2: 1.5rem;
-  --text-titre-2--line-height: 2rem;
+  --text-titre-2: 1.625rem;
+  --text-titre-2--line-height: 2.125rem;
   --text-titre-2--letter-spacing: -0.015em;
   --text-titre-2--font-weight: 600;
-  --text-titre-3: 1.125rem;
-  --text-titre-3--line-height: 1.625rem;
+  --text-titre-3: 1.25rem;
+  --text-titre-3--line-height: 1.75rem;
   --text-titre-3--letter-spacing: -0.01em;
   --text-titre-3--font-weight: 600;
-  --text-corps-l: 1.0625rem;
-  --text-corps-l--line-height: 1.75rem;
-  --text-corps: 0.9375rem;
-  --text-corps--line-height: 1.5rem;
-  --text-petit: 0.8125rem;
-  --text-petit--line-height: 1.25rem;
+  --text-corps-l: 1.125rem;
+  --text-corps-l--line-height: 1.875rem;
+  --text-corps: 1rem;
+  --text-corps--line-height: 1.625rem;
+  --text-petit: 0.875rem;
+  --text-petit--line-height: 1.375rem;
   --text-logo: 1.3125rem;
   --text-logo--line-height: 1;
   --text-logo--letter-spacing: -0.03em;
   --text-logo--font-weight: 600;
-  --text-micro: 0.6875rem;
+  --text-micro: 0.75rem;
   --text-micro--line-height: 1rem;
-  --text-etiquette: 0.75rem;
-  --text-etiquette--line-height: 1rem;
+  --text-etiquette: 0.8125rem;
+  --text-etiquette--line-height: 1.125rem;
   --text-etiquette--letter-spacing: 0.04em;
   --text-etiquette--font-weight: 500;
 
@@ -184,9 +185,18 @@
 }
 
 @layer base {
+  /* Toute l'interface un cran plus grande (texte, boutons, champs, espacements : tout est en rem).
+     Les points de rupture, eux, restent en pixels du navigateur : la mise en page ne change pas. */
   :root {
     color-scheme: light;
     -webkit-text-size-adjust: 100%;
+    font-size: 106.25%;
+  }
+
+  @media (min-width: 48rem) {
+    :root {
+      font-size: 112.5%;
+    }
   }
 
   body {

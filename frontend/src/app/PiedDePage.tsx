@@ -8,6 +8,7 @@ const colonnes = [
     liens: [
       { vers: '/store', libelle: t.navigation.store },
       { vers: '/publier', libelle: t.navigation.publier },
+      { vers: '/backend-integre', libelle: 'Backend intégré' },
       { vers: '/copies', libelle: t.navigation.mesCopies },
     ],
   },

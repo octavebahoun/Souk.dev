@@ -51,10 +51,14 @@ function discussion(id: number, titre: string): Discussion {
   }
 }
 
+const pageVide = { data: [], links: { first: null, last: null, prev: null, next: null }, meta: { current_page: 1, last_page: 1, per_page: 20, total: 0 } }
+
 function reponses(discussions: Discussion[]) {
   vi.mocked(clientLocal.get).mockImplementation((url: string) => {
     if (url === cheminLaravel('/canaux')) return Promise.resolve({ data: canaux })
     if (url === cheminLaravel('/etiquettes')) return Promise.resolve({ data: etiquettes })
+    if (url === cheminLaravel('/session')) return Promise.resolve({ data: null })
+    if (url === cheminLaravel('/devs') || url === cheminLaravel('/events')) return Promise.resolve({ data: pageVide })
     if (url === cheminLaravel('/discussions')) {
       return Promise.resolve({
         data: {
@@ -80,26 +84,36 @@ describe('fil des discussions', () => {
     vi.mocked(clientLocal.get).mockReset()
   })
 
-  it('écrit le filtre étiquette dans l’URL', async () => {
+  it('l’onglet « Bugs à résoudre » filtre les bugs encore ouverts, dans l’URL', async () => {
     reponses([discussion(1, 'Callback MoMo')])
     const router = await rendu()
 
-    fireEvent.click(await screen.findByRole('button', { name: 'bug' }))
+    fireEvent.click(await screen.findByRole('tab', { name: 'Bugs à résoudre' }))
 
     await waitFor(() => {
       expect(router.state.location.search).toContain('etiquette=bug')
     })
+    expect(router.state.location.search).toContain('statut=ouvertes')
     expect(clientLocal.get).toHaveBeenCalledWith(
       cheminLaravel('/discussions'),
-      expect.objectContaining({ params: expect.objectContaining({ etiquette: 'bug' }) }),
+      expect.objectContaining({ params: expect.objectContaining({ etiquette: 'bug', statut: 'ouvertes' }) }),
     )
+  })
+
+  it('un bouton rapide ouvre le formulaire avec l’étiquette choisie (visiteur : invitation à se connecter)', async () => {
+    reponses([])
+    await rendu()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Je suis bloqué' }))
+
+    expect(await screen.findByRole('dialog')).toBeInTheDocument()
   })
 
   it('affiche l’état vide quand les filtres ne ramènent rien', async () => {
     reponses([])
     await rendu('/echange?etiquette=bug')
 
-    expect(await screen.findByText(/Aucune discussion pour ces filtres/)).toBeInTheDocument()
+    expect(await screen.findByText(/Aucun bug en attente ici/)).toBeInTheDocument()
     expect(screen.getAllByRole('button', { name: 'Effacer les filtres' }).length).toBeGreaterThan(0)
   })
 

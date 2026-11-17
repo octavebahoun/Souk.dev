@@ -36,7 +36,7 @@ function Recherche({ surFondSombre }: { surFondSombre: boolean }) {
         onChange={(evenement) => setTerme(evenement.target.value)}
         placeholder="Rechercher une appli…"
         className={cx(
-          'h-9 w-64 rounded-moyen border pr-3 pl-9 text-petit transition-[border-color,box-shadow,width] duration-200 ease-souk focus:w-80 focus:shadow-focus focus:outline-none focus-visible:outline-none',
+          'h-9 w-48 rounded-moyen border pr-3 pl-9 text-petit transition-[border-color,box-shadow,width] duration-200 ease-souk focus:w-64 focus:shadow-focus focus:outline-none focus-visible:outline-none min-[90rem]:w-64 min-[90rem]:focus:w-80',
           surFondSombre
             ? 'border-sur-couleur/20 bg-sur-couleur/10 text-sur-couleur placeholder:text-sur-couleur/70 focus:border-sur-couleur/60'
             : 'border-bordure bg-surface-douce text-titre focus:border-lien focus:bg-surface',
@@ -122,7 +122,7 @@ export function EnTeteSite({ surFondSombre = false }: EnTeteSiteProps) {
               end={lien.fin}
               className={({ isActive }) =>
                 cx(
-                  'inline-flex h-9 items-center rounded-moyen px-3 text-corps font-medium no-underline transition-colors duration-150',
+                  'inline-flex h-9 items-center rounded-moyen px-3 text-corps font-medium whitespace-nowrap no-underline transition-colors duration-150',
                   surFondSombre
                     ? isActive ? 'bg-sur-couleur/15 text-sur-couleur' : 'text-sur-couleur/80 hover:bg-sur-couleur/10 hover:text-sur-couleur'
                     : isActive ? 'bg-surface-accent text-sur-primaire-doux' : 'text-texte hover:bg-surface-douce hover:text-titre',

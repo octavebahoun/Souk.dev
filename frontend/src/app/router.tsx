@@ -33,6 +33,7 @@ export function creerRoutes(): RouteObject[] {
           { path: '/legal/cgu', lazy: async () => ({ Component: (await import('../features/legal/Legal')).Cgu }) },
           { path: '/legal/cgv', lazy: async () => ({ Component: (await import('../features/legal/Legal')).Cgv }) },
           { path: '/legal/confidentialite', lazy: async () => ({ Component: (await import('../features/legal/Legal')).Confidentialite }) },
+          { path: '/backend-integre', lazy: async () => ({ Component: (await import('../features/catalogue/BackendIntegre')).BackendIntegre }) },
           { path: '/legal/mentions', lazy: async () => ({ Component: (await import('../features/legal/Legal')).Mentions }) },
           { path: '/contact', element: <Navigate to="/legal/mentions" replace /> },
           { path: '/legal/abus', lazy: async () => ({ Component: (await import('../features/legal/Legal')).PolitiqueAbus }) },

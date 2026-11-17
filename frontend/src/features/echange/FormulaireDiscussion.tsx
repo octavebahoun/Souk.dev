@@ -44,6 +44,8 @@ const technos: Techno[] = [
 type FormulaireDiscussionProps = {
   canaux: Canal[]
   canalInitial?: string
+  /** Étiquette choisie d'avance par un bouton rapide (« Je suis bloqué » : bug). */
+  etiquetteInitiale?: Etiquette
   onPubliee: (discussion: Discussion) => void
   onAnnuler: () => void
 }
@@ -59,6 +61,7 @@ type ChampsLocaux = {
 export function FormulaireDiscussion({
   canaux,
   canalInitial,
+  etiquetteInitiale,
   onPubliee,
   onAnnuler,
 }: FormulaireDiscussionProps) {
@@ -69,7 +72,7 @@ export function FormulaireDiscussion({
     canalInitial ?? canaux.find((item) => item.slug === 'entraide-generale')?.slug ?? canaux.find((item) => item.pays === null)?.slug ?? canaux[0]?.slug ?? ''
   const [canalChoisi, setCanal] = useState<string | null>(null)
   const canal = canalChoisi ?? canalParDefaut
-  const [choisies, setChoisies] = useState<Etiquette[]>([])
+  const [choisies, setChoisies] = useState<Etiquette[]>(etiquetteInitiale ? [etiquetteInitiale] : [])
   const [erreurBug, setErreurBug] = useState('')
   const [attendu, setAttendu] = useState('')
   const [techno, setTechno] = useState<Techno | ''>('')

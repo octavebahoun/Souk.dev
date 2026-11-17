@@ -117,6 +117,11 @@ export function Fiche() {
           <div className="flex flex-wrap gap-1.5">
             <Badge ton="marque">{libelleCategorie(fiche.categorie)}</Badge>
             <BadgeSecurite statut={fiche.securite.statut} />
+            {fiche.backend === 'integre' ? (
+              <Link to="/backend-integre" className="no-underline">
+                <Badge ton="ia">Backend fourni par Souk.dev</Badge>
+              </Link>
+            ) : null}
             {fiche.stack.map((techno) => (
               <Badge key={techno}>{techno}</Badge>
             ))}
